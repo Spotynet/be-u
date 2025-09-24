@@ -1,0 +1,38 @@
+# === Global ===
+.vscode/
+.DS_Store
+.env
+*.log
+
+# === Backend (Django) ===
+backend/__pycache__/
+backend/*.pyc
+backend/db.sqlite3
+backend/media/
+backend/staticfiles/
+backend/venv/
+backend/*.pot
+backend/.env
+
+# === Mobile (Expo) ===
+mobile/node_modules/
+mobile/.expo/
+mobile/.expo-shared/
+mobile/web-build/
+mobile/dist/
+mobile/ios/
+mobile/android/
+mobile/.env
+
+
+# === Web (Next.js) ===
+web/node_modules/
+web/.next/
+web/out/
+web/.env
+web/.vercel
+web/build/
+web/coverage/
+web/dist/
+web/web-build/
+web/expo-env.d.ts
