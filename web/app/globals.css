@@ -1,1 +1,357 @@
 @import "tailwindcss";
+
+/* CSS Variables for Theme System */
+:root {
+  /* Radius */
+  --radius: 0.5rem;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-dropdown: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* Light Theme (Default) */
+:root,
+[data-theme="light"] {
+  /* Background colors */
+  --color-background: #ffffff;
+  --color-background-secondary: #f8fafc;
+
+  /* Text colors */
+  --color-foreground: #0f172a;
+  --color-foreground-secondary: #475569;
+  --color-foreground-muted: #64748b;
+
+  /* Card colors */
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  --color-card-border: #e2e8f0;
+
+  /* Primary colors */
+  --color-primary: #3b82f6;
+  --color-primary-foreground: #ffffff;
+  --color-primary-hover: #2563eb;
+  --color-primary-light: #dbeafe;
+  --color-primary-dark: #1e40af;
+
+  /* Secondary colors */
+  --color-secondary: #64748b;
+  --color-secondary-foreground: #ffffff;
+  --color-secondary-hover: #475569;
+  --color-secondary-light: #f1f5f9;
+  --color-secondary-dark: #334155;
+
+  /* Accent colors */
+  --color-accent: #8b5cf6;
+  --color-accent-foreground: #ffffff;
+  --color-accent-hover: #7c3aed;
+
+  /* Status colors */
+  --color-success: #10b981;
+  --color-success-foreground: #ffffff;
+  --color-success-light: #d1fae5;
+
+  --color-warning: #f59e0b;
+  --color-warning-foreground: #ffffff;
+  --color-warning-light: #fef3c7;
+
+  --color-error: #ef4444;
+  --color-error-foreground: #ffffff;
+  --color-error-light: #fee2e2;
+
+  /* Border colors */
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
+  --color-border-dark: #cbd5e1;
+
+  /* Input colors */
+  --color-input: #ffffff;
+  --color-input-border: #d1d5db;
+  --color-input-focus: #3b82f6;
+
+  /* Ring colors */
+  --color-ring: #3b82f6;
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+  /* Background colors */
+  --color-background: #0f172a;
+  --color-background-secondary: #1e293b;
+
+  /* Text colors */
+  --color-foreground: #f8fafc;
+  --color-foreground-secondary: #cbd5e1;
+  --color-foreground-muted: #94a3b8;
+
+  /* Card colors */
+  --color-card: #1e293b;
+  --color-card-foreground: #f8fafc;
+  --color-card-border: #334155;
+
+  /* Primary colors */
+  --color-primary: #60a5fa;
+  --color-primary-foreground: #0f172a;
+  --color-primary-hover: #3b82f6;
+  --color-primary-light: #1e3a8a;
+  --color-primary-dark: #1e40af;
+
+  /* Secondary colors */
+  --color-secondary: #94a3b8;
+  --color-secondary-foreground: #0f172a;
+  --color-secondary-hover: #cbd5e1;
+  --color-secondary-light: #334155;
+  --color-secondary-dark: #1e293b;
+
+  /* Accent colors */
+  --color-accent: #a78bfa;
+  --color-accent-foreground: #0f172a;
+  --color-accent-hover: #8b5cf6;
+
+  /* Status colors */
+  --color-success: #34d399;
+  --color-success-foreground: #0f172a;
+  --color-success-light: #064e3b;
+
+  --color-warning: #fbbf24;
+  --color-warning-foreground: #0f172a;
+  --color-warning-light: #78350f;
+
+  --color-error: #f87171;
+  --color-error-foreground: #0f172a;
+  --color-error-light: #7f1d1d;
+
+  /* Border colors */
+  --color-border: #334155;
+  --color-border-light: #475569;
+  --color-border-dark: #1e293b;
+
+  /* Input colors */
+  --color-input: #1e293b;
+  --color-input-border: #475569;
+  --color-input-focus: #60a5fa;
+
+  /* Ring colors */
+  --color-ring: #60a5fa;
+}
+
+/* Blue Theme */
+[data-theme="blue"] {
+  /* Background colors */
+  --color-background: #f0f9ff;
+  --color-background-secondary: #e0f2fe;
+
+  /* Text colors */
+  --color-foreground: #0c4a6e;
+  --color-foreground-secondary: #0369a1;
+  --color-foreground-muted: #0284c7;
+
+  /* Card colors */
+  --color-card: #ffffff;
+  --color-card-foreground: #0c4a6e;
+  --color-card-border: #bae6fd;
+
+  /* Primary colors */
+  --color-primary: #0284c7;
+  --color-primary-foreground: #ffffff;
+  --color-primary-hover: #0369a1;
+  --color-primary-light: #e0f2fe;
+  --color-primary-dark: #0c4a6e;
+
+  /* Secondary colors */
+  --color-secondary: #0369a1;
+  --color-secondary-foreground: #ffffff;
+  --color-secondary-hover: #0284c7;
+  --color-secondary-light: #f0f9ff;
+  --color-secondary-dark: #0c4a6e;
+
+  /* Accent colors */
+  --color-accent: #0ea5e9;
+  --color-accent-foreground: #ffffff;
+  --color-accent-hover: #0284c7;
+
+  /* Status colors */
+  --color-success: #10b981;
+  --color-success-foreground: #ffffff;
+  --color-success-light: #d1fae5;
+
+  --color-warning: #f59e0b;
+  --color-warning-foreground: #ffffff;
+  --color-warning-light: #fef3c7;
+
+  --color-error: #ef4444;
+  --color-error-foreground: #ffffff;
+  --color-error-light: #fee2e2;
+
+  /* Border colors */
+  --color-border: #bae6fd;
+  --color-border-light: #e0f2fe;
+  --color-border-dark: #7dd3fc;
+
+  /* Input colors */
+  --color-input: #ffffff;
+  --color-input-border: #bae6fd;
+  --color-input-focus: #0284c7;
+
+  /* Ring colors */
+  --color-ring: #0284c7;
+}
+
+/* Green Theme */
+[data-theme="green"] {
+  /* Background colors */
+  --color-background: #f0fdf4;
+  --color-background-secondary: #dcfce7;
+
+  /* Text colors */
+  --color-foreground: #14532d;
+  --color-foreground-secondary: #166534;
+  --color-foreground-muted: #15803d;
+
+  /* Card colors */
+  --color-card: #ffffff;
+  --color-card-foreground: #14532d;
+  --color-card-border: #bbf7d0;
+
+  /* Primary colors */
+  --color-primary: #16a34a;
+  --color-primary-foreground: #ffffff;
+  --color-primary-hover: #15803d;
+  --color-primary-light: #dcfce7;
+  --color-primary-dark: #14532d;
+
+  /* Secondary colors */
+  --color-secondary: #166534;
+  --color-secondary-foreground: #ffffff;
+  --color-secondary-hover: #15803d;
+  --color-secondary-light: #f0fdf4;
+  --color-secondary-dark: #14532d;
+
+  /* Accent colors */
+  --color-accent: #22c55e;
+  --color-accent-foreground: #ffffff;
+  --color-accent-hover: #16a34a;
+
+  /* Status colors */
+  --color-success: #10b981;
+  --color-success-foreground: #ffffff;
+  --color-success-light: #d1fae5;
+
+  --color-warning: #f59e0b;
+  --color-warning-foreground: #ffffff;
+  --color-warning-light: #fef3c7;
+
+  --color-error: #ef4444;
+  --color-error-foreground: #ffffff;
+  --color-error-light: #fee2e2;
+
+  /* Border colors */
+  --color-border: #bbf7d0;
+  --color-border-light: #dcfce7;
+  --color-border-dark: #86efac;
+
+  /* Input colors */
+  --color-input: #ffffff;
+  --color-input-border: #bbf7d0;
+  --color-input-focus: #16a34a;
+
+  /* Ring colors */
+  --color-ring: #16a34a;
+}
+
+/* Purple Theme */
+[data-theme="purple"] {
+  /* Background colors */
+  --color-background: #faf5ff;
+  --color-background-secondary: #f3e8ff;
+
+  /* Text colors */
+  --color-foreground: #581c87;
+  --color-foreground-secondary: #7c3aed;
+  --color-foreground-muted: #8b5cf6;
+
+  /* Card colors */
+  --color-card: #ffffff;
+  --color-card-foreground: #581c87;
+  --color-card-border: #e9d5ff;
+
+  /* Primary colors */
+  --color-primary: #8b5cf6;
+  --color-primary-foreground: #ffffff;
+  --color-primary-hover: #7c3aed;
+  --color-primary-light: #f3e8ff;
+  --color-primary-dark: #581c87;
+
+  /* Secondary colors */
+  --color-secondary: #7c3aed;
+  --color-secondary-foreground: #ffffff;
+  --color-secondary-hover: #8b5cf6;
+  --color-secondary-light: #faf5ff;
+  --color-secondary-dark: #581c87;
+
+  /* Accent colors */
+  --color-accent: #a855f7;
+  --color-accent-foreground: #ffffff;
+  --color-accent-hover: #8b5cf6;
+
+  /* Status colors */
+  --color-success: #10b981;
+  --color-success-foreground: #ffffff;
+  --color-success-light: #d1fae5;
+
+  --color-warning: #f59e0b;
+  --color-warning-foreground: #ffffff;
+  --color-warning-light: #fef3c7;
+
+  --color-error: #ef4444;
+  --color-error-foreground: #ffffff;
+  --color-error-light: #fee2e2;
+
+  /* Border colors */
+  --color-border: #e9d5ff;
+  --color-border-light: #f3e8ff;
+  --color-border-dark: #c4b5fd;
+
+  /* Input colors */
+  --color-input: #ffffff;
+  --color-input-border: #e9d5ff;
+  --color-input-focus: #8b5cf6;
+
+  /* Ring colors */
+  --color-ring: #8b5cf6;
+}
+
+/* Base styles */
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Theme transition animation */
+.theme-transition {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-dark);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-foreground-muted);
+}

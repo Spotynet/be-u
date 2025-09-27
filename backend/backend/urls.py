@@ -15,8 +15,19 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from django.http import HttpResponse
+from rest_framework.routers import DefaultRouter
+
+# Create a router for API endpoints
+router = DefaultRouter()
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('api/admin/', admin.site.urls),
+    path('api/', include(router.urls)),
+    path('api/', include('users.urls')),
+    # Add a simple test endpoint
+    path('api/test/', lambda request: HttpResponse('API is working!')),
+    # Root endpoint
+    path('', lambda request: HttpResponse('Django Backend is running on localhost:8000/api')),
 ]
