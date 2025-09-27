@@ -15,8 +15,8 @@ backend/staticfiles/
 backend/venv/
 backend/*.pot
 backend/.env
-backend/**/*.pyc
-backend/**/__pycache__/
+backend/backend/**/*.pyc
+backend/**/backend/**/__pycache__/
 
 # === Mobile (Expo) ===
 mobile/node_modules/
