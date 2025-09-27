@@ -161,11 +161,12 @@ REST_FRAMEWORK = {
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Next.js development server
+    "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://localhost:3001",  # Alternative port
+    "http://localhost:3001",
     "http://127.0.0.1:3001",
-    "https://stg.be-u.ai"
+    "https://stg.be-u.ai",
+    "https://be-u.ai"
 ]
 
 CORS_ALLOW_CREDENTIALS = True
