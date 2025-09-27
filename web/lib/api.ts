@@ -93,11 +93,12 @@ export const apiCall = async <T = any>(
     };
   } catch (error) {
     const axiosError = error as AxiosError;
+    const errorData = axiosError.response?.data as any;
 
     throw {
-      message: axiosError.response?.data?.message || axiosError.message || "An error occurred",
+      message: errorData?.message || axiosError.message || "An error occurred",
       status: axiosError.response?.status || 500,
-      errors: axiosError.response?.data?.errors,
+      errors: errorData?.errors,
     } as ApiError;
   }
 };

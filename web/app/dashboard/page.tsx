@@ -41,9 +41,7 @@ export default function DashboardPage() {
           <div className="space-y-8">
             {/* Welcome Section */}
             <div className="text-center">
-              <h2 className="text-3xl font-bold text-foreground mb-4">
-                Welcome to your Dashboard
-              </h2>
+              <h2 className="text-3xl font-bold text-foreground mb-4">Welcome to your Dashboard</h2>
               <p className="text-lg text-foreground-secondary max-w-2xl mx-auto">
                 Manage your wellness journey, book appointments, and track your progress.
               </p>
@@ -53,7 +51,9 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card hover>
                 <CardHeader>
-                  <h3 className="text-lg font-semibold text-card-foreground">Upcoming Appointments</h3>
+                  <h3 className="text-lg font-semibold text-card-foreground">
+                    Upcoming Appointments
+                  </h3>
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-primary">3</div>
@@ -169,24 +169,45 @@ export default function DashboardPage() {
                   <div>
                     <h4 className="font-medium text-foreground mb-2">Personal Information</h4>
                     <div className="space-y-2 text-sm">
-                      <p><span className="text-foreground-muted">Name:</span> {user?.firstName} {user?.lastName}</p>
-                      <p><span className="text-foreground-muted">Email:</span> {user?.email}</p>
-                      <p><span className="text-foreground-muted">Role:</span> {user?.role || 'Client'}</p>
-                      <p><span className="text-foreground-muted">Member since:</span> {user?.dateJoined ? new Date(user.dateJoined).toLocaleDateString() : 'N/A'}</p>
+                      <p>
+                        <span className="text-foreground-muted">Name:</span> {user?.firstName}{" "}
+                        {user?.lastName}
+                      </p>
+                      <p>
+                        <span className="text-foreground-muted">Email:</span> {user?.email}
+                      </p>
+                      <p>
+                        <span className="text-foreground-muted">Role:</span>{" "}
+                        {user?.isSuperuser ? "Superuser" : user?.isStaff ? "Staff" : "Client"}
+                      </p>
+                      <p>
+                        <span className="text-foreground-muted">Member since:</span>{" "}
+                        {user?.dateJoined ? new Date(user.dateJoined).toLocaleDateString() : "N/A"}
+                      </p>
                     </div>
                   </div>
                   <div>
                     <h4 className="font-medium text-foreground mb-2">Account Status</h4>
                     <div className="space-y-2 text-sm">
-                      <p><span className="text-foreground-muted">Status:</span> 
-                        <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                          user?.isActive ? 'bg-success-light text-success' : 'bg-error-light text-error'
-                        }`}>
-                          {user?.isActive ? 'Active' : 'Inactive'}
+                      <p>
+                        <span className="text-foreground-muted">Status:</span>
+                        <span
+                          className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                            user?.isActive
+                              ? "bg-success-light text-success"
+                              : "bg-error-light text-error"
+                          }`}>
+                          {user?.isActive ? "Active" : "Inactive"}
                         </span>
                       </p>
-                      <p><span className="text-foreground-muted">Last login:</span> {user?.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'N/A'}</p>
-                      <p><span className="text-foreground-muted">Staff access:</span> {user?.isStaff ? 'Yes' : 'No'}</p>
+                      <p>
+                        <span className="text-foreground-muted">Last login:</span>{" "}
+                        {user?.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "N/A"}
+                      </p>
+                      <p>
+                        <span className="text-foreground-muted">Staff access:</span>{" "}
+                        {user?.isStaff ? "Yes" : "No"}
+                      </p>
                     </div>
                   </div>
                 </div>
