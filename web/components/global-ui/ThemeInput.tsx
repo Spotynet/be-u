@@ -2,7 +2,7 @@
 
 import {InputHTMLAttributes, forwardRef, ReactNode} from "react";
 
-interface ThemeInputProps extends InputHTMLAttributes<HTMLInputElement> {
+interface ThemeInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
   label?: string;
   error?: string;
   helperText?: string;
