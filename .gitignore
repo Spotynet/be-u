@@ -40,3 +40,4 @@ web/coverage/
 web/dist/
 web/web-build/
 web/expo-env.d.ts
+web/.env.local
