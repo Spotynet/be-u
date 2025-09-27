@@ -43,7 +43,7 @@ export const ThemeToggle = ({variant = "dropdown", className = ""}: ThemeToggleP
         {isOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-            <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-card-border rounded-md shadow-dropdown z-20">
+            <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-border rounded-md shadow-lg z-20 backdrop-blur-sm">
               <div className="p-2">
                 <div className="text-xs font-medium text-foreground-muted mb-2 px-2">
                   Choose Theme
@@ -99,7 +99,7 @@ export const ThemeToggle = ({variant = "dropdown", className = ""}: ThemeToggleP
       {isOpen && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 w-64 bg-card border border-card-border rounded-md shadow-dropdown z-20">
+          <div className="absolute right-0 top-full mt-2 w-64 bg-card border border-border rounded-md shadow-lg z-20 backdrop-blur-sm">
             <div className="p-3">
               <div className="text-sm font-medium text-foreground mb-3">Choose Theme</div>
               <div className="space-y-1">
