@@ -1,12 +1,23 @@
 "use client";
 
+import {useEffect} from "react";
+import {useRouter} from "next/navigation";
 import {Card, CardContent, CardHeader} from "@/components/ui/Card";
 import {Button} from "@/components/ui/Button";
 import {ThemeToggle} from "@/components/ThemeToggle";
 import {useTheme} from "@/components/ThemeProvider";
+import {useAuth} from "@/hooks/useAuth";
 
 export default function Home() {
   const {theme, availableThemes} = useTheme();
+  const {isAuthenticated, isLoading} = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -19,6 +30,12 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-4">
               <ThemeToggle variant="dropdown" />
+              <Button variant="primary" size="sm" onClick={() => router.push("/login")}>
+                Login
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => router.push("/register")}>
+                Sign Up
+              </Button>
             </div>
           </div>
         </div>
@@ -127,11 +144,11 @@ export default function Home() {
 
           {/* Action Buttons */}
           <div className="flex justify-center gap-4">
-            <Button variant="primary" size="lg">
+            <Button variant="primary" size="lg" onClick={() => router.push("/register")}>
               Get Started
             </Button>
-            <Button variant="secondary" size="lg">
-              Learn More
+            <Button variant="secondary" size="lg" onClick={() => router.push("/login")}>
+              Sign In
             </Button>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import {useState} from "react";
 import {useRouter} from "next/navigation";
-import {authApi, tokenUtils, ApiError} from "@/lib/api";
+import {useAuth} from "@/hooks/useAuth";
 import {LoginCredentials} from "@/types/api";
 import {Card, CardContent, CardHeader} from "@/components/ui/Card";
 import {Button} from "@/components/ui/Button";
@@ -10,12 +10,11 @@ import {Input} from "@/components/ui/Input";
 import {ThemeToggle} from "@/components/ThemeToggle";
 
 export default function LoginPage() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<LoginCredentials>({
     email: "",
     password: "",
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const {login, error, clearError, isLoading} = useAuth();
   const router = useRouter();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,32 +24,25 @@ export default function LoginPage() {
       [name]: value,
     }));
     // Clear error when user starts typing
-    if (error) setError("");
+    if (error) clearError();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError("");
+
+    // Basic validation
+    if (!formData.email || !formData.password) {
+      console.log("Missing email or password");
+      return;
+    }
 
     try {
-      const credentials: LoginCredentials = {
-        email: formData.email,
-        password: formData.password,
-      };
-
-      const response = await authApi.login(credentials);
-
-      // Store the authentication token
-      tokenUtils.setToken(response.data.token);
-
-      // Redirect to home page or dashboard
-      router.push("/");
+      await login(formData);
+      // Redirect to dashboard after successful login
+      router.push("/dashboard");
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || "Login failed. Please check your credentials.");
-    } finally {
-      setIsLoading(false);
+      // Error is handled by the auth hook
+      console.error("Login failed:", err);
     }
   };
 

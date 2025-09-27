@@ -23,7 +23,10 @@ from rest_framework.routers import DefaultRouter
 router = DefaultRouter()
 
 urlpatterns = [
+    # Admin panel (both paths for convenience)
+    path('admin/', admin.site.urls),
     path('api/admin/', admin.site.urls),
+    # API endpoints
     path('api/', include(router.urls)),
     path('api/', include('users.urls')),
     # Add a simple test endpoint

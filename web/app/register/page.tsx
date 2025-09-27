@@ -2,7 +2,7 @@
 
 import {useState} from "react";
 import {useRouter} from "next/navigation";
-import {authApi, tokenUtils, ApiError} from "@/lib/api";
+import {useAuth} from "@/hooks/useAuth";
 import {RegisterData} from "@/types/api";
 import {Card, CardContent, CardHeader} from "@/components/ui/Card";
 import {Button} from "@/components/ui/Button";
@@ -17,8 +17,7 @@ export default function RegisterPage() {
     password: "",
     confirmPassword: "",
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const {register, error, clearError, isLoading} = useAuth();
   const router = useRouter();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,24 +27,20 @@ export default function RegisterPage() {
       [name]: value,
     }));
     // Clear error when user starts typing
-    if (error) setError("");
+    if (error) clearError();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError("");
 
     // Basic validation
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      setIsLoading(false);
+      // Use the auth hook's error handling
       return;
     }
 
     if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters long");
-      setIsLoading(false);
+      // Use the auth hook's error handling
       return;
     }
 
@@ -57,18 +52,12 @@ export default function RegisterPage() {
         password: formData.password,
       };
 
-      const response = await authApi.register(registerData);
-
-      // Store the authentication token
-      tokenUtils.setToken(response.data.token);
-
-      // Redirect to home page or dashboard
-      router.push("/");
+      await register(registerData);
+      // Redirect to dashboard after successful registration
+      router.push("/dashboard");
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || "Registration failed. Please try again.");
-    } finally {
-      setIsLoading(false);
+      // Error is handled by the auth hook
+      console.error("Registration failed:", err);
     }
   };
 

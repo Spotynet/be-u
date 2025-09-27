@@ -17,11 +17,23 @@ class User(AbstractUser):
         default=Role.CLIENT
     )
 
-    # Puedes usar el email como username si quieres
+    # Use email as the unique identifier
     email = models.EmailField(unique=True)
+    
+    # Make username optional since we're using email
+    username = models.CharField(max_length=150, unique=True, blank=True, null=True)
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
 
     def __str__(self):
-        return f"{self.username} ({self.role})"
+        return f"{self.email} ({self.role})"
+    
+    def save(self, *args, **kwargs):
+        # Auto-generate username from email if not provided
+        if not self.username:
+            self.username = self.email.split('@')[0]
+        super().save(*args, **kwargs)
 
 
 # ======================

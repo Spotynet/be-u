@@ -1,9 +1,9 @@
 "use client";
 
-import {useState, useEffect, createContext, useContext, ReactNode} from "react";
+import React, {useState, useEffect, createContext, useContext, ReactNode} from "react";
 import {useRouter} from "next/navigation";
-import {authApi, tokenUtils, ApiError} from "@/lib/api";
-import {User, LoginCredentials, RegisterData} from "@/types/api";
+import {authApi, tokenUtils, errorUtils} from "@/lib/api";
+import {User, LoginCredentials, RegisterData, ApiError} from "@/types/api";
 
 interface AuthContextType {
   user: User | null;
@@ -12,7 +12,11 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
+  updateProfile: (data: Partial<User>) => Promise<void>;
+  changePassword: (data: {oldPassword: string; newPassword: string}) => Promise<void>;
+  refreshUser: () => Promise<void>;
   error: string | null;
+  clearError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -67,11 +71,10 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
       tokenUtils.setToken(response.data.token);
       setUser(response.data.user);
 
-      // Redirect to home page
-      router.push("/");
+      // Don't redirect here - let the calling component handle it
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || "Login failed");
+      const errorMessage = errorUtils.getErrorMessage(err);
+      setError(errorMessage);
       throw err;
     } finally {
       setIsLoading(false);
@@ -89,11 +92,10 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
       tokenUtils.setToken(response.data.token);
       setUser(response.data.user);
 
-      // Redirect to home page
-      router.push("/");
+      // Don't redirect here - let the calling component handle it
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || "Registration failed");
+      const errorMessage = errorUtils.getErrorMessage(err);
+      setError(errorMessage);
       throw err;
     } finally {
       setIsLoading(false);
@@ -103,7 +105,57 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
   const logout = () => {
     tokenUtils.removeToken();
     setUser(null);
+    setError(null);
     router.push("/login");
+  };
+
+  const updateProfile = async (data: Partial<User>) => {
+    try {
+      setError(null);
+      setIsLoading(true);
+
+      const response = await authApi.updateProfile(data);
+      setUser(response.data);
+    } catch (err) {
+      const errorMessage = errorUtils.getErrorMessage(err);
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const changePassword = async (data: {oldPassword: string; newPassword: string}) => {
+    try {
+      setError(null);
+      setIsLoading(true);
+
+      await authApi.changePassword(data);
+    } catch (err) {
+      const errorMessage = errorUtils.getErrorMessage(err);
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      setError(null);
+      const response = await authApi.getProfile();
+      setUser(response.data);
+    } catch (err) {
+      // If refresh fails, user might need to login again
+      if (errorUtils.isAuthError(err)) {
+        logout();
+      }
+      throw err;
+    }
+  };
+
+  const clearError = () => {
+    setError(null);
   };
 
   const value: AuthContextType = {
@@ -113,9 +165,12 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
     login,
     register,
     logout,
+    updateProfile,
+    changePassword,
+    refreshUser,
     error,
+    clearError,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-
