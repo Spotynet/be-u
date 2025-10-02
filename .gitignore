@@ -5,6 +5,13 @@
 *.log
 
 # === Backend (Django) ===
+# Python compiled files
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.Python
+**/*.cpython-*.pyc
 backend/__pycache__/
 backend/*.pyc
 backend/**/*.pyc

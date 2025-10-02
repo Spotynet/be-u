@@ -1,21 +1,13 @@
-// User types
-export interface User {
-  id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  isActive: boolean;
-  dateJoined: string;
-  lastLogin?: string;
-  profilePicture?: string;
-  phoneNumber?: string;
-  dateOfBirth?: string;
-  address?: string;
-  city?: string;
-  country?: string;
-  isStaff?: boolean;
-  isSuperuser?: boolean;
-}
+// Re-export auth types for backward compatibility
+export type {
+  User,
+  LoginCredentials,
+  RegisterData,
+  AuthResponse,
+  ChangePasswordData,
+  ForgotPasswordData,
+  ResetPasswordData,
+} from "@/features/auth/types";
 
 // Service types
 export interface Service {
@@ -59,44 +51,6 @@ export interface Review {
   createdAt: string;
   updatedAt: string;
   isVerified: boolean;
-}
-
-// Auth types
-export interface LoginCredentials {
-  email: string;
-  password: string;
-}
-
-export interface RegisterData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  phoneNumber?: string;
-  dateOfBirth?: string;
-  address?: string;
-  city?: string;
-  country?: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  user: User;
-  refreshToken?: string;
-}
-
-export interface ChangePasswordData {
-  oldPassword: string;
-  newPassword: string;
-}
-
-export interface ForgotPasswordData {
-  email: string;
-}
-
-export interface ResetPasswordData {
-  token: string;
-  newPassword: string;
 }
 
 // Service creation/update types
