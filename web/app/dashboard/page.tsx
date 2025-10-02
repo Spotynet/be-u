@@ -1,7 +1,7 @@
 "use client";
 
-import {useAuth} from "@/hooks/useAuth";
-import {ProtectedRoute} from "@/components/ProtectedRoute";
+import {useAuth} from "@/features/auth/hooks/useAuth";
+import {ProtectedRoute} from "@/components/layout/ProtectedRoute";
 import {Card, CardContent, CardHeader} from "@/components/ui/Card";
 import {Button} from "@/components/ui/Button";
 import {ThemeToggle} from "@/components/ThemeToggle";

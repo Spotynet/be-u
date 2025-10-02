@@ -24,7 +24,14 @@ export const ThemeToggle = ({variant = "dropdown", className = ""}: ThemeToggleP
         }}
         className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-card text-card-foreground hover:bg-card-hover transition-colors ${className}`}
         title={`Current theme: ${currentTheme?.label}. Click to cycle themes.`}>
-        <div className="w-4 h-4 rounded-full bg-primary"></div>
+        <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"
+          />
+        </svg>
         <span className="text-sm font-medium">{currentTheme?.label}</span>
       </button>
     );
@@ -37,7 +44,18 @@ export const ThemeToggle = ({variant = "dropdown", className = ""}: ThemeToggleP
           onClick={() => setIsOpen(!isOpen)}
           className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-border bg-card text-card-foreground hover:bg-card-hover transition-colors"
           title={`Current theme: ${currentTheme?.label}`}>
-          <div className="w-3 h-3 rounded-full bg-primary"></div>
+          <svg
+            className="w-4 h-4 text-primary"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"
+            />
+          </svg>
         </button>
 
         {isOpen && (
@@ -60,11 +78,20 @@ export const ThemeToggle = ({variant = "dropdown", className = ""}: ThemeToggleP
                         ? "bg-primary text-primary-foreground"
                         : "text-card-foreground hover:bg-background-secondary"
                     }`}>
-                    <div
-                      className={`w-3 h-3 rounded-full ${
-                        theme === themeOption.value ? "bg-primary-foreground" : "bg-primary"
+                    <svg
+                      className={`w-3 h-3 ${
+                        theme === themeOption.value ? "text-primary-foreground" : "text-primary"
                       }`}
-                    />
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"
+                      />
+                    </svg>
                     <div className="text-left">
                       <div className="font-medium">{themeOption.label}</div>
                       <div className="text-xs opacity-75">{themeOption.description}</div>
@@ -85,7 +112,14 @@ export const ThemeToggle = ({variant = "dropdown", className = ""}: ThemeToggleP
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-card text-card-foreground hover:bg-card-hover transition-colors">
-        <div className="w-4 h-4 rounded-full bg-primary"></div>
+        <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"
+          />
+        </svg>
         <span className="text-sm font-medium">{currentTheme?.label}</span>
         <svg
           className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
@@ -115,11 +149,20 @@ export const ThemeToggle = ({variant = "dropdown", className = ""}: ThemeToggleP
                         ? "bg-primary text-primary-foreground"
                         : "text-card-foreground hover:bg-background-secondary"
                     }`}>
-                    <div
-                      className={`w-4 h-4 rounded-full ${
-                        theme === themeOption.value ? "bg-primary-foreground" : "bg-primary"
+                    <svg
+                      className={`w-4 h-4 ${
+                        theme === themeOption.value ? "text-primary-foreground" : "text-primary"
                       }`}
-                    />
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"
+                      />
+                    </svg>
                     <div className="text-left">
                       <div className="font-medium">{themeOption.label}</div>
                       <div className="text-xs opacity-75">{themeOption.description}</div>
