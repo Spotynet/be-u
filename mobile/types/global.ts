@@ -12,13 +12,16 @@ export interface User {
   updatedAt: string;
 }
 
+export type ServiceCategory = "belleza" | "wellness" | "mascotas";
+
 export interface Service {
   id: number;
   name: string;
   description: string;
   price: number;
   duration: number; // in minutes
-  category: string;
+  category: ServiceCategory;
+  subCategory: string; // e.g., "peluqueria", "yoga", "grooming", "facial", etc.
   image?: string;
   isActive: boolean;
   createdAt: string;

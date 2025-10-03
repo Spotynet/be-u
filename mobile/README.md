@@ -38,9 +38,15 @@ mobile/
 ├── app/                          # Expo Router file-based routing
 │   ├── (tabs)/                   # Tab navigation group
 │   │   ├── _layout.tsx          # Tab layout configuration
-│   │   ├── index.tsx            # Home tab
-│   │   └── explore.tsx          # Explore tab
+│   │   ├── index.tsx            # Home/Feed tab
+│   │   ├── explore.tsx          # Explore tab (3 progressive views)
+│   │   ├── be-u.tsx             # AI Chat tab
+│   │   ├── reservas.tsx         # Reservations tab
+│   │   └── perfil.tsx           # Profile tab
 │   ├── _layout.tsx              # Root layout with providers
+│   ├── map.tsx                  # 🗺️ Full-screen map page (NEW)
+│   ├── login.tsx                # Login screen
+│   ├── register.tsx             # Register screen
 │   └── modal.tsx                # Modal screens
 ├── components/                   # Reusable UI components
 │   └── ui/                      # Generic UI components
@@ -49,18 +55,27 @@ mobile/
 │       ├── Input.tsx            # Input component
 │       └── index.ts             # Barrel exports
 ├── features/                     # Business logic and feature code
-│   └── auth/                    # Authentication feature
+│   ├── auth/                    # Authentication feature
+│   ├── reservations/            # Reservations feature
+│   ├── reviews/                 # Reviews feature
+│   ├── services/                # Services feature
+│   └── users/                   # Users feature
 │       ├── hooks/               # Custom hooks
 │       ├── types/               # TypeScript type definitions
 │       ├── services/            # API services
 │       └── index.ts             # Feature barrel exports
 ├── constants/                    # App constants and configurations
-│   └── theme.ts                 # Theme colors and typography
+│   ├── theme.ts                 # Theme colors and typography
+│   └── categories.ts            # 🎯 Main & sub-categories (NEW)
 ├── lib/                         # Core utilities and configurations
 │   └── api.ts                   # API client and utilities
 ├── types/                       # Global type definitions
-│   └── global.ts                # Global types and interfaces
-└── assets/                      # Static assets
+│   └── global.ts                # Global types (ServiceCategory, etc.)
+├── assets/                      # Static assets
+├── MOBILE_STANDARDS.md          # Development standards
+├── EXPLORE_SCREEN_REDESIGN.md   # 📱 Explore page documentation
+├── MAP_PAGE_GUIDE.md            # 🗺️ Map page guide (NEW)
+└── README.md                    # This file
 ```
 
 ## 🎨 Theme System
@@ -133,6 +148,80 @@ Built with Expo Router for file-based routing:
 - **Stack Navigation**: Modal and screen transitions
 - **Type-safe Routes**: TypeScript support for navigation
 
+### Key Pages
+
+#### Home Feed (`/index`) 🎨 ✨
+
+**Masonry-style dynamic feed** - Completely unique in the market:
+
+- **Masonry Layout**: Cards of different sizes (Small, Medium, Large)
+- **7 Card Types**: Hero, Story Highlights, Reviews, Services, Promos, Tips, Before/After
+- **Category Colors**: Visual identification (Belleza 💄, Wellness 🧘, Mascotas 🐾)
+- **Dynamic Experience**: Asymmetric layout type Pinterest+
+- **Visual Priority**: Important content = larger cards
+
+**Differentiator**: Unlike traditional feeds (Instagram, Facebook), BE-U uses a dynamic mosaic that creates a visually rich and engaging experience. Each scroll reveals something new and surprising.
+
+See [HOME_FEED_REDESIGN.md](./HOME_FEED_REDESIGN.md) for complete documentation.
+
+#### Explore Page (`/explore`) 🌟 ✨
+
+**Discovery Experience** - Inspired by Spotify/Apple App Store:
+
+- **Hero Featured Card**: Immersive 420px card showcasing premium services
+- **Quick Categories**: Horizontal scroll with visual chips (Belleza, Wellness, Mascotas)
+- **Near You Section**: Nearby establishments with direct map integration
+- **Trending Now**: Most booked services with flame icon
+- **Curated Collections**: Editorial-style spotlights (Spas, Hair, Pets)
+- **Quick Actions Grid**: Fast access to Reservations, Favorites, Map, Offers
+
+**Philosophy**: Effortless discovery through visual storytelling, not structured navigation
+
+See [EXPLORE_DISCOVER_REDESIGN.md](./EXPLORE_DISCOVER_REDESIGN.md) for complete documentation.
+
+#### Map Page (`/map`) 🗺️ ✨
+
+Dedicated full-screen map experience:
+
+- **Full-Screen Map**: Interactive map with all establishments
+- **Category Filters**: Filter by Belleza, Wellness, or Mascotas
+- **Search Bar**: Find specific services or places
+- **Interactive Pins**: Color-coded pins (normal, favorite, selected)
+- **Rich Bottom Card**: Complete info with navigation & booking actions
+- **Floating Controls**: Quick access to location & list view
+
+**Access**: From explore page → "Explorar en Mapa" card
+
+See [MAP_PAGE_GUIDE.md](./MAP_PAGE_GUIDE.md) for detailed documentation.
+
+#### Profile Page (`/perfil`) 👤 ✨
+
+**3 Different Profile Types** with tab-based navigation:
+
+**🧑 Client Profile**:
+
+- Personal stats (Reservations, Reviews, Favorites)
+- Quick actions (View bookings, favorites, settings)
+- Consumption-focused interface
+
+**✂️ Professional Profile**:
+
+- Services list with prices and duration
+- Portfolio grid (3 columns)
+- Verified badge
+- Personal agenda and statistics
+- Independent freelancer focus
+
+**🏢 Salon/Business Profile**:
+
+- Business information (address, phone, team size)
+- Photo gallery of establishment
+- Team members showcase
+- Complete business management
+- Multi-professional administration
+
+See [PROFILE_TYPES_GUIDE.md](./PROFILE_TYPES_GUIDE.md) for complete documentation.
+
 ## 🛠 Development
 
 ### Code Standards
@@ -161,9 +250,49 @@ The app is configured to work with the Be-U backend API:
 - **Error Handling**: Centralized error handling
 - **Type Safety**: Full TypeScript integration
 
+## 🎯 App Architecture
+
+BE-U is organized around **3 main service categories**:
+
+1. **💄 Cuidado y Belleza** (Beauty & Care)
+
+   - Peluquería y Barbería
+   - Manicure y Pedicura
+   - Cuidado Facial y Corporal
+   - Maquillaje
+   - Pestañas y Cejas
+
+2. **🧘 Bienestar y Ejercicio** (Wellness & Exercise)
+
+   - Spa y Relajación
+   - Yoga, Pilates, Meditación
+   - Nutrición y Alimentación
+   - Terapias Alternativas
+   - Coaching Personal
+
+3. **🐾 Mascotas** (Pets)
+   - Cuidado y Alojamiento
+   - Grooming
+   - Salud y Bienestar
+   - Productos y Accesorios
+   - Servicios Especializados
+
+All features, services, and UI components are organized according to these categories.
+
+See [MOBILE_STANDARDS.md](./MOBILE_STANDARDS.md) for complete category structure.
+
 ## 📚 Resources
+
+### Documentation
+
+- [Mobile Development Standards](./MOBILE_STANDARDS.md) - Development guidelines & architecture
+- [Home Feed Redesign](./HOME_FEED_REDESIGN.md) - 🎨 Masonry feed documentation
+- [Explore Discover Experience](./EXPLORE_DISCOVER_REDESIGN.md) - 🌟 New explore page (v2.0)
+- [Map Page Guide](./MAP_PAGE_GUIDE.md) - 🗺️ Map functionality
+- [Profile Types Guide](./PROFILE_TYPES_GUIDE.md) - 👤 3 profile types (Client, Professional, Salon)
+
+### External Resources
 
 - [Expo Documentation](https://docs.expo.dev/)
 - [React Native Documentation](https://reactnative.dev/)
 - [NativeWind Documentation](https://www.nativewind.dev/)
-- [Mobile Development Standards](./MOBILE_STANDARDS.md)
