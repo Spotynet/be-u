@@ -2,6 +2,56 @@
 
 This document outlines the coding standards, folder structure, and best practices for the Be-U mobile application built with Expo Go and React Native. Use this as a reference for all mobile development tasks to ensure consistency and maintainability.
 
+## 🎯 App Architecture & Categories
+
+BE-U is organized around **3 main service categories** that define the entire app structure:
+
+### Main Categories
+
+1. **Cuidado y Belleza (Beauty & Care)**
+2. **Bienestar y Ejercicio (Wellness & Exercise)**
+3. **Mascotas (Pets)**
+
+### Sub-Categories Structure
+
+#### Cuidado y Belleza
+- **Peluquería y Barbería**: Corte, peinado, coloración, tratamientos capilares, alisados, extensiones
+- **Manicure y Pedicura**: Manicura, pedicura, esmaltado, uñas acrílicas, nail art
+- **Cuidado Facial y Corporal**: Limpieza facial, masajes, tratamientos faciales, depilación
+- **Maquillaje**: Maquillaje profesional, eventos, día/noche, clases
+- **Pestañas y Cejas**: Extensiones, rizado, diseño, depilación, laminado
+
+#### Bienestar y Ejercicio
+- **Spa y Relajación**: Masajes, tratamientos corporales, hidroterapia, rituales
+- **Yoga y Pilates**: Clases de yoga, pilates, meditación, mindfulness, Tai Chi
+- **Nutrición**: Asesoría nutricional, coaching, programas de desintoxicación
+- **Terapias Alternativas**: Reiki, acupuntura, aromaterapia, sonoterapia
+- **Coaching Personal**: Coaching de vida, talleres de desarrollo personal
+
+#### Mascotas
+- **Guardería y Alojamiento**: Guardería, alojamiento, paseos, visitas a domicilio
+- **Estética (Grooming)**: Peluquería, higiene, spa para mascotas
+- **Salud y Bienestar**: Veterinaria, consultas, cirugías, vacunas, rehabilitación
+- **Productos y Accesorios**: Alimentos, juguetes, ropa, camas, suministros
+- **Servicios Especializados**: Transporte, fotografía, servicios funerarios
+
+### Implementation Guidelines
+
+All features, services, and UI components should be organized according to these categories:
+
+```typescript
+// Example: Service/Provider data structure
+interface Service {
+  id: number;
+  name: string;
+  category: "belleza" | "wellness" | "mascotas";
+  subCategory: string; // e.g., "peluqueria", "yoga", "grooming"
+  // ... other fields
+}
+```
+
+**Navigation & Filtering**: The explore screen and all listing views should allow users to filter by main category and then by sub-category.
+
 ## 📁 Folder Structure & Architecture
 
 ### Core Principles

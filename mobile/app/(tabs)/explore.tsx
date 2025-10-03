@@ -1,262 +1,434 @@
-import {View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Image} from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  Image,
+  Dimensions,
+} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
 import {useState} from "react";
+import {useRouter} from "expo-router";
+import {LinearGradient} from "expo-linear-gradient";
+
+const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
 export default function Explore() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
-  const [activeCategory, setActiveCategory] = useState("todos");
-  const [viewMode, setViewMode] = useState<"mapa" | "lista">("mapa");
+  const router = useRouter();
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
+  // Categorías principales con colores y gradientes
   const categories = [
-    {id: "todos", name: "Todos", icon: "heart"},
-    {id: "manicure", name: "Manicure & Pedicure", icon: "hand-left"},
-    {id: "makeup", name: "Make Up", icon: "brush"},
-    {id: "barberia", name: "Barbería", icon: "cut"},
-    {id: "facial", name: "Facial", icon: "flower"},
-    {id: "masaje", name: "Masaje", icon: "fitness"},
+    {
+      id: "belleza",
+      name: "Belleza",
+      emoji: "💄",
+      gradient: ["#ec4899", "#f472b6"],
+      count: 234,
+    },
+    {
+      id: "wellness",
+      name: "Wellness",
+      emoji: "🧘",
+      gradient: ["#8b5cf6", "#a78bfa"],
+      count: 156,
+    },
+    {
+      id: "mascotas",
+      name: "Mascotas",
+      emoji: "🐾",
+      gradient: ["#f97316", "#fb923c"],
+      count: 89,
+    },
   ];
 
-  const salons = [
+  // Featured/Hero content
+  const featured = {
+    title: "Tratamiento Facial con LED",
+    subtitle: "Tecnología avanzada de rejuvenecimiento",
+    provider: "BE-U Spa Premium",
+    rating: 4.9,
+    price: "$1,200",
+    image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=400&fit=crop",
+    badge: "Destacado",
+    category: "belleza",
+  };
+
+  // Trending services
+  const trending = [
     {
       id: 1,
-      name: "BE-U Spa Premium",
+      name: "Masaje Relajante",
+      provider: "Zen Wellness",
+      image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=300&h=200&fit=crop",
+      price: "$800",
       rating: 4.8,
-      distance: "0.5 km",
-      image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400&h=200&fit=crop",
-      services: ["Facial", "Masaje", "Manicure"],
-      price: "Desde $800",
-      location: "Roma Norte, CDMX",
-      isFavorite: true,
+      category: "wellness",
     },
     {
       id: 2,
-      name: "BE-U Hair Studio",
+      name: "Corte y Color",
+      provider: "BE-U Hair Studio",
+      image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=300&h=200&fit=crop",
+      price: "$600",
       rating: 4.9,
-      distance: "1.2 km",
-      image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&h=200&fit=crop",
-      services: ["Corte", "Color", "Peinado"],
-      price: "Desde $600",
-      location: "Polanco, CDMX",
-      isFavorite: false,
+      category: "belleza",
     },
     {
       id: 3,
-      name: "BE-U Beauty Bar",
+      name: "Grooming Completo",
+      provider: "Pet Spa",
+      image: "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=300&h=200&fit=crop",
+      price: "$500",
       rating: 4.7,
-      distance: "0.8 km",
-      image: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=400&h=200&fit=crop",
-      services: ["Manicure", "Pedicure", "Makeup"],
-      price: "Desde $500",
-      location: "Condesa, CDMX",
-      isFavorite: true,
+      category: "mascotas",
     },
   ];
 
-  const renderMapView = () => (
-    <View style={[styles.mapContainer, {backgroundColor: colors.muted}]}>
-      {/* Map Placeholder */}
-      <View style={styles.mapPlaceholder}>
-        <Ionicons name="map" color={colors.mutedForeground} size={64} />
-        <Text style={[styles.mapPlaceholderText, {color: colors.mutedForeground}]}>
-          Vista de Mapa
-        </Text>
-        <Text style={[styles.mapPlaceholderSubtext, {color: colors.mutedForeground}]}>
-          Aquí se mostraría el mapa interactivo
-        </Text>
+  // Near you establishments
+  const nearYou = [
+    {
+      id: 1,
+      name: "BE-U Spa Premium",
+      distance: "0.5 km",
+      image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=200&h=200&fit=crop",
+      rating: 4.8,
+      category: "belleza",
+    },
+    {
+      id: 2,
+      name: "Flow Yoga Studio",
+      distance: "0.8 km",
+      image: "https://images.unsplash.com/photo-1545389336-cf090694435e?w=200&h=200&fit=crop",
+      rating: 4.9,
+      category: "wellness",
+    },
+    {
+      id: 3,
+      name: "Pet Grooming",
+      distance: "1.2 km",
+      image: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=200&h=200&fit=crop",
+      rating: 4.7,
+      category: "mascotas",
+    },
+  ];
 
-        {/* Map Markers */}
-        <View style={styles.mapMarkers}>
-          <View style={[styles.marker, {backgroundColor: colors.primary}]}>
-            <Ionicons name="location" color="#ffffff" size={16} />
-          </View>
-          <View style={[styles.marker, {backgroundColor: "#ef4444"}]}>
-            <Ionicons name="heart" color="#ffffff" size={12} />
-          </View>
-          <View style={[styles.marker, {backgroundColor: "#10b981"}]}>
-            <Ionicons name="star" color="#ffffff" size={12} />
-          </View>
-        </View>
-      </View>
-
-      {/* Bottom Card */}
-      <View style={[styles.bottomCard, {backgroundColor: colors.background}]}>
-        <View style={styles.salonCard}>
-          <Image source={{uri: salons[0].image}} style={styles.salonImage} />
-          <View style={styles.salonInfo}>
-            <Text style={[styles.salonName, {color: colors.foreground}]}>{salons[0].name}</Text>
-            <View style={styles.salonDetails}>
-              <Ionicons name="star" color="#fbbf24" size={16} />
-              <Text style={[styles.rating, {color: colors.foreground}]}>{salons[0].rating}</Text>
-              <Text style={[styles.distance, {color: colors.mutedForeground}]}>
-                • {salons[0].distance}
-              </Text>
-            </View>
-            <TouchableOpacity style={[styles.detailsButton, {backgroundColor: colors.primary}]}>
-              <Text style={[styles.detailsButtonText, {color: "#ffffff"}]}>Detalles</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderListView = () => (
-    <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
-      {salons.map((salon) => (
-        <View
-          key={salon.id}
-          style={[styles.salonCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-          <View style={styles.salonImageContainer}>
-            <Image source={{uri: salon.image}} style={styles.salonImage} />
-            <TouchableOpacity style={styles.favoriteButton}>
-              <Ionicons
-                name={salon.isFavorite ? "heart" : "heart-outline"}
-                color={salon.isFavorite ? "#ef4444" : colors.mutedForeground}
-                size={20}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.salonContent}>
-            <View style={styles.salonHeader}>
-              <Text style={[styles.salonName, {color: colors.foreground}]}>{salon.name}</Text>
-              <View style={styles.ratingContainer}>
-                <Ionicons name="star" color="#fbbf24" size={16} />
-                <Text style={[styles.rating, {color: colors.foreground}]}>{salon.rating}</Text>
-              </View>
-            </View>
-
-            <Text style={[styles.salonLocation, {color: colors.mutedForeground}]}>
-              {salon.location} • {salon.distance}
-            </Text>
-
-            <View style={styles.servicesContainer}>
-              {salon.services.map((service, index) => (
-                <View key={index} style={[styles.serviceTag, {backgroundColor: colors.muted}]}>
-                  <Text style={[styles.serviceText, {color: colors.foreground}]}>{service}</Text>
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.salonFooter}>
-              <Text style={[styles.price, {color: colors.primary}]}>{salon.price}</Text>
-              <TouchableOpacity style={[styles.bookButton, {backgroundColor: colors.primary}]}>
-                <Ionicons name="calendar" color="#ffffff" size={16} />
-                <Text style={[styles.bookButtonText, {color: "#ffffff"}]}>Reservar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      ))}
-    </ScrollView>
-  );
+  // Collections/Spotlights
+  const collections = [
+    {
+      id: 1,
+      title: "Relájate y Renuévate",
+      subtitle: "Los mejores spas de la ciudad",
+      image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=400&h=250&fit=crop",
+      count: 45,
+      gradient: ["rgba(139, 92, 246, 0.8)", "rgba(167, 139, 250, 0.6)"],
+    },
+    {
+      id: 2,
+      title: "Transforma tu Look",
+      subtitle: "Expertos en color y estilo",
+      image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&h=250&fit=crop",
+      count: 67,
+      gradient: ["rgba(236, 72, 153, 0.8)", "rgba(244, 114, 182, 0.6)"],
+    },
+    {
+      id: 3,
+      title: "Cuidado para tu Mascota",
+      subtitle: "Profesionales certificados",
+      image: "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400&h=250&fit=crop",
+      count: 34,
+      gradient: ["rgba(249, 115, 22, 0.8)", "rgba(251, 146, 60, 0.6)"],
+    },
+  ];
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Location Header */}
-      <View style={[styles.locationHeader, {backgroundColor: colors.background}]}>
-        <View style={styles.locationInfo}>
-          <Ionicons name="location" color={colors.primary} size={20} />
-          <Text style={[styles.locationText, {color: colors.foreground}]}>Mi ubicación</Text>
-        </View>
-        <Text style={[styles.address, {color: colors.mutedForeground}]}>
-          Orizaba 154, Roma Nte, Cuauhtémoc, 06700, CDMX
-        </Text>
-        <TouchableOpacity>
-          <Ionicons name="chevron-forward" color={colors.primary} size={20} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Category Filters */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoriesContainer}
-        contentContainerStyle={styles.categoriesContent}>
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category.id}
-            style={[styles.categoryItem, activeCategory === category.id && styles.activeCategory]}
-            onPress={() => setActiveCategory(category.id)}>
-            <Ionicons
-              name={category.icon as any}
-              color={activeCategory === category.id ? colors.primary : colors.mutedForeground}
-              size={20}
-            />
-            <Text
-              style={[
-                styles.categoryText,
-                {color: activeCategory === category.id ? colors.primary : colors.mutedForeground},
-              ]}>
-              {category.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
+      {/* Sticky Search Header */}
+      <View style={[styles.searchHeader, {backgroundColor: colors.background}]}>
         <View
-          style={[styles.searchBar, {backgroundColor: colors.input, borderColor: colors.border}]}>
+          style={[
+            styles.searchContainer,
+            searchFocused && {borderColor: colors.primary},
+            {backgroundColor: colors.input, borderColor: colors.border},
+          ]}>
           <Ionicons name="search" color={colors.mutedForeground} size={20} />
           <TextInput
             style={[styles.searchInput, {color: colors.foreground}]}
-            placeholder="Buscar salones, servicios..."
+            placeholder="Buscar servicios, lugares..."
             placeholderTextColor={colors.mutedForeground}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
           />
+          {searchFocused && (
+            <TouchableOpacity onPress={() => setSearchFocused(false)}>
+              <Ionicons name="close-circle" color={colors.mutedForeground} size={20} />
+            </TouchableOpacity>
+          )}
         </View>
-      </View>
-
-      {/* View Toggle */}
-      <View style={styles.viewToggleContainer}>
         <TouchableOpacity
-          style={[
-            styles.viewToggle,
-            viewMode === "mapa" && styles.activeViewToggle,
-            viewMode === "mapa" && {backgroundColor: colors.primary},
-          ]}
-          onPress={() => setViewMode("mapa")}>
-          <Ionicons
-            name="map"
-            color={viewMode === "mapa" ? "#ffffff" : colors.mutedForeground}
-            size={18}
-          />
-          <Text
-            style={[
-              styles.viewToggleText,
-              {color: viewMode === "mapa" ? "#ffffff" : colors.mutedForeground},
-            ]}>
-            Mapa
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.viewToggle,
-            viewMode === "lista" && styles.activeViewToggle,
-            viewMode === "lista" && {backgroundColor: colors.primary},
-          ]}
-          onPress={() => setViewMode("lista")}>
-          <Ionicons
-            name="list"
-            color={viewMode === "lista" ? "#ffffff" : colors.mutedForeground}
-            size={18}
-          />
-          <Text
-            style={[
-              styles.viewToggleText,
-              {color: viewMode === "lista" ? "#ffffff" : colors.mutedForeground},
-            ]}>
-            Lista
-          </Text>
+          style={[styles.filterButton, {backgroundColor: colors.card, borderColor: colors.border}]}
+          activeOpacity={0.7}>
+          <Ionicons name="options" color={colors.foreground} size={20} />
         </TouchableOpacity>
       </View>
 
-      {/* Content Area */}
-      {viewMode === "mapa" ? renderMapView() : renderListView()}
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.contentContainer}>
+        {/* Featured/Hero Section */}
+        <TouchableOpacity style={styles.featuredCard} activeOpacity={0.95}>
+          <Image source={{uri: featured.image}} style={styles.featuredImage} />
+          <View style={styles.featuredOverlay}>
+            <View style={[styles.featuredBadge, {backgroundColor: colors.primary}]}>
+              <Ionicons name="star" color="#ffffff" size={14} />
+              <Text style={styles.featuredBadgeText}>{featured.badge}</Text>
+            </View>
+
+            <View style={styles.featuredContent}>
+              <Text style={styles.featuredProvider}>{featured.provider}</Text>
+              <Text style={styles.featuredTitle}>{featured.title}</Text>
+              <Text style={styles.featuredSubtitle}>{featured.subtitle}</Text>
+
+              <View style={styles.featuredFooter}>
+                <View style={styles.featuredRating}>
+                  <Ionicons name="star" color="#fbbf24" size={16} />
+                  <Text style={styles.featuredRatingText}>{featured.rating}</Text>
+                </View>
+                <Text style={styles.featuredPrice}>{featured.price}</Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Quick Categories */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Categorías</Text>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesScroll}>
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={styles.categoryCard}
+                activeOpacity={0.9}
+                onPress={() => setSelectedCategory(category.id)}>
+                <View
+                  style={[
+                    styles.categoryCardContent,
+                    {backgroundColor: category.gradient[0] + "15"},
+                  ]}>
+                  <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                  <Text style={[styles.categoryName, {color: colors.foreground}]}>
+                    {category.name}
+                  </Text>
+                  <Text style={[styles.categoryCount, {color: colors.mutedForeground}]}>
+                    {category.count} servicios
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Near You */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Cerca de ti</Text>
+              <Text style={[styles.sectionSubtitle, {color: colors.mutedForeground}]}>
+                Establecimientos a menos de 2 km
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => router.push("/map")}
+              style={[styles.sectionAction, {backgroundColor: colors.primary + "15"}]}>
+              <Ionicons name="map" color={colors.primary} size={16} />
+              <Text style={[styles.sectionActionText, {color: colors.primary}]}>Ver mapa</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.nearYouScroll}>
+            {nearYou.map((place) => (
+              <TouchableOpacity key={place.id} style={styles.nearYouCard} activeOpacity={0.9}>
+                <Image source={{uri: place.image}} style={styles.nearYouImage} />
+                <View style={styles.nearYouContent}>
+                  <Text style={[styles.nearYouName, {color: colors.foreground}]} numberOfLines={1}>
+                    {place.name}
+                  </Text>
+                  <View style={styles.nearYouMeta}>
+                    <Ionicons name="location" color={colors.primary} size={12} />
+                    <Text style={[styles.nearYouDistance, {color: colors.mutedForeground}]}>
+                      {place.distance}
+                    </Text>
+                  </View>
+                  <View style={styles.nearYouRating}>
+                    <Ionicons name="star" color="#fbbf24" size={12} />
+                    <Text style={[styles.nearYouRatingText, {color: colors.foreground}]}>
+                      {place.rating}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Trending Now */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+                <Ionicons name="flame" color="#ef4444" size={20} /> Tendencia
+              </Text>
+              <Text style={[styles.sectionSubtitle, {color: colors.mutedForeground}]}>
+                Lo más reservado esta semana
+              </Text>
+            </View>
+            <TouchableOpacity>
+              <Text style={[styles.seeAll, {color: colors.primary}]}>Ver todo</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.trendingScroll}>
+            {trending.map((service) => (
+              <TouchableOpacity key={service.id} style={styles.trendingCard} activeOpacity={0.9}>
+                <Image source={{uri: service.image}} style={styles.trendingImage} />
+                <View style={styles.trendingGradient}>
+                  <View style={styles.trendingContent}>
+                    <Text style={styles.trendingName}>{service.name}</Text>
+                    <Text style={styles.trendingProvider}>{service.provider}</Text>
+                    <View style={styles.trendingFooter}>
+                      <View style={styles.trendingRating}>
+                        <Ionicons name="star" color="#fbbf24" size={14} />
+                        <Text style={styles.trendingRatingText}>{service.rating}</Text>
+                      </View>
+                      <Text style={styles.trendingPrice}>{service.price}</Text>
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Collections/Spotlights */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+              Colecciones Destacadas
+            </Text>
+          </View>
+
+          <View style={styles.collectionsContainer}>
+            {collections.map((collection) => (
+              <TouchableOpacity
+                key={collection.id}
+                style={styles.collectionCard}
+                activeOpacity={0.9}>
+                <Image source={{uri: collection.image}} style={styles.collectionImage} />
+                <View style={styles.collectionOverlay}>
+                  <View style={styles.collectionContent}>
+                    <Text style={styles.collectionTitle}>{collection.title}</Text>
+                    <Text style={styles.collectionSubtitle}>{collection.subtitle}</Text>
+                    <View style={styles.collectionBadge}>
+                      <Text style={styles.collectionCount}>{collection.count} lugares</Text>
+                      <Ionicons name="arrow-forward" color="#ffffff" size={16} />
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={[styles.section, styles.lastSection]}>
+          <View style={styles.quickActionsGrid}>
+            <TouchableOpacity
+              style={[
+                styles.quickActionCard,
+                {backgroundColor: colors.card, borderColor: colors.border},
+              ]}
+              activeOpacity={0.7}>
+              <View style={[styles.quickActionIcon, {backgroundColor: "#ec4899" + "15"}]}>
+                <Ionicons name="calendar" color="#ec4899" size={24} />
+              </View>
+              <Text style={[styles.quickActionTitle, {color: colors.foreground}]}>
+                Mis Reservas
+              </Text>
+              <Text style={[styles.quickActionSubtitle, {color: colors.mutedForeground}]}>
+                Ver y gestionar
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.quickActionCard,
+                {backgroundColor: colors.card, borderColor: colors.border},
+              ]}
+              activeOpacity={0.7}>
+              <View style={[styles.quickActionIcon, {backgroundColor: "#8b5cf6" + "15"}]}>
+                <Ionicons name="heart" color="#8b5cf6" size={24} />
+              </View>
+              <Text style={[styles.quickActionTitle, {color: colors.foreground}]}>Favoritos</Text>
+              <Text style={[styles.quickActionSubtitle, {color: colors.mutedForeground}]}>
+                Lugares guardados
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.quickActionCard,
+                {backgroundColor: colors.card, borderColor: colors.border},
+              ]}
+              activeOpacity={0.7}
+              onPress={() => router.push("/map")}>
+              <View style={[styles.quickActionIcon, {backgroundColor: "#f97316" + "15"}]}>
+                <Ionicons name="map" color="#f97316" size={24} />
+              </View>
+              <Text style={[styles.quickActionTitle, {color: colors.foreground}]}>
+                Explorar Mapa
+              </Text>
+              <Text style={[styles.quickActionSubtitle, {color: colors.mutedForeground}]}>
+                Vista completa
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.quickActionCard,
+                {backgroundColor: colors.card, borderColor: colors.border},
+              ]}
+              activeOpacity={0.7}>
+              <View style={[styles.quickActionIcon, {backgroundColor: "#10b981" + "15"}]}>
+                <Ionicons name="gift" color="#10b981" size={24} />
+              </View>
+              <Text style={[styles.quickActionTitle, {color: colors.foreground}]}>Ofertas</Text>
+              <Text style={[styles.quickActionSubtitle, {color: colors.mutedForeground}]}>
+                Descuentos especiales
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -265,59 +437,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  locationHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+  searchHeader: {
     paddingHorizontal: 16,
     paddingTop: 60,
     paddingBottom: 12,
-    gap: 8,
-  },
-  locationInfo: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  locationText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  address: {
-    flex: 1,
-    fontSize: 14,
-  },
-  categoriesContainer: {
-    paddingVertical: 4,
-  },
-  categoriesContent: {
-    paddingHorizontal: 16,
-    gap: 16,
-  },
-  categoryItem: {
-    alignItems: "center",
-    paddingVertical: 4,
-    paddingBottom: 2,
-    minWidth: 80,
-  },
-  activeCategory: {
-    // No border needed
-  },
-  categoryText: {
-    fontSize: 12,
-    fontWeight: "500",
-    marginTop: 2,
-    textAlign: "center",
+    gap: 12,
   },
   searchContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
-  },
-  searchBar: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 2,
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 12,
@@ -326,189 +458,334 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
   },
-  viewToggleContainer: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
-    gap: 8,
-  },
-  viewToggle: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: "#f3f4f6",
-    gap: 6,
-  },
-  activeViewToggle: {
-    backgroundColor: "#8b5cf6",
-  },
-  viewToggleText: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  mapContainer: {
-    flex: 1,
-    position: "relative",
-  },
-  mapPlaceholder: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 32,
-  },
-  mapPlaceholderText: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  mapPlaceholderSubtext: {
-    fontSize: 14,
-    textAlign: "center",
-  },
-  mapMarkers: {
-    position: "absolute",
-    top: "30%",
-    left: "20%",
-    gap: 20,
-  },
-  marker: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  bottomCard: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
-    shadowOffset: {
-      width: 0,
-      height: -4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  listContainer: {
-    flex: 1,
-    padding: 16,
-  },
-  salonCard: {
+  filterButton: {
+    width: 48,
+    height: 48,
     borderRadius: 16,
     borderWidth: 1,
-    marginBottom: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingBottom: 100,
+  },
+
+  // Featured/Hero Card
+  featuredCard: {
+    height: 420,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 24,
     overflow: "hidden",
   },
-  salonImageContainer: {
-    position: "relative",
-    height: 200,
-  },
-  salonImage: {
+  featuredImage: {
     width: "100%",
     height: "100%",
     resizeMode: "cover",
   },
-  favoriteButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  salonContent: {
-    padding: 16,
-  },
-  salonHeader: {
-    flexDirection: "row",
+  featuredOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    background: "linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.8) 100%)",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 8,
+    padding: 20,
   },
-  salonName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    flex: 1,
-  },
-  ratingContainer: {
+  featuredBadge: {
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-  },
-  rating: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  salonLocation: {
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  servicesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 16,
-  },
-  serviceTag: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
-  },
-  serviceText: {
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  salonFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  price: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  bookButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
     borderRadius: 20,
     gap: 6,
   },
-  bookButtonText: {
+  featuredBadgeText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  featuredContent: {
+    marginTop: "auto",
+  },
+  featuredProvider: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "600",
+    opacity: 0.9,
+    marginBottom: 4,
+  },
+  featuredTitle: {
+    color: "#ffffff",
+    fontSize: 28,
+    fontWeight: "bold",
+    marginBottom: 8,
+    lineHeight: 34,
+  },
+  featuredSubtitle: {
+    color: "#ffffff",
+    fontSize: 16,
+    opacity: 0.9,
+    marginBottom: 16,
+  },
+  featuredFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  featuredRating: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  featuredRatingText: {
+    color: "#ffffff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  featuredPrice: {
+    color: "#ffffff",
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+
+  // Sections
+  section: {
+    marginTop: 32,
+  },
+  lastSection: {
+    marginBottom: 0,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  sectionAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  sectionActionText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  seeAll: {
     fontSize: 14,
     fontWeight: "600",
   },
-  salonDetails: {
+
+  // Categories
+  categoriesScroll: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  categoryCard: {
+    width: 140,
+  },
+  categoryCardContent: {
+    padding: 20,
+    borderRadius: 20,
+    alignItems: "center",
+  },
+  categoryEmoji: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  categoryName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  categoryCount: {
+    fontSize: 12,
+  },
+
+  // Near You
+  nearYouScroll: {
+    paddingHorizontal: 16,
+    gap: 16,
+  },
+  nearYouCard: {
+    width: 140,
+  },
+  nearYouImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  nearYouContent: {
+    gap: 6,
+  },
+  nearYouName: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  nearYouMeta: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginBottom: 8,
   },
-  distance: {
-    fontSize: 14,
+  nearYouDistance: {
+    fontSize: 12,
   },
-  detailsButton: {
+  nearYouRating: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  nearYouRatingText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  // Trending
+  trendingScroll: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    alignSelf: "flex-start",
+    gap: 16,
   },
-  detailsButtonText: {
+  trendingCard: {
+    width: 260,
+    height: 200,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  trendingImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  trendingGradient: {
+    ...StyleSheet.absoluteFillObject,
+    background: "linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.9) 100%)",
+    justifyContent: "flex-end",
+  },
+  trendingContent: {
+    padding: 16,
+  },
+  trendingName: {
+    color: "#ffffff",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  trendingProvider: {
+    color: "#ffffff",
+    fontSize: 13,
+    opacity: 0.9,
+    marginBottom: 12,
+  },
+  trendingFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  trendingRating: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  trendingRatingText: {
+    color: "#ffffff",
     fontSize: 14,
     fontWeight: "600",
+  },
+  trendingPrice: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+
+  // Collections
+  collectionsContainer: {
+    paddingHorizontal: 16,
+    gap: 16,
+  },
+  collectionCard: {
+    height: 180,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  collectionImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  collectionOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    background: "linear-gradient(to bottom, transparent 20%, rgba(0,0,0,0.7) 100%)",
+    justifyContent: "flex-end",
+  },
+  collectionContent: {
+    padding: 20,
+  },
+  collectionTitle: {
+    color: "#ffffff",
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  collectionSubtitle: {
+    color: "#ffffff",
+    fontSize: 14,
+    opacity: 0.9,
+    marginBottom: 12,
+  },
+  collectionBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  collectionCount: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  // Quick Actions
+  quickActionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  quickActionCard: {
+    width: (SCREEN_WIDTH - 44) / 2,
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  quickActionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  quickActionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  quickActionSubtitle: {
+    fontSize: 13,
   },
 });
