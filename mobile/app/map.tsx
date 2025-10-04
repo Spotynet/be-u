@@ -1,364 +1,332 @@
-import {View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, TextInput} from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  TextInput,
+  Animated,
+} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
-import {useState} from "react";
+import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
-import {MAIN_CATEGORIES, getCategoryEmoji} from "@/constants/categories";
 
 export default function MapScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const [selectedSalon, setSelectedSalon] = useState<number | null>(null);
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  const salons = [
-    // Belleza
+  // Lugares con estilo Snapchat (con avatares/bitmojis)
+  const places = [
     {
       id: 1,
-      name: "BE-U Spa Premium",
+      name: "BE-U Spa",
       category: "belleza",
-      rating: 4.8,
+      avatar: "💇‍♀️",
+      rating: 4.9,
       distance: "0.5 km",
       image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400&h=200&fit=crop",
-      price: "Desde $800",
-      coordinates: {top: "30%", left: "25%"},
-      isFavorite: true,
+      price: "$$",
+      coordinates: {top: "30%", left: "28%"},
+      isHot: true,
+      color: "#FF69B4",
     },
     {
       id: 2,
-      name: "BE-U Hair Studio",
+      name: "Hair Studio",
       category: "belleza",
-      rating: 4.9,
-      distance: "1.2 km",
+      avatar: "✂️",
+      rating: 4.8,
+      distance: "0.8 km",
       image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&h=200&fit=crop",
-      price: "Desde $600",
-      coordinates: {top: "45%", left: "60%"},
-      isFavorite: false,
+      price: "$$$",
+      coordinates: {top: "45%", left: "65%"},
+      isHot: false,
+      color: "#FFB6C1",
     },
     {
       id: 3,
-      name: "BE-U Beauty Bar",
-      category: "belleza",
-      rating: 4.7,
-      distance: "0.8 km",
-      image: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=400&h=200&fit=crop",
-      price: "Desde $500",
-      coordinates: {top: "55%", left: "35%"},
-      isFavorite: true,
+      name: "Zen Studio",
+      category: "wellness",
+      avatar: "🧘‍♀️",
+      rating: 4.9,
+      distance: "1.2 km",
+      image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400&h=200&fit=crop",
+      price: "$$",
+      coordinates: {top: "25%", left: "72%"},
+      isHot: true,
+      color: "#DDA0DD",
     },
-    // Wellness
     {
       id: 4,
-      name: "Zen Wellness Center",
+      name: "Flow Yoga",
       category: "wellness",
-      rating: 4.9,
+      avatar: "🌸",
+      rating: 4.7,
       distance: "1.5 km",
-      image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400&h=200&fit=crop",
-      price: "Desde $1,200",
-      coordinates: {top: "25%", left: "70%"},
-      isFavorite: false,
+      image: "https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&h=200&fit=crop",
+      price: "$",
+      coordinates: {top: "60%", left: "55%"},
+      isHot: false,
+      color: "#E6B3E6",
     },
     {
       id: 5,
-      name: "Flow Yoga Studio",
-      category: "wellness",
+      name: "Pet Spa",
+      category: "mascotas",
+      avatar: "🐾",
       rating: 4.8,
       distance: "0.9 km",
-      image: "https://images.unsplash.com/photo-1545389336-cf090694435e?w=400&h=200&fit=crop",
-      price: "Desde $300",
-      coordinates: {top: "65%", left: "50%"},
-      isFavorite: true,
+      image: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=400&h=200&fit=crop",
+      price: "$$",
+      coordinates: {top: "40%", left: "20%"},
+      isHot: false,
+      color: "#FFB347",
     },
-    // Mascotas
     {
       id: 6,
-      name: "Pet Spa & Grooming",
+      name: "Clínica Vet",
       category: "mascotas",
-      rating: 4.7,
+      avatar: "🏥",
+      rating: 4.9,
       distance: "2.0 km",
-      image: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=400&h=200&fit=crop",
-      price: "Desde $400",
-      coordinates: {top: "40%", left: "15%"},
-      isFavorite: false,
+      image: "https://images.unsplash.com/photo-1630438994394-3deff7a591bf?w=400&h=200&fit=crop",
+      price: "$$$",
+      coordinates: {top: "70%", left: "75%"},
+      isHot: true,
+      color: "#FFD700",
     },
     {
       id: 7,
-      name: "Clínica Veterinaria BE-U",
-      category: "mascotas",
-      rating: 4.9,
+      name: "Beauty Bar",
+      category: "belleza",
+      avatar: "💅",
+      rating: 4.7,
       distance: "1.8 km",
-      image: "https://images.unsplash.com/photo-1630438994394-3deff7a591bf?w=400&h=200&fit=crop",
-      price: "Desde $600",
-      coordinates: {top: "70%", left: "75%"},
-      isFavorite: true,
+      image: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=400&h=200&fit=crop",
+      price: "$$",
+      coordinates: {top: "55%", left: "38%"},
+      isHot: false,
+      color: "#FF69B4",
     },
   ];
 
-  const filteredSalons = activeFilter
-    ? salons.filter((salon) => salon.category === activeFilter)
-    : salons;
+  const selectedPlace = selectedSalon ? places.find((p) => p.id === selectedSalon) : null;
 
-  const selectedSalonData = selectedSalon
-    ? filteredSalons.find((s) => s.id === selectedSalon)
-    : null;
-
-  const getPinColor = (salon: any) => {
-    if (selectedSalon === salon.id) return colors.primary;
-    if (salon.isFavorite) return "#10b981";
-    return "#ef4444";
-  };
+  useEffect(() => {
+    if (selectedSalon) {
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 1.1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [selectedSalon]);
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {backgroundColor: colors.background, borderBottomColor: colors.border},
-        ]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-          <Ionicons name="arrow-back" color={colors.foreground} size={24} />
+      {/* Snapchat-style Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="chevron-back" color={colors.foreground} size={28} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Mapa de Servicios</Text>
+          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Mapa</Text>
           <Text style={[styles.headerSubtitle, {color: colors.mutedForeground}]}>
-            {filteredSalons.length} establecimientos
+            {places.length} lugares
           </Text>
         </View>
-        <TouchableOpacity
-          onPress={() => setShowFilters(!showFilters)}
-          style={[styles.headerButton, showFilters && {backgroundColor: colors.primary + "15"}]}>
-          <Ionicons
-            name="options"
-            color={showFilters ? colors.primary : colors.foreground}
-            size={24}
-          />
+        <TouchableOpacity style={[styles.locationButton, {backgroundColor: colors.primary}]}>
+          <Ionicons name="navigate" color="#ffffff" size={20} />
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
+      {/* Search */}
       <View style={styles.searchContainer}>
-        <View
-          style={[styles.searchBar, {backgroundColor: colors.input, borderColor: colors.border}]}>
-          <Ionicons name="search" color={colors.mutedForeground} size={20} />
+        <View style={[styles.searchBar, {backgroundColor: colors.card}]}>
+          <Ionicons name="search" color={colors.mutedForeground} size={18} />
           <TextInput
             style={[styles.searchInput, {color: colors.foreground}]}
-            placeholder="Buscar en el mapa..."
+            placeholder="Buscar lugares..."
             placeholderTextColor={colors.mutedForeground}
           />
         </View>
       </View>
 
-      {/* Category Filters */}
-      {showFilters && (
-        <View style={styles.filtersContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filtersScroll}>
-            <TouchableOpacity
-              style={[
-                styles.filterChip,
-                !activeFilter && [styles.activeFilterChip, {backgroundColor: colors.primary}],
-                {borderColor: colors.border},
-              ]}
-              onPress={() => setActiveFilter(null)}>
-              <Text
-                style={[
-                  styles.filterChipText,
-                  {color: !activeFilter ? "#ffffff" : colors.foreground},
-                ]}>
-                Todos
-              </Text>
-            </TouchableOpacity>
-
-            {MAIN_CATEGORIES.filter((cat) => cat.id !== "todos").map((category) => (
-              <TouchableOpacity
-                key={category.id}
-                style={[
-                  styles.filterChip,
-                  activeFilter === category.id && [
-                    styles.activeFilterChip,
-                    {backgroundColor: colors.primary},
-                  ],
-                  {borderColor: colors.border},
-                ]}
-                onPress={() => setActiveFilter(category.id)}>
-                <Text style={styles.filterEmoji}>{getCategoryEmoji(category.id)}</Text>
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    {color: activeFilter === category.id ? "#ffffff" : colors.foreground},
-                  ]}>
-                  {category.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Map Area */}
+      {/* Map Area - Snapchat Style */}
       <View style={styles.mapContainer}>
-        {/* Placeholder del mapa */}
-        <View style={[styles.mapPlaceholder, {backgroundColor: colors.muted}]}>
+        {/* Map Background */}
+        <View style={[styles.mapBackground, {backgroundColor: "#F8F8F8"}]}>
+          {/* Grid pattern */}
           <View style={styles.mapGrid}>
-            <View style={[styles.gridLine, {backgroundColor: colors.border}]} />
-            <View style={[styles.gridLineHorizontal, {backgroundColor: colors.border}]} />
-          </View>
-
-          <View style={styles.mapCenter}>
-            <Ionicons name="navigate-circle" color={colors.primary} size={32} />
-            <Text style={[styles.mapCenterText, {color: colors.mutedForeground}]}>
-              Tu ubicación
-            </Text>
-          </View>
-
-          {/* Pins */}
-          <View style={styles.pinsContainer}>
-            {filteredSalons.map((salon) => (
-              <TouchableOpacity
-                key={salon.id}
-                style={[
-                  styles.pin,
-                  {
-                    backgroundColor: getPinColor(salon),
-                    top: salon.coordinates.top,
-                    left: salon.coordinates.left,
-                    transform: [{scale: selectedSalon === salon.id ? 1.2 : 1}],
-                  },
-                ]}
-                onPress={() => setSelectedSalon(salon.id)}>
-                <Ionicons name="location" color="#ffffff" size={24} />
-                {salon.isFavorite && (
-                  <View style={styles.pinBadge}>
-                    <Ionicons name="heart" color="#ffffff" size={10} />
-                  </View>
-                )}
-              </TouchableOpacity>
+            {[...Array(8)].map((_, i) => (
+              <View key={`v${i}`} style={[styles.gridLineVertical, {left: `${(i + 1) * 12.5}%`}]} />
             ))}
+            {[...Array(8)].map((_, i) => (
+              <View
+                key={`h${i}`}
+                style={[styles.gridLineHorizontal, {top: `${(i + 1) * 12.5}%`}]}
+              />
+            ))}
+          </View>
+
+          {/* User Location - You are here */}
+          <View style={styles.userLocation}>
+            <View style={[styles.userPulse, {backgroundColor: colors.primary}]} />
+            <View style={[styles.userDot, {backgroundColor: colors.primary}]}>
+              <View style={styles.userDotInner} />
+            </View>
+          </View>
+
+          {/* Places Pins - Snapchat Bitmoji style */}
+          <View style={styles.pinsContainer}>
+            {places.map((place) => {
+              const isSelected = selectedSalon === place.id;
+              return (
+                <Animated.View
+                  key={place.id}
+                  style={[
+                    styles.pinWrapper,
+                    {
+                      top: place.coordinates.top,
+                      left: place.coordinates.left,
+                      transform: [{scale: isSelected ? scaleAnim : 1}],
+                    },
+                  ]}>
+                  <TouchableOpacity
+                    style={[
+                      styles.pin,
+                      isSelected && styles.pinSelected,
+                      {
+                        backgroundColor: isSelected ? place.color : "#ffffff",
+                        borderColor: place.color,
+                      },
+                    ]}
+                    onPress={() => setSelectedSalon(isSelected ? null : place.id)}
+                    activeOpacity={0.9}>
+                    <Text style={styles.pinAvatar}>{place.avatar}</Text>
+                    {place.isHot && (
+                      <View style={styles.hotBadge}>
+                        <Text style={styles.hotBadgeText}>🔥</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Name Label */}
+                  {isSelected && (
+                    <View style={[styles.pinLabel, {backgroundColor: place.color}]}>
+                      <Text style={styles.pinLabelText}>{place.name}</Text>
+                    </View>
+                  )}
+                </Animated.View>
+              );
+            })}
           </View>
         </View>
 
-        {/* Legend */}
-        <View style={[styles.legend, {backgroundColor: colors.background}]}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, {backgroundColor: "#ef4444"}]} />
-            <Text style={[styles.legendText, {color: colors.foreground}]}>Establecimientos</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, {backgroundColor: "#10b981"}]} />
-            <Text style={[styles.legendText, {color: colors.foreground}]}>Favoritos</Text>
-          </View>
+        {/* Floating Legend - Minimal */}
+        <View style={[styles.legend, {backgroundColor: colors.card}]}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, {backgroundColor: colors.primary}]} />
-            <Text style={[styles.legendText, {color: colors.foreground}]}>Seleccionado</Text>
+            <Text style={[styles.legendText, {color: colors.foreground}]}>Tú</Text>
+          </View>
+          <View style={styles.legendDivider} />
+          <View style={styles.legendItem}>
+            <Text style={styles.legendHot}>🔥</Text>
+            <Text style={[styles.legendText, {color: colors.foreground}]}>Popular</Text>
           </View>
         </View>
       </View>
 
-      {/* Bottom Card */}
-      {selectedSalonData && (
-        <View style={[styles.bottomCard, {backgroundColor: colors.background}]}>
+      {/* Bottom Card - Snapchat Style */}
+      {selectedPlace && (
+        <Animated.View
+          style={[
+            styles.bottomSheet,
+            {backgroundColor: colors.background, transform: [{scale: scaleAnim}]},
+          ]}>
+          <View style={styles.sheetHandle} />
+
           <TouchableOpacity
-            style={[styles.salonCard, {backgroundColor: colors.card, borderColor: colors.border}]}
-            activeOpacity={0.9}
-            onPress={() => {
-              // TODO: Navigate to salon details
-              console.log("Open salon:", selectedSalonData.id);
-            }}>
-            <Image source={{uri: selectedSalonData.image}} style={styles.salonImage} />
+            style={[styles.placeCard, {backgroundColor: colors.card}]}
+            activeOpacity={0.95}>
+            <Image source={{uri: selectedPlace.image}} style={styles.placeImage} />
 
-            <TouchableOpacity
-              style={styles.favoriteButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                // TODO: Toggle favorite
-              }}>
-              <Ionicons
-                name={selectedSalonData.isFavorite ? "heart" : "heart-outline"}
-                color={selectedSalonData.isFavorite ? "#ef4444" : colors.mutedForeground}
-                size={20}
-              />
-            </TouchableOpacity>
-
-            <View style={styles.salonContent}>
-              <Text style={[styles.salonName, {color: colors.foreground}]} numberOfLines={1}>
-                {selectedSalonData.name}
-              </Text>
-
-              <View style={styles.salonMeta}>
-                <View style={styles.salonRating}>
-                  <Ionicons name="star" color="#fbbf24" size={16} />
-                  <Text style={[styles.salonRatingText, {color: colors.foreground}]}>
-                    {selectedSalonData.rating}
-                  </Text>
+            <View style={styles.placeContent}>
+              <View style={styles.placeHeader}>
+                <View style={[styles.placeAvatar, {backgroundColor: selectedPlace.color}]}>
+                  <Text style={styles.placeAvatarText}>{selectedPlace.avatar}</Text>
                 </View>
-                <Text style={[styles.salonDistance, {color: colors.mutedForeground}]}>
-                  • {selectedSalonData.distance}
-                </Text>
+                <View style={styles.placeInfo}>
+                  <Text style={[styles.placeName, {color: colors.foreground}]}>
+                    {selectedPlace.name}
+                  </Text>
+                  <View style={styles.placeMeta}>
+                    <View style={styles.placeRating}>
+                      <Ionicons name="star" color="#FFD700" size={14} />
+                      <Text style={[styles.placeRatingText, {color: colors.foreground}]}>
+                        {selectedPlace.rating}
+                      </Text>
+                    </View>
+                    <Text style={[styles.placeDot, {color: colors.mutedForeground}]}>•</Text>
+                    <Text style={[styles.placeDistance, {color: colors.mutedForeground}]}>
+                      {selectedPlace.distance}
+                    </Text>
+                    <Text style={[styles.placeDot, {color: colors.mutedForeground}]}>•</Text>
+                    <Text style={[styles.placePrice, {color: colors.mutedForeground}]}>
+                      {selectedPlace.price}
+                    </Text>
+                  </View>
+                </View>
               </View>
 
-              <View style={styles.salonFooter}>
-                <Text style={[styles.salonPrice, {color: colors.primary}]}>
-                  {selectedSalonData.price}
-                </Text>
-                <View style={styles.salonActions}>
-                  <TouchableOpacity
-                    style={[styles.directionsButton, {borderColor: colors.border}]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      // TODO: Open directions
-                    }}>
-                    <Ionicons name="navigate" color={colors.primary} size={18} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.reserveButton, {backgroundColor: colors.primary}]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      // TODO: Open reservation
-                    }}>
-                    <Text style={styles.reserveButtonText}>Reservar</Text>
-                    <Ionicons name="arrow-forward" color="#ffffff" size={16} />
-                  </TouchableOpacity>
-                </View>
+              {/* Quick Actions */}
+              <View style={styles.placeActions}>
+                <TouchableOpacity
+                  style={[styles.actionButton, {backgroundColor: selectedPlace.color}]}
+                  activeOpacity={0.9}>
+                  <Ionicons name="calendar" color="#ffffff" size={18} />
+                  <Text style={styles.actionButtonText}>Reservar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButtonSecondary, {borderColor: colors.border}]}
+                  activeOpacity={0.9}>
+                  <Ionicons name="navigate" color={selectedPlace.color} size={18} />
+                  <Text style={[styles.actionButtonSecondaryText, {color: selectedPlace.color}]}>
+                    Ir
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButtonIcon, {borderColor: colors.border}]}
+                  activeOpacity={0.9}>
+                  <Ionicons name="heart-outline" color={colors.foreground} size={20} />
+                </TouchableOpacity>
               </View>
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedSalon(null)}>
-            <Ionicons name="close" color={colors.mutedForeground} size={20} />
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setSelectedSalon(null)}
+            activeOpacity={0.9}>
+            <Ionicons name="close" color={colors.mutedForeground} size={24} />
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       )}
-
-      {/* Floating Action Buttons */}
-      <View style={styles.floatingButtons}>
-        <TouchableOpacity
-          style={[
-            styles.floatingButton,
-            {backgroundColor: colors.background, borderColor: colors.border},
-          ]}
-          onPress={() => {
-            // TODO: Center map on user location
-          }}>
-          <Ionicons name="locate" color={colors.primary} size={24} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.floatingButton,
-            {backgroundColor: colors.background, borderColor: colors.border},
-          ]}
-          onPress={() => {
-            // TODO: Show list view
-          }}>
-          <Ionicons name="list" color={colors.foreground} size={24} />
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -371,123 +339,110 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
+    paddingTop: 50,
+    paddingBottom: 8,
     gap: 12,
   },
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  backButton: {
+    width: 36,
+    height: 36,
     justifyContent: "center",
     alignItems: "center",
   },
   headerCenter: {
     flex: 1,
-    alignItems: "center",
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: "600",
   },
+  locationButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // Search
   searchContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    marginBottom: 8,
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-  },
-  filtersContainer: {
-    paddingBottom: 12,
-  },
-  filtersScroll: {
-    paddingHorizontal: 16,
-  },
-  filterChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginRight: 8,
-    gap: 6,
-  },
-  activeFilterChip: {
-    borderWidth: 0,
-  },
-  filterEmoji: {
-    fontSize: 16,
-  },
-  filterChipText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "500",
   },
+
+  // Map
   mapContainer: {
     flex: 1,
     position: "relative",
   },
-  mapPlaceholder: {
+  mapBackground: {
     flex: 1,
     position: "relative",
   },
   mapGrid: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
+    ...StyleSheet.absoluteFillObject,
   },
-  gridLine: {
+  gridLineVertical: {
     position: "absolute",
     width: 1,
     height: "100%",
-    left: "50%",
-    opacity: 0.1,
+    backgroundColor: "rgba(0, 0, 0, 0.03)",
   },
   gridLineHorizontal: {
     position: "absolute",
     height: 1,
     width: "100%",
-    top: "50%",
-    opacity: 0.1,
+    backgroundColor: "rgba(0, 0, 0, 0.03)",
   },
-  mapCenter: {
+
+  // User Location
+  userLocation: {
     position: "absolute",
     top: "50%",
     left: "50%",
-    transform: [{translateX: -16}, {translateY: -16}],
-    alignItems: "center",
-    opacity: 0.3,
+    transform: [{translateX: -20}, {translateY: -20}],
   },
-  mapCenterText: {
-    fontSize: 10,
-    marginTop: 4,
-  },
-  pinsContainer: {
+  userPulse: {
     position: "absolute",
-    width: "100%",
-    height: "100%",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    opacity: 0.2,
   },
-  pin: {
-    position: "absolute",
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  userDot: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#ffffff",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -497,27 +452,85 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  pinBadge: {
+  userDotInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#ffffff",
+  },
+
+  // Pins - Snapchat Bitmoji style
+  pinsContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  pinWrapper: {
     position: "absolute",
-    top: -2,
-    right: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#ef4444",
+    alignItems: "center",
+  },
+  pin: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  pinSelected: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 4,
+  },
+  pinAvatar: {
+    fontSize: 28,
+  },
+  hotBadge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#ffffff",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#ffffff",
+    borderColor: "#FF4500",
   },
+  hotBadgeText: {
+    fontSize: 12,
+  },
+  pinLabel: {
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  pinLabelText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  // Legend
   legend: {
     position: "absolute",
     top: 16,
     right: 16,
-    flexDirection: "column",
-    padding: 12,
-    borderRadius: 12,
-    gap: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 12,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -530,145 +543,170 @@ const styles = StyleSheet.create({
   legendItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
   },
   legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendHot: {
+    fontSize: 12,
   },
   legendText: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: "700",
   },
-  bottomCard: {
+  legendDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
+  },
+
+  // Bottom Sheet
+  bottomSheet: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 20,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: -4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
   },
-  salonCard: {
-    borderRadius: 20,
-    borderWidth: 1,
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  placeCard: {
+    borderRadius: 24,
     overflow: "hidden",
-    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  salonImage: {
+  placeImage: {
     width: "100%",
-    height: 140,
+    height: 160,
     resizeMode: "cover",
   },
-  favoriteButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+  placeContent: {
+    padding: 16,
+  },
+  placeHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 12,
+  },
+  placeAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
   },
-  salonContent: {
-    padding: 16,
+  placeAvatarText: {
+    fontSize: 24,
   },
-  salonName: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 8,
+  placeInfo: {
+    flex: 1,
   },
-  salonMeta: {
+  placeName: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  placeMeta: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    gap: 6,
   },
-  salonRating: {
+  placeRating: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
   },
-  salonRatingText: {
+  placeRatingText: {
     fontSize: 14,
+    fontWeight: "700",
+  },
+  placeDot: {
+    fontSize: 12,
+  },
+  placeDistance: {
+    fontSize: 13,
     fontWeight: "600",
   },
-  salonDistance: {
-    fontSize: 14,
-    marginLeft: 4,
+  placePrice: {
+    fontSize: 13,
+    fontWeight: "700",
   },
-  salonFooter: {
+  placeActions: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 10,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
-  },
-  salonPrice: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  salonActions: {
-    flexDirection: "row",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 16,
     gap: 8,
   },
-  directionsButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
+  actionButtonText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "800",
   },
-  reserveButton: {
+  actionButtonSecondary: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 22,
-    gap: 6,
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 2,
+    gap: 8,
   },
-  reserveButtonText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "600",
+  actionButtonSecondaryText: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  actionButtonIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    borderWidth: 2,
+    justifyContent: "center",
+    alignItems: "center",
   },
   closeButton: {
     position: "absolute",
     top: 8,
     right: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
     justifyContent: "center",
     alignItems: "center",
-  },
-  floatingButtons: {
-    position: "absolute",
-    bottom: 24,
-    right: 16,
-    gap: 12,
-  },
-  floatingButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
   },
 });
