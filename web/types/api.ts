@@ -1,3 +1,6 @@
+// Import auth types for use in this file
+import type {User} from "@/features/auth/types";
+
 // Re-export auth types for backward compatibility
 export type {
   User,
