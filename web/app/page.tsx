@@ -6,7 +6,7 @@ import {Card, CardContent, CardHeader} from "@/components/ui/Card";
 import {Button} from "@/components/ui/Button";
 import {ThemeToggle} from "@/components/ThemeToggle";
 import {useTheme} from "@/components/ThemeProvider";
-import {useAuth} from "@/hooks/useAuth";
+import {useAuth} from "@/features/auth/hooks/useAuth";
 
 export default function Home() {
   const {theme, availableThemes} = useTheme();
