@@ -1,13 +1,96 @@
-import {View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput} from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
 import {Ionicons} from "@expo/vector-icons";
+import {useState} from "react";
+import {useAuth} from "@/features/auth";
 
 export default function Login() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
+  const {login, isLoading} = useAuth();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState({email: "", password: ""});
+  const [successMessage, setSuccessMessage] = useState("");
+  const [generalError, setGeneralError] = useState("");
+
+  const validateForm = (): boolean => {
+    const newErrors = {email: "", password: ""};
+    let isValid = true;
+
+    if (!email) {
+      newErrors.email = "El email es requerido";
+      isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = "Email inválido";
+      isValid = false;
+    }
+
+    if (!password) {
+      newErrors.password = "La contraseña es requerida";
+      isValid = false;
+    } else if (password.length < 6) {
+      newErrors.password = "La contraseña debe tener al menos 6 caracteres";
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  const handleLogin = async () => {
+    // Clear previous messages
+    setSuccessMessage("");
+    setGeneralError("");
+    setErrors({email: "", password: ""});
+
+    if (!validateForm()) return;
+
+    try {
+      await login({email, password});
+      setSuccessMessage("¡Inicio de sesión exitoso!");
+      // Navigate to home after a brief success message
+      setTimeout(() => {
+        router.replace("/(tabs)");
+      }, 1000);
+    } catch (error: any) {
+      // Handle specific error types with beautiful inline messages
+      if (
+        error.message?.includes("Invalid credentials") ||
+        error.message?.includes("Invalid login credentials")
+      ) {
+        setGeneralError(
+          "Las credenciales ingresadas no son correctas. Verifica tu email y contraseña."
+        );
+      } else if (
+        error.message?.includes("User with this email") ||
+        error.message?.includes("User not found")
+      ) {
+        setGeneralError(
+          "No encontramos una cuenta con este email. Verifica tu dirección de correo."
+        );
+      } else if (error.message?.includes("Network") || error.message?.includes("timeout")) {
+        setGeneralError("Error de conexión. Verifica tu internet e intenta nuevamente.");
+      } else if (error.message?.includes("Server") || error.message?.includes("500")) {
+        setGeneralError("Error del servidor. Por favor intenta más tarde.");
+      } else {
+        setGeneralError(error.message || "Ocurrió un error inesperado. Intenta nuevamente.");
+      }
+    }
+  };
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
@@ -39,6 +122,26 @@ export default function Login() {
           </Text>
         </View>
 
+        {/* Success Message */}
+        {successMessage ? (
+          <View style={[styles.successContainer, {backgroundColor: colors.success}]}>
+            <Ionicons name="checkmark-circle" color={colors.successForeground} size={20} />
+            <Text style={[styles.successText, {color: colors.successForeground}]}>
+              {successMessage}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* General Error Message */}
+        {generalError ? (
+          <View style={[styles.errorContainer, {backgroundColor: colors.destructive}]}>
+            <Ionicons name="alert-circle" color={colors.destructiveForeground} size={20} />
+            <Text style={[styles.generalErrorText, {color: colors.destructiveForeground}]}>
+              {generalError}
+            </Text>
+          </View>
+        ) : null}
+
         {/* Login Form */}
         <View style={styles.formContainer}>
           <View style={styles.inputGroup}>
@@ -55,8 +158,14 @@ export default function Login() {
                 placeholderTextColor={colors.mutedForeground}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+                editable={!isLoading}
               />
             </View>
+            {errors.email ? (
+              <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.email}</Text>
+            ) : null}
           </View>
 
           <View style={styles.inputGroup}>
@@ -71,12 +180,22 @@ export default function Login() {
                 style={[styles.textInput, {color: colors.foreground}]}
                 placeholder="Tu contraseña"
                 placeholderTextColor={colors.mutedForeground}
-                secureTextEntry
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                editable={!isLoading}
               />
-              <TouchableOpacity>
-                <Ionicons name="eye" color={colors.mutedForeground} size={20} />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons
+                  name={showPassword ? "eye-off" : "eye"}
+                  color={colors.mutedForeground}
+                  size={20}
+                />
               </TouchableOpacity>
             </View>
+            {errors.password ? (
+              <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.password}</Text>
+            ) : null}
           </View>
 
           {/* Forgot Password */}
@@ -88,45 +207,19 @@ export default function Login() {
 
           {/* Login Button */}
           <TouchableOpacity
-            style={[styles.loginButton, {backgroundColor: colors.primary}]}
-            onPress={() => {
-              // TODO: Add login functionality
-              console.log("Login pressed");
-            }}>
-            <Text style={[styles.loginButtonText, {color: "#ffffff"}]}>Iniciar Sesión</Text>
+            style={[
+              styles.loginButton,
+              {backgroundColor: colors.primary},
+              isLoading && styles.loginButtonDisabled,
+            ]}
+            onPress={handleLogin}
+            disabled={isLoading}>
+            {isLoading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={[styles.loginButtonText, {color: "#ffffff"}]}>Iniciar Sesión</Text>
+            )}
           </TouchableOpacity>
-
-          {/* Divider */}
-          <View style={styles.dividerContainer}>
-            <View style={[styles.divider, {backgroundColor: colors.border}]} />
-            <Text style={[styles.dividerText, {color: colors.mutedForeground}]}>o</Text>
-            <View style={[styles.divider, {backgroundColor: colors.border}]} />
-          </View>
-
-          {/* Social Login */}
-          <View style={styles.socialContainer}>
-            <TouchableOpacity
-              style={[
-                styles.socialButton,
-                {backgroundColor: colors.input, borderColor: colors.border},
-              ]}>
-              <Ionicons name="logo-google" color="#db4437" size={20} />
-              <Text style={[styles.socialButtonText, {color: colors.foreground}]}>
-                Continuar con Google
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.socialButton,
-                {backgroundColor: colors.input, borderColor: colors.border},
-              ]}>
-              <Ionicons name="logo-apple" color={colors.foreground} size={20} />
-              <Text style={[styles.socialButtonText, {color: colors.foreground}]}>
-                Continuar con Apple
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
         {/* Register Link */}
@@ -239,40 +332,44 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 24,
   },
+  loginButtonDisabled: {
+    opacity: 0.6,
+  },
   loginButtonText: {
     fontSize: 16,
     fontWeight: "600",
   },
-  dividerContainer: {
+  errorText: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  successContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 24,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
     paddingHorizontal: 16,
-    fontSize: 14,
-  },
-  socialContainer: {
-    gap: 12,
-    marginBottom: 32,
-  },
-  socialButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 12,
-    borderWidth: 1,
-    gap: 12,
+    marginBottom: 20,
+    gap: 8,
   },
-  socialButtonText: {
-    fontSize: 16,
+  successText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+    gap: 8,
+  },
+  generalErrorText: {
+    fontSize: 14,
     fontWeight: "500",
+    flex: 1,
+    lineHeight: 20,
   },
   registerContainer: {
     flexDirection: "row",

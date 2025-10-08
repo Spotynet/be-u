@@ -13,6 +13,8 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useRef} from "react";
 import {getCategoryEmoji} from "@/constants/categories";
+import {useRouter} from "expo-router";
+import {useAuth} from "@/features/auth";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -20,6 +22,8 @@ export default function Home() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
+  const router = useRouter();
+  const {user, isAuthenticated, logout} = useAuth();
 
   // Historias - Formato horizontal tipo timeline novedoso
   const stories = [
@@ -897,6 +901,22 @@ export default function Home() {
             </View>
             <Ionicons name="notifications-outline" color={colors.foreground} size={26} />
           </TouchableOpacity>
+          {/* Auth Button */}
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => {
+              if (isAuthenticated) {
+                logout();
+              } else {
+                router.push("/login");
+              }
+            }}>
+            <Ionicons
+              name={isAuthenticated ? "log-out-outline" : "log-in-outline"}
+              color={colors.foreground}
+              size={26}
+            />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -904,6 +924,15 @@ export default function Home() {
         style={styles.feed}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.feedContent}>
+        {/* Welcome Message for Authenticated Users */}
+        {isAuthenticated && user && (
+          <View style={styles.welcomeSection}>
+            <Text style={[styles.welcomeText, {color: colors.foreground}]}>
+              ¡Hola, {user.first_name || user.email}! 👋
+            </Text>
+          </View>
+        )}
+
         {/* Stories - Horizontal Timeline Format (Novedoso) */}
         <View style={styles.storiesSection}>
           <Text style={[styles.storiesTitle, {color: colors.foreground}]}>Historias</Text>
@@ -986,6 +1015,16 @@ const styles = StyleSheet.create({
   },
   feedContent: {
     paddingBottom: 100,
+  },
+
+  // Welcome Section
+  welcomeSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  welcomeText: {
+    fontSize: 18,
+    fontWeight: "700",
   },
 
   // Stories - Timeline horizontal novedoso

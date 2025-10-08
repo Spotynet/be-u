@@ -30,7 +30,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'email', 'password', 'firstName', 'lastName'
+            'email', 'password', 'firstName', 'lastName', 'username'
         ]
     
     def create(self, validated_data):
@@ -38,8 +38,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         first_name = validated_data.pop('first_name')
         last_name = validated_data.pop('last_name')
         
-        # Create user
+        # Create user - username is now included in validated_data
         user = User.objects.create_user(
+            username=validated_data['username'],
             email=validated_data['email'],
             password=validated_data['password'],
             first_name=first_name,
