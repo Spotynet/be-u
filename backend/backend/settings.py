@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-t+roqsej)7g3t9t#@t1s&)b%i-7euhxd7_do1wjtz#6hpv20uc
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'stg.be-u.ai', 'be-u.ai', '*.be-u.ai']
 
 
 # Application definition
@@ -159,19 +159,26 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
 }
 
-# CORS settings
+# CORS settings - Configure for web and mobile app support
 CORS_ALLOWED_ORIGINS = [
+    # Web frontend (Next.js)
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:3001",
     "http://127.0.0.1:3001",
     "https://stg.be-u.ai",
-    "https://be-u.ai"
+    "https://be-u.ai",
+    # Mobile app (Expo/React Native) - not needed for native apps but useful for Expo web
+    "http://localhost:8081",  # Expo default port
+    "http://localhost:19000",  # Expo Go
+    "http://localhost:19006",  # Expo web
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in development
+# In development, allow all origins (includes Expo Go and React Native debugger)
+# Mobile apps don't have CORS restrictions, but Expo Go during development does
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -183,6 +190,7 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'x-expo-token',  # For Expo-specific headers
 ]
 
 CORS_ALLOW_METHODS = [
@@ -193,6 +201,9 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+
+# Allow CORS preflight requests to be cached
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 
 # JWT Settings
 from datetime import timedelta
