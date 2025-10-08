@@ -10,6 +10,7 @@ export interface RegisterCredentials {
   password: string;
   firstName: string;
   lastName: string;
+  username: string;
 }
 
 export interface AuthContextType {

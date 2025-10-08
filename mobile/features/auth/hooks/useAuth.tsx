@@ -1,5 +1,5 @@
 import React, {createContext, useContext, useState, useEffect, ReactNode} from "react";
-import {authApi} from "../services/authApi";
+import {authApi, tokenUtils} from "@/lib/api";
 import {AuthContextType, AuthState, LoginCredentials, RegisterCredentials} from "../types";
 import {User} from "@/types/global";
 
@@ -24,9 +24,27 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
   const checkAuthStatus = async () => {
     try {
       setState((prev) => ({...prev, isLoading: true}));
-      // TODO: Check for stored token and validate
-      // For now, just set loading to false
-      setState((prev) => ({...prev, isLoading: false}));
+
+      // Check if token exists
+      const isAuth = await tokenUtils.isAuthenticated();
+
+      if (isAuth) {
+        // Validate token by fetching profile
+        try {
+          const response = await authApi.getProfile();
+          setState((prev) => ({
+            ...prev,
+            user: response.data.user,
+            isLoading: false,
+          }));
+        } catch (error) {
+          // Token is invalid, clear it
+          await tokenUtils.removeToken();
+          setState((prev) => ({...prev, user: null, isLoading: false}));
+        }
+      } else {
+        setState((prev) => ({...prev, isLoading: false}));
+      }
     } catch (error) {
       setState((prev) => ({...prev, isLoading: false, error: "Failed to check auth status"}));
     }
@@ -37,7 +55,9 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
       setState((prev) => ({...prev, isLoading: true, error: null}));
       const response = await authApi.login(credentials);
 
-      // TODO: Store token securely
+      // Store auth token (using a simple flag since backend uses session auth)
+      await tokenUtils.setToken("authenticated");
+
       setState((prev) => ({
         ...prev,
         user: response.data.user,
@@ -56,9 +76,12 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
   const register = async (credentials: RegisterCredentials) => {
     try {
       setState((prev) => ({...prev, isLoading: true, error: null}));
+
       const response = await authApi.register(credentials);
 
-      // TODO: Store token securely
+      // Store auth token
+      await tokenUtils.setToken("authenticated");
+
       setState((prev) => ({
         ...prev,
         user: response.data.user,
@@ -80,7 +103,8 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
     } catch (error) {
       // Continue with logout even if API call fails
     } finally {
-      // TODO: Clear stored token
+      // Clear stored token
+      await tokenUtils.removeToken();
       setState({
         user: null,
         isLoading: false,
@@ -91,8 +115,8 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
 
   const refreshToken = async () => {
     try {
-      const response = await authApi.refreshToken();
-      // TODO: Update stored token
+      // Check if still authenticated
+      await checkAuthStatus();
     } catch (error) {
       // If refresh fails, logout user
       logout();

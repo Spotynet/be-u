@@ -15,6 +15,7 @@ BE-U is organized around **3 main service categories** that define the entire ap
 ### Sub-Categories Structure
 
 #### Cuidado y Belleza
+
 - **Peluquería y Barbería**: Corte, peinado, coloración, tratamientos capilares, alisados, extensiones
 - **Manicure y Pedicura**: Manicura, pedicura, esmaltado, uñas acrílicas, nail art
 - **Cuidado Facial y Corporal**: Limpieza facial, masajes, tratamientos faciales, depilación
@@ -22,6 +23,7 @@ BE-U is organized around **3 main service categories** that define the entire ap
 - **Pestañas y Cejas**: Extensiones, rizado, diseño, depilación, laminado
 
 #### Bienestar y Ejercicio
+
 - **Spa y Relajación**: Masajes, tratamientos corporales, hidroterapia, rituales
 - **Yoga y Pilates**: Clases de yoga, pilates, meditación, mindfulness, Tai Chi
 - **Nutrición**: Asesoría nutricional, coaching, programas de desintoxicación
@@ -29,6 +31,7 @@ BE-U is organized around **3 main service categories** that define the entire ap
 - **Coaching Personal**: Coaching de vida, talleres de desarrollo personal
 
 #### Mascotas
+
 - **Guardería y Alojamiento**: Guardería, alojamiento, paseos, visitas a domicilio
 - **Estética (Grooming)**: Peluquería, higiene, spa para mascotas
 - **Salud y Bienestar**: Veterinaria, consultas, cirugías, vacunas, rehabilitación
@@ -450,6 +453,289 @@ export const useServices = () => {
   return {services, isLoading, error, fetchServices};
 };
 ```
+
+## 🌐 API Integration & Networking
+
+### Centralized API Client
+
+All API calls MUST use the centralized API client in `lib/api.ts`. This ensures consistent error handling, authentication, and request/response processing across the entire app.
+
+**Location**: `mobile/lib/api.ts`
+
+### API Client Structure
+
+```typescript
+import {api, authApi, userApi, serviceApi, reservationApi, reviewApi} from "@/lib/api";
+import {tokenUtils, errorUtils} from "@/lib/api";
+
+// ✅ CORRECT: Use centralized API utilities
+const response = await authApi.login({email, password});
+const services = await serviceApi.getServices({category: "belleza"});
+
+// ❌ INCORRECT: Don't create separate axios instances
+import axios from "axios";
+const response = await axios.post("/api/auth/login", data);
+```
+
+### Available API Modules
+
+#### 1. Generic API Methods (`api`)
+
+```typescript
+// Generic HTTP methods for custom endpoints
+import {api} from "@/lib/api";
+
+const data = await api.get<ResponseType>("/custom/endpoint");
+const result = await api.post<ResponseType>("/custom/endpoint", {data});
+const updated = await api.put<ResponseType>("/custom/endpoint/:id", {data});
+const deleted = await api.delete("/custom/endpoint/:id");
+```
+
+#### 2. Authentication API (`authApi`)
+
+```typescript
+import {authApi} from "@/lib/api";
+
+// Login user
+const {data} = await authApi.login({
+  email: "user@example.com",
+  password: "password123",
+});
+
+// Register new user
+const {data} = await authApi.register({
+  email: "user@example.com",
+  password: "password123",
+  firstName: "John",
+  lastName: "Doe",
+});
+
+// Get user profile
+const {data} = await authApi.getProfile();
+
+// Update profile
+const {data} = await authApi.updateProfile({firstName: "Jane"});
+
+// Logout
+await authApi.logout();
+```
+
+#### 3. User Management API (`userApi`)
+
+```typescript
+import {userApi} from "@/lib/api";
+
+// Get all users (with pagination)
+const {data} = await userApi.getUsers({page: 1, search: "john"});
+
+// Get specific user
+const {data} = await userApi.getUser(userId);
+
+// Update user
+const {data} = await userApi.updateUser(userId, {firstName: "Jane"});
+
+// Delete user
+await userApi.deleteUser(userId);
+```
+
+#### 4. Service Management API (`serviceApi`)
+
+```typescript
+import {serviceApi} from "@/lib/api";
+
+// Get services with filters
+const {data} = await serviceApi.getServices({
+  page: 1,
+  category: "belleza",
+  search: "corte",
+});
+
+// Get single service
+const {data} = await serviceApi.getService(serviceId);
+
+// Create service (providers)
+const {data} = await serviceApi.createService({
+  name: "Corte de cabello",
+  category: "belleza",
+  price: 300,
+});
+
+// Update service
+const {data} = await serviceApi.updateService(serviceId, {price: 350});
+
+// Delete service
+await serviceApi.deleteService(serviceId);
+```
+
+#### 5. Reservation Management API (`reservationApi`)
+
+```typescript
+import {reservationApi} from "@/lib/api";
+
+// Get reservations with filters
+const {data} = await reservationApi.getReservations({
+  page: 1,
+  status: "confirmed",
+  user: userId,
+});
+
+// Get single reservation
+const {data} = await reservationApi.getReservation(reservationId);
+
+// Create reservation
+const {data} = await reservationApi.createReservation({
+  serviceId: 1,
+  date: "2024-10-15",
+  time: "14:00",
+});
+
+// Update reservation
+const {data} = await reservationApi.updateReservation(reservationId, {
+  date: "2024-10-16",
+});
+
+// Cancel reservation
+await reservationApi.cancelReservation(reservationId);
+
+// Delete reservation
+await reservationApi.deleteReservation(reservationId);
+```
+
+#### 6. Review Management API (`reviewApi`)
+
+```typescript
+import {reviewApi} from "@/lib/api";
+
+// Get reviews with filters
+const {data} = await reviewApi.getReviews({
+  service: serviceId,
+  page: 1,
+});
+
+// Create review
+const {data} = await reviewApi.createReview({
+  serviceId: 1,
+  rating: 5,
+  comment: "Excellent service!",
+});
+
+// Update review
+const {data} = await reviewApi.updateReview(reviewId, {rating: 4});
+
+// Delete review
+await reviewApi.deleteReview(reviewId);
+```
+
+### Token Management
+
+```typescript
+import {tokenUtils} from "@/lib/api";
+
+// Store authentication token
+await tokenUtils.setToken(token);
+
+// Retrieve token
+const token = await tokenUtils.getToken();
+
+// Remove token (logout)
+await tokenUtils.removeToken();
+
+// Check if user is authenticated
+const isAuth = await tokenUtils.isAuthenticated();
+```
+
+### Error Handling
+
+```typescript
+import {errorUtils} from "@/lib/api";
+
+try {
+  const response = await authApi.login(credentials);
+} catch (error) {
+  // Extract user-friendly error message
+  const message = errorUtils.getErrorMessage(error);
+  Alert.alert("Error", message);
+
+  // Get validation errors (for form fields)
+  const validationErrors = errorUtils.getValidationErrors(error);
+  // Returns: { email: ["Invalid email"], password: ["Too short"] }
+
+  // Check error types
+  if (errorUtils.isAuthError(error)) {
+    // Redirect to login
+  } else if (errorUtils.isNetworkError(error)) {
+    // Show network error message
+  } else if (errorUtils.isValidationError(error)) {
+    // Show validation errors
+  }
+}
+```
+
+### API Integration in Components
+
+```typescript
+// ✅ CORRECT: Use API in custom hooks
+import {authApi, errorUtils} from "@/lib/api";
+import {useState} from "react";
+import {Alert} from "react-native";
+
+export const useLogin = () => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const login = async (credentials: {email: string; password: string}) => {
+    try {
+      setIsLoading(true);
+      const response = await authApi.login(credentials);
+      return response.data;
+    } catch (error) {
+      const message = errorUtils.getErrorMessage(error);
+      Alert.alert("Error", message);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return {login, isLoading};
+};
+
+// ✅ CORRECT: Use hook in component
+export const LoginScreen = () => {
+  const {login, isLoading} = useLogin();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleLogin = async () => {
+    try {
+      await login({email, password});
+      // Navigate to home
+    } catch (error) {
+      // Error already handled in hook
+    }
+  };
+
+  return (
+    <View>
+      <Input value={email} onChangeText={setEmail} />
+      <Input value={password} onChangeText={setPassword} secureTextEntry />
+      <Button onPress={handleLogin} disabled={isLoading}>
+        {isLoading ? "Loading..." : "Login"}
+      </Button>
+    </View>
+  );
+};
+```
+
+### API Environment Configuration
+
+API base URL is configured via environment variables:
+
+```env
+# .env file
+EXPO_PUBLIC_API_URL=https://stg.be-u.ai/api
+```
+
+The API client automatically uses this URL. Never hardcode API URLs in your code.
 
 ## 📱 Mobile-Specific Standards
 

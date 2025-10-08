@@ -1,13 +1,150 @@
-import {View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput} from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
 import {Ionicons} from "@expo/vector-icons";
+import {useState} from "react";
+import {useAuth} from "@/features/auth";
 
 export default function Register() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
+  const {register, isLoading} = useAuth();
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState({
+    firstName: "",
+    lastName: "",
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [successMessage, setSuccessMessage] = useState("");
+  const [generalError, setGeneralError] = useState("");
+
+  const validateForm = (): boolean => {
+    const newErrors = {
+      firstName: "",
+      lastName: "",
+      username: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    };
+    let isValid = true;
+
+    if (!firstName.trim()) {
+      newErrors.firstName = "El nombre es requerido";
+      isValid = false;
+    }
+
+    if (!lastName.trim()) {
+      newErrors.lastName = "El apellido es requerido";
+      isValid = false;
+    }
+
+    if (!username.trim()) {
+      newErrors.username = "El nombre de usuario es requerido";
+      isValid = false;
+    } else if (username.length < 3) {
+      newErrors.username = "El nombre de usuario debe tener al menos 3 caracteres";
+      isValid = false;
+    } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      newErrors.username = "Solo letras, números y guión bajo";
+      isValid = false;
+    }
+
+    if (!email) {
+      newErrors.email = "El email es requerido";
+      isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = "Email inválido";
+      isValid = false;
+    }
+
+    if (!password) {
+      newErrors.password = "La contraseña es requerida";
+      isValid = false;
+    } else if (password.length < 6) {
+      newErrors.password = "La contraseña debe tener al menos 6 caracteres";
+      isValid = false;
+    }
+
+    if (!confirmPassword) {
+      newErrors.confirmPassword = "Confirma tu contraseña";
+      isValid = false;
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = "Las contraseñas no coinciden";
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  const handleRegister = async () => {
+    // Clear previous messages
+    setSuccessMessage("");
+    setGeneralError("");
+    setErrors({
+      firstName: "",
+      lastName: "",
+      username: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    });
+
+    if (!validateForm()) return;
+
+    try {
+      await register({email, password, firstName, lastName, username});
+      setSuccessMessage("¡Cuenta creada exitosamente!");
+      // Navigate to home after a brief success message
+      setTimeout(() => {
+        router.replace("/(tabs)");
+      }, 1500);
+    } catch (error: any) {
+      // Handle specific error types with beautiful inline messages
+      if (
+        error.message?.includes("User with this email already exists") ||
+        error.message?.includes("already exists")
+      ) {
+        setGeneralError(
+          "Ya existe una cuenta con este email. Intenta iniciar sesión o usa otro email."
+        );
+      } else if (
+        error.message?.includes("Invalid email") ||
+        error.message?.includes("Enter a valid email")
+      ) {
+        setGeneralError("Por favor ingresa un email válido con formato correcto.");
+      } else if (error.message?.includes("Network") || error.message?.includes("timeout")) {
+        setGeneralError("Error de conexión. Verifica tu internet e intenta nuevamente.");
+      } else if (error.message?.includes("Server") || error.message?.includes("500")) {
+        setGeneralError("Error del servidor. Por favor intenta más tarde.");
+      } else if (error.message?.includes("Password") || error.message?.includes("password")) {
+        setGeneralError("La contraseña debe tener al menos 6 caracteres.");
+      } else {
+        setGeneralError(error.message || "Ocurrió un error inesperado. Intenta nuevamente.");
+      }
+    }
+  };
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
@@ -37,6 +174,26 @@ export default function Register() {
           </Text>
         </View>
 
+        {/* Success Message */}
+        {successMessage ? (
+          <View style={[styles.successContainer, {backgroundColor: colors.success}]}>
+            <Ionicons name="checkmark-circle" color={colors.successForeground} size={20} />
+            <Text style={[styles.successText, {color: colors.successForeground}]}>
+              {successMessage}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* General Error Message */}
+        {generalError ? (
+          <View style={[styles.errorContainer, {backgroundColor: colors.destructive}]}>
+            <Ionicons name="alert-circle" color={colors.destructiveForeground} size={20} />
+            <Text style={[styles.generalErrorText, {color: colors.destructiveForeground}]}>
+              {generalError}
+            </Text>
+          </View>
+        ) : null}
+
         {/* Register Form */}
         <View style={styles.formContainer}>
           <View style={styles.inputGroup}>
@@ -51,8 +208,16 @@ export default function Register() {
                 style={[styles.textInput, {color: colors.foreground}]}
                 placeholder="Tu nombre"
                 placeholderTextColor={colors.mutedForeground}
+                value={firstName}
+                onChangeText={setFirstName}
+                editable={!isLoading}
               />
             </View>
+            {errors.firstName ? (
+              <Text style={[styles.errorText, {color: colors.destructive}]}>
+                {errors.firstName}
+              </Text>
+            ) : null}
           </View>
 
           <View style={styles.inputGroup}>
@@ -67,8 +232,37 @@ export default function Register() {
                 style={[styles.textInput, {color: colors.foreground}]}
                 placeholder="Tu apellido"
                 placeholderTextColor={colors.mutedForeground}
+                value={lastName}
+                onChangeText={setLastName}
+                editable={!isLoading}
               />
             </View>
+            {errors.lastName ? (
+              <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.lastName}</Text>
+            ) : null}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.inputLabel, {color: colors.foreground}]}>Nombre de Usuario</Text>
+            <View
+              style={[
+                styles.inputWrapper,
+                {backgroundColor: colors.input, borderColor: colors.border},
+              ]}>
+              <Ionicons name="at" color={colors.mutedForeground} size={20} />
+              <TextInput
+                style={[styles.textInput, {color: colors.foreground}]}
+                placeholder="Tu nombre de usuario"
+                placeholderTextColor={colors.mutedForeground}
+                autoCapitalize="none"
+                value={username}
+                onChangeText={setUsername}
+                editable={!isLoading}
+              />
+            </View>
+            {errors.username ? (
+              <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.username}</Text>
+            ) : null}
           </View>
 
           <View style={styles.inputGroup}>
@@ -85,8 +279,14 @@ export default function Register() {
                 placeholderTextColor={colors.mutedForeground}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+                editable={!isLoading}
               />
             </View>
+            {errors.email ? (
+              <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.email}</Text>
+            ) : null}
           </View>
 
           <View style={styles.inputGroup}>
@@ -99,14 +299,24 @@ export default function Register() {
               <Ionicons name="lock-closed" color={colors.mutedForeground} size={20} />
               <TextInput
                 style={[styles.textInput, {color: colors.foreground}]}
-                placeholder="Mínimo 8 caracteres"
+                placeholder="Mínimo 6 caracteres"
                 placeholderTextColor={colors.mutedForeground}
-                secureTextEntry
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                editable={!isLoading}
               />
-              <TouchableOpacity>
-                <Ionicons name="eye" color={colors.mutedForeground} size={20} />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons
+                  name={showPassword ? "eye-off" : "eye"}
+                  color={colors.mutedForeground}
+                  size={20}
+                />
               </TouchableOpacity>
             </View>
+            {errors.password ? (
+              <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.password}</Text>
+            ) : null}
           </View>
 
           <View style={styles.inputGroup}>
@@ -123,74 +333,41 @@ export default function Register() {
                 style={[styles.textInput, {color: colors.foreground}]}
                 placeholder="Repite tu contraseña"
                 placeholderTextColor={colors.mutedForeground}
-                secureTextEntry
+                secureTextEntry={!showPassword}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                editable={!isLoading}
               />
-              <TouchableOpacity>
-                <Ionicons name="eye" color={colors.mutedForeground} size={20} />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons
+                  name={showPassword ? "eye-off" : "eye"}
+                  color={colors.mutedForeground}
+                  size={20}
+                />
               </TouchableOpacity>
             </View>
-          </View>
-
-          {/* Terms */}
-          <View style={styles.termsContainer}>
-            <TouchableOpacity style={styles.checkboxContainer}>
-              <View style={[styles.checkbox, {borderColor: colors.border}]}>
-                <Ionicons name="checkmark" color={colors.primary} size={16} />
-              </View>
-            </TouchableOpacity>
-            <Text style={[styles.termsText, {color: colors.mutedForeground}]}>
-              Acepto los{" "}
-              <Text style={[styles.termsLink, {color: colors.primary}]}>
-                Términos y Condiciones
-              </Text>{" "}
-              y la{" "}
-              <Text style={[styles.termsLink, {color: colors.primary}]}>
-                Política de Privacidad
+            {errors.confirmPassword ? (
+              <Text style={[styles.errorText, {color: colors.destructive}]}>
+                {errors.confirmPassword}
               </Text>
-            </Text>
+            ) : null}
           </View>
 
           {/* Register Button */}
           <TouchableOpacity
-            style={[styles.registerButton, {backgroundColor: colors.primary}]}
-            onPress={() => {
-              // TODO: Add register functionality
-              console.log("Register pressed");
-            }}>
-            <Text style={[styles.registerButtonText, {color: "#ffffff"}]}>Crear Cuenta</Text>
+            style={[
+              styles.registerButton,
+              {backgroundColor: colors.primary},
+              isLoading && styles.registerButtonDisabled,
+            ]}
+            onPress={handleRegister}
+            disabled={isLoading}>
+            {isLoading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={[styles.registerButtonText, {color: "#ffffff"}]}>Crear Cuenta</Text>
+            )}
           </TouchableOpacity>
-
-          {/* Divider */}
-          <View style={styles.dividerContainer}>
-            <View style={[styles.divider, {backgroundColor: colors.border}]} />
-            <Text style={[styles.dividerText, {color: colors.mutedForeground}]}>o</Text>
-            <View style={[styles.divider, {backgroundColor: colors.border}]} />
-          </View>
-
-          {/* Social Register */}
-          <View style={styles.socialContainer}>
-            <TouchableOpacity
-              style={[
-                styles.socialButton,
-                {backgroundColor: colors.input, borderColor: colors.border},
-              ]}>
-              <Ionicons name="logo-google" color="#db4437" size={20} />
-              <Text style={[styles.socialButtonText, {color: colors.foreground}]}>
-                Continuar con Google
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.socialButton,
-                {backgroundColor: colors.input, borderColor: colors.border},
-              ]}>
-              <Ionicons name="logo-apple" color={colors.foreground} size={20} />
-              <Text style={[styles.socialButtonText, {color: colors.foreground}]}>
-                Continuar con Apple
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
         {/* Login Link */}
@@ -289,71 +466,50 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
   },
-  termsContainer: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 24,
-    gap: 12,
-  },
-  checkboxContainer: {
-    paddingTop: 2,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  termsText: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  termsLink: {
-    fontWeight: "500",
-  },
   registerButton: {
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
     marginBottom: 24,
   },
+  registerButtonDisabled: {
+    opacity: 0.6,
+  },
   registerButtonText: {
     fontSize: 16,
     fontWeight: "600",
   },
-  dividerContainer: {
+  errorText: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  successContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 24,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
     paddingHorizontal: 16,
-    fontSize: 14,
-  },
-  socialContainer: {
-    gap: 12,
-    marginBottom: 32,
-  },
-  socialButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 12,
-    borderWidth: 1,
-    gap: 12,
+    marginBottom: 20,
+    gap: 8,
   },
-  socialButtonText: {
-    fontSize: 16,
+  successText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+    gap: 8,
+  },
+  generalErrorText: {
+    fontSize: 14,
     fontWeight: "500",
+    flex: 1,
+    lineHeight: 20,
   },
   loginContainer: {
     flexDirection: "row",

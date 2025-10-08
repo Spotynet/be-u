@@ -37,6 +37,10 @@ export const Colors = {
     destructive: "#ef4444",
     destructiveForeground: "#ffffff",
 
+    // Success colors
+    success: "#10b981",
+    successForeground: "#ffffff",
+
     // Border and input - Light borders
     border: "#e5e7eb",
     input: "#f3f4f6",
@@ -75,6 +79,10 @@ export const Colors = {
     // Destructive colors
     destructive: "#ef4444",
     destructiveForeground: "#ffffff",
+
+    // Success colors
+    success: "#10b981",
+    successForeground: "#ffffff",
 
     // Border and input
     border: "#334155",

@@ -20,13 +20,26 @@ A React Native mobile application built with Expo Go, following the Mobile Devel
 npm install
 ```
 
-2. Start the development server:
+2. **Set up environment variables:**
 
-```bash
-npx expo start
+Create a `.env` file in the `mobile/` directory with:
+
+```env
+# API Configuration
+EXPO_PUBLIC_API_URL=https://stg.be-u.ai/api
+
+# App Configuration
+EXPO_PUBLIC_APP_NAME=BE-U
+EXPO_PUBLIC_APP_VERSION=1.0.0
 ```
 
-3. Open the app on your device:
+3. Start the development server:
+
+```bash
+npx expo start --clear
+```
+
+4. Open the app on your device:
    - Install Expo Go app on your phone
    - Scan the QR code from the terminal
    - Or press `i` for iOS simulator, `a` for Android emulator
@@ -243,12 +256,30 @@ This project follows the Mobile Development Standards:
 
 ## 🔗 Backend Integration
 
-The app is configured to work with the Be-U backend API:
+The app is configured to work with the Be-U backend API at `https://stg.be-u.ai/api`:
 
-- **Base URL**: Configurable via environment variables
-- **Authentication**: JWT token-based auth
-- **Error Handling**: Centralized error handling
-- **Type Safety**: Full TypeScript integration
+- **Base URL**: Configurable via `EXPO_PUBLIC_API_URL` environment variable
+- **Authentication**: JWT token-based auth with automatic header injection
+- **Error Handling**: Centralized error handling with user-friendly messages
+- **Type Safety**: Full TypeScript integration with shared types
+- **Auto Retry**: Automatic token refresh on 401 responses
+
+### API Configuration
+
+The API client (`lib/api.ts`) automatically:
+
+1. ✅ Uses the base URL from environment variables
+2. ✅ Adds authentication tokens to requests
+3. ✅ Handles 401 errors and clears tokens
+4. ✅ Provides type-safe request methods (GET, POST, PUT, DELETE)
+
+### Environment Variables
+
+All environment variables must be prefixed with `EXPO_PUBLIC_` to be accessible in the app:
+
+```env
+EXPO_PUBLIC_API_URL=https://stg.be-u.ai/api
+```
 
 ## 🎯 App Architecture
 
