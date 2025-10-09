@@ -24,11 +24,6 @@ backend/venv/
 backend/*.pot
 backend/.env
 
-# Environment-specific settings (keep settings.py in git)
-backend/backend/settings_dev.py
-backend/backend/settings_local.py
-backend/backend/settings_prod.py
-
 backend/backend/**/*.pyc
 backend/**/backend/**/__pycache__/
 
