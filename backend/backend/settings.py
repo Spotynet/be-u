@@ -176,9 +176,9 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-# In development, allow all origins (includes Expo Go and React Native debugger)
-# Mobile apps don't have CORS restrictions, but Expo Go during development does
-CORS_ALLOW_ALL_ORIGINS = DEBUG
+# CORS: Allow all origins (for development and testing)
+# WARNING: In production, you should restrict this to specific domains
+CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_HEADERS = [
     'accept',

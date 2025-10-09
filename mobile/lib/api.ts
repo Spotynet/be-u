@@ -132,6 +132,25 @@ export const authApi = {
   updateProfile: (data: any) => api.put<{user: any}>("/auth/profile/", data),
 };
 
+// Profile management API functions
+export const profileApi = {
+  // Client Profile
+  getClientProfile: (userId: number) => api.get<any>(`/users/${userId}/client-profile/`),
+  updateClientProfile: (userId: number, data: any) =>
+    api.put<any>(`/users/${userId}/client-profile/`, data),
+
+  // Professional Profile
+  getProfessionalProfile: (userId: number) =>
+    api.get<any>(`/users/${userId}/professional-profile/`),
+  updateProfessionalProfile: (userId: number, data: any) =>
+    api.put<any>(`/users/${userId}/professional-profile/`, data),
+
+  // Place Profile
+  getPlaceProfile: (userId: number) => api.get<any>(`/users/${userId}/place-profile/`),
+  updatePlaceProfile: (userId: number, data: any) =>
+    api.put<any>(`/users/${userId}/place-profile/`, data),
+};
+
 // User management API functions
 export const userApi = {
   getUsers: (params?: {page?: number; search?: string}) =>
@@ -160,18 +179,45 @@ export const serviceApi = {
 
 // Reservation management API functions
 export const reservationApi = {
-  getReservations: (params?: {page?: number; user?: number; service?: number; status?: string}) =>
-    api.get<{results: any[]; count: number}>("/reservations/", {params}),
+  // Get reservations with filters
+  getReservations: (params?: {
+    page?: number;
+    user?: number;
+    service?: number;
+    status?: string;
+    provider?: number;
+  }) => api.get<{results: any[]; count: number}>("/reservations/", {params}),
 
+  // Get single reservation
   getReservation: (id: number) => api.get<any>(`/reservations/${id}/`),
 
-  createReservation: (data: any) => api.post<any>("/reservations/", data),
+  // Create new reservation
+  createReservation: (data: {service: number; date: string; time: string; notes?: string}) =>
+    api.post<any>("/reservations/", data),
 
+  // Update reservation
   updateReservation: (id: number, data: any) => api.put<any>(`/reservations/${id}/`, data),
 
-  cancelReservation: (id: number) => api.patch<any>(`/reservations/${id}/cancel/`),
+  // Cancel reservation (client)
+  cancelReservation: (id: number, reason?: string) =>
+    api.patch<any>(`/reservations/${id}/cancel/`, {reason}),
 
+  // Confirm reservation (provider)
+  confirmReservation: (id: number) => api.patch<any>(`/reservations/${id}/confirm/`),
+
+  // Reject reservation (provider)
+  rejectReservation: (id: number, reason?: string) =>
+    api.patch<any>(`/reservations/${id}/reject/`, {reason}),
+
+  // Complete reservation
+  completeReservation: (id: number) => api.patch<any>(`/reservations/${id}/complete/`),
+
+  // Delete reservation
   deleteReservation: (id: number) => api.delete(`/reservations/${id}/`),
+
+  // Get incoming reservations (for providers)
+  getIncomingReservations: (params?: {page?: number; status?: string}) =>
+    api.get<{results: any[]; count: number}>("/reservations/incoming/", {params}),
 };
 
 // Review management API functions
@@ -186,6 +232,74 @@ export const reviewApi = {
   updateReview: (id: number, data: any) => api.put<any>(`/reviews/${id}/`, data),
 
   deleteReview: (id: number) => api.delete(`/reviews/${id}/`),
+};
+
+// Post/Publication management API functions
+export const postApi = {
+  // Get posts feed
+  getPosts: (params?: {page?: number; author?: number; type?: string}) =>
+    api.get<{results: any[]; count: number}>("/posts/", {params}),
+
+  // Get single post
+  getPost: (id: number) => api.get<any>(`/posts/${id}/`),
+
+  // Create photo post
+  createPhotoPost: (data: {caption?: string; image: any}) =>
+    api.post<any>("/posts/photo/", data, {
+      headers: {"Content-Type": "multipart/form-data"},
+    }),
+
+  // Create video post
+  createVideoPost: (data: {caption?: string; video: any; thumbnail?: any}) =>
+    api.post<any>("/posts/video/", data, {
+      headers: {"Content-Type": "multipart/form-data"},
+    }),
+
+  // Create carousel post
+  createCarouselPost: (data: {caption?: string; images: any[]}) =>
+    api.post<any>("/posts/carousel/", data, {
+      headers: {"Content-Type": "multipart/form-data"},
+    }),
+
+  // Create poll post
+  createPollPost: (data: {
+    caption?: string;
+    question: string;
+    options: string[];
+    expires_at?: string;
+  }) => api.post<any>("/posts/poll/", data),
+
+  // Vote in poll
+  voteInPoll: (postId: number, optionId: number) =>
+    api.post<any>(`/posts/${postId}/vote/`, {option: optionId}),
+
+  // Create review post
+  createReviewPost: (data: {service: number; rating: number; caption?: string; images?: any[]}) =>
+    api.post<any>("/posts/review/", data, {
+      headers: {"Content-Type": "multipart/form-data"},
+    }),
+
+  // Update post
+  updatePost: (id: number, data: any) => api.put<any>(`/posts/${id}/`, data),
+
+  // Delete post
+  deletePost: (id: number) => api.delete(`/posts/${id}/`),
+
+  // Like/Unlike post
+  likePost: (id: number) => api.post<any>(`/posts/${id}/like/`),
+  unlikePost: (id: number) => api.delete(`/posts/${id}/like/`),
+
+  // Get post comments
+  getComments: (postId: number, params?: {page?: number}) =>
+    api.get<{results: any[]; count: number}>(`/posts/${postId}/comments/`, {params}),
+
+  // Create comment
+  createComment: (postId: number, content: string) =>
+    api.post<any>(`/posts/${postId}/comments/`, {content}),
+
+  // Delete comment
+  deleteComment: (postId: number, commentId: number) =>
+    api.delete(`/posts/${postId}/comments/${commentId}/`),
 };
 
 // Token management utilities
