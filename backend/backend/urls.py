@@ -31,6 +31,8 @@ urlpatterns = [
     # API endpoints
     path('api/', include(router.urls)),
     path('api/', include('users.urls')),
+    path('api/services/', include('services.urls')),
+    path('api/reservations/', include('reservations.urls')),
     # Add a simple test endpoint
     path('api/test/', lambda request: HttpResponse('API is working!')),
     # Root endpoint

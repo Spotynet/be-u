@@ -13,6 +13,7 @@ import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {User, PlaceProfile} from "@/types/global";
 import {useRouter} from "expo-router";
+import {ProfileTabs} from "./ProfileTabs";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -48,7 +49,11 @@ export const PlaceProfileView = ({
     return name.substring(0, 2).toUpperCase();
   };
 
-  const placeName = profile?.name || `${user.firstName} ${user.lastName}`;
+  const placeName =
+    profile?.name ||
+    `${user?.first_name || user?.firstName || "Usuario"} ${
+      user?.last_name || user?.lastName || ""
+    }`;
   const fullAddress = profile
     ? `${profile.street} ${profile.number_ext || ""}${
         profile.number_int ? ` Int. ${profile.number_int}` : ""
@@ -173,8 +178,8 @@ export const PlaceProfileView = ({
               Nuestros Servicios
             </Text>
           </View>
-          <TouchableOpacity>
-            <Text style={[styles.seeAllText, {color: colors.primary}]}>Ver todos</Text>
+          <TouchableOpacity onPress={() => router.push("/create-service")}>
+            <Text style={[styles.seeAllText, {color: colors.primary}]}>Agregar</Text>
           </TouchableOpacity>
         </View>
 
@@ -236,6 +241,13 @@ export const PlaceProfileView = ({
             <Text style={[styles.emptyText, {color: colors.mutedForeground}]}>
               Agrega servicios para que tus clientes puedan reservar
             </Text>
+            <TouchableOpacity
+              style={[styles.emptyActionButton, {backgroundColor: colors.primary}]}
+              onPress={() => router.push("/create-service")}
+              activeOpacity={0.9}>
+              <Ionicons name="add" color="#ffffff" size={18} />
+              <Text style={styles.emptyActionText}>Agregar Servicio</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -303,94 +315,16 @@ export const PlaceProfileView = ({
         )}
       </View>
 
-      {/* Management Actions */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleContainer}>
-            <Ionicons name="settings" color={colors.primary} size={24} />
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Gestión</Text>
-          </View>
-        </View>
-
-        <View style={styles.managementGrid}>
-          <TouchableOpacity
-            style={[
-              styles.managementCard,
-              {backgroundColor: colors.card, borderColor: colors.border},
-            ]}
-            activeOpacity={0.7}>
-            <View style={[styles.managementIcon, {backgroundColor: "#3b82f6"}]}>
-              <Ionicons name="calendar" color="#ffffff" size={24} />
-            </View>
-            <View style={styles.managementInfo}>
-              <Text style={[styles.managementTitle, {color: colors.foreground}]}>Agenda</Text>
-              <Text style={[styles.managementSubtitle, {color: colors.mutedForeground}]}>
-                Gestionar reservas
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.managementCard,
-              {backgroundColor: colors.card, borderColor: colors.border},
-            ]}
-            activeOpacity={0.7}>
-            <View style={[styles.managementIcon, {backgroundColor: "#10b981"}]}>
-              <Ionicons name="wallet" color="#ffffff" size={24} />
-            </View>
-            <View style={styles.managementInfo}>
-              <Text style={[styles.managementTitle, {color: colors.foreground}]}>Finanzas</Text>
-              <Text style={[styles.managementSubtitle, {color: colors.mutedForeground}]}>
-                Ingresos y reportes
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.managementCard,
-              {backgroundColor: colors.card, borderColor: colors.border},
-            ]}
-            activeOpacity={0.7}>
-            <View style={[styles.managementIcon, {backgroundColor: "#8b5cf6"}]}>
-              <Ionicons name="stats-chart" color="#ffffff" size={24} />
-            </View>
-            <View style={styles.managementInfo}>
-              <Text style={[styles.managementTitle, {color: colors.foreground}]}>Estadísticas</Text>
-              <Text style={[styles.managementSubtitle, {color: colors.mutedForeground}]}>
-                Analytics del negocio
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.managementCard,
-              {backgroundColor: colors.card, borderColor: colors.border},
-            ]}
-            onPress={() => router.push("/settings")}
-            activeOpacity={0.7}>
-            <View style={[styles.managementIcon, {backgroundColor: "#f59e0b"}]}>
-              <Ionicons name="construct" color="#ffffff" size={24} />
-            </View>
-            <View style={styles.managementInfo}>
-              <Text style={[styles.managementTitle, {color: colors.foreground}]}>
-                Configuración
-              </Text>
-              <Text style={[styles.managementSubtitle, {color: colors.mutedForeground}]}>
-                Ajustes del lugar
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      {/* Management Actions - Removed */}
 
       {/* Bottom Spacing */}
+      <View style={{height: 20}} />
+
+      {/* Profile Tabs */}
+      <View style={{minHeight: 400}}>
+        <ProfileTabs userRole="PLACE" />
+      </View>
+
       <View style={{height: 40}} />
     </ScrollView>
   );

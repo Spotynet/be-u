@@ -8,12 +8,15 @@ import {
   Image,
   Dimensions,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
-import {useState, useRef} from "react";
+import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
+import {providerApi} from "@/lib/api";
+import {ProfessionalProfile, PlaceProfile} from "@/types/global";
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get("window");
 
@@ -24,78 +27,140 @@ export default function Explore() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Real data states
+  const [professionals, setProfessionals] = useState<ProfessionalProfile[]>([]);
+  const [places, setPlaces] = useState<PlaceProfile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch providers function - Using mock data for now
+  const fetchProviders = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      console.log("🔍 Loading providers (mock data)...");
+
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      // Import mock data dynamically
+      const {mockProfessionals: mockProfs, mockPlaces: mockPls} = await import("@/lib/mockData");
+
+      // Transform mock data to match expected format
+      const transformedProfessionals = mockProfs.map((p) => ({
+        id: p.id,
+        user_id: p.id,
+        email: `${p.name.toLowerCase()}@example.com`,
+        name: p.name,
+        last_name: p.last_name,
+        bio: p.bio,
+        city: p.city,
+        rating: p.rating,
+        services_count: p.services.length,
+      }));
+
+      const transformedPlaces = mockPls.map((p) => ({
+        id: p.id,
+        user_id: p.id,
+        email: `${p.name.toLowerCase().replace(/\s/g, "")}@example.com`,
+        name: p.name,
+        street: p.address,
+        city: p.city,
+        country: p.country,
+        services_count: p.services.length,
+        address: p.address,
+      }));
+
+      console.log("✅ Loaded professionals:", transformedProfessionals.length);
+      console.log("✅ Loaded places:", transformedPlaces.length);
+
+      setProfessionals(transformedProfessionals);
+      setPlaces(transformedPlaces);
+    } catch (err: any) {
+      console.error("❌ Error loading providers:", err);
+      setError(err.message || "Error al cargar los datos");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch providers on mount
+  useEffect(() => {
+    fetchProviders();
+  }, []);
 
   // Categorías con estilo scene+/Y2K minimalista y girlie
   const categories = [
     {
-      id: "belleza",
-      name: "Belleza",
-      icon: "✨",
-      color: "#FF69B4",
-      gradient: ["#FFB6C1", "#FF69B4"],
-      pattern: "stars",
+      id: "lugares",
+      name: "Lugares",
+      icon: "🏢",
+      color: "#FF6B6B",
+      count: places.length,
+      subtitle: "Descubre espacios únicos",
     },
     {
-      id: "wellness",
-      name: "Wellness",
-      icon: "🌸",
-      color: "#DDA0DD",
-      gradient: ["#E6B3E6", "#DDA0DD"],
-      pattern: "flowers",
+      id: "profesionales",
+      name: "Profesionales",
+      icon: "👥",
+      color: "#B388FF",
+      count: professionals.length,
+      subtitle: "Encuentra expertos",
     },
     {
       id: "mascotas",
-      name: "Pets",
+      name: "Cuidado Mascotas",
       icon: "🐾",
-      color: "#FFB347",
-      gradient: ["#FFD700", "#FFB347"],
-      pattern: "paws",
+      color: "#FF8A65",
+      count: "Próximamente",
+      subtitle: "Para tus peluditos",
     },
   ];
 
-  // Featured services con diseño más visual
-  const featured = [
-    {
-      id: 1,
-      title: "Facial LED Therapy",
-      provider: "BE-U Spa",
-      image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=800&fit=crop",
-      price: "$1,200",
-      rating: 4.9,
-      category: "belleza",
-      tags: ["Trending", "Premium"],
-    },
-    {
-      id: 2,
-      title: "Yoga Session",
-      provider: "Flow Studio",
-      image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=600&h=800&fit=crop",
-      price: "$500",
-      rating: 4.8,
-      category: "wellness",
-      tags: ["Popular"],
-    },
-    {
-      id: 3,
-      title: "Grooming Premium",
-      provider: "Pet Spa",
-      image: "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=600&h=800&fit=crop",
-      price: "$600",
-      rating: 4.7,
-      category: "mascotas",
-      tags: ["New"],
-    },
-  ];
+  // Fetch providers on mount
+  useEffect(() => {
+    fetchProviders();
+  }, []);
 
-  const filteredFeatured = selectedCategory
-    ? featured.filter((item) => item.category === selectedCategory)
-    : featured;
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (query.trim().length === 0) {
+      fetchProviders();
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const [professionalsRes, placesRes] = await Promise.all([
+        providerApi.getProfessionalProfiles({search: query}),
+        providerApi.getPlaceProfiles({search: query}),
+      ]);
+
+      setProfessionals(professionalsRes.data.results || []);
+      setPlaces(placesRes.data.results || []);
+    } catch (err: any) {
+      console.error("Error searching:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleCategoryPress = (categoryId: string) => {
-    if (selectedCategory === categoryId) {
-      setSelectedCategory(null);
-    } else {
-      setSelectedCategory(categoryId);
+    // Navigate to dedicated pages
+    switch (categoryId) {
+      case "lugares":
+        router.push("/lugares");
+        break;
+      case "profesionales":
+        router.push("/profesionales");
+        break;
+      case "mascotas":
+        router.push("/cuidado-mascotas");
+        break;
+      default:
+        break;
     }
   };
 
@@ -162,11 +227,17 @@ export default function Explore() {
             style={[styles.searchInput, {color: colors.foreground}]}
             placeholder="¿Qué buscas hoy?"
             placeholderTextColor={colors.mutedForeground}
+            value={searchQuery}
+            onChangeText={handleSearch}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
           />
-          {searchFocused && (
-            <TouchableOpacity onPress={() => setSearchFocused(false)}>
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => {
+                setSearchQuery("");
+                fetchProviders();
+              }}>
               <Ionicons name="close-circle" color={colors.mutedForeground} size={18} />
             </TouchableOpacity>
           )}
@@ -177,43 +248,28 @@ export default function Explore() {
         style={styles.content}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}>
-        {/* Scene+ Style Categories - Minimalistas y cute */}
+        {/* Category Cards - More Compact */}
         <View style={styles.categoriesSection}>
           <View style={styles.categoriesGrid}>
-            {categories.map((category, index) => {
-              const isSelected = selectedCategory === category.id;
-              return (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.categoryCard,
-                    isSelected && styles.categoryCardSelected,
-                    {
-                      backgroundColor: isSelected ? category.color + "15" : colors.card,
-                      borderColor: isSelected ? category.color : colors.border,
-                    },
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={() => handleCategoryPress(category.id)}>
-                  <View
-                    style={[styles.categoryIconWrapper, {backgroundColor: category.color + "20"}]}>
-                    <Text style={styles.categoryIcon}>{category.icon}</Text>
-                    {isSelected && (
-                      <View style={[styles.categoryCheckmark, {backgroundColor: category.color}]}>
-                        <Ionicons name="checkmark" color="#ffffff" size={12} />
-                      </View>
-                    )}
-                  </View>
-                  <Text
-                    style={[
-                      styles.categoryName,
-                      {color: isSelected ? category.color : colors.foreground},
-                    ]}>
-                    {category.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[styles.categoryCard, {backgroundColor: category.color}]}
+                activeOpacity={0.8}
+                onPress={() => handleCategoryPress(category.id)}>
+                <View style={styles.categoryIcon}>
+                  <Text style={styles.categoryEmoji}>{category.icon}</Text>
+                </View>
+                <Text style={styles.categoryTitle}>{category.name}</Text>
+                <Text style={styles.categorySubtitle}>{category.subtitle}</Text>
+                <Text style={styles.categoryCount}>
+                  {typeof category.count === "number"
+                    ? `${category.count} ${category.id}`
+                    : category.count}
+                </Text>
+                <Ionicons name="arrow-forward" color="#ffffff" size={16} />
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
@@ -284,21 +340,19 @@ export default function Explore() {
           </ScrollView>
         </View>
 
-        {/* Discover Button - Estilo Tinder */}
+        {/* Discover Button - Adopción de Mascotas */}
         <View style={styles.discoverSection}>
           <TouchableOpacity
-            style={[styles.discoverButton, {backgroundColor: "#FF69B4"}]}
+            style={[styles.discoverButton, {backgroundColor: "#FFB347"}]}
             activeOpacity={0.9}
             onPress={() => router.push("/discover")}>
             <View style={styles.discoverContent}>
               <View style={styles.discoverIcon}>
-                <Ionicons name="sparkles" color="#ffffff" size={28} />
+                <Ionicons name="paw" color="#ffffff" size={28} />
               </View>
               <View style={styles.discoverText}>
-                <Text style={styles.discoverTitle}>Descubre tu Match Perfecto</Text>
-                <Text style={styles.discoverSubtitle}>
-                  Desliza para explorar salones y profesionales
-                </Text>
+                <Text style={styles.discoverTitle}>Encuentra tu Compañero Perfecto</Text>
+                <Text style={styles.discoverSubtitle}>Adopta una mascota hoy</Text>
               </View>
               <View style={styles.discoverArrow}>
                 <Ionicons name="arrow-forward" color="#ffffff" size={24} />
@@ -307,67 +361,183 @@ export default function Explore() {
           </TouchableOpacity>
         </View>
 
-        {/* Polaroid Style - Destacados */}
-        <View style={styles.polaroidSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>✨ Destacados</Text>
-            <TouchableOpacity>
-              <Text style={[styles.seeAllText, {color: colors.primary}]}>Ver todo</Text>
-            </TouchableOpacity>
+        {/* Debug Info */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={[styles.errorText, {color: "#ef4444"}]}>Error: {error}</Text>
           </View>
+        )}
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.polaroidScroll}
-            snapToInterval={SCREEN_WIDTH * 0.7 + 16}
-            decelerationRate="fast">
-            {filteredFeatured.map((item, index) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[
-                  styles.polaroidCard,
-                  {backgroundColor: colors.card},
-                  index % 2 === 0
-                    ? {transform: [{rotate: "2deg"}]}
-                    : {transform: [{rotate: "-2deg"}]},
-                ]}
-                activeOpacity={0.95}>
-                <View style={styles.polaroidImageWrapper}>
-                  <Image source={{uri: item.image}} style={styles.polaroidImage} />
-                  <TouchableOpacity
-                    style={[styles.polaroidLikeButton, {backgroundColor: "#ffffff"}]}>
-                    <Ionicons name="heart-outline" color="#FF69B4" size={20} />
+        {/* Professionals Section */}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, {color: colors.mutedForeground}]}>
+              Cargando profesionales y lugares...
+            </Text>
+          </View>
+        ) : (
+          <>
+            {professionals.length > 0 && (
+              <View style={styles.polaroidSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+                    💅 Profesionales ({professionals.length})
+                  </Text>
+                  <TouchableOpacity>
+                    <Text style={[styles.seeAllText, {color: colors.primary}]}>Ver todo</Text>
                   </TouchableOpacity>
-                  {item.tags[0] && (
-                    <View style={[styles.polaroidBadge, {backgroundColor: "#FF69B4"}]}>
-                      <Text style={styles.polaroidBadgeText}>{item.tags[0]}</Text>
-                    </View>
-                  )}
                 </View>
-                <View style={styles.polaroidInfo}>
-                  <Text style={[styles.polaroidProvider, {color: colors.mutedForeground}]}>
-                    {item.provider}
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.polaroidScroll}
+                  snapToInterval={SCREEN_WIDTH * 0.7 + 16}
+                  decelerationRate="fast">
+                  {professionals.map((professional, index) => (
+                    <TouchableOpacity
+                      key={professional.id}
+                      style={[
+                        styles.polaroidCard,
+                        {backgroundColor: colors.card},
+                        index % 2 === 0
+                          ? {transform: [{rotate: "2deg"}]}
+                          : {transform: [{rotate: "-2deg"}]},
+                      ]}
+                      onPress={() => router.push(`/professional/${professional.id}`)}
+                      activeOpacity={0.95}>
+                      <View style={styles.polaroidImageWrapper}>
+                        <View
+                          style={[styles.polaroidImagePlaceholder, {backgroundColor: "#FFB6C1"}]}>
+                          <Text style={styles.polaroidInitials}>
+                            {professional.name[0]}
+                            {professional.last_name[0]}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={[styles.polaroidLikeButton, {backgroundColor: "#ffffff"}]}>
+                          <Ionicons name="heart-outline" color="#FF69B4" size={20} />
+                        </TouchableOpacity>
+                        {professional.rating >= 4.5 && (
+                          <View style={[styles.polaroidBadge, {backgroundColor: "#FFD700"}]}>
+                            <Text style={styles.polaroidBadgeText}>⭐ Top</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.polaroidInfo}>
+                        <Text style={[styles.polaroidProvider, {color: colors.mutedForeground}]}>
+                          {professional.city || "Profesional"}
+                        </Text>
+                        <Text
+                          style={[styles.polaroidTitle, {color: colors.foreground}]}
+                          numberOfLines={1}>
+                          {professional.name} {professional.last_name}
+                        </Text>
+                        {professional.bio && (
+                          <Text
+                            style={[styles.polaroidBio, {color: colors.mutedForeground}]}
+                            numberOfLines={2}>
+                            {professional.bio}
+                          </Text>
+                        )}
+                        <View style={styles.polaroidFooter}>
+                          <View style={styles.polaroidRating}>
+                            <Ionicons name="star" color="#FFD700" size={14} />
+                            <Text style={[styles.polaroidRatingText, {color: colors.foreground}]}>
+                              {professional.rating.toFixed(1)}
+                            </Text>
+                          </View>
+                          <Text style={[styles.polaroidServicesCount, {color: "#FF69B4"}]}>
+                            {professional.services_count} servicios
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Places Section */}
+            {places.length > 0 && (
+              <View style={styles.polaroidSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+                    🏢 Establecimientos ({places.length})
                   </Text>
-                  <Text
-                    style={[styles.polaroidTitle, {color: colors.foreground}]}
-                    numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  <View style={styles.polaroidFooter}>
-                    <View style={styles.polaroidRating}>
-                      <Ionicons name="star" color="#FFD700" size={14} />
-                      <Text style={[styles.polaroidRatingText, {color: colors.foreground}]}>
-                        {item.rating}
-                      </Text>
-                    </View>
-                    <Text style={[styles.polaroidPrice, {color: "#FF69B4"}]}>{item.price}</Text>
-                  </View>
+                  <TouchableOpacity>
+                    <Text style={[styles.seeAllText, {color: colors.primary}]}>Ver todo</Text>
+                  </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.polaroidScroll}
+                  snapToInterval={SCREEN_WIDTH * 0.7 + 16}
+                  decelerationRate="fast">
+                  {places.map((place, index) => (
+                    <TouchableOpacity
+                      key={place.id}
+                      style={[
+                        styles.polaroidCard,
+                        {backgroundColor: colors.card},
+                        index % 2 === 0
+                          ? {transform: [{rotate: "-2deg"}]}
+                          : {transform: [{rotate: "2deg"}]},
+                      ]}
+                      onPress={() => router.push(`/place/${place.id}`)}
+                      activeOpacity={0.95}>
+                      <View style={styles.polaroidImageWrapper}>
+                        <View
+                          style={[styles.polaroidImagePlaceholder, {backgroundColor: "#DDA0DD"}]}>
+                          <Text style={styles.polaroidInitials}>
+                            {place.name.substring(0, 2).toUpperCase()}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={[styles.polaroidLikeButton, {backgroundColor: "#ffffff"}]}>
+                          <Ionicons name="heart-outline" color="#FF69B4" size={20} />
+                        </TouchableOpacity>
+                        {place.services_count > 5 && (
+                          <View style={[styles.polaroidBadge, {backgroundColor: "#FF69B4"}]}>
+                            <Text style={styles.polaroidBadgeText}>Popular</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.polaroidInfo}>
+                        <Text style={[styles.polaroidProvider, {color: colors.mutedForeground}]}>
+                          {place.city || place.country || "Establecimiento"}
+                        </Text>
+                        <Text
+                          style={[styles.polaroidTitle, {color: colors.foreground}]}
+                          numberOfLines={1}>
+                          {place.name}
+                        </Text>
+                        <Text
+                          style={[styles.polaroidAddress, {color: colors.mutedForeground}]}
+                          numberOfLines={1}>
+                          <Ionicons name="location" size={12} color={colors.mutedForeground} />
+                          {"  "}
+                          {place.address}
+                        </Text>
+                        <View style={styles.polaroidFooter}>
+                          <View style={styles.polaroidRating}>
+                            <Ionicons name="briefcase" color="#DDA0DD" size={14} />
+                            <Text style={[styles.polaroidRatingText, {color: colors.foreground}]}>
+                              {place.services_count} servicios
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </>
+        )}
 
         {/* Explorar y Descubrir - Grid Visual */}
         <View style={styles.exploreSection}>
@@ -382,13 +552,13 @@ export default function Explore() {
             {[
               {
                 id: 1,
-                title: "Lugares Cerca",
+                title: "Lugares",
                 subtitle: "Descubre espacios únicos",
                 icon: "location",
                 color: "#FF69B4",
                 image:
                   "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400&h=400&fit=crop",
-                count: "24+ lugares",
+                count: `${places.length} lugares`,
               },
               {
                 id: 2,
@@ -398,7 +568,7 @@ export default function Explore() {
                 color: "#DDA0DD",
                 image:
                   "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&h=400&fit=crop",
-                count: "50+ profesionales",
+                count: `${professionals.length} profesionales`,
               },
               {
                 id: 3,
@@ -408,17 +578,7 @@ export default function Explore() {
                 color: "#FFB347",
                 image:
                   "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400&h=400&fit=crop",
-                count: "12+ servicios",
-              },
-              {
-                id: 4,
-                title: "Experiencias",
-                subtitle: "Vive algo nuevo",
-                icon: "sparkles",
-                color: "#87CEEB",
-                image:
-                  "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=400&fit=crop",
-                count: "18+ actividades",
+                count: "Próximamente",
               },
             ].map((item, index) => (
               <TouchableOpacity
@@ -428,7 +588,22 @@ export default function Explore() {
                   {backgroundColor: colors.card},
                   index % 2 === 0 ? styles.exploreCardLeft : styles.exploreCardRight,
                 ]}
-                activeOpacity={0.95}>
+                activeOpacity={0.95}
+                onPress={() => {
+                  switch (item.id) {
+                    case 1:
+                      router.push("/lugares");
+                      break;
+                    case 2:
+                      router.push("/profesionales");
+                      break;
+                    case 3:
+                      router.push("/cuidado-mascotas");
+                      break;
+                    default:
+                      break;
+                  }
+                }}>
                 <Image source={{uri: item.image}} style={styles.exploreCardImage} />
                 <View style={[styles.exploreCardOverlay, {backgroundColor: item.color + "E6"}]}>
                   <View style={styles.exploreCardIcon}>
@@ -540,41 +715,40 @@ const styles = StyleSheet.create({
   categoryCard: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 20,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 2,
-  },
-  categoryCardSelected: {
-    borderWidth: 2,
-  },
-  categoryIconWrapper: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 10,
-    position: "relative",
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderRadius: 16,
+    minHeight: 110,
+    gap: 4,
   },
   categoryIcon: {
-    fontSize: 28,
-  },
-  categoryCheckmark: {
-    position: "absolute",
-    bottom: -2,
-    right: -2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.2)",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#ffffff",
+    marginBottom: 2,
   },
-  categoryName: {
-    fontSize: 14,
+  categoryEmoji: {
+    fontSize: 16,
+  },
+  categoryTitle: {
+    fontSize: 12,
     fontWeight: "700",
+    color: "#ffffff",
+    textAlign: "center",
+  },
+  categorySubtitle: {
+    fontSize: 9,
+    color: "rgba(255,255,255,0.8)",
+    textAlign: "center",
+    lineHeight: 11,
+  },
+  categoryCount: {
+    fontSize: 10,
+    color: "#ffffff",
+    fontWeight: "600",
     textAlign: "center",
   },
 
@@ -794,6 +968,54 @@ const styles = StyleSheet.create({
   polaroidPrice: {
     fontSize: 20,
     fontWeight: "900",
+  },
+  polaroidImagePlaceholder: {
+    width: "100%",
+    height: 280,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  polaroidInitials: {
+    fontSize: 72,
+    fontWeight: "900",
+    color: "#ffffff",
+    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowOffset: {width: 0, height: 2},
+    textShadowRadius: 8,
+  },
+  polaroidBio: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  polaroidServicesCount: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  polaroidAddress: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  loadingContainer: {
+    paddingVertical: 60,
+    alignItems: "center",
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  errorContainer: {
+    padding: 16,
+    marginHorizontal: 16,
+    backgroundColor: "#fef2f2",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  errorText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 
   // Explorar Grid - Categorías visuales

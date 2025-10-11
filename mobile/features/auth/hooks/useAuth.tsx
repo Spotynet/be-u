@@ -55,8 +55,8 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
       setState((prev) => ({...prev, isLoading: true, error: null}));
       const response = await authApi.login(credentials);
 
-      // Store auth token (using a simple flag since backend uses session auth)
-      await tokenUtils.setToken("authenticated");
+      // Store JWT tokens
+      await tokenUtils.setTokens(response.data.access, response.data.refresh);
 
       setState((prev) => ({
         ...prev,
@@ -79,8 +79,8 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
 
       const response = await authApi.register(credentials);
 
-      // Store auth token
-      await tokenUtils.setToken("authenticated");
+      // Store JWT tokens
+      await tokenUtils.setTokens(response.data.access, response.data.refresh);
 
       setState((prev) => ({
         ...prev,

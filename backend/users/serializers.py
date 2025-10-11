@@ -96,16 +96,41 @@ class ClientProfileSerializer(serializers.ModelSerializer):
 
 
 class ProfessionalProfileSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    services_count = serializers.SerializerMethodField()
+    
     class Meta:
         model = ProfessionalProfile
-        fields = ['name', 'last_name', 'bio', 'city', 'rating']
+        fields = ['id', 'user_id', 'email', 'name', 'last_name', 'bio', 'city', 'rating', 'services_count']
+        read_only_fields = ['id', 'user_id', 'email', 'rating']
+    
+    def get_services_count(self, obj):
+        return obj.services.filter(is_active=True).count()
 
 
 class PlaceProfileSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    services_count = serializers.SerializerMethodField()
+    address = serializers.SerializerMethodField()
+    
     class Meta:
         model = PlaceProfile
         fields = [
-            'name', 'street', 'number_ext', 'number_int',
-            'postal_code', 'city', 'country', 'owner'
+            'id', 'user_id', 'email', 'name', 'street', 'number_ext', 'number_int',
+            'postal_code', 'city', 'country', 'owner', 'services_count', 'address'
         ]
+        read_only_fields = ['id', 'user_id', 'email']
+    
+    def get_services_count(self, obj):
+        return obj.services_offered.filter(is_active=True).count()
+    
+    def get_address(self, obj):
+        parts = [obj.street]
+        if obj.number_ext:
+            parts.append(f"#{obj.number_ext}")
+        if obj.city:
+            parts.append(obj.city)
+        return ', '.join(parts)
 

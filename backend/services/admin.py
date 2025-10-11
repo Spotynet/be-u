@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import ServicesCategory, ServicesType, ServiceInPlace
+from .models import (
+    ServicesCategory, ServicesType, ServiceInPlace, 
+    ProfessionalService, ProviderAvailability, TimeSlotBlock
+)
 
 
 @admin.register(ServicesCategory)
@@ -17,7 +20,32 @@ class ServicesTypeAdmin(admin.ModelAdmin):
 
 @admin.register(ServiceInPlace)
 class ServiceInPlaceAdmin(admin.ModelAdmin):
-    list_display = ('service', 'place', 'price', 'time', 'is_active')
+    list_display = ('service', 'place', 'professional', 'price', 'time', 'is_active', 'created_at')
     search_fields = ('service__name', 'place__name', 'description')
     list_filter = ('is_active', 'service__category', 'place__city')
-    raw_id_fields = ('place', 'service')
+    raw_id_fields = ('place', 'service', 'professional')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(ProfessionalService)
+class ProfessionalServiceAdmin(admin.ModelAdmin):
+    list_display = ('service', 'professional', 'price', 'time', 'is_active', 'created_at')
+    search_fields = ('service__name', 'professional__name', 'description')
+    list_filter = ('is_active', 'service__category', 'professional__city')
+    raw_id_fields = ('professional', 'service')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(ProviderAvailability)
+class ProviderAvailabilityAdmin(admin.ModelAdmin):
+    list_display = ('provider', 'day_of_week', 'start_time', 'end_time', 'is_active')
+    list_filter = ('day_of_week', 'is_active')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(TimeSlotBlock)
+class TimeSlotBlockAdmin(admin.ModelAdmin):
+    list_display = ('provider', 'date', 'start_time', 'end_time', 'reason')
+    list_filter = ('reason', 'date')
+    search_fields = ('notes',)
+    readonly_fields = ('created_at', 'updated_at')

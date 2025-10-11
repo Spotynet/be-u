@@ -4,8 +4,12 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from .models import User
-from .serializers import UserSerializer, UserRegistrationSerializer, UserLoginSerializer
+from django.db import models
+from .models import User, ProfessionalProfile, PlaceProfile
+from .serializers import (
+    UserSerializer, UserRegistrationSerializer, UserLoginSerializer,
+    ProfessionalProfileSerializer, PlaceProfileSerializer
+)
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -66,3 +70,63 @@ def logout_view(request):
 def profile_view(request):
     serializer = UserSerializer(request.user)
     return Response(serializer.data)
+
+
+class ProfessionalProfileViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for browsing professional profiles"""
+    queryset = ProfessionalProfile.objects.select_related('user').all()
+    serializer_class = ProfessionalProfileSerializer
+    permission_classes = [AllowAny]  # Public access for browsing
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Filter by search query
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                models.Q(name__icontains=search) |
+                models.Q(last_name__icontains=search) |
+                models.Q(city__icontains=search) |
+                models.Q(bio__icontains=search)
+            )
+        
+        # Filter by city
+        city = self.request.query_params.get('city', None)
+        if city:
+            queryset = queryset.filter(city__icontains=city)
+        
+        # Order by rating by default
+        queryset = queryset.order_by('-rating', 'name')
+        
+        return queryset
+
+
+class PlaceProfileViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for browsing place profiles"""
+    queryset = PlaceProfile.objects.select_related('user', 'owner').all()
+    serializer_class = PlaceProfileSerializer
+    permission_classes = [AllowAny]  # Public access for browsing
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Filter by search query
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                models.Q(name__icontains=search) |
+                models.Q(city__icontains=search) |
+                models.Q(street__icontains=search) |
+                models.Q(country__icontains=search)
+            )
+        
+        # Filter by city
+        city = self.request.query_params.get('city', None)
+        if city:
+            queryset = queryset.filter(city__icontains=city)
+        
+        # Order by name
+        queryset = queryset.order_by('name')
+        
+        return queryset

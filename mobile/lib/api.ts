@@ -23,6 +23,7 @@ export interface ApiError {
 // API Configuration
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000/api";
 const AUTH_TOKEN_KEY = "@auth_token";
+const REFRESH_TOKEN_KEY = "@refresh_token";
 
 // Create axios instance with default config
 const apiClient: AxiosInstance = axios.create({
@@ -127,6 +128,9 @@ export const authApi = {
 
   logout: () => api.post("/auth/logout/"),
 
+  refreshToken: (refreshToken: string) =>
+    api.post<{access: string}>("/auth/refresh/", {refresh: refreshToken}),
+
   getProfile: () => api.get<{user: any}>("/auth/profile/"),
 
   updateProfile: (data: any) => api.put<{user: any}>("/auth/profile/", data),
@@ -153,7 +157,7 @@ export const profileApi = {
 
 // User management API functions
 export const userApi = {
-  getUsers: (params?: {page?: number; search?: string}) =>
+  getUsers: (params?: {page?: number; search?: string; role?: string}) =>
     api.get<{results: any[]; count: number}>("/users/", {params}),
 
   getUser: (id: number) => api.get<any>(`/users/${id}/`),
@@ -161,20 +165,138 @@ export const userApi = {
   updateUser: (id: number, data: any) => api.put<any>(`/users/${id}/`, data),
 
   deleteUser: (id: number) => api.delete(`/users/${id}/`),
+
+  // Get professionals (for place users to assign to services)
+  getProfessionals: (params?: {search?: string}) =>
+    api.get<{results: any[]; count: number}>("/users/", {
+      params: {...params, role: "PROFESSIONAL"},
+    }),
+};
+
+// Provider profiles API (for browse/explore)
+export const providerApi = {
+  // Get professional profiles for browsing
+  getProfessionalProfiles: (params?: {search?: string; city?: string; page?: number}) =>
+    api.get<{results: any[]; count: number; next?: string; previous?: string}>("/professionals/", {
+      params,
+    }),
+
+  // Get place profiles for browsing
+  getPlaceProfiles: (params?: {search?: string; city?: string; page?: number}) =>
+    api.get<{results: any[]; count: number; next?: string; previous?: string}>("/places/", {
+      params,
+    }),
+
+  // Get specific professional profile
+  getProfessionalProfile: (id: number) => api.get<any>(`/professionals/${id}/`),
+
+  // Get specific place profile
+  getPlaceProfile: (id: number) => api.get<any>(`/places/${id}/`),
 };
 
 // Service management API functions
 export const serviceApi = {
-  getServices: (params?: {page?: number; search?: string; category?: string}) =>
+  // Service types and categories
+  getCategories: () => api.get<{results: any[]}>("/services/categories/"),
+
+  getServiceTypes: (params?: {category?: string; search?: string}) =>
+    api.get<{results: any[]}>("/services/types/", {params}),
+
+  createServiceType: (data: {
+    name: string;
+    category: number;
+    description?: string;
+    photo?: string;
+  }) => api.post<any>("/services/types/", data),
+
+  // Generic services (backward compatible)
+  getServices: (params?: {page?: number; search?: string; category?: string; provider?: number}) =>
     api.get<{results: any[]; count: number}>("/services/", {params}),
 
   getService: (id: number) => api.get<any>(`/services/${id}/`),
 
+  // User's services (role-aware)
+  getMyServices: () => api.get<{results: any[]; count: number}>("/services/my-services/"),
+
+  // Place services
+  getPlaceServices: (params?: {place?: number; is_active?: boolean}) =>
+    api.get<{results: any[]; count: number}>("/services/place-services/", {params}),
+
+  createPlaceService: (data: {
+    service: number;
+    description?: string;
+    time: string; // Duration in HH:MM:SS format
+    price: number;
+    professional?: number;
+    is_active?: boolean;
+  }) => api.post<any>("/services/place-services/", data),
+
+  updatePlaceService: (id: number, data: any) =>
+    api.put<any>(`/services/place-services/${id}/`, data),
+
+  deletePlaceService: (id: number) => api.delete(`/services/place-services/${id}/`),
+
+  // Professional services
+  getProfessionalServices: (params?: {professional?: number; is_active?: boolean}) =>
+    api.get<{results: any[]; count: number}>("/services/professional-services/", {params}),
+
+  createProfessionalService: (data: {
+    service: number;
+    description?: string;
+    time: string; // Duration in HH:MM:SS format
+    price: number;
+    is_active?: boolean;
+  }) => api.post<any>("/services/professional-services/", data),
+
+  updateProfessionalService: (id: number, data: any) =>
+    api.put<any>(`/services/professional-services/${id}/`, data),
+
+  deleteProfessionalService: (id: number) => api.delete(`/services/professional-services/${id}/`),
+
+  // Available slots
+  getAvailableSlots: (params: {
+    service_id: number;
+    date: string; // YYYY-MM-DD
+    service_type: "place" | "professional";
+  }) => api.get<any>("/services/available-slots/", {params}),
+
+  // Legacy methods for backward compatibility
   createService: (data: any) => api.post<any>("/services/", data),
-
   updateService: (id: number, data: any) => api.put<any>(`/services/${id}/`, data),
-
   deleteService: (id: number) => api.delete(`/services/${id}/`),
+};
+
+// Availability management API functions
+export const availabilityApi = {
+  // Get availability for a provider
+  getAvailability: (params?: {provider_type?: string; provider_id?: number}) =>
+    api.get<{results: any[]; count: number}>("/services/availability/", {params}),
+
+  // Bulk update availability
+  bulkUpdateAvailability: (data: {
+    provider_type: "professional" | "place";
+    provider_id: number;
+    schedules: Array<{
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+      is_active?: boolean;
+    }>;
+  }) => api.post<any>("/services/availability/bulk-update/", data),
+
+  // Time slot blocks
+  getTimeBlocks: (params?: {start_date?: string; end_date?: string}) =>
+    api.get<{results: any[]; count: number}>("/services/time-blocks/", {params}),
+
+  createTimeBlock: (data: {
+    date: string;
+    start_time: string;
+    end_time: string;
+    reason: string;
+    notes?: string;
+  }) => api.post<any>("/services/time-blocks/", data),
+
+  deleteTimeBlock: (id: number) => api.delete(`/services/time-blocks/${id}/`),
 };
 
 // Reservation management API functions
@@ -186,14 +308,24 @@ export const reservationApi = {
     service?: number;
     status?: string;
     provider?: number;
+    start_date?: string;
+    end_date?: string;
   }) => api.get<{results: any[]; count: number}>("/reservations/", {params}),
 
   // Get single reservation
   getReservation: (id: number) => api.get<any>(`/reservations/${id}/`),
 
   // Create new reservation
-  createReservation: (data: {service: number; date: string; time: string; notes?: string}) =>
-    api.post<any>("/reservations/", data),
+  createReservation: (data: {
+    service: number;
+    provider_type: "professional" | "place";
+    provider_id: number;
+    service_instance_type?: "place_service" | "professional_service";
+    service_instance_id?: number;
+    date: string;
+    time: string;
+    notes?: string;
+  }) => api.post<any>("/reservations/", data),
 
   // Update reservation
   updateReservation: (id: number, data: any) => api.put<any>(`/reservations/${id}/`, data),
@@ -215,9 +347,17 @@ export const reservationApi = {
   // Delete reservation
   deleteReservation: (id: number) => api.delete(`/reservations/${id}/`),
 
+  // Get client's reservations
+  getMyReservations: (params?: {filter?: "upcoming" | "past"}) =>
+    api.get<{results: any[]; count: number}>("/reservations/my-reservations/", {params}),
+
   // Get incoming reservations (for providers)
   getIncomingReservations: (params?: {page?: number; status?: string}) =>
     api.get<{results: any[]; count: number}>("/reservations/incoming/", {params}),
+
+  // Get calendar view
+  getCalendarView: (params: {start_date: string; end_date: string}) =>
+    api.get<Record<string, any[]>>("/reservations/calendar/", {params}),
 };
 
 // Review management API functions
@@ -304,6 +444,11 @@ export const postApi = {
 
 // Token management utilities
 export const tokenUtils = {
+  setTokens: async (accessToken: string, refreshToken: string): Promise<void> => {
+    await AsyncStorage.setItem(AUTH_TOKEN_KEY, accessToken);
+    await AsyncStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  },
+
   setToken: async (token: string): Promise<void> => {
     await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
   },
@@ -312,8 +457,13 @@ export const tokenUtils = {
     return await AsyncStorage.getItem(AUTH_TOKEN_KEY);
   },
 
+  getRefreshToken: async (): Promise<string | null> => {
+    return await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+  },
+
   removeToken: async (): Promise<void> => {
     await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+    await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
   },
 
   isAuthenticated: async (): Promise<boolean> => {
