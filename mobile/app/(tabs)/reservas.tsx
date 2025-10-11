@@ -1,219 +1,348 @@
-import {View, Text, ScrollView, StyleSheet, TouchableOpacity, Image} from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
-import {useState} from "react";
+import {useState, useEffect} from "react";
+import {useAuth} from "@/features/auth";
+import {useReservations, useIncomingReservations} from "@/features/reservations";
+import {CalendarView, DaySchedule, ReservationCard} from "@/components/calendar";
+import {useRouter} from "expo-router";
+import {Reservation} from "@/types/global";
+import {Alert} from "react-native";
 
 export default function Reservas() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
-  const [activeTab, setActiveTab] = useState<"activas" | "finalizadas">("activas");
+  const router = useRouter();
+  const {user, isAuthenticated} = useAuth();
 
-  const activeReservations = [
-    {
-      id: 1,
-      salonName: "BE-U Spa",
-      status: "confirmada",
-      date: "25/07/2024",
-      time: "10:00 am",
-      location: "Toluca 32, CDMX",
-      rating: 4.9,
-      service: "Tratamiento Facial",
-      duration: "60 min",
-      price: "$1,200",
-      image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400&h=200&fit=crop",
-    },
-    {
-      id: 2,
-      salonName: "BE-U Hair Studio",
-      status: "pendiente",
-      date: "28/07/2024",
-      time: "2:00 pm",
-      location: "Roma Norte, CDMX",
-      rating: 4.8,
-      service: "Corte y Peinado",
-      duration: "45 min",
-      price: "$800",
-      image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&h=200&fit=crop",
-    },
-  ];
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [selectedDate, setSelectedDate] = useState<string | undefined>();
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const completedReservations = [
-    {
-      id: 3,
-      salonName: "BE-U Beauty",
-      status: "completada",
-      date: "20/07/2024",
-      time: "11:00 am",
-      location: "Polanco, CDMX",
-      rating: 4.9,
-      service: "Manicure y Pedicure",
-      duration: "90 min",
-      price: "$600",
-      image: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=400&h=200&fit=crop",
-    },
-  ];
+  // For clients
+  const {
+    reservations: clientReservations,
+    isLoading: clientLoading,
+    error: clientError,
+    refreshReservations: refreshClient,
+    cancelReservation,
+  } = useReservations(user?.id);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "confirmada":
-        return "#10b981"; // Green
-      case "pendiente":
-        return "#f59e0b"; // Orange
-      case "completada":
-        return "#6b7280"; // Gray
-      default:
-        return colors.primary;
+  // For providers
+  const {
+    reservations: providerReservations,
+    isLoading: providerLoading,
+    error: providerError,
+    filter,
+    setFilter,
+    refreshReservations: refreshProvider,
+    confirmReservation,
+    rejectReservation,
+    completeReservation,
+  } = useIncomingReservations();
+
+  const isClient = user?.role === "CLIENT";
+  const isProvider = user?.role === "PROFESSIONAL" || user?.role === "PLACE";
+
+  const reservations = isClient ? clientReservations : providerReservations;
+  const isLoading = isClient ? clientLoading : providerLoading;
+  const error = isClient ? clientError : providerError;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (isClient) {
+        refreshClient();
+      } else if (isProvider) {
+        refreshProvider();
+      }
     }
+  }, [isAuthenticated, user?.role]);
+
+  const handleDayPress = (date: string) => {
+    setSelectedDate(date);
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "confirmada":
-        return "checkmark-circle";
-      case "pendiente":
-        return "time";
-      case "completada":
-        return "checkmark-done-circle";
-      default:
-        return "help-circle";
-    }
+  const handleConfirm = async (id: number) => {
+    Alert.alert("Confirmar Reserva", "¿Confirmar esta reserva?", [
+      {text: "Cancelar", style: "cancel"},
+      {
+        text: "Confirmar",
+        onPress: async () => {
+          try {
+            await confirmReservation(id);
+          } catch (err) {
+            // Error already handled
+          }
+        },
+      },
+    ]);
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "confirmada":
-        return "Reserva confirmada";
-      case "pendiente":
-        return "Reserva pendiente";
-      case "completada":
-        return "Reserva completada";
-      default:
-        return "Estado desconocido";
-    }
+  const handleReject = async (id: number) => {
+    Alert.prompt(
+      "Rechazar Reserva",
+      "¿Por qué rechazas esta reserva?",
+      [
+        {text: "Cancelar", style: "cancel"},
+        {
+          text: "Rechazar",
+          style: "destructive",
+          onPress: async (reason) => {
+            try {
+              await rejectReservation(id, reason);
+            } catch (err) {
+              // Error already handled
+            }
+          },
+        },
+      ],
+      "plain-text"
+    );
   };
 
-  const currentReservations = activeTab === "activas" ? activeReservations : completedReservations;
+  const handleCancel = async (id: number) => {
+    Alert.prompt(
+      "Cancelar Reserva",
+      "¿Por qué cancelas esta reserva? (opcional)",
+      [
+        {text: "No cancelar", style: "cancel"},
+        {
+          text: "Cancelar Reserva",
+          style: "destructive",
+          onPress: async (reason) => {
+            try {
+              await cancelReservation(id, reason);
+            } catch (err) {
+              // Error already handled
+            }
+          },
+        },
+      ],
+      "plain-text"
+    );
+  };
+
+  const handleComplete = async (id: number) => {
+    Alert.alert("Completar Reserva", "¿Marcar esta reserva como completada?", [
+      {text: "Cancelar", style: "cancel"},
+      {
+        text: "Completar",
+        onPress: async () => {
+          try {
+            await completeReservation(id);
+          } catch (err) {
+            // Error already handled
+          }
+        },
+      },
+    ]);
+  };
+
+  // Filter reservations
+  const filteredReservations = reservations.filter((r) => {
+    if (selectedDate && r.date !== selectedDate) return false;
+    if (statusFilter !== "all" && r.status !== statusFilter) return false;
+    return true;
+  });
+
+  // Separate active and completed
+  const activeReservations = filteredReservations.filter((r) =>
+    ["PENDING", "CONFIRMED"].includes(r.status)
+  );
+  const completedReservations = filteredReservations.filter((r) =>
+    ["COMPLETED", "CANCELLED", "REJECTED"].includes(r.status)
+  );
+
+  // Show login prompt if not authenticated
+  if (!isAuthenticated || !user) {
+    return (
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
+        <View style={[styles.header, {backgroundColor: colors.primary}]}>
+          <Text style={styles.headerTitle}>Mis Reservas</Text>
+        </View>
+        <View style={styles.centeredContainer}>
+          <Ionicons name="calendar-outline" size={80} color={colors.mutedForeground} />
+          <Text style={[styles.emptyTitle, {color: colors.foreground}]}>
+            Inicia sesión para ver tus reservas
+          </Text>
+          <TouchableOpacity
+            style={[styles.loginButton, {backgroundColor: colors.primary}]}
+            onPress={() => router.push("/login")}
+            activeOpacity={0.9}>
+            <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Show loading state
+  if (isLoading && reservations.length === 0) {
+    return (
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
+        <View style={[styles.header, {backgroundColor: colors.primary}]}>
+          <Text style={styles.headerTitle}>{isClient ? "Mis Reservas" : "Agenda"}</Text>
+        </View>
+        <View style={styles.centeredContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, {color: colors.mutedForeground}]}>
+            Cargando reservas...
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* Header */}
       <View style={[styles.header, {backgroundColor: colors.primary}]}>
-        <TouchableOpacity style={styles.backButton}>
-          <Ionicons name="arrow-back" color="#ffffff" size={24} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: "#ffffff"}]}>Mis Reservas</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      {/* Tab Navigation */}
-      <View style={[styles.tabContainer, {backgroundColor: colors.background}]}>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === "activas" && styles.activeTab,
-            activeTab === "activas" && {borderBottomColor: colors.primary},
-          ]}
-          onPress={() => setActiveTab("activas")}>
-          <Text
-            style={[
-              styles.tabText,
-              {color: activeTab === "activas" ? colors.primary : colors.mutedForeground},
-            ]}>
-            Activas
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === "finalizadas" && styles.activeTab,
-            activeTab === "finalizadas" && {borderBottomColor: colors.primary},
-          ]}
-          onPress={() => setActiveTab("finalizadas")}>
-          <Text
-            style={[
-              styles.tabText,
-              {color: activeTab === "finalizadas" ? colors.primary : colors.mutedForeground},
-            ]}>
-            Finalizadas
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Reservations List */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {currentReservations.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="calendar-outline" color={colors.mutedForeground} size={64} />
-            <Text style={[styles.emptyTitle, {color: colors.foreground}]}>
-              No hay reservas {activeTab === "activas" ? "activas" : "finalizadas"}
-            </Text>
-            <Text style={[styles.emptySubtitle, {color: colors.mutedForeground}]}>
-              {activeTab === "activas"
-                ? "Tus próximas citas aparecerán aquí"
-                : "Tus citas completadas aparecerán aquí"}
-            </Text>
-          </View>
-        ) : (
-          currentReservations.map((reservation) => (
-            <View
-              key={reservation.id}
+        <Text style={styles.headerTitle}>{isClient ? "Mis Reservas" : "Mi Agenda"}</Text>
+        <View style={styles.headerActions}>
+          {/* View Toggle */}
+          <View style={styles.viewToggle}>
+            <TouchableOpacity
               style={[
-                styles.reservationCard,
-                {backgroundColor: colors.card, borderColor: getStatusColor(reservation.status)},
+                styles.toggleButton,
+                viewMode === "list" && [styles.toggleButtonActive, {backgroundColor: "#ffffff20"}],
+              ]}
+              onPress={() => setViewMode("list")}
+              activeOpacity={0.7}>
+              <Ionicons name="list" size={20} color="#ffffff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.toggleButton,
+                viewMode === "calendar" && [
+                  styles.toggleButtonActive,
+                  {backgroundColor: "#ffffff20"},
+                ],
+              ]}
+              onPress={() => setViewMode("calendar")}
+              activeOpacity={0.7}>
+              <Ionicons name="calendar" size={20} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      {/* Calendar View */}
+      {viewMode === "calendar" ? (
+        <View style={styles.content}>
+          <CalendarView
+            reservations={reservations}
+            onDayPress={handleDayPress}
+            selectedDate={selectedDate}
+          />
+
+          {selectedDate && (
+            <DaySchedule
+              date={selectedDate}
+              reservations={filteredReservations}
+              onReservationPress={(reservation) => {
+                // Could open detail modal here
+              }}
+            />
+          )}
+        </View>
+      ) : (
+        <>
+          {/* Status Filter Tabs (for providers) */}
+          {isProvider && (
+            <View
+              style={[
+                styles.filterTabs,
+                {backgroundColor: colors.background, borderBottomColor: colors.border},
               ]}>
-              {/* Salon Image */}
-              <View style={styles.imageContainer}>
-                <Image source={{uri: reservation.image}} style={styles.salonImage} />
-                <View style={[styles.ratingBadge, {backgroundColor: "#ef4444"}]}>
-                  <Ionicons name="star" color="#ffffff" size={12} />
-                  <Text style={styles.ratingText}>{reservation.rating}</Text>
-                </View>
-              </View>
-
-              {/* Salon Info */}
-              <View style={styles.salonInfo}>
-                <Text style={[styles.salonName, {color: colors.foreground}]}>
-                  {reservation.salonName}
+              <TouchableOpacity
+                style={[
+                  styles.filterTab,
+                  filter === "all" && [styles.filterTabActive, {borderBottomColor: colors.primary}],
+                ]}
+                onPress={() => setFilter("all")}>
+                <Text
+                  style={[
+                    styles.filterTabText,
+                    {color: filter === "all" ? colors.primary : colors.mutedForeground},
+                  ]}>
+                  Todas
                 </Text>
-                <View style={styles.serviceInfo}>
-                  <Ionicons name="checkmark-circle" color={colors.primary} size={16} />
-                  <Text style={[styles.serviceText, {color: colors.mutedForeground}]}>
-                    {reservation.service} • {reservation.duration}
-                  </Text>
-                </View>
-
-                {/* Status */}
-                <View style={styles.statusContainer}>
-                  <Ionicons
-                    name={getStatusIcon(reservation.status)}
-                    color={getStatusColor(reservation.status)}
-                    size={20}
-                  />
-                  <Text style={[styles.statusText, {color: getStatusColor(reservation.status)}]}>
-                    {getStatusText(reservation.status)}
-                  </Text>
-                </View>
-
-                {/* Date and Time */}
-                <Text style={[styles.dateTime, {color: colors.foreground}]}>
-                  {reservation.date} {reservation.time}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.filterTab,
+                  filter === "PENDING" && [
+                    styles.filterTabActive,
+                    {borderBottomColor: colors.primary},
+                  ],
+                ]}
+                onPress={() => setFilter("PENDING")}>
+                <Text
+                  style={[
+                    styles.filterTabText,
+                    {color: filter === "PENDING" ? colors.primary : colors.mutedForeground},
+                  ]}>
+                  Pendientes
                 </Text>
-
-                {/* Location */}
-                <Text style={[styles.location, {color: colors.foreground}]}>
-                  {reservation.location}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.filterTab,
+                  filter === "CONFIRMED" && [
+                    styles.filterTabActive,
+                    {borderBottomColor: colors.primary},
+                  ],
+                ]}
+                onPress={() => setFilter("CONFIRMED")}>
+                <Text
+                  style={[
+                    styles.filterTabText,
+                    {color: filter === "CONFIRMED" ? colors.primary : colors.mutedForeground},
+                  ]}>
+                  Confirmadas
                 </Text>
-
-                {/* Price */}
-                <View style={styles.priceContainer}>
-                  <Text style={[styles.price, {color: colors.primary}]}>{reservation.price}</Text>
-                </View>
-              </View>
+              </TouchableOpacity>
             </View>
-          ))
-        )}
-      </ScrollView>
+          )}
+
+          {/* List View */}
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {filteredReservations.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="calendar-outline" color={colors.mutedForeground} size={64} />
+                <Text style={[styles.emptyTitle, {color: colors.foreground}]}>No hay reservas</Text>
+                <Text style={[styles.emptySubtitle, {color: colors.mutedForeground}]}>
+                  {isClient
+                    ? "Tus reservas aparecerán aquí"
+                    : "Las solicitudes de reserva aparecerán aquí"}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.reservationsList}>
+                {filteredReservations.map((reservation) => (
+                  <ReservationCard
+                    key={reservation.id}
+                    reservation={reservation}
+                    showActions={isProvider}
+                    onConfirm={isProvider ? handleConfirm : undefined}
+                    onReject={isProvider ? handleReject : undefined}
+                    onCancel={isClient ? handleCancel : undefined}
+                    onComplete={isProvider ? handleComplete : undefined}
+                  />
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        </>
+      )}
     </View>
   );
 }
@@ -225,135 +354,91 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 16,
   },
-  backButton: {
-    padding: 8,
-  },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    flex: 1,
-    textAlign: "center",
+    color: "#ffffff",
+    fontSize: 24,
+    fontWeight: "800",
   },
-  headerSpacer: {
-    width: 40,
+  headerActions: {
+    flexDirection: "row",
+    gap: 12,
   },
-  tabContainer: {
+  viewToggle: {
+    flexDirection: "row",
+    backgroundColor: "#ffffff15",
+    borderRadius: 10,
+    padding: 4,
+    gap: 4,
+  },
+  toggleButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  toggleButtonActive: {},
+  filterTabs: {
     flexDirection: "row",
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
   },
-  tab: {
+  filterTab: {
     flex: 1,
     paddingVertical: 16,
     alignItems: "center",
-    borderBottomWidth: 2,
+    borderBottomWidth: 3,
     borderBottomColor: "transparent",
   },
-  activeTab: {
-    borderBottomWidth: 2,
+  filterTabActive: {
+    borderBottomWidth: 3,
   },
-  tabText: {
-    fontSize: 16,
-    fontWeight: "500",
+  filterTabText: {
+    fontSize: 15,
+    fontWeight: "600",
   },
   content: {
     flex: 1,
-    padding: 16,
   },
-  emptyState: {
+  centeredContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 64,
+    paddingHorizontal: 32,
+    gap: 16,
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: "600",
-    marginTop: 16,
-    marginBottom: 8,
+    fontWeight: "700",
   },
   emptySubtitle: {
-    fontSize: 16,
+    fontSize: 15,
     textAlign: "center",
-    lineHeight: 22,
   },
-  reservationCard: {
-    borderRadius: 16,
-    borderWidth: 2,
-    marginBottom: 16,
-    overflow: "hidden",
-  },
-  imageContainer: {
-    position: "relative",
-    height: 120,
-  },
-  salonImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-  },
-  ratingBadge: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  loginButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 14,
     borderRadius: 12,
-    gap: 4,
+    marginTop: 8,
   },
-  ratingText: {
+  loginButtonText: {
     color: "#ffffff",
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: "600",
   },
-  salonInfo: {
+  loadingText: {
+    fontSize: 15,
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 64,
+    gap: 12,
+  },
+  reservationsList: {
     padding: 16,
-  },
-  salonName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  serviceInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-    gap: 6,
-  },
-  serviceText: {
-    fontSize: 14,
-  },
-  statusContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-    gap: 6,
-  },
-  statusText: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  dateTime: {
-    fontSize: 16,
-    fontWeight: "500",
-    marginBottom: 4,
-  },
-  location: {
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  priceContainer: {
-    alignItems: "flex-end",
-  },
-  price: {
-    fontSize: 18,
-    fontWeight: "bold",
   },
 });

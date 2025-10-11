@@ -96,7 +96,11 @@ export default function Settings() {
 
   // Render appropriate form based on user role
   const renderSettingsForm = () => {
-    switch (user.role) {
+    console.log("User object:", user);
+    console.log("User role:", user?.role);
+    console.log("Role type:", typeof user?.role);
+    
+    switch (user?.role) {
       case "CLIENT":
         return (
           <ClientSettingsForm
@@ -130,6 +134,9 @@ export default function Settings() {
             <Ionicons name="alert-circle" color="#ef4444" size={48} />
             <Text style={[styles.errorText, {color: colors.foreground}]}>
               Tipo de usuario no reconocido
+            </Text>
+            <Text style={[styles.errorText, {color: colors.mutedForeground, fontSize: 12, marginTop: 8}]}>
+              Role: {user?.role || 'undefined'} (Type: {typeof user?.role})
             </Text>
           </View>
         );

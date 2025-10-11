@@ -7,14 +7,17 @@ import {
   Image,
   Dimensions,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
-import {useState, useRef} from "react";
+import {useState, useRef, useEffect} from "react";
 import {getCategoryEmoji} from "@/constants/categories";
 import {useRouter} from "expo-router";
 import {useAuth} from "@/features/auth";
+import {providerApi} from "@/lib/api";
+import {ProfessionalProfile, PlaceProfile} from "@/types/global";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -24,6 +27,32 @@ export default function Home() {
   const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
   const router = useRouter();
   const {user, isAuthenticated, logout} = useAuth();
+
+  // Featured providers state
+  const [professionals, setProfessionals] = useState<ProfessionalProfile[]>([]);
+  const [places, setPlaces] = useState<PlaceProfile[]>([]);
+  const [isFeaturedLoading, setIsFeaturedLoading] = useState(false);
+
+  useEffect(() => {
+    fetchFeaturedProviders();
+  }, []);
+
+  const fetchFeaturedProviders = async () => {
+    try {
+      setIsFeaturedLoading(true);
+      const [professionalsRes, placesRes] = await Promise.all([
+        providerApi.getProfessionalProfiles({page: 1}),
+        providerApi.getPlaceProfiles({page: 1}),
+      ]);
+      // Get only first 3 of each
+      setProfessionals((professionalsRes.data.results || []).slice(0, 3));
+      setPlaces((placesRes.data.results || []).slice(0, 3));
+    } catch (err) {
+      console.error("Error fetching featured:", err);
+    } finally {
+      setIsFeaturedLoading(false);
+    }
+  };
 
   // Historias - Formato horizontal tipo timeline novedoso
   const stories = [
@@ -892,7 +921,7 @@ export default function Home() {
         ]}>
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>BE-U</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerButton}>
+          <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/create-post")}>
             <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton}>
@@ -957,6 +986,85 @@ export default function Home() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+        </View>
+
+        {/* Destacados Section */}
+        {!isFeaturedLoading && (professionals.length > 0 || places.length > 0) && (
+          <View style={styles.featuredSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>✨ Destacados</Text>
+              <TouchableOpacity onPress={() => router.push("/explore")}>
+                <Text style={[styles.seeAllText, {color: colors.primary}]}>Ver todo</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.featuredScroll}>
+              {professionals.map((professional, index) => (
+                <TouchableOpacity
+                  key={`prof-${professional.id}`}
+                  style={[
+                    styles.featuredCard,
+                    {backgroundColor: colors.card},
+                    index % 2 === 0
+                      ? {transform: [{rotate: "2deg"}]}
+                      : {transform: [{rotate: "-2deg"}]},
+                  ]}
+                  onPress={() => router.push(`/professional/${professional.id}`)}
+                  activeOpacity={0.95}>
+                  <View style={[styles.featuredAvatar, {backgroundColor: "#FFB6C1"}]}>
+                    <Text style={styles.featuredInitials}>
+                      {professional.name[0]}
+                      {professional.last_name[0]}
+                    </Text>
+                  </View>
+                  <Text style={[styles.featuredName, {color: colors.foreground}]} numberOfLines={1}>
+                    {professional.name} {professional.last_name}
+                  </Text>
+                  <View style={styles.featuredRating}>
+                    <Ionicons name="star" color="#FFD700" size={14} />
+                    <Text style={[styles.featuredRatingText, {color: colors.foreground}]}>
+                      {professional.rating.toFixed(1)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+              {places.map((place, index) => (
+                <TouchableOpacity
+                  key={`place-${place.id}`}
+                  style={[
+                    styles.featuredCard,
+                    {backgroundColor: colors.card},
+                    index % 2 === 0
+                      ? {transform: [{rotate: "-2deg"}]}
+                      : {transform: [{rotate: "2deg"}]},
+                  ]}
+                  onPress={() => router.push(`/place/${place.id}`)}
+                  activeOpacity={0.95}>
+                  <View style={[styles.featuredAvatar, {backgroundColor: "#DDA0DD"}]}>
+                    <Text style={styles.featuredInitials}>
+                      {place.name.substring(0, 2).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={[styles.featuredName, {color: colors.foreground}]} numberOfLines={1}>
+                    {place.name}
+                  </Text>
+                  <Text
+                    style={[styles.featuredLocation, {color: colors.mutedForeground}]}
+                    numberOfLines={1}>
+                    {place.city || place.address}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Feed Label */}
+        <View style={styles.feedLabelSection}>
+          <Text style={[styles.feedLabel, {color: colors.foreground}]}>Feed</Text>
         </View>
 
         {/* Feed Posts */}
@@ -1610,5 +1718,85 @@ const styles = StyleSheet.create({
   },
   postActionBookmark: {
     marginLeft: "auto",
+  },
+
+  // Featured Section
+  featuredSection: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  featuredScroll: {
+    paddingHorizontal: 20,
+    gap: 16,
+  },
+  featuredCard: {
+    width: 140,
+    padding: 16,
+    borderRadius: 20,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  featuredAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  featuredInitials: {
+    fontSize: 32,
+    fontWeight: "900",
+    color: "#ffffff",
+  },
+  featuredName: {
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  featuredRating: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  featuredRatingText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  featuredLocation: {
+    fontSize: 12,
+    textAlign: "center",
+  },
+
+  // Feed Label
+  feedLabelSection: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  feedLabel: {
+    fontSize: 22,
+    fontWeight: "800",
   },
 });

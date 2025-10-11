@@ -48,6 +48,8 @@ export interface PlaceProfile {
 }
 
 export type ServiceCategory = "belleza" | "wellness" | "mascotas";
+export type ProviderType = "professional" | "place";
+export type ServiceInstanceType = "place_service" | "professional_service";
 
 export interface Service {
   id: number;
@@ -61,24 +63,136 @@ export interface Service {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  // Provider information
+  provider_type?: ProviderType;
+  provider_id?: number;
+  provider_name?: string;
 }
 
-export type ReservationStatus = "pending" | "confirmed" | "cancelled" | "completed" | "rejected";
+export interface PlaceService {
+  id: number;
+  type: "place_service";
+  name: string;
+  description?: string;
+  category: string;
+  price: number;
+  duration: number; // in minutes
+  is_active: boolean;
+  professional_assigned?: string;
+  created_at: string;
+}
+
+export interface ProfessionalService {
+  id: number;
+  type: "professional_service";
+  name: string;
+  description?: string;
+  category: string;
+  price: number;
+  duration: number; // in minutes
+  is_active: boolean;
+  created_at: string;
+}
+
+export type UserService = PlaceService | ProfessionalService;
+
+export type ReservationStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "REJECTED";
 
 export interface Reservation {
   id: number;
-  user: number;
+  code: string;
+  client: number;
+  client_details?: {
+    id: number;
+    name: string;
+    email: string;
+    phone?: string;
+  };
   service: number;
+  service_details?: {
+    id: number;
+    name: string;
+    category: string;
+  };
+  provider_type: ProviderType;
+  provider_name: string;
+  provider_details?: any;
   date: string;
   time: string;
+  duration?: number; // in minutes
+  duration_minutes?: number;
+  end_time?: string;
   status: ReservationStatus;
+  status_display: string;
   notes?: string;
   cancellation_reason?: string;
+  rejection_reason?: string;
   created_at: string;
   updated_at: string;
-  // Populated fields
-  user_details?: User;
-  service_details?: Service;
+}
+
+// ============================================
+// AVAILABILITY & CALENDAR TYPES
+// ============================================
+
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=Monday, 6=Sunday
+
+export interface ProviderAvailability {
+  id: number;
+  provider_type: ProviderType;
+  provider_name: string;
+  day_of_week: DayOfWeek;
+  start_time: string;
+  end_time: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WeeklySchedule {
+  [key: number]: {
+    enabled: boolean;
+    start_time: string;
+    end_time: string;
+  };
+}
+
+export type BlockReason = "VACATION" | "BREAK" | "BOOKED" | "PERSONAL" | "OTHER";
+
+export interface TimeSlotBlock {
+  id: number;
+  provider_type: ProviderType;
+  provider_name: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  reason: BlockReason;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TimeSlot {
+  time: string;
+  end_time: string;
+  available: boolean;
+}
+
+export interface AvailableSlotsResponse {
+  date: string;
+  provider_type: ProviderType;
+  provider_id: number;
+  slots: TimeSlot[];
+}
+
+export interface CalendarEvent {
+  id: number;
+  code: string;
+  service: string;
+  time: string;
+  status: ReservationStatus;
+  client_name?: string;
+  provider_name?: string;
 }
 
 export interface Review {
@@ -179,4 +293,81 @@ export interface Comment {
   content: string;
   created_at: string;
   updated_at: string;
+}
+
+// ============================================
+// SERVICE CREATION TYPES
+// ============================================
+
+export interface ServiceType {
+  id: number;
+  name: string;
+  category: number;
+  category_name?: string;
+  description?: string;
+  photo?: string;
+}
+
+export interface ServiceCategoryData {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+export interface CreateServiceTypeData {
+  name: string;
+  category: number;
+  description?: string;
+  photo?: string;
+}
+
+export interface ServiceFormData {
+  service: number; // ServiceType ID
+  description?: string;
+  duration: number; // in minutes
+  price: number;
+  is_active?: boolean;
+  professional?: number; // For place services only
+  photo?: string;
+}
+
+export interface ProfessionalOption {
+  id: number;
+  name: string;
+  last_name: string;
+  bio?: string;
+  city?: string;
+  rating: number;
+}
+
+// ============================================
+// PROVIDER PROFILES FOR EXPLORE/BROWSE
+// ============================================
+
+export interface ProfessionalProfile {
+  id: number;
+  user_id: number;
+  email: string;
+  name: string;
+  last_name: string;
+  bio?: string;
+  city?: string;
+  rating: number;
+  services_count: number;
+}
+
+export interface PlaceProfile {
+  id: number;
+  user_id: number;
+  email: string;
+  name: string;
+  street: string;
+  number_ext?: string;
+  number_int?: string;
+  postal_code: string;
+  city?: string;
+  country?: string;
+  owner: number;
+  services_count: number;
+  address: string;
 }

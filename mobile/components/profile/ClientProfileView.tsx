@@ -4,6 +4,7 @@ import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {User, ClientProfile} from "@/types/global";
 import {useRouter} from "expo-router";
+import {ProfileTabs} from "./ProfileTabs";
 
 interface ClientProfileViewProps {
   user: User;
@@ -21,8 +22,10 @@ export const ClientProfileView = ({user, profile, stats}: ClientProfileViewProps
   const router = useRouter();
   const isDark = colorScheme === "dark";
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  const getInitials = (firstName?: string, lastName?: string) => {
+    const first = firstName?.charAt(0) || "";
+    const last = lastName?.charAt(0) || "";
+    return `${first}${last}`.toUpperCase() || "U";
   };
 
   return (
@@ -39,7 +42,7 @@ export const ClientProfileView = ({user, profile, stats}: ClientProfileViewProps
                 <View
                   style={[styles.avatar, styles.avatarPlaceholder, {backgroundColor: "#3b82f6"}]}>
                   <Text style={styles.avatarText}>
-                    {getInitials(user.firstName, user.lastName)}
+                    {getInitials(user?.first_name, user?.last_name)}
                   </Text>
                 </View>
               )}
@@ -52,14 +55,15 @@ export const ClientProfileView = ({user, profile, stats}: ClientProfileViewProps
 
           {/* User Info */}
           <Text style={[styles.profileName, {color: colors.foreground}]}>
-            {user.firstName} {user.lastName}
+            {user?.first_name || user?.firstName || "Usuario"}{" "}
+            {user?.last_name || user?.lastName || ""}
           </Text>
 
           <View style={styles.contactInfo}>
             <View style={[styles.infoChip, {backgroundColor: colors.card}]}>
               <Ionicons name="mail" color={colors.primary} size={14} />
               <Text style={[styles.infoChipText, {color: colors.foreground}]} numberOfLines={1}>
-                {user.email}
+                {user?.email || "No email"}
               </Text>
             </View>
             {profile?.phone && (
@@ -76,10 +80,12 @@ export const ClientProfileView = ({user, profile, stats}: ClientProfileViewProps
             <Ionicons name="shield-checkmark" color={colors.primary} size={14} />
             <Text style={[styles.memberText, {color: colors.primary}]}>
               Miembro desde{" "}
-              {new Date(user.dateJoined).toLocaleDateString("es-MX", {
-                month: "short",
-                year: "numeric",
-              })}
+              {user?.date_joined
+                ? new Date(user.date_joined).toLocaleDateString("es-MX", {
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "Fecha no disponible"}
             </Text>
           </View>
         </View>
@@ -135,75 +141,14 @@ export const ClientProfileView = ({user, profile, stats}: ClientProfileViewProps
         </TouchableOpacity>
       </View>
 
-      {/* Quick Actions Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Acciones Rápidas</Text>
-          <View style={[styles.sectionBadge, {backgroundColor: colors.primary + "15"}]}>
-            <Text style={[styles.sectionBadgeText, {color: colors.primary}]}>4</Text>
-          </View>
-        </View>
+      {/* Additional spacing at bottom */}
+      <View style={{height: 20}} />
 
-        <View style={styles.actionsGrid}>
-          {/* Row 1 */}
-          <View style={styles.actionsRow}>
-            <TouchableOpacity
-              style={[styles.actionCard, {backgroundColor: colors.card}]}
-              onPress={() => router.push("/(tabs)/reservas")}
-              activeOpacity={0.7}>
-              <View style={[styles.actionIconWrapper, {backgroundColor: "#3b82f6" + "15"}]}>
-                <Ionicons name="calendar-outline" color="#3b82f6" size={24} />
-              </View>
-              <Text style={[styles.actionTitle, {color: colors.foreground}]}>Reservas</Text>
-              <Text style={[styles.actionSubtitle, {color: colors.mutedForeground}]}>
-                Ver historial
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionCard, {backgroundColor: colors.card}]}
-              activeOpacity={0.7}>
-              <View style={[styles.actionIconWrapper, {backgroundColor: "#ef4444" + "15"}]}>
-                <Ionicons name="heart-outline" color="#ef4444" size={24} />
-              </View>
-              <Text style={[styles.actionTitle, {color: colors.foreground}]}>Favoritos</Text>
-              <Text style={[styles.actionSubtitle, {color: colors.mutedForeground}]}>
-                Mis lugares
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Row 2 */}
-          <View style={styles.actionsRow}>
-            <TouchableOpacity
-              style={[styles.actionCard, {backgroundColor: colors.card}]}
-              activeOpacity={0.7}>
-              <View style={[styles.actionIconWrapper, {backgroundColor: "#fbbf24" + "15"}]}>
-                <Ionicons name="chatbubble-outline" color="#fbbf24" size={24} />
-              </View>
-              <Text style={[styles.actionTitle, {color: colors.foreground}]}>Reviews</Text>
-              <Text style={[styles.actionSubtitle, {color: colors.mutedForeground}]}>
-                Mis opiniones
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionCard, {backgroundColor: colors.card}]}
-              onPress={() => router.push("/settings")}
-              activeOpacity={0.7}>
-              <View style={[styles.actionIconWrapper, {backgroundColor: "#8b5cf6" + "15"}]}>
-                <Ionicons name="settings-outline" color="#8b5cf6" size={24} />
-              </View>
-              <Text style={[styles.actionTitle, {color: colors.foreground}]}>Ajustes</Text>
-              <Text style={[styles.actionSubtitle, {color: colors.mutedForeground}]}>
-                Configuración
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+      {/* Profile Tabs */}
+      <View style={{minHeight: 400}}>
+        <ProfileTabs userRole="CLIENT" />
       </View>
 
-      {/* Additional spacing at bottom */}
       <View style={{height: 40}} />
     </ScrollView>
   );

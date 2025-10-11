@@ -13,6 +13,7 @@ import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {User, ProfessionalProfile} from "@/types/global";
 import {useRouter} from "expo-router";
+import {ProfileTabs} from "./ProfileTabs";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -39,13 +40,17 @@ export const ProfessionalProfileView = ({
   const router = useRouter();
   const isDark = colorScheme === "dark";
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  const getInitials = (firstName?: string, lastName?: string) => {
+    const first = firstName?.charAt(0) || "";
+    const last = lastName?.charAt(0) || "";
+    return `${first}${last}`.toUpperCase() || "P";
   };
 
   const displayName = profile
     ? `${profile.name} ${profile.last_name}`
-    : `${user.firstName} ${user.lastName}`;
+    : `${user?.first_name || user?.firstName || "Usuario"} ${
+        user?.last_name || user?.lastName || ""
+      }`;
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -61,7 +66,9 @@ export const ProfessionalProfileView = ({
                   styles.avatarPlaceholder,
                   {backgroundColor: colors.primary},
                 ]}>
-                <Text style={styles.avatarText}>{getInitials(user.firstName, user.lastName)}</Text>
+                <Text style={styles.avatarText}>
+                  {getInitials(user?.first_name, user?.last_name)}
+                </Text>
               </View>
             </View>
             {/* Verified Badge */}
@@ -153,7 +160,9 @@ export const ProfessionalProfileView = ({
             <Ionicons name="cut" color={colors.primary} size={24} />
             <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Mis Servicios</Text>
           </View>
-          <TouchableOpacity style={[styles.addIconButton, {backgroundColor: colors.primary}]}>
+          <TouchableOpacity
+            style={[styles.addIconButton, {backgroundColor: colors.primary}]}
+            onPress={() => router.push("/create-service")}>
             <Ionicons name="add" color="#ffffff" size={20} />
           </TouchableOpacity>
         </View>
@@ -197,6 +206,7 @@ export const ProfessionalProfileView = ({
             ))}
             <TouchableOpacity
               style={[styles.addButton, {backgroundColor: colors.primary}]}
+              onPress={() => router.push("/create-service")}
               activeOpacity={0.9}>
               <Ionicons name="add-circle-outline" color="#ffffff" size={20} />
               <Text style={styles.addButtonText}>Agregar Nuevo Servicio</Text>
@@ -217,6 +227,7 @@ export const ProfessionalProfileView = ({
             </Text>
             <TouchableOpacity
               style={[styles.emptyActionButton, {backgroundColor: colors.primary}]}
+              onPress={() => router.push("/create-service")}
               activeOpacity={0.9}>
               <Ionicons name="add" color="#ffffff" size={20} />
               <Text style={styles.emptyActionText}>Agregar Mi Primer Servicio</Text>
@@ -247,80 +258,14 @@ export const ProfessionalProfileView = ({
         </View>
       )}
 
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleContainer}>
-            <Ionicons name="flash" color={colors.primary} size={24} />
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Acciones Rápidas</Text>
-          </View>
-        </View>
+      {/* Bottom Spacing */}
+      <View style={{height: 20}} />
 
-        <View style={styles.actionsGrid}>
-          <TouchableOpacity
-            style={[styles.actionCard, {backgroundColor: colors.card, borderColor: colors.border}]}
-            activeOpacity={0.7}>
-            <View style={[styles.actionIcon, {backgroundColor: "#3b82f6"}]}>
-              <Ionicons name="calendar" color="#ffffff" size={24} />
-            </View>
-            <View style={styles.actionInfo}>
-              <Text style={[styles.actionTitle, {color: colors.foreground}]}>Mi Agenda</Text>
-              <Text style={[styles.actionSubtitle, {color: colors.mutedForeground}]}>
-                Ver reservas
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionCard, {backgroundColor: colors.card, borderColor: colors.border}]}
-            activeOpacity={0.7}>
-            <View style={[styles.actionIcon, {backgroundColor: "#8b5cf6"}]}>
-              <Ionicons name="stats-chart" color="#ffffff" size={24} />
-            </View>
-            <View style={styles.actionInfo}>
-              <Text style={[styles.actionTitle, {color: colors.foreground}]}>Estadísticas</Text>
-              <Text style={[styles.actionSubtitle, {color: colors.mutedForeground}]}>
-                Ver métricas
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionCard, {backgroundColor: colors.card, borderColor: colors.border}]}
-            activeOpacity={0.7}>
-            <View style={[styles.actionIcon, {backgroundColor: "#10b981"}]}>
-              <Ionicons name="wallet" color="#ffffff" size={24} />
-            </View>
-            <View style={styles.actionInfo}>
-              <Text style={[styles.actionTitle, {color: colors.foreground}]}>Ingresos</Text>
-              <Text style={[styles.actionSubtitle, {color: colors.mutedForeground}]}>
-                Ver ganancias
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionCard, {backgroundColor: colors.card, borderColor: colors.border}]}
-            onPress={() => router.push("/settings")}
-            activeOpacity={0.7}>
-            <View style={[styles.actionIcon, {backgroundColor: "#f59e0b"}]}>
-              <Ionicons name="settings" color="#ffffff" size={24} />
-            </View>
-            <View style={styles.actionInfo}>
-              <Text style={[styles.actionTitle, {color: colors.foreground}]}>Configuración</Text>
-              <Text style={[styles.actionSubtitle, {color: colors.mutedForeground}]}>
-                Ajustes de perfil
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-          </TouchableOpacity>
-        </View>
+      {/* Profile Tabs */}
+      <View style={{minHeight: 400}}>
+        <ProfileTabs userRole="PROFESSIONAL" />
       </View>
 
-      {/* Bottom Spacing */}
       <View style={{height: 40}} />
     </ScrollView>
   );

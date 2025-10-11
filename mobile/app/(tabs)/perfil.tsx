@@ -145,8 +145,11 @@ export default function Perfil() {
         ]}>
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>Perfil</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerButton} onPress={handleLogout} activeOpacity={0.7}>
-            <Ionicons name="log-out-outline" color={colors.foreground} size={24} />
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => router.push("/settings")}
+            activeOpacity={0.7}>
+            <Ionicons name="settings-outline" color={colors.foreground} size={24} />
           </TouchableOpacity>
         </View>
       </View>
