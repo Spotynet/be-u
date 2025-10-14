@@ -101,7 +101,7 @@ export default function LoginPage() {
   return (
     <AuthLayout>
       <LoginForm />
-      <WelcomeSection title="¡BIENVENIDO A BE-U!" description="Your welcome message..." />
+      <WelcomeSection title="¡BIENVENIDO A Be-U!" description="Your welcome message..." />
     </AuthLayout>
   );
 }
@@ -145,4 +145,3 @@ This structure promotes:
 - ✅ **Testability**: Business logic is isolated and testable
 - ✅ **Scalability**: Easy to add new features without refactoring
 - ✅ **Team Collaboration**: Clear boundaries for different developers
-

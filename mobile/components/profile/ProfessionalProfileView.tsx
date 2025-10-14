@@ -57,37 +57,44 @@ export const ProfessionalProfileView = ({
       {/* Professional Header with Background */}
       <View style={[styles.headerGradient, {backgroundColor: isDark ? "#1e1b4b" : "#dbeafe"}]}>
         <View style={styles.profileHeader}>
-          {/* Avatar */}
-          <View style={styles.avatarContainer}>
-            <View style={[styles.avatarShadow, {backgroundColor: colors.primary + "20"}]}>
-              <View
-                style={[
-                  styles.avatar,
-                  styles.avatarPlaceholder,
-                  {backgroundColor: colors.primary},
-                ]}>
-                <Text style={styles.avatarText}>
-                  {getInitials(user?.first_name, user?.last_name)}
-                </Text>
+          <View style={styles.horizontalLayout}>
+            {/* Enhanced Avatar */}
+            <View style={styles.avatarContainer}>
+              <View style={[styles.avatarWrapper, {backgroundColor: colors.card}]}>
+                {profile?.photo ? (
+                  <Image source={{uri: profile.photo}} style={styles.avatar} />
+                ) : (
+                  <View
+                    style={[
+                      styles.avatar,
+                      styles.avatarPlaceholder,
+                      {backgroundColor: colors.primary},
+                    ]}>
+                    <Text style={styles.avatarText}>
+                      {getInitials(user?.first_name, user?.last_name)}
+                    </Text>
+                  </View>
+                )}
+                {/* Professional status ring */}
+                <View style={[styles.statusRing, {borderColor: colors.primary}]} />
+              </View>
+              {/* Verified Badge */}
+              <View style={[styles.verifiedBadge, {backgroundColor: "#3b82f6"}]}>
+                <Ionicons name="checkmark-circle" color="#ffffff" size={20} />
               </View>
             </View>
-            {/* Verified Badge */}
-            <View style={[styles.verifiedBadge, {backgroundColor: "#3b82f6"}]}>
-              <Ionicons name="checkmark-circle" color="#ffffff" size={24} />
+
+            {/* Simplified Professional Info */}
+            <View style={styles.professionalInfo}>
+              <Text style={[styles.profileName, {color: colors.foreground}]}>{displayName}</Text>
+
+              <Text
+                style={[styles.professionalEmail, {color: colors.mutedForeground}]}
+                numberOfLines={1}>
+                {user?.email || "No email"}
+              </Text>
             </View>
           </View>
-
-          {/* Professional Info */}
-          <Text style={[styles.profileName, {color: isDark ? "#ffffff" : "#1e293b"}]}>
-            {displayName}
-          </Text>
-
-          {profile?.bio && (
-            <View style={[styles.specialtyBadge, {backgroundColor: "#3b82f6" + "20"}]}>
-              <Ionicons name="briefcase" color="#3b82f6" size={14} />
-              <Text style={[styles.specialty, {color: "#3b82f6"}]}>{profile.bio}</Text>
-            </View>
-          )}
 
           {/* Rating */}
           <View style={[styles.ratingCard, {backgroundColor: isDark ? "#1e293b" : "#ffffff"}]}>
@@ -117,39 +124,6 @@ export const ProfessionalProfileView = ({
               </Text>
             </View>
           )}
-        </View>
-      </View>
-
-      {/* Performance Metrics */}
-      <View style={styles.metricsContainer}>
-        <View style={[styles.metricCard, {backgroundColor: colors.card}]}>
-          <View style={[styles.metricIcon, {backgroundColor: "#ec4899"}]}>
-            <Ionicons name="briefcase" color="#ffffff" size={22} />
-          </View>
-          <Text style={[styles.metricNumber, {color: colors.foreground}]}>
-            {stats.services || 0}
-          </Text>
-          <Text style={[styles.metricLabel, {color: colors.mutedForeground}]}>Servicios</Text>
-        </View>
-
-        <View style={[styles.metricCard, {backgroundColor: colors.card}]}>
-          <View style={[styles.metricIcon, {backgroundColor: "#8b5cf6"}]}>
-            <Ionicons name="star" color="#ffffff" size={22} />
-          </View>
-          <Text style={[styles.metricNumber, {color: colors.foreground}]}>
-            {stats.reviews || 0}
-          </Text>
-          <Text style={[styles.metricLabel, {color: colors.mutedForeground}]}>Reviews</Text>
-        </View>
-
-        <View style={[styles.metricCard, {backgroundColor: colors.card}]}>
-          <View style={[styles.metricIcon, {backgroundColor: "#10b981"}]}>
-            <Ionicons name="trending-up" color="#ffffff" size={22} />
-          </View>
-          <Text style={[styles.metricNumber, {color: colors.foreground}]}>
-            {profile?.rating?.toFixed(1) || "0.0"}
-          </Text>
-          <Text style={[styles.metricLabel, {color: colors.mutedForeground}]}>Rating</Text>
         </View>
       </View>
 
@@ -279,36 +253,41 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   profileHeader: {
-    alignItems: "center",
     paddingTop: 24,
     paddingHorizontal: 24,
   },
+  horizontalLayout: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 20,
+    marginBottom: 20,
+  },
   avatarContainer: {
     position: "relative",
-    marginBottom: 16,
   },
-  avatarShadow: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
+  avatarWrapper: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    padding: 4,
     justifyContent: "center",
     alignItems: "center",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
         shadowOffset: {width: 0, height: 8},
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.15,
         shadowRadius: 16,
       },
       android: {
-        elevation: 12,
+        elevation: 8,
       },
     }),
   },
   avatar: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
   },
   avatarPlaceholder: {
     justifyContent: "center",
@@ -316,41 +295,56 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: "#ffffff",
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: "700",
     letterSpacing: 1,
   },
+  statusRing: {
+    position: "absolute",
+    top: -2,
+    left: -2,
+    right: -2,
+    bottom: -2,
+    borderRadius: 52,
+    borderWidth: 3,
+    opacity: 0.3,
+  },
   verifiedBadge: {
     position: "absolute",
-    bottom: 0,
-    right: -4,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    bottom: 8,
+    right: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 3,
     borderColor: "#ffffff",
     justifyContent: "center",
     alignItems: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: {width: 0, height: 4},
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  professionalInfo: {
+    flex: 1,
+    justifyContent: "center",
   },
   profileName: {
-    fontSize: 28,
-    fontWeight: "700",
-    marginBottom: 8,
-    textAlign: "center",
+    fontSize: 24,
+    fontWeight: "800",
+    marginBottom: 4,
     letterSpacing: 0.3,
   },
-  specialtyBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-    marginBottom: 16,
-  },
-  specialty: {
-    fontSize: 14,
-    fontWeight: "600",
+  professionalEmail: {
+    fontSize: 16,
+    fontWeight: "500",
   },
   ratingCard: {
     alignItems: "center",
@@ -392,47 +386,6 @@ const styles = StyleSheet.create({
   location: {
     fontSize: 14,
     fontWeight: "500",
-  },
-  metricsContainer: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    gap: 12,
-    marginTop: -16,
-    marginBottom: 24,
-  },
-  metricCard: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 16,
-    alignItems: "center",
-    gap: 8,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: {width: 0, height: 4},
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  metricIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  metricNumber: {
-    fontSize: 24,
-    fontWeight: "700",
-  },
-  metricLabel: {
-    fontSize: 12,
-    fontWeight: "600",
   },
   section: {
     paddingHorizontal: 16,

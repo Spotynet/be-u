@@ -65,26 +65,34 @@ export const PlaceProfileView = ({
       {/* Place Header with Corporate Background */}
       <View style={[styles.headerGradient, {backgroundColor: isDark ? "#18181b" : "#f1f5f9"}]}>
         <View style={styles.profileHeader}>
-          {/* Place Logo */}
-          <View style={styles.logoContainer}>
-            <View style={[styles.logoShadow, {backgroundColor: colors.primary + "15"}]}>
-              <View style={[styles.logo, {backgroundColor: colors.primary}]}>
-                <Text style={styles.logoText}>{getInitials(placeName)}</Text>
+          <View style={styles.horizontalLayout}>
+            {/* Enhanced Place Logo */}
+            <View style={styles.logoContainer}>
+              <View style={[styles.logoWrapper, {backgroundColor: colors.card}]}>
+                {profile?.logo ? (
+                  <Image source={{uri: profile.logo}} style={styles.logo} />
+                ) : (
+                  <View style={[styles.logo, {backgroundColor: colors.primary}]}>
+                    <Text style={styles.logoText}>{getInitials(placeName)}</Text>
+                  </View>
+                )}
+                {/* Business status ring */}
+                <View style={[styles.statusRing, {borderColor: colors.primary}]} />
+              </View>
+              {/* Business Badge */}
+              <View style={[styles.businessBadge, {backgroundColor: "#10b981"}]}>
+                <Ionicons name="business" color="#ffffff" size={18} />
               </View>
             </View>
-            {/* Business Badge */}
-            <View style={[styles.businessBadge, {backgroundColor: "#10b981"}]}>
-              <Ionicons name="business" color="#ffffff" size={16} />
+
+            {/* Simplified Place Info */}
+            <View style={styles.placeInfo}>
+              <Text style={[styles.placeName, {color: colors.foreground}]}>{placeName}</Text>
+
+              <Text style={[styles.placeEmail, {color: colors.mutedForeground}]} numberOfLines={1}>
+                {user?.email || "No email"}
+              </Text>
             </View>
-          </View>
-
-          {/* Place Name */}
-          <Text style={[styles.placeName, {color: colors.foreground}]}>{placeName}</Text>
-
-          {/* Business Type */}
-          <View style={[styles.typeBadge, {backgroundColor: colors.primary + "15"}]}>
-            <Ionicons name="storefront" color={colors.primary} size={14} />
-            <Text style={[styles.typeText, {color: colors.primary}]}>Establecimiento</Text>
           </View>
 
           {/* Rating */}
@@ -97,35 +105,6 @@ export const PlaceProfileView = ({
               ({stats.reviews || 0} reseñas)
             </Text>
           </View>
-        </View>
-      </View>
-
-      {/* Business Stats */}
-      <View style={styles.businessStats}>
-        <View style={[styles.statItem, {backgroundColor: colors.card}]}>
-          <View style={[styles.statIconContainer, {backgroundColor: "#3b82f6"}]}>
-            <Ionicons name="people" color="#ffffff" size={20} />
-          </View>
-          <Text style={[styles.statValue, {color: colors.foreground}]}>
-            {stats.teamMembers || 0}
-          </Text>
-          <Text style={[styles.statLabel, {color: colors.mutedForeground}]}>Profesionales</Text>
-        </View>
-
-        <View style={[styles.statItem, {backgroundColor: colors.card}]}>
-          <View style={[styles.statIconContainer, {backgroundColor: "#ec4899"}]}>
-            <Ionicons name="cut" color="#ffffff" size={20} />
-          </View>
-          <Text style={[styles.statValue, {color: colors.foreground}]}>{stats.services || 0}</Text>
-          <Text style={[styles.statLabel, {color: colors.mutedForeground}]}>Servicios</Text>
-        </View>
-
-        <View style={[styles.statItem, {backgroundColor: colors.card}]}>
-          <View style={[styles.statIconContainer, {backgroundColor: "#8b5cf6"}]}>
-            <Ionicons name="star" color="#ffffff" size={20} />
-          </View>
-          <Text style={[styles.statValue, {color: colors.foreground}]}>{stats.reviews || 0}</Text>
-          <Text style={[styles.statLabel, {color: colors.mutedForeground}]}>Reviews</Text>
         </View>
       </View>
 
@@ -338,76 +317,96 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   profileHeader: {
-    alignItems: "center",
     paddingTop: 24,
     paddingHorizontal: 24,
   },
+  horizontalLayout: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 20,
+    marginBottom: 20,
+  },
   logoContainer: {
     position: "relative",
-    marginBottom: 16,
   },
-  logoShadow: {
-    width: 128,
-    height: 128,
-    borderRadius: 24,
+  logoWrapper: {
+    width: 110,
+    height: 110,
+    borderRadius: 22,
+    padding: 4,
     justifyContent: "center",
     alignItems: "center",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
         shadowOffset: {width: 0, height: 8},
-        shadowOpacity: 0.25,
+        shadowOpacity: 0.15,
         shadowRadius: 16,
       },
       android: {
-        elevation: 12,
+        elevation: 8,
       },
     }),
   },
   logo: {
-    width: 120,
-    height: 120,
-    borderRadius: 20,
+    width: 102,
+    height: 102,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
   },
   logoText: {
     color: "#ffffff",
-    fontSize: 48,
+    fontSize: 40,
     fontWeight: "700",
     letterSpacing: 1,
   },
+  statusRing: {
+    position: "absolute",
+    top: -2,
+    left: -2,
+    right: -2,
+    bottom: -2,
+    borderRadius: 24,
+    borderWidth: 3,
+    opacity: 0.3,
+  },
   businessBadge: {
     position: "absolute",
-    bottom: -4,
-    right: -4,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    bottom: 8,
+    right: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 3,
     borderColor: "#ffffff",
     justifyContent: "center",
     alignItems: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: {width: 0, height: 4},
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  placeInfo: {
+    flex: 1,
+    justifyContent: "center",
   },
   placeName: {
-    fontSize: 28,
-    fontWeight: "700",
-    marginBottom: 8,
-    textAlign: "center",
-    letterSpacing: 0.5,
+    fontSize: 24,
+    fontWeight: "800",
+    marginBottom: 4,
+    letterSpacing: 0.3,
   },
-  typeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-    marginBottom: 16,
-  },
-  typeText: {
-    fontSize: 13,
-    fontWeight: "600",
+  placeEmail: {
+    fontSize: 16,
+    fontWeight: "500",
   },
   ratingContainer: {
     flexDirection: "row",
@@ -440,48 +439,6 @@ const styles = StyleSheet.create({
   reviewsCount: {
     fontSize: 13,
     fontWeight: "500",
-  },
-  businessStats: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    gap: 12,
-    marginTop: -16,
-    marginBottom: 24,
-  },
-  statItem: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 16,
-    alignItems: "center",
-    gap: 8,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: {width: 0, height: 4},
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  statIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: "700",
-  },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    textTransform: "uppercase",
   },
   locationCard: {
     marginHorizontal: 16,

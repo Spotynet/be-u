@@ -163,12 +163,12 @@ export default function Register() {
           <View style={[styles.logo, {backgroundColor: colors.primary}]}>
             <Ionicons name="sparkles" color="#ffffff" size={40} />
           </View>
-          <Text style={[styles.logoText, {color: colors.foreground}]}>BE-U</Text>
+          <Text style={[styles.logoText, {color: colors.foreground}]}>Be-U</Text>
         </View>
 
         {/* Welcome Text */}
         <View style={styles.welcomeContainer}>
-          <Text style={[styles.welcomeTitle, {color: colors.foreground}]}>¡Únete a BE-U!</Text>
+          <Text style={[styles.welcomeTitle, {color: colors.foreground}]}>¡Únete a Be-U!</Text>
           <Text style={[styles.welcomeSubtitle, {color: colors.mutedForeground}]}>
             Crea tu cuenta para acceder a todos nuestros servicios
           </Text>

@@ -107,9 +107,12 @@ export default function Login() {
         {/* Logo/Icon */}
         <View style={styles.logoContainer}>
           <View style={[styles.logo, {backgroundColor: colors.primary}]}>
-            <Ionicons name="sparkles" color="#ffffff" size={40} />
+            <Ionicons name="sparkles" color="#ffffff" size={48} />
           </View>
-          <Text style={[styles.logoText, {color: colors.foreground}]}>BE-U</Text>
+          <Text style={[styles.logoText, {color: colors.foreground}]}>Be-U</Text>
+          <Text style={[styles.logoSubtext, {color: colors.mutedForeground}]}>
+            Conectando profesionales y clientes
+          </Text>
         </View>
 
         {/* Welcome Text */}
@@ -118,7 +121,7 @@ export default function Login() {
             ¡Bienvenido de vuelta!
           </Text>
           <Text style={[styles.welcomeSubtitle, {color: colors.mutedForeground}]}>
-            Inicia sesión para acceder a todos los servicios
+            Inicia sesión para acceder a todos los servicios y continuar tu experiencia
           </Text>
         </View>
 
@@ -268,31 +271,48 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
   logoText: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 28,
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
+  logoSubtext: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginTop: 4,
+    textAlign: "center",
   },
   welcomeContainer: {
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 40,
   },
   welcomeTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 8,
+    fontSize: 32,
+    fontWeight: "800",
+    marginBottom: 12,
     textAlign: "center",
+    letterSpacing: 0.5,
   },
   welcomeSubtitle: {
     fontSize: 16,
     textAlign: "center",
-    lineHeight: 22,
+    lineHeight: 24,
+    paddingHorizontal: 20,
   },
   formContainer: {
     marginBottom: 32,
@@ -308,11 +328,19 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
+    borderWidth: 1.5,
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    gap: 14,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   textInput: {
     flex: 1,
@@ -327,10 +355,18 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   loginButton: {
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 16,
     alignItems: "center",
     marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
   loginButtonDisabled: {
     opacity: 0.6,

@@ -5,7 +5,7 @@ export default function LoginPage() {
     <AuthLayout>
       <LoginForm />
       <WelcomeSection
-        title="¡BIENVENIDO A BE-U!"
+        title="¡BIENVENIDO A Be-U!"
         description="Tu plataforma personal de bienestar y belleza. Descubre servicios, reserva citas y conéctate con profesionales que te ayudan a ser tu mejor versión."
       />
     </AuthLayout>

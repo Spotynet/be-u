@@ -1,10 +1,10 @@
-import {View, Text, StyleSheet, TouchableOpacity, ActivityIndicator} from "react-native";
+import {View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useUserProfile} from "@/features/users/hooks/useUserProfile";
-import {ClientProfileView, ProfessionalProfileView, PlaceProfileView} from "@/components/profile";
+import {ProfileTabs} from "@/components/profile";
 import {useRouter} from "expo-router";
 
 export default function Perfil() {
@@ -24,37 +24,15 @@ export default function Perfil() {
     }
   };
 
-  // Render appropriate profile based on user role
-  const renderProfileContent = () => {
-    if (!user) return null;
-
-    switch (user.role) {
-      case "CLIENT":
-        return <ClientProfileView user={user} profile={profile} stats={stats} />;
-      case "PROFESSIONAL":
-        return (
-          <ProfessionalProfileView
-            user={user}
-            profile={profile}
-            stats={stats}
-            services={services}
-            portfolio={portfolio}
-          />
-        );
-      case "PLACE":
-        return (
-          <PlaceProfileView
-            user={user}
-            profile={profile}
-            stats={stats}
-            services={services}
-            teamMembers={teamMembers}
-          />
-        );
-      default:
-        return <ClientProfileView user={user} profile={profile} stats={stats} />;
-    }
+  const getInitials = (firstName?: string, lastName?: string) => {
+    const first = firstName?.charAt(0) || "";
+    const last = lastName?.charAt(0) || "";
+    return `${first}${last}`.toUpperCase() || "U";
   };
+
+  const displayName = user
+    ? `${user.first_name || user.firstName || "Usuario"} ${user.last_name || user.lastName || ""}`
+    : "Usuario";
 
   // Show login prompt if not authenticated
   if (!isAuthenticated || !user) {
@@ -65,7 +43,12 @@ export default function Perfil() {
             styles.header,
             {backgroundColor: colors.background, borderBottomColor: colors.border},
           ]}>
-          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Perfil</Text>
+          <View style={styles.headerProfile}>
+            <View style={[styles.headerAvatar, {backgroundColor: colors.primary}]}>
+              <Text style={styles.headerAvatarText}>U</Text>
+            </View>
+            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Usuario</Text>
+          </View>
         </View>
         <View style={styles.centeredContainer}>
           <Ionicons name="person-circle-outline" size={80} color={colors.mutedForeground} />
@@ -95,7 +78,12 @@ export default function Perfil() {
             styles.header,
             {backgroundColor: colors.background, borderBottomColor: colors.border},
           ]}>
-          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Perfil</Text>
+          <View style={styles.headerProfile}>
+            <View style={[styles.headerAvatar, {backgroundColor: colors.primary}]}>
+              <Text style={styles.headerAvatarText}>U</Text>
+            </View>
+            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Usuario</Text>
+          </View>
         </View>
         <View style={styles.centeredContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -116,7 +104,12 @@ export default function Perfil() {
             styles.header,
             {backgroundColor: colors.background, borderBottomColor: colors.border},
           ]}>
-          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Perfil</Text>
+          <View style={styles.headerProfile}>
+            <View style={[styles.headerAvatar, {backgroundColor: colors.primary}]}>
+              <Text style={styles.headerAvatarText}>U</Text>
+            </View>
+            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Usuario</Text>
+          </View>
         </View>
         <View style={styles.centeredContainer}>
           <Ionicons name="alert-circle-outline" size={80} color="#ef4444" />
@@ -143,7 +136,18 @@ export default function Perfil() {
           styles.header,
           {backgroundColor: colors.background, borderBottomColor: colors.border},
         ]}>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Perfil</Text>
+        <View style={styles.headerProfile}>
+          <View style={[styles.headerAvatar, {backgroundColor: colors.primary}]}>
+            {profile?.photo ? (
+              <Image source={{uri: profile.photo}} style={styles.headerAvatarImage} />
+            ) : (
+              <Text style={styles.headerAvatarText}>
+                {getInitials(user?.first_name, user?.last_name)}
+              </Text>
+            )}
+          </View>
+          <Text style={[styles.headerTitle, {color: colors.foreground}]}>{displayName}</Text>
+        </View>
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.headerButton}
@@ -154,8 +158,10 @@ export default function Perfil() {
         </View>
       </View>
 
-      {/* Profile Content */}
-      {renderProfileContent()}
+      {/* Profile Tabs */}
+      <View style={styles.tabsContainer}>
+        <ProfileTabs userRole={user.role as "CLIENT" | "PROFESSIONAL" | "PLACE"} />
+      </View>
     </View>
   );
 }
@@ -173,9 +179,31 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
   },
+  headerProfile: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  headerAvatarText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
+    fontSize: 24,
+    fontWeight: "700",
   },
   headerActions: {
     flexDirection: "row",
@@ -183,6 +211,9 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     padding: 8,
+  },
+  tabsContainer: {
+    flex: 1,
   },
   centeredContainer: {
     flex: 1,

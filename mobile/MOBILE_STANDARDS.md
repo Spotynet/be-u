@@ -4,7 +4,7 @@ This document outlines the coding standards, folder structure, and best practice
 
 ## 🎯 App Architecture & Categories
 
-BE-U is organized around **3 main service categories** that define the entire app structure:
+Be-U is organized around **3 main service categories** that define the entire app structure:
 
 ### Main Categories
 

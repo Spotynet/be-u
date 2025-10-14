@@ -25,6 +25,10 @@ export default function Home() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
+  const [selectedCategory, setSelectedCategory] = useState<"belleza" | "cuidado" | "mascotas">(
+    "belleza"
+  );
+  const [isCategoryPickerExpanded, setIsCategoryPickerExpanded] = useState(false);
   const router = useRouter();
   const {user, isAuthenticated, logout} = useAuth();
 
@@ -58,7 +62,7 @@ export default function Home() {
   const stories = [
     {
       id: 1,
-      user: "BE-U Spa",
+      user: "Be-U Spa",
       avatar: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&h=100&fit=crop",
       preview: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=200&h=300&fit=crop",
       type: "featured",
@@ -113,7 +117,7 @@ export default function Home() {
       id: 2,
       type: "snapshot",
       user: {
-        name: "BE-U Spa",
+        name: "Be-U Spa",
         avatar: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&h=100&fit=crop",
         verified: true,
       },
@@ -127,7 +131,7 @@ export default function Home() {
       id: 3,
       type: "transformation",
       user: {
-        name: "BE-U Hair Studio",
+        name: "Be-U Hair Studio",
         avatar: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=100&h=100&fit=crop",
         verified: true,
       },
@@ -145,7 +149,7 @@ export default function Home() {
       id: 4,
       type: "tip",
       user: {
-        name: "BE-U Community",
+        name: "Be-U Community",
         avatar: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&h=100&fit=crop",
         verified: true,
       },
@@ -184,7 +188,7 @@ export default function Home() {
       rating: 5,
       title: "¡La mejor experiencia! 💝",
       text: "El facial LED cambió completamente mi piel. El equipo es súper profesional y el ambiente es relajante. 100% recomendado 🌟",
-      salon: "BE-U Spa Premium",
+      salon: "Be-U Spa Premium",
       images: ["https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=400&fit=crop"],
       stats: {likes: 124, comments: 28},
       timeAgo: "1d",
@@ -213,7 +217,7 @@ export default function Home() {
       id: 8,
       type: "poll",
       user: {
-        name: "BE-U Community",
+        name: "Be-U Community",
         avatar: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&h=100&fit=crop",
         verified: true,
       },
@@ -919,34 +923,10 @@ export default function Home() {
           styles.header,
           {backgroundColor: colors.background, borderBottomColor: colors.border},
         ]}>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>BE-U</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/create-post")}>
-            <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton}>
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationBadgeText}>3</Text>
-            </View>
-            <Ionicons name="notifications-outline" color={colors.foreground} size={26} />
-          </TouchableOpacity>
-          {/* Auth Button */}
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => {
-              if (isAuthenticated) {
-                logout();
-              } else {
-                router.push("/login");
-              }
-            }}>
-            <Ionicons
-              name={isAuthenticated ? "log-out-outline" : "log-in-outline"}
-              color={colors.foreground}
-              size={26}
-            />
-          </TouchableOpacity>
-        </View>
+        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Be-U</Text>
+        <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/create-post")}>
+          <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -1062,6 +1042,164 @@ export default function Home() {
           </View>
         )}
 
+        {/* Professionals Carousel */}
+        {!isFeaturedLoading && professionals.length > 0 && (
+          <View style={styles.polaroidSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+                💅 Profesionales ({professionals.length})
+              </Text>
+              <TouchableOpacity onPress={() => router.push("/profesionales")}>
+                <Text style={[styles.seeAllText, {color: colors.primary}]}>Ver todo</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.polaroidScroll}
+              snapToInterval={SCREEN_WIDTH * 0.7 + 16}
+              decelerationRate="fast">
+              {professionals.map((professional, index) => (
+                <TouchableOpacity
+                  key={professional.id}
+                  style={[
+                    styles.polaroidCard,
+                    {backgroundColor: colors.card},
+                    index % 2 === 0
+                      ? {transform: [{rotate: "2deg"}]}
+                      : {transform: [{rotate: "-2deg"}]},
+                  ]}
+                  onPress={() => router.push(`/professional/${professional.id}`)}
+                  activeOpacity={0.95}>
+                  <View style={styles.polaroidImageWrapper}>
+                    <View style={[styles.polaroidImagePlaceholder, {backgroundColor: "#FFB6C1"}]}>
+                      <Text style={styles.polaroidInitials}>
+                        {professional.name[0]}
+                        {professional.last_name[0]}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.polaroidLikeButton, {backgroundColor: "#ffffff"}]}>
+                      <Ionicons name="heart-outline" color="#FF69B4" size={20} />
+                    </TouchableOpacity>
+                    {professional.rating >= 4.5 && (
+                      <View style={[styles.polaroidBadge, {backgroundColor: "#FFD700"}]}>
+                        <Text style={styles.polaroidBadgeText}>⭐ Top</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.polaroidInfo}>
+                    <Text style={[styles.polaroidProvider, {color: colors.mutedForeground}]}>
+                      {professional.city || "Profesional"}
+                    </Text>
+                    <Text
+                      style={[styles.polaroidTitle, {color: colors.foreground}]}
+                      numberOfLines={1}>
+                      {professional.name} {professional.last_name}
+                    </Text>
+                    {professional.bio && (
+                      <Text
+                        style={[styles.polaroidBio, {color: colors.mutedForeground}]}
+                        numberOfLines={2}>
+                        {professional.bio}
+                      </Text>
+                    )}
+                    <View style={styles.polaroidFooter}>
+                      <View style={styles.polaroidRating}>
+                        <Ionicons name="star" color="#FFD700" size={14} />
+                        <Text style={[styles.polaroidRatingText, {color: colors.foreground}]}>
+                          {professional.rating.toFixed(1)}
+                        </Text>
+                      </View>
+                      <Text style={[styles.polaroidServicesCount, {color: "#FF69B4"}]}>
+                        {professional.services_count} servicios
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Places Carousel */}
+        {!isFeaturedLoading && places.length > 0 && (
+          <View style={styles.polaroidSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+                🏢 Establecimientos ({places.length})
+              </Text>
+              <TouchableOpacity onPress={() => router.push("/lugares")}>
+                <Text style={[styles.seeAllText, {color: colors.primary}]}>Ver todo</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.polaroidScroll}
+              snapToInterval={SCREEN_WIDTH * 0.7 + 16}
+              decelerationRate="fast">
+              {places.map((place, index) => (
+                <TouchableOpacity
+                  key={place.id}
+                  style={[
+                    styles.polaroidCard,
+                    {backgroundColor: colors.card},
+                    index % 2 === 0
+                      ? {transform: [{rotate: "-2deg"}]}
+                      : {transform: [{rotate: "2deg"}]},
+                  ]}
+                  onPress={() => router.push(`/place/${place.id}`)}
+                  activeOpacity={0.95}>
+                  <View style={styles.polaroidImageWrapper}>
+                    <View style={[styles.polaroidImagePlaceholder, {backgroundColor: "#DDA0DD"}]}>
+                      <Text style={styles.polaroidInitials}>
+                        {place.name.substring(0, 2).toUpperCase()}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.polaroidLikeButton, {backgroundColor: "#ffffff"}]}>
+                      <Ionicons name="heart-outline" color="#FF69B4" size={20} />
+                    </TouchableOpacity>
+                    {place.services_count > 5 && (
+                      <View style={[styles.polaroidBadge, {backgroundColor: "#FF69B4"}]}>
+                        <Text style={styles.polaroidBadgeText}>Popular</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.polaroidInfo}>
+                    <Text style={[styles.polaroidProvider, {color: colors.mutedForeground}]}>
+                      {place.city || place.country || "Establecimiento"}
+                    </Text>
+                    <Text
+                      style={[styles.polaroidTitle, {color: colors.foreground}]}
+                      numberOfLines={1}>
+                      {place.name}
+                    </Text>
+                    <Text
+                      style={[styles.polaroidAddress, {color: colors.mutedForeground}]}
+                      numberOfLines={1}>
+                      <Ionicons name="location" size={12} color={colors.mutedForeground} />
+                      {"  "}
+                      {place.address}
+                    </Text>
+                    <View style={styles.polaroidFooter}>
+                      <View style={styles.polaroidRating}>
+                        <Ionicons name="briefcase" color="#DDA0DD" size={14} />
+                        <Text style={[styles.polaroidRatingText, {color: colors.foreground}]}>
+                          {place.services_count} servicios
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Feed Label */}
         <View style={styles.feedLabelSection}>
           <Text style={[styles.feedLabel, {color: colors.foreground}]}>Feed</Text>
@@ -1070,6 +1208,95 @@ export default function Home() {
         {/* Feed Posts */}
         <View style={styles.postsSection}>{feedPosts.map((post) => renderPost(post))}</View>
       </ScrollView>
+
+      {/* Floating Category Picker */}
+      <View style={styles.floatingCategoryPicker}>
+        {/* Collapsed State - Single Button */}
+        {!isCategoryPickerExpanded && (
+          <TouchableOpacity
+            style={[styles.categoryToggleButton, {backgroundColor: colors.primary}]}
+            onPress={() => setIsCategoryPickerExpanded(true)}
+            activeOpacity={0.8}>
+            <Ionicons
+              name={
+                selectedCategory === "belleza"
+                  ? "sparkles"
+                  : selectedCategory === "cuidado"
+                  ? "heart"
+                  : "paw"
+              }
+              color="#ffffff"
+              size={18}
+            />
+          </TouchableOpacity>
+        )}
+
+        {/* Expanded State - All Categories */}
+        {isCategoryPickerExpanded && (
+          <View
+            style={[styles.categoryIconsContainer, {backgroundColor: "rgba(255, 255, 255, 0.95)"}]}>
+            <TouchableOpacity
+              style={[
+                styles.categoryIcon,
+                selectedCategory === "belleza" && [
+                  styles.activeCategoryIcon,
+                  {backgroundColor: colors.primary},
+                ],
+              ]}
+              onPress={() => {
+                setSelectedCategory("belleza");
+                setIsCategoryPickerExpanded(false);
+              }}
+              activeOpacity={0.8}>
+              <Ionicons
+                name="sparkles"
+                color={selectedCategory === "belleza" ? "#ffffff" : colors.mutedForeground}
+                size={20}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.categoryIcon,
+                selectedCategory === "cuidado" && [
+                  styles.activeCategoryIcon,
+                  {backgroundColor: colors.primary},
+                ],
+              ]}
+              onPress={() => {
+                setSelectedCategory("cuidado");
+                setIsCategoryPickerExpanded(false);
+              }}
+              activeOpacity={0.8}>
+              <Ionicons
+                name="heart"
+                color={selectedCategory === "cuidado" ? "#ffffff" : colors.mutedForeground}
+                size={20}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.categoryIcon,
+                selectedCategory === "mascotas" && [
+                  styles.activeCategoryIcon,
+                  {backgroundColor: colors.primary},
+                ],
+              ]}
+              onPress={() => {
+                setSelectedCategory("mascotas");
+                setIsCategoryPickerExpanded(false);
+              }}
+              activeOpacity={0.8}>
+              <Ionicons
+                name="paw"
+                color={selectedCategory === "mascotas" ? "#ffffff" : colors.mutedForeground}
+                size={20}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -1092,31 +1319,8 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -1.5,
   },
-  headerActions: {
-    flexDirection: "row",
-    gap: 16,
-  },
   headerButton: {
     position: "relative",
-  },
-  notificationBadge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    backgroundColor: "#FF69B4",
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1,
-    borderWidth: 2,
-    borderColor: "#ffffff",
-  },
-  notificationBadgeText: {
-    color: "#ffffff",
-    fontSize: 10,
-    fontWeight: "800",
   },
   feed: {
     flex: 1,
@@ -1798,5 +2002,164 @@ const styles = StyleSheet.create({
   feedLabel: {
     fontSize: 22,
     fontWeight: "800",
+  },
+
+  // Polaroid Style Carousels
+  polaroidSection: {
+    marginBottom: 32,
+  },
+  polaroidScroll: {
+    paddingLeft: 20,
+    paddingRight: 20,
+    gap: 16,
+  },
+  polaroidCard: {
+    width: SCREEN_WIDTH * 0.7,
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  polaroidImageWrapper: {
+    position: "relative",
+    marginBottom: 16,
+  },
+  polaroidImagePlaceholder: {
+    width: "100%",
+    height: 280,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  polaroidInitials: {
+    fontSize: 72,
+    fontWeight: "900",
+    color: "#ffffff",
+    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowOffset: {width: 0, height: 2},
+    textShadowRadius: 8,
+  },
+  polaroidLikeButton: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  polaroidBadge: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  polaroidBadgeText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  polaroidInfo: {
+    gap: 6,
+  },
+  polaroidProvider: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  polaroidTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  polaroidBio: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  polaroidAddress: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  polaroidFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  polaroidRating: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  polaroidRatingText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  polaroidServicesCount: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  // Floating Category Picker
+  floatingCategoryPicker: {
+    position: "absolute",
+    right: 16,
+    top: 120,
+    flexDirection: "column",
+    gap: 8,
+    zIndex: 10,
+  },
+  categoryToggleButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  categoryIconsContainer: {
+    flexDirection: "column",
+    padding: 8,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    gap: 4,
+  },
+  categoryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "transparent",
+  },
+  activeCategoryIcon: {
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
 });

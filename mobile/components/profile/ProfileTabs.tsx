@@ -3,7 +3,7 @@ import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useState, useRef, useEffect} from "react";
 import {Ionicons} from "@expo/vector-icons";
-import {ReservationsTab} from "./ReservationsTab";
+import {EnhancedReservationsTab} from "./EnhancedReservationsTab";
 import {ReviewsTab} from "./ReviewsTab";
 import {FavoritesTab} from "./FavoritesTab";
 
@@ -33,12 +33,12 @@ export function ProfileTabs({userRole}: ProfileTabsProps) {
       tension: 68,
       friction: 12,
     }).start();
-  }, [activeTab]);
+  }, [activeTab, slideAnim]);
 
   const renderTabContent = () => {
     switch (activeTab) {
       case "reservations":
-        return <ReservationsTab userRole={userRole} />;
+        return <EnhancedReservationsTab userRole={userRole} />;
       case "reviews":
         return <ReviewsTab userRole={userRole} />;
       case "favorites":
@@ -84,7 +84,7 @@ export function ProfileTabs({userRole}: ProfileTabsProps) {
                 {
                   translateX: slideAnim.interpolate({
                     inputRange: [0, 1, 2],
-                    outputRange: [0, 100 / tabs.length + "%", 200 / tabs.length + "%"],
+                    outputRange: [0, "33.33%", "66.66%"],
                   }),
                 },
               ],

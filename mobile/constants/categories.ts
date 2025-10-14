@@ -1,8 +1,8 @@
 /**
- * Categories and Sub-Categories for BE-U Services
- * 
+ * Categories and Sub-Categories for Be-U Services
+ *
  * This file defines the main service categories and their respective sub-categories
- * used throughout the BE-U mobile application.
+ * used throughout the Be-U mobile application.
  */
 
 import {ServiceCategory} from "@/types/global";
@@ -209,4 +209,3 @@ export const CATEGORY_EMOJIS: Record<string, string> = {
 export const getCategoryEmoji = (categoryId: string): string => {
   return CATEGORY_EMOJIS[categoryId] || "📋";
 };
-

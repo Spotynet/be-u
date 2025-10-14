@@ -29,7 +29,7 @@ Create a `.env` file in the `mobile/` directory with:
 EXPO_PUBLIC_API_URL=https://stg.be-u.ai/api
 
 # App Configuration
-EXPO_PUBLIC_APP_NAME=BE-U
+EXPO_PUBLIC_APP_NAME=Be-U
 EXPO_PUBLIC_APP_VERSION=1.0.0
 ```
 
@@ -173,7 +173,7 @@ Built with Expo Router for file-based routing:
 - **Dynamic Experience**: Asymmetric layout type Pinterest+
 - **Visual Priority**: Important content = larger cards
 
-**Differentiator**: Unlike traditional feeds (Instagram, Facebook), BE-U uses a dynamic mosaic that creates a visually rich and engaging experience. Each scroll reveals something new and surprising.
+**Differentiator**: Unlike traditional feeds (Instagram, Facebook), Be-U uses a dynamic mosaic that creates a visually rich and engaging experience. Each scroll reveals something new and surprising.
 
 See [HOME_FEED_REDESIGN.md](./HOME_FEED_REDESIGN.md) for complete documentation.
 
@@ -283,7 +283,7 @@ EXPO_PUBLIC_API_URL=https://stg.be-u.ai/api
 
 ## 🎯 App Architecture
 
-BE-U is organized around **3 main service categories**:
+Be-U is organized around **3 main service categories**:
 
 1. **💄 Cuidado y Belleza** (Beauty & Care)
 

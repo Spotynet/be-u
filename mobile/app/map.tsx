@@ -25,7 +25,7 @@ export default function MapScreen() {
   const places = [
     {
       id: 1,
-      name: "BE-U Spa",
+      name: "Be-U Spa",
       category: "belleza",
       avatar: "💇‍♀️",
       rating: 4.9,
