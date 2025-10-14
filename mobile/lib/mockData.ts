@@ -116,8 +116,8 @@ export const mockProfessionals = [
 
 export const mockPlaces = [
   {
-    id: 1,
-    name: "BE-U Spa Premium",
+    id: 101,
+    name: "Be-U Spa Premium",
     address: "Av. Reforma 123, Col. Centro",
     city: "Ciudad de México",
     country: "México",
@@ -154,7 +154,7 @@ export const mockPlaces = [
     },
   },
   {
-    id: 2,
+    id: 102,
     name: "Salón Elegance",
     address: "Calle Juárez 456, Col. Americana",
     city: "Guadalajara",
@@ -187,7 +187,7 @@ export const mockPlaces = [
     },
   },
   {
-    id: 3,
+    id: 103,
     name: "Studio Nails & Beauty",
     address: "Plaza del Sol Local 34",
     city: "Monterrey",
@@ -469,7 +469,7 @@ export const mockPosts = [
       photos: [null, null, null],
       description:
         "¡Feliz con mi nuevo look! Gracias @AnaLopez por hacer realidad lo que quería ✨💇‍♀️",
-      location: "BE-U Spa Premium",
+      location: "Be-U Spa Premium",
     },
     likes: 128,
     comments: 23,
@@ -480,7 +480,7 @@ export const mockPosts = [
     type: "tips",
     author: {
       id: 100,
-      name: "BE-U Admin",
+      name: "Be-U Admin",
       specialty: "Consejos de Belleza",
       photo: null,
     },
@@ -558,7 +558,7 @@ export const mockPosts = [
     type: "poll",
     author: {
       id: 100,
-      name: "BE-U Admin",
+      name: "Be-U Admin",
       specialty: "Encuestas",
       photo: null,
     },
@@ -634,14 +634,6 @@ export const postFormats = [
     description: "Comparte consejos",
     roles: ["ADMIN"],
     color: "#6BCF7F",
-  },
-  {
-    id: "review",
-    icon: "star",
-    title: "Review",
-    description: "Deja una reseña",
-    roles: ["CLIENT"],
-    color: "#B388FF",
   },
   {
     id: "mosaic",

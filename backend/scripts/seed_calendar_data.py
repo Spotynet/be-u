@@ -94,7 +94,7 @@ def seed_data():
         email="place@test.com",
         defaults={
             "username": "place_test",
-            "first_name": "BE-U",
+            "first_name": "Be-U",
             "last_name": "Spa",
             "role": "PLACE"
         }
@@ -108,7 +108,7 @@ def seed_data():
     place_profile, created = PlaceProfile.objects.get_or_create(
         user=place_user,
         defaults={
-            "name": "BE-U Spa Premium",
+            "name": "Be-U Spa Premium",
             "street": "Av. Reforma",
             "number_ext": "100",
             "postal_code": "06600",
@@ -215,6 +215,7 @@ def seed_data():
 
 if __name__ == "__main__":
     seed_data()
+
 
 
 

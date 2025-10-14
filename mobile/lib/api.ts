@@ -1,5 +1,5 @@
 /**
- * BE-U Mobile API Client
+ * Be-U Mobile API Client
  * Centralized API utility for all HTTP requests
  * Similar to web/lib/api.ts but adapted for React Native
  */

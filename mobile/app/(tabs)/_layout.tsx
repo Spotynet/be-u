@@ -45,7 +45,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="be-u"
         options={{
-          title: "BE-U",
+          title: "Be-U",
           tabBarIcon: ({color, focused}) => <BeUTab focused={focused} onPress={() => {}} />,
           tabBarButton: (props) => (
             <BeUTab focused={props.accessibilityState?.selected || false} onPress={props.onPress} />
@@ -53,11 +53,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="reservas"
+        name="notificaciones"
         options={{
-          title: "Reservas",
+          title: "Notificaciones",
           tabBarIcon: ({color, focused}) => (
-            <Ionicons name={focused ? "calendar" : "calendar-outline"} color={color} size={24} />
+            <Ionicons
+              name={focused ? "notifications" : "notifications-outline"}
+              color={color}
+              size={24}
+            />
           ),
         }}
       />

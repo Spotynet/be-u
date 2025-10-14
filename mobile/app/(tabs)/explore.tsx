@@ -1,33 +1,33 @@
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   TextInput,
   Image,
-  Dimensions,
   Animated,
+  ScrollView,
   ActivityIndicator,
+  Dimensions,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
-import {providerApi} from "@/lib/api";
 import {ProfessionalProfile, PlaceProfile} from "@/types/global";
 
-const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get("window");
+const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
 export default function Explore() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
-  const [searchFocused, setSearchFocused] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "map">("list");
+
+  const [selectedItem, setSelectedItem] = useState<number | null>(null);
+  const [isListExpanded, setIsListExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   // Real data states
   const [professionals, setProfessionals] = useState<ProfessionalProfile[]>([]);
@@ -35,12 +35,11 @@ export default function Explore() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch providers function - Using mock data for now
+  // Fetch providers
   const fetchProviders = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      console.log("🔍 Loading providers (mock data)...");
 
       // Simulate API delay
       await new Promise((resolve) => setTimeout(resolve, 800));
@@ -49,7 +48,7 @@ export default function Explore() {
       const {mockProfessionals: mockProfs, mockPlaces: mockPls} = await import("@/lib/mockData");
 
       // Transform mock data to match expected format
-      const transformedProfessionals = mockProfs.map((p) => ({
+      const transformedProfessionals = mockProfs.map((p, index) => ({
         id: p.id,
         user_id: p.id,
         email: `${p.name.toLowerCase()}@example.com`,
@@ -59,9 +58,17 @@ export default function Explore() {
         city: p.city,
         rating: p.rating,
         services_count: p.services.length,
+        type: "professional", // Add type identifier
+        // Add mock coordinates
+        coordinates: {
+          top: `${25 + ((index * 15) % 50)}%`,
+          left: `${20 + ((index * 20) % 60)}%`,
+        },
+        avatar: "💇‍♀️",
+        distance: `${(0.5 + index * 0.3).toFixed(1)} km`,
       }));
 
-      const transformedPlaces = mockPls.map((p) => ({
+      const transformedPlaces = mockPls.map((p, index) => ({
         id: p.id,
         user_id: p.id,
         email: `${p.name.toLowerCase().replace(/\s/g, "")}@example.com`,
@@ -71,10 +78,15 @@ export default function Explore() {
         country: p.country,
         services_count: p.services.length,
         address: p.address,
+        type: "place", // Add type identifier
+        // Add mock coordinates
+        coordinates: {
+          top: `${30 + ((index * 18) % 45)}%`,
+          left: `${25 + ((index * 25) % 55)}%`,
+        },
+        avatar: "🏢",
+        distance: `${(0.6 + index * 0.4).toFixed(1)} km`,
       }));
-
-      console.log("✅ Loaded professionals:", transformedProfessionals.length);
-      console.log("✅ Loaded places:", transformedPlaces.length);
 
       setProfessionals(transformedProfessionals);
       setPlaces(transformedPlaces);
@@ -86,541 +98,390 @@ export default function Explore() {
     }
   };
 
-  // Fetch providers on mount
   useEffect(() => {
     fetchProviders();
   }, []);
 
-  // Categorías con estilo scene+/Y2K minimalista y girlie
-  const categories = [
-    {
-      id: "lugares",
-      name: "Lugares",
-      icon: "🏢",
-      color: "#FF6B6B",
-      count: places.length,
-      subtitle: "Descubre espacios únicos",
-    },
-    {
-      id: "profesionales",
-      name: "Profesionales",
-      icon: "👥",
-      color: "#B388FF",
-      count: professionals.length,
-      subtitle: "Encuentra expertos",
-    },
-    {
-      id: "mascotas",
-      name: "Cuidado Mascotas",
-      icon: "🐾",
-      color: "#FF8A65",
-      count: "Próximamente",
-      subtitle: "Para tus peluditos",
-    },
-  ];
-
-  // Fetch providers on mount
   useEffect(() => {
-    fetchProviders();
-  }, []);
-
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
-    if (query.trim().length === 0) {
-      fetchProviders();
-      return;
+    if (selectedItem) {
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 1.1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
+  }, [selectedItem]);
 
-    try {
-      setIsLoading(true);
-      const [professionalsRes, placesRes] = await Promise.all([
-        providerApi.getProfessionalProfiles({search: query}),
-        providerApi.getPlaceProfiles({search: query}),
-      ]);
+  const mapItems = [...professionals, ...places];
+  const selectedItemData = mapItems.find((item: any) => item.id === selectedItem);
 
-      setProfessionals(professionalsRes.data.results || []);
-      setPlaces(placesRes.data.results || []);
-    } catch (err: any) {
-      console.error("Error searching:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCategoryPress = (categoryId: string) => {
-    // Navigate to dedicated pages
-    switch (categoryId) {
-      case "lugares":
-        router.push("/lugares");
-        break;
-      case "profesionales":
-        router.push("/profesionales");
-        break;
-      case "mascotas":
-        router.push("/cuidado-mascotas");
-        break;
-      default:
-        break;
-    }
-  };
+  const filteredItems = mapItems.filter((item: any) => {
+    if (!searchQuery) return true;
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      item.name?.toLowerCase().includes(searchLower) ||
+      item.last_name?.toLowerCase().includes(searchLower) ||
+      item.city?.toLowerCase().includes(searchLower)
+    );
+  });
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Minimal Header */}
+      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerTop}>
+        <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, {color: colors.foreground}]}>Explorar</Text>
-          <View style={styles.headerActions}>
-            {/* View Mode Toggle */}
-            <View style={[styles.viewToggle, {backgroundColor: colors.muted}]}>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  viewMode === "list" && [
-                    styles.toggleButtonActive,
-                    {backgroundColor: colors.primary},
-                  ],
-                ]}
-                onPress={() => setViewMode("list")}
-                activeOpacity={0.7}>
-                <Ionicons
-                  name="list"
-                  color={viewMode === "list" ? "#ffffff" : colors.mutedForeground}
-                  size={18}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  viewMode === "map" && [
-                    styles.toggleButtonActive,
-                    {backgroundColor: colors.primary},
-                  ],
-                ]}
-                onPress={() => {
-                  setViewMode("map");
-                  router.push("/map");
-                }}
-                activeOpacity={0.7}>
-                <Ionicons
-                  name="map"
-                  color={viewMode === "map" ? "#ffffff" : colors.mutedForeground}
-                  size={18}
-                />
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity style={[styles.iconButton, {backgroundColor: colors.muted}]}>
-              <Ionicons name="heart-outline" color={colors.foreground} size={20} />
-            </TouchableOpacity>
-          </View>
+          <Text style={[styles.headerSubtitle, {color: colors.mutedForeground}]}>
+            {filteredItems.length} lugares cerca
+          </Text>
         </View>
+        <TouchableOpacity style={[styles.locationButton, {backgroundColor: colors.primary}]}>
+          <Ionicons name="navigate" color="#ffffff" size={20} />
+        </TouchableOpacity>
+      </View>
 
-        {/* Search Bar - Minimalista y redondeado */}
-        <View
-          style={[
-            styles.searchBar,
-            searchFocused && styles.searchBarFocused,
-            {backgroundColor: colors.muted, borderColor: colors.primary},
-          ]}>
+      {/* Search */}
+      <View style={styles.searchContainer}>
+        <View style={[styles.searchBar, {backgroundColor: colors.card}]}>
           <Ionicons name="search" color={colors.mutedForeground} size={18} />
           <TextInput
             style={[styles.searchInput, {color: colors.foreground}]}
-            placeholder="¿Qué buscas hoy?"
+            placeholder="Buscar profesionales y lugares..."
             placeholderTextColor={colors.mutedForeground}
             value={searchQuery}
-            onChangeText={handleSearch}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
+            onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                setSearchQuery("");
-                fetchProviders();
-              }}>
+            <TouchableOpacity onPress={() => setSearchQuery("")}>
               <Ionicons name="close-circle" color={colors.mutedForeground} size={18} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.contentContainer}>
-        {/* Category Cards - More Compact */}
-        <View style={styles.categoriesSection}>
-          <View style={styles.categoriesGrid}>
-            {categories.map((category) => (
-              <TouchableOpacity
-                key={category.id}
-                style={[styles.categoryCard, {backgroundColor: category.color}]}
-                activeOpacity={0.8}
-                onPress={() => handleCategoryPress(category.id)}>
-                <View style={styles.categoryIcon}>
-                  <Text style={styles.categoryEmoji}>{category.icon}</Text>
-                </View>
-                <Text style={styles.categoryTitle}>{category.name}</Text>
-                <Text style={styles.categorySubtitle}>{category.subtitle}</Text>
-                <Text style={styles.categoryCount}>
-                  {typeof category.count === "number"
-                    ? `${category.count} ${category.id}`
-                    : category.count}
-                </Text>
-                <Ionicons name="arrow-forward" color="#ffffff" size={16} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Búsqueda por tipo - Círculos estilo OpenTable */}
-        <View style={styles.typesSection}>
-          <View style={styles.typesSectionHeader}>
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Buscar por tipo</Text>
-            <TouchableOpacity>
-              <Text style={[styles.seeAllText, {color: colors.primary}]}>Ver todos</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.typesScroll}>
-            {[
-              {
-                id: 1,
-                name: "Facial",
-                emoji: "✨",
-                image:
-                  "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=200&h=200&fit=crop",
-                color: "#FFB6C1",
-              },
-              {
-                id: 2,
-                name: "Cabello",
-                emoji: "💇‍♀️",
-                image:
-                  "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=200&h=200&fit=crop",
-                color: "#FF69B4",
-              },
-              {
-                id: 3,
-                name: "Yoga",
-                emoji: "🧘‍♀️",
-                image:
-                  "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=200&h=200&fit=crop",
-                color: "#DDA0DD",
-              },
-              {
-                id: 4,
-                name: "Masajes",
-                emoji: "💆‍♀️",
-                image:
-                  "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=200&h=200&fit=crop",
-                color: "#E6B3E6",
-              },
-              {
-                id: 5,
-                name: "Mascotas",
-                emoji: "🐾",
-                image:
-                  "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=200&h=200&fit=crop",
-                color: "#FFB347",
-              },
-            ].map((type) => (
-              <TouchableOpacity key={type.id} style={styles.typeCard} activeOpacity={0.8}>
-                <View style={[styles.typeImageWrapper, {borderColor: type.color}]}>
-                  <Image source={{uri: type.image}} style={styles.typeImage} />
-                  <View style={[styles.typeEmojiBadge, {backgroundColor: type.color}]}>
-                    <Text style={styles.typeEmoji}>{type.emoji}</Text>
-                  </View>
-                </View>
-                <Text style={[styles.typeName, {color: colors.foreground}]}>{type.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Discover Button - Adopción de Mascotas */}
-        <View style={styles.discoverSection}>
-          <TouchableOpacity
-            style={[styles.discoverButton, {backgroundColor: "#FFB347"}]}
-            activeOpacity={0.9}
-            onPress={() => router.push("/discover")}>
-            <View style={styles.discoverContent}>
-              <View style={styles.discoverIcon}>
-                <Ionicons name="paw" color="#ffffff" size={28} />
-              </View>
-              <View style={styles.discoverText}>
-                <Text style={styles.discoverTitle}>Encuentra tu Compañero Perfecto</Text>
-                <Text style={styles.discoverSubtitle}>Adopta una mascota hoy</Text>
-              </View>
-              <View style={styles.discoverArrow}>
-                <Ionicons name="arrow-forward" color="#ffffff" size={24} />
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Debug Info */}
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={[styles.errorText, {color: "#ef4444"}]}>Error: {error}</Text>
-          </View>
-        )}
-
-        {/* Professionals Section */}
+      {/* Map Area */}
+      <TouchableOpacity
+        style={styles.mapContainer}
+        onPress={() => setIsListExpanded(!isListExpanded)}
+        activeOpacity={1}>
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={[styles.loadingText, {color: colors.mutedForeground}]}>
-              Cargando profesionales y lugares...
+              Cargando mapa...
             </Text>
           </View>
         ) : (
           <>
-            {professionals.length > 0 && (
-              <View style={styles.polaroidSection}>
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-                    💅 Profesionales ({professionals.length})
-                  </Text>
-                  <TouchableOpacity>
-                    <Text style={[styles.seeAllText, {color: colors.primary}]}>Ver todo</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.polaroidScroll}
-                  snapToInterval={SCREEN_WIDTH * 0.7 + 16}
-                  decelerationRate="fast">
-                  {professionals.map((professional, index) => (
-                    <TouchableOpacity
-                      key={professional.id}
-                      style={[
-                        styles.polaroidCard,
-                        {backgroundColor: colors.card},
-                        index % 2 === 0
-                          ? {transform: [{rotate: "2deg"}]}
-                          : {transform: [{rotate: "-2deg"}]},
-                      ]}
-                      onPress={() => router.push(`/professional/${professional.id}`)}
-                      activeOpacity={0.95}>
-                      <View style={styles.polaroidImageWrapper}>
-                        <View
-                          style={[styles.polaroidImagePlaceholder, {backgroundColor: "#FFB6C1"}]}>
-                          <Text style={styles.polaroidInitials}>
-                            {professional.name[0]}
-                            {professional.last_name[0]}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          style={[styles.polaroidLikeButton, {backgroundColor: "#ffffff"}]}>
-                          <Ionicons name="heart-outline" color="#FF69B4" size={20} />
-                        </TouchableOpacity>
-                        {professional.rating >= 4.5 && (
-                          <View style={[styles.polaroidBadge, {backgroundColor: "#FFD700"}]}>
-                            <Text style={styles.polaroidBadgeText}>⭐ Top</Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={styles.polaroidInfo}>
-                        <Text style={[styles.polaroidProvider, {color: colors.mutedForeground}]}>
-                          {professional.city || "Profesional"}
-                        </Text>
-                        <Text
-                          style={[styles.polaroidTitle, {color: colors.foreground}]}
-                          numberOfLines={1}>
-                          {professional.name} {professional.last_name}
-                        </Text>
-                        {professional.bio && (
-                          <Text
-                            style={[styles.polaroidBio, {color: colors.mutedForeground}]}
-                            numberOfLines={2}>
-                            {professional.bio}
-                          </Text>
-                        )}
-                        <View style={styles.polaroidFooter}>
-                          <View style={styles.polaroidRating}>
-                            <Ionicons name="star" color="#FFD700" size={14} />
-                            <Text style={[styles.polaroidRatingText, {color: colors.foreground}]}>
-                              {professional.rating.toFixed(1)}
-                            </Text>
-                          </View>
-                          <Text style={[styles.polaroidServicesCount, {color: "#FF69B4"}]}>
-                            {professional.services_count} servicios
-                          </Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+            {/* Map Background */}
+            <View style={[styles.mapBackground, {backgroundColor: "#F8F8F8"}]}>
+              {/* Grid pattern */}
+              <View style={styles.mapGrid}>
+                {[...Array(8)].map((_, i) => (
+                  <View
+                    key={`v${i}`}
+                    style={[styles.gridLineVertical, {left: `${(i + 1) * 12.5}%`}]}
+                  />
+                ))}
+                {[...Array(8)].map((_, i) => (
+                  <View
+                    key={`h${i}`}
+                    style={[styles.gridLineHorizontal, {top: `${(i + 1) * 12.5}%`}]}
+                  />
+                ))}
               </View>
-            )}
 
-            {/* Places Section */}
-            {places.length > 0 && (
-              <View style={styles.polaroidSection}>
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-                    🏢 Establecimientos ({places.length})
-                  </Text>
-                  <TouchableOpacity>
-                    <Text style={[styles.seeAllText, {color: colors.primary}]}>Ver todo</Text>
-                  </TouchableOpacity>
+              {/* User Location */}
+              <View style={styles.userLocation}>
+                <View style={[styles.userPulse, {backgroundColor: colors.primary}]} />
+                <View style={[styles.userDot, {backgroundColor: colors.primary}]}>
+                  <View style={styles.userDotInner} />
                 </View>
+              </View>
 
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.polaroidScroll}
-                  snapToInterval={SCREEN_WIDTH * 0.7 + 16}
-                  decelerationRate="fast">
-                  {places.map((place, index) => (
-                    <TouchableOpacity
-                      key={place.id}
+              {/* Map Pins */}
+              <View style={styles.pinsContainer}>
+                {filteredItems.map((item: any) => {
+                  const isSelected = selectedItem === item.id;
+                  return (
+                    <Animated.View
+                      key={item.id}
                       style={[
-                        styles.polaroidCard,
-                        {backgroundColor: colors.card},
-                        index % 2 === 0
-                          ? {transform: [{rotate: "-2deg"}]}
-                          : {transform: [{rotate: "2deg"}]},
-                      ]}
-                      onPress={() => router.push(`/place/${place.id}`)}
-                      activeOpacity={0.95}>
-                      <View style={styles.polaroidImageWrapper}>
-                        <View
-                          style={[styles.polaroidImagePlaceholder, {backgroundColor: "#DDA0DD"}]}>
-                          <Text style={styles.polaroidInitials}>
-                            {place.name.substring(0, 2).toUpperCase()}
+                        styles.pinWrapper,
+                        {
+                          top: item.coordinates.top,
+                          left: item.coordinates.left,
+                          transform: [{scale: isSelected ? scaleAnim : 1}],
+                        },
+                      ]}>
+                      <TouchableOpacity
+                        style={[
+                          styles.pin,
+                          isSelected && styles.pinSelected,
+                          {
+                            backgroundColor: isSelected ? colors.primary : "#ffffff",
+                            borderColor: colors.primary,
+                          },
+                        ]}
+                        onPress={() => setSelectedItem(isSelected ? null : item.id)}
+                        activeOpacity={0.9}>
+                        <Text style={styles.pinAvatar}>{item.avatar}</Text>
+                      </TouchableOpacity>
+
+                      {/* Name Label */}
+                      {isSelected && (
+                        <View style={[styles.pinLabel, {backgroundColor: colors.primary}]}>
+                          <Text style={styles.pinLabelText}>
+                            {item.type === "professional"
+                              ? `${item.name} ${item.last_name}`
+                              : item.name}
                           </Text>
                         </View>
-                        <TouchableOpacity
-                          style={[styles.polaroidLikeButton, {backgroundColor: "#ffffff"}]}>
-                          <Ionicons name="heart-outline" color="#FF69B4" size={20} />
-                        </TouchableOpacity>
-                        {place.services_count > 5 && (
-                          <View style={[styles.polaroidBadge, {backgroundColor: "#FF69B4"}]}>
-                            <Text style={styles.polaroidBadgeText}>Popular</Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={styles.polaroidInfo}>
-                        <Text style={[styles.polaroidProvider, {color: colors.mutedForeground}]}>
-                          {place.city || place.country || "Establecimiento"}
-                        </Text>
-                        <Text
-                          style={[styles.polaroidTitle, {color: colors.foreground}]}
-                          numberOfLines={1}>
-                          {place.name}
-                        </Text>
-                        <Text
-                          style={[styles.polaroidAddress, {color: colors.mutedForeground}]}
-                          numberOfLines={1}>
-                          <Ionicons name="location" size={12} color={colors.mutedForeground} />
-                          {"  "}
-                          {place.address}
-                        </Text>
-                        <View style={styles.polaroidFooter}>
-                          <View style={styles.polaroidRating}>
-                            <Ionicons name="briefcase" color="#DDA0DD" size={14} />
-                            <Text style={[styles.polaroidRatingText, {color: colors.foreground}]}>
-                              {place.services_count} servicios
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                      )}
+                    </Animated.View>
+                  );
+                })}
               </View>
-            )}
+            </View>
+
+            {/* Legend */}
+            <View style={[styles.legend, {backgroundColor: colors.card}]}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, {backgroundColor: colors.primary}]} />
+                <Text style={[styles.legendText, {color: colors.foreground}]}>Tú</Text>
+              </View>
+            </View>
           </>
         )}
+      </TouchableOpacity>
 
-        {/* Explorar y Descubrir - Grid Visual */}
-        <View style={styles.exploreSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>✨ Explorar</Text>
-            <TouchableOpacity>
-              <Text style={[styles.seeAllText, {color: colors.primary}]}>Ver todo</Text>
-            </TouchableOpacity>
-          </View>
+      {/* Bottom Sheet - List of Items */}
+      {!selectedItem && !isLoading && (
+        <Animated.View
+          style={[
+            styles.bottomSheet,
+            {backgroundColor: colors.background},
+            isListExpanded && styles.bottomSheetExpanded,
+          ]}>
+          <TouchableOpacity
+            style={styles.sheetHandle}
+            onPress={() => setIsListExpanded(!isListExpanded)}
+            activeOpacity={0.7}
+          />
+          <Text style={[styles.sheetTitle, {color: colors.foreground}]}>
+            Cerca de ti ({filteredItems.length})
+          </Text>
+          {isListExpanded && (
+            <Text style={[styles.sheetSubtitle, {color: colors.mutedForeground}]}>
+              Toca el mapa para colapsar
+            </Text>
+          )}
 
-          <View style={styles.exploreGrid}>
-            {[
-              {
-                id: 1,
-                title: "Lugares",
-                subtitle: "Descubre espacios únicos",
-                icon: "location",
-                color: "#FF69B4",
-                image:
-                  "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400&h=400&fit=crop",
-                count: `${places.length} lugares`,
-              },
-              {
-                id: 2,
-                title: "Profesionales",
-                subtitle: "Encuentra expertos",
-                icon: "people",
-                color: "#DDA0DD",
-                image:
-                  "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&h=400&fit=crop",
-                count: `${professionals.length} profesionales`,
-              },
-              {
-                id: 3,
-                title: "Cuidado Mascotas",
-                subtitle: "Para tus peluditos",
-                icon: "paw",
-                color: "#FFB347",
-                image:
-                  "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400&h=400&fit=crop",
-                count: "Próximamente",
-              },
-            ].map((item, index) => (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.itemsListVertical,
+              isListExpanded && styles.itemsListExpanded,
+            ]}>
+            {filteredItems.map((item: any) => (
               <TouchableOpacity
                 key={item.id}
-                style={[
-                  styles.exploreCard,
-                  {backgroundColor: colors.card},
-                  index % 2 === 0 ? styles.exploreCardLeft : styles.exploreCardRight,
-                ]}
-                activeOpacity={0.95}
-                onPress={() => {
-                  switch (item.id) {
-                    case 1:
-                      router.push("/lugares");
-                      break;
-                    case 2:
-                      router.push("/profesionales");
-                      break;
-                    case 3:
-                      router.push("/cuidado-mascotas");
-                      break;
-                    default:
-                      break;
-                  }
-                }}>
-                <Image source={{uri: item.image}} style={styles.exploreCardImage} />
-                <View style={[styles.exploreCardOverlay, {backgroundColor: item.color + "E6"}]}>
-                  <View style={styles.exploreCardIcon}>
-                    <Ionicons name={item.icon as any} color="#ffffff" size={28} />
+                style={[styles.itemCardVertical, {backgroundColor: colors.card}]}
+                onPress={() => setSelectedItem(item.id)}
+                activeOpacity={0.95}>
+                <View style={[styles.itemAvatarVertical, {backgroundColor: colors.primary}]}>
+                  <Text style={styles.itemAvatarTextVertical}>
+                    {item.type === "professional"
+                      ? `${item.name[0]}${item.last_name[0]}`
+                      : item.name.substring(0, 2).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.itemInfoVertical}>
+                  <Text
+                    style={[styles.itemNameVertical, {color: colors.foreground}]}
+                    numberOfLines={1}>
+                    {item.type === "professional" ? `${item.name} ${item.last_name}` : item.name}
+                  </Text>
+                  <View style={styles.itemMetaVertical}>
+                    {item.rating && (
+                      <View style={styles.itemRatingVertical}>
+                        <Ionicons name="star" color="#FFD700" size={12} />
+                        <Text style={[styles.itemRatingTextVertical, {color: colors.foreground}]}>
+                          {item.rating.toFixed(1)}
+                        </Text>
+                      </View>
+                    )}
+                    <Text style={[styles.itemDistanceVertical, {color: colors.mutedForeground}]}>
+                      {item.distance}
+                    </Text>
+                    {item.type === "professional" && (
+                      <View style={[styles.itemTypeBadge, {backgroundColor: "#FFB6C1"}]}>
+                        <Text style={styles.itemTypeText}>💅 Profesional</Text>
+                      </View>
+                    )}
+                    {item.type === "place" && (
+                      <View style={[styles.itemTypeBadge, {backgroundColor: "#DDA0DD"}]}>
+                        <Text style={styles.itemTypeText}>🏢 Lugar</Text>
+                      </View>
+                    )}
                   </View>
-                  <Text style={styles.exploreCardTitle}>{item.title}</Text>
-                  <Text style={styles.exploreCardSubtitle}>{item.subtitle}</Text>
-                  <View style={styles.exploreCardFooter}>
-                    <Text style={styles.exploreCardCount}>{item.count}</Text>
-                    <Ionicons name="arrow-forward" color="#ffffff" size={18} />
-                  </View>
+                  {item.bio && (
+                    <Text
+                      style={[styles.itemBioVertical, {color: colors.mutedForeground}]}
+                      numberOfLines={2}>
+                      {item.bio}
+                    </Text>
+                  )}
+                  {item.address && (
+                    <Text
+                      style={[styles.itemAddressVertical, {color: colors.mutedForeground}]}
+                      numberOfLines={1}>
+                      <Ionicons name="location" size={12} color={colors.mutedForeground} />{" "}
+                      {item.address}
+                    </Text>
+                  )}
                 </View>
               </TouchableOpacity>
             ))}
-          </View>
-        </View>
-      </ScrollView>
+          </ScrollView>
+        </Animated.View>
+      )}
+
+      {/* Detail Sheet - Selected Item */}
+      {selectedItemData && (
+        <Animated.View
+          style={[
+            styles.detailSheet,
+            {backgroundColor: colors.background, transform: [{scale: scaleAnim}]},
+          ]}>
+          <View style={styles.sheetHandle} />
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={[styles.detailCard, {backgroundColor: colors.card}]}>
+              {/* Header */}
+              <View style={styles.detailHeader}>
+                <View style={[styles.detailAvatar, {backgroundColor: colors.primary}]}>
+                  <Text style={styles.detailAvatarText}>
+                    {selectedItemData.type === "professional"
+                      ? `${selectedItemData.name[0]}${selectedItemData.last_name[0]}`
+                      : selectedItemData.name.substring(0, 2).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.detailInfo}>
+                  <Text style={[styles.detailName, {color: colors.foreground}]}>
+                    {selectedItemData.type === "professional"
+                      ? `${selectedItemData.name} ${selectedItemData.last_name}`
+                      : selectedItemData.name}
+                  </Text>
+                  <View style={styles.detailMeta}>
+                    {selectedItemData.rating && (
+                      <View style={styles.detailRating}>
+                        <Ionicons name="star" color="#FFD700" size={14} />
+                        <Text style={[styles.detailRatingText, {color: colors.foreground}]}>
+                          {selectedItemData.rating.toFixed(1)}
+                        </Text>
+                      </View>
+                    )}
+                    <Text style={[styles.detailDot, {color: colors.mutedForeground}]}>•</Text>
+                    <Text style={[styles.detailDistance, {color: colors.mutedForeground}]}>
+                      {selectedItemData.distance}
+                    </Text>
+                    {selectedItemData.type === "professional" && (
+                      <View style={[styles.detailTypeBadge, {backgroundColor: "#FFB6C1"}]}>
+                        <Text style={styles.detailTypeText}>💅 Profesional</Text>
+                      </View>
+                    )}
+                    {selectedItemData.type === "place" && (
+                      <View style={[styles.detailTypeBadge, {backgroundColor: "#DDA0DD"}]}>
+                        <Text style={styles.detailTypeText}>🏢 Lugar</Text>
+                      </View>
+                    )}
+                  </View>
+                  {selectedItemData.bio && (
+                    <Text
+                      style={[styles.detailBio, {color: colors.mutedForeground}]}
+                      numberOfLines={2}>
+                      {selectedItemData.bio}
+                    </Text>
+                  )}
+                  {selectedItemData.address && (
+                    <Text
+                      style={[styles.detailAddress, {color: colors.mutedForeground}]}
+                      numberOfLines={2}>
+                      <Ionicons name="location" size={12} color={colors.mutedForeground} />{" "}
+                      {selectedItemData.address}
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              {/* Quick Info */}
+              <View style={styles.detailQuickInfo}>
+                <View style={[styles.quickInfoItem, {backgroundColor: colors.muted}]}>
+                  <Ionicons name="briefcase" color={colors.primary} size={16} />
+                  <Text style={[styles.quickInfoText, {color: colors.foreground}]}>
+                    {selectedItemData.services_count} servicios
+                  </Text>
+                </View>
+                {selectedItemData.city && (
+                  <View style={[styles.quickInfoItem, {backgroundColor: colors.muted}]}>
+                    <Ionicons name="location" color={colors.primary} size={16} />
+                    <Text style={[styles.quickInfoText, {color: colors.foreground}]}>
+                      {selectedItemData.city}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Actions */}
+              <View style={styles.detailActions}>
+                <TouchableOpacity
+                  style={[styles.detailActionPrimary, {backgroundColor: colors.primary}]}
+                  onPress={() =>
+                    router.push(
+                      selectedItemData.type === "professional"
+                        ? `/professional/${selectedItemData.id}`
+                        : `/place/${selectedItemData.id}`
+                    )
+                  }
+                  activeOpacity={0.9}>
+                  <Ionicons name="eye" color="#ffffff" size={18} />
+                  <Text style={styles.detailActionPrimaryText}>Ver Detalles</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.detailActionSecondary, {borderColor: colors.border}]}
+                  activeOpacity={0.9}>
+                  <Ionicons name="navigate" color={colors.primary} size={18} />
+                  <Text style={[styles.detailActionSecondaryText, {color: colors.primary}]}>
+                    Ir
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.detailActionIcon, {borderColor: colors.border}]}
+                  activeOpacity={0.9}>
+                  <Ionicons name="heart-outline" color={colors.foreground} size={20} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setSelectedItem(null)}
+            activeOpacity={0.9}>
+            <Ionicons name="close" color={colors.mutedForeground} size={24} />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -630,374 +491,185 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  headerTop: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 12,
+    gap: 12,
+  },
+  headerCenter: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "800",
-    letterSpacing: -1,
+    letterSpacing: -0.5,
   },
-  headerActions: {
-    flexDirection: "row",
-    gap: 8,
+  headerSubtitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 2,
   },
-  viewToggle: {
-    flexDirection: "row",
-    borderRadius: 20,
-    padding: 3,
-  },
-  toggleButton: {
-    width: 36,
-    height: 34,
-    borderRadius: 17,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  toggleButtonActive: {
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  iconButton: {
+  locationButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
   },
+  searchContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    gap: 8,
+  },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: "transparent",
-    gap: 10,
-  },
-  searchBarFocused: {
-    borderWidth: 2,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
     fontWeight: "500",
   },
-  content: {
+  mapContainer: {
     flex: 1,
-  },
-  contentContainer: {
-    paddingBottom: 100,
-  },
-
-  // Categories - Scene+ Style
-  categoriesSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  categoriesGrid: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  categoryCard: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    borderRadius: 16,
-    minHeight: 110,
-    gap: 4,
-  },
-  categoryIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 2,
-  },
-  categoryEmoji: {
-    fontSize: 16,
-  },
-  categoryTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#ffffff",
-    textAlign: "center",
-  },
-  categorySubtitle: {
-    fontSize: 9,
-    color: "rgba(255,255,255,0.8)",
-    textAlign: "center",
-    lineHeight: 11,
-  },
-  categoryCount: {
-    fontSize: 10,
-    color: "#ffffff",
-    fontWeight: "600",
-    textAlign: "center",
-  },
-
-  // Types Section - Círculos estilo OpenTable
-  typesSection: {
-    marginBottom: 24,
-  },
-  typesSectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  typesScroll: {
-    paddingHorizontal: 20,
-    gap: 20,
-  },
-  typeCard: {
-    alignItems: "center",
-    width: 90,
-  },
-  typeImageWrapper: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    borderWidth: 3,
-    padding: 3,
-    marginBottom: 8,
     position: "relative",
   },
-  typeImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 42,
-    resizeMode: "cover",
+  mapBackground: {
+    flex: 1,
+    position: "relative",
   },
-  typeEmojiBadge: {
+  mapGrid: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  gridLineVertical: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 1,
+    height: "100%",
+    backgroundColor: "rgba(0, 0, 0, 0.03)",
+  },
+  gridLineHorizontal: {
+    position: "absolute",
+    height: 1,
+    width: "100%",
+    backgroundColor: "rgba(0, 0, 0, 0.03)",
+  },
+  userLocation: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: [{translateX: -20}, {translateY: -20}],
+  },
+  userPulse: {
+    position: "absolute",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    opacity: 0.2,
+  },
+  userDot: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: "#ffffff",
-  },
-  typeEmoji: {
-    fontSize: 14,
-  },
-  typeName: {
-    fontSize: 13,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-
-  // Discover Section - Tinder Style
-  discoverSection: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  discoverButton: {
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: "#FF69B4",
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  discoverContent: {
-    flexDirection: "row",
+  userDotInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#ffffff",
+  },
+  pinsContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  pinWrapper: {
+    position: "absolute",
     alignItems: "center",
-    gap: 16,
   },
-  discoverIcon: {
+  pin: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
-  },
-  discoverText: {
-    flex: 1,
-  },
-  discoverTitle: {
-    color: "#ffffff",
-    fontSize: 18,
-    fontWeight: "800",
-    marginBottom: 4,
-  },
-  discoverSubtitle: {
-    color: "#ffffff",
-    fontSize: 13,
-    fontWeight: "600",
-    opacity: 0.9,
-  },
-  discoverArrow: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  // Polaroid Style - Sin overlays negros
-  polaroidSection: {
-    marginBottom: 32,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-    paddingHorizontal: 20,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  polaroidScroll: {
-    paddingLeft: 20,
-    paddingRight: 20,
-    gap: 16,
-  },
-  polaroidCard: {
-    width: SCREEN_WIDTH * 0.7,
-    borderRadius: 20,
-    padding: 16,
+    borderWidth: 3,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 8,
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
   },
-  polaroidImageWrapper: {
-    position: "relative",
-    marginBottom: 16,
+  pinSelected: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 4,
   },
-  polaroidImage: {
-    width: "100%",
-    height: 280,
-    borderRadius: 16,
-    resizeMode: "cover",
+  pinAvatar: {
+    fontSize: 28,
   },
-  polaroidLikeButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  polaroidBadge: {
-    position: "absolute",
-    top: 12,
-    left: 12,
+  pinLabel: {
+    marginTop: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 12,
   },
-  polaroidBadgeText: {
+  pinLabelText: {
     color: "#ffffff",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
   },
-  polaroidInfo: {
+  legend: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
   },
-  polaroidProvider: {
-    fontSize: 13,
-    fontWeight: "600",
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
-  polaroidTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-  },
-  polaroidFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  polaroidRating: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  polaroidRatingText: {
-    fontSize: 14,
+  legendText: {
+    fontSize: 12,
     fontWeight: "700",
-  },
-  polaroidPrice: {
-    fontSize: 20,
-    fontWeight: "900",
-  },
-  polaroidImagePlaceholder: {
-    width: "100%",
-    height: 280,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  polaroidInitials: {
-    fontSize: 72,
-    fontWeight: "900",
-    color: "#ffffff",
-    textShadowColor: "rgba(0, 0, 0, 0.2)",
-    textShadowOffset: {width: 0, height: 2},
-    textShadowRadius: 8,
-  },
-  polaroidBio: {
-    fontSize: 13,
-    marginTop: 4,
-  },
-  polaroidServicesCount: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  polaroidAddress: {
-    fontSize: 13,
-    marginTop: 4,
   },
   loadingContainer: {
-    paddingVertical: 60,
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
     gap: 16,
   },
@@ -1005,93 +677,272 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
-  errorContainer: {
-    padding: 16,
-    marginHorizontal: 16,
-    backgroundColor: "#fef2f2",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#fecaca",
-  },
-  errorText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-
-  // Explorar Grid - Categorías visuales
-  exploreSection: {
-    paddingHorizontal: 20,
-    marginBottom: 32,
-  },
-  exploreGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  exploreCard: {
-    width: (SCREEN_WIDTH - 52) / 2,
-    height: 200,
-    borderRadius: 20,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  exploreCardLeft: {
-    marginBottom: 12,
-  },
-  exploreCardRight: {
-    marginBottom: 12,
-  },
-  exploreCardImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-  },
-  exploreCardOverlay: {
+  bottomSheet: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16,
-    paddingTop: 60,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: -4},
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+    maxHeight: 200,
   },
-  exploreCardIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
+  bottomSheetExpanded: {
+    maxHeight: "80%",
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  sheetSubtitle: {
+    fontSize: 13,
+    fontWeight: "500",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 16,
+  },
+  itemsListVertical: {
+    gap: 12,
+    paddingBottom: 20,
+  },
+  itemsListExpanded: {
+    maxHeight: 400,
+  },
+  itemCardVertical: {
+    flexDirection: "row",
+    padding: 16,
+    borderRadius: 16,
+    alignItems: "center",
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  itemAvatarVertical: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
   },
-  exploreCardTitle: {
+  itemAvatarTextVertical: {
+    fontSize: 20,
+    fontWeight: "800",
     color: "#ffffff",
-    fontSize: 18,
-    fontWeight: "900",
-    marginBottom: 4,
   },
-  exploreCardSubtitle: {
-    color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "600",
-    opacity: 0.95,
-    marginBottom: 12,
+  itemInfoVertical: {
+    flex: 1,
+    gap: 4,
   },
-  exploreCardFooter: {
+  itemNameVertical: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  itemMetaVertical: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 8,
+    flexWrap: "wrap",
   },
-  exploreCardCount: {
-    color: "#ffffff",
+  itemRatingVertical: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  itemRatingTextVertical: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  itemDistanceVertical: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  itemTypeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  itemTypeText: {
     fontSize: 11,
     fontWeight: "700",
-    opacity: 0.9,
+    color: "#ffffff",
+  },
+  itemBioVertical: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  itemAddressVertical: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  detailSheet: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: -4},
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+    maxHeight: "70%",
+  },
+  detailCard: {
+    borderRadius: 20,
+    padding: 16,
+  },
+  detailHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 16,
+    gap: 12,
+  },
+  detailAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  detailAvatarText: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#ffffff",
+  },
+  detailInfo: {
+    flex: 1,
+  },
+  detailName: {
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  detailMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
+  detailRating: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  detailRatingText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  detailDot: {
+    fontSize: 12,
+  },
+  detailDistance: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  detailTypeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  detailTypeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#ffffff",
+  },
+  detailBio: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  detailAddress: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  detailQuickInfo: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 16,
+  },
+  quickInfoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 6,
+  },
+  quickInfoText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  detailActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  detailActionPrimary: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 16,
+    gap: 8,
+  },
+  detailActionPrimaryText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  detailActionSecondary: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 2,
+    gap: 8,
+  },
+  detailActionSecondaryText: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  detailActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    borderWidth: 2,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

@@ -57,7 +57,7 @@ export default function BeU() {
     },
     {
       id: 2,
-      name: "BE-U Hair Studio",
+      name: "Be-U Hair Studio",
       type: "Salón",
       specialty: "Tratamientos Capilares Premium",
       rating: 4.8,
@@ -97,7 +97,7 @@ export default function BeU() {
             <Ionicons name="sparkles" color="#ffffff" size={24} />
           </View>
           <View style={styles.headerText}>
-            <Text style={styles.aiName}>BE-U Agent</Text>
+            <Text style={styles.aiName}>Rita</Text>
             <Text style={styles.aiStatus}>✨ Tu asistente inteligente</Text>
           </View>
         </View>
@@ -112,8 +112,8 @@ export default function BeU() {
           <View style={styles.messageContainer}>
             <View style={[styles.aiMessage, {backgroundColor: colors.muted}]}>
               <Text style={[styles.messageText, {color: colors.foreground}]}>
-                ¡Hola! 👋 Soy BE-U Agent, tu asistente de belleza inteligente. Estoy aquí para
-                ayudarte a encontrar el tratamiento perfecto. ¿En qué puedo ayudarte hoy?
+                ¡Hola! 👋 Soy Rita, tu asistente de belleza inteligente. Estoy aquí para ayudarte a
+                encontrar el tratamiento perfecto. ¿En qué puedo ayudarte hoy?
               </Text>
               <Text style={[styles.messageTime, {color: colors.mutedForeground}]}>10:30</Text>
             </View>
