@@ -31,6 +31,54 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | undefined>();
 
+  // Mock data for development
+  const mockReservations: Reservation[] = [
+    {
+      id: 1,
+      user: 1,
+      service: 101,
+      service_name: "Corte y Peinado",
+      provider_name: "Ana López",
+      provider_type: "PROFESSIONAL",
+      date: "2024-12-20",
+      time: "10:00 AM",
+      status: "CONFIRMED",
+      duration: "45 min",
+      price: 500,
+      notes: "Prefiero estilo moderno",
+      created_at: "2024-12-15T10:00:00Z",
+    },
+    {
+      id: 2,
+      user: 1,
+      service: 102,
+      service_name: "Color Completo",
+      provider_name: "Be-U Spa Premium",
+      provider_type: "PLACE",
+      date: "2024-12-22",
+      time: "2:00 PM",
+      status: "PENDING",
+      duration: "2 hrs",
+      price: 1200,
+      notes: "Quiero un tono castaño claro",
+      created_at: "2024-12-16T14:00:00Z",
+    },
+    {
+      id: 3,
+      user: 1,
+      service: 103,
+      service_name: "Manicure",
+      provider_name: "Sofía Martínez",
+      provider_type: "PROFESSIONAL",
+      date: "2024-12-18",
+      time: "11:30 AM",
+      status: "COMPLETED",
+      duration: "1 hr",
+      price: 350,
+      created_at: "2024-12-10T09:00:00Z",
+    },
+  ];
+
   // For clients
   const {
     reservations: clientReservations,
@@ -56,7 +104,9 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
   const isClient = userRole === "CLIENT";
   const isProvider = userRole === "PROFESSIONAL" || userRole === "PLACE";
 
-  const reservations = isClient ? clientReservations : providerReservations;
+  // Use mock data if no real reservations
+  const rawReservations = isClient ? clientReservations : providerReservations;
+  const reservations = rawReservations.length > 0 ? rawReservations : mockReservations;
   const isLoading = isClient ? clientLoading : providerLoading;
   const error = isClient ? clientError : providerError;
 

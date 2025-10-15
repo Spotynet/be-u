@@ -18,6 +18,7 @@ import {useRouter} from "expo-router";
 import {useAuth} from "@/features/auth";
 import {providerApi} from "@/lib/api";
 import {ProfessionalProfile, PlaceProfile} from "@/types/global";
+import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -29,6 +30,13 @@ export default function Home() {
     "belleza"
   );
   const [isCategoryPickerExpanded, setIsCategoryPickerExpanded] = useState(false);
+  const [selectedSubCategory, setSelectedSubCategory] = useState("todos");
+
+  const categories = [
+    {id: "belleza", emoji: "💅", name: "Belleza"},
+    {id: "cuidado", emoji: "❤️", name: "Cuidado"},
+    {id: "mascotas", emoji: "🐾", name: "Mascotas"},
+  ];
   const router = useRouter();
   const {user, isAuthenticated, logout} = useAuth();
 
@@ -924,9 +932,66 @@ export default function Home() {
           {backgroundColor: colors.background, borderBottomColor: colors.border},
         ]}>
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>Be-U</Text>
-        <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/create-post")}>
-          <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <View style={styles.categorySelector}>
+            {/* Collapsed State - Single Button */}
+            {!isCategoryPickerExpanded && (
+              <TouchableOpacity
+                style={[styles.categoryButton, {backgroundColor: colors.card}]}
+                onPress={() => setIsCategoryPickerExpanded(true)}>
+                <Text style={[styles.categoryButtonText, {color: colors.foreground}]}>
+                  {categories.find((cat) => cat.id === selectedCategory)?.emoji}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Expanded State - Horizontal Options */}
+            {isCategoryPickerExpanded && (
+              <View style={[styles.expandedCategoryOptions, {backgroundColor: colors.card}]}>
+                {categories.map((category) => (
+                  <TouchableOpacity
+                    key={category.id}
+                    style={[
+                      styles.expandedCategoryOption,
+                      selectedCategory === category.id && styles.selectedCategoryOption,
+                    ]}
+                    onPress={() => {
+                      setSelectedCategory(category.id as "belleza" | "cuidado" | "mascotas");
+                      setIsCategoryPickerExpanded(false);
+                    }}>
+                    <Text style={styles.expandedCategoryEmoji}>{category.emoji}</Text>
+                    {selectedCategory === category.id && (
+                      <Text style={[styles.expandedCategoryText, {color: colors.primary}]}>
+                        {category.name}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
+          <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/create-post")}>
+            <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Sub Category Bar */}
+      <View style={styles.subCategoryContainer}>
+        <SubCategoryBar
+          categories={[
+            {id: "todos", name: "Todos", icon: "apps"},
+            {id: "manicure", name: "Manicure & Pedicure", icon: "hand-left"},
+            {id: "maquillaje", name: "Make Up", icon: "brush"},
+            {id: "barberia", name: "Barbería", icon: "cut"},
+            {id: "facial", name: "Facial", icon: "flower"},
+            {id: "masaje", name: "Masaje", icon: "fitness"},
+          ]}
+          selectedCategoryId={selectedSubCategory}
+          onCategorySelect={setSelectedSubCategory}
+          showLabels={true}
+        />
       </View>
 
       <ScrollView
@@ -1208,95 +1273,6 @@ export default function Home() {
         {/* Feed Posts */}
         <View style={styles.postsSection}>{feedPosts.map((post) => renderPost(post))}</View>
       </ScrollView>
-
-      {/* Floating Category Picker */}
-      <View style={styles.floatingCategoryPicker}>
-        {/* Collapsed State - Single Button */}
-        {!isCategoryPickerExpanded && (
-          <TouchableOpacity
-            style={[styles.categoryToggleButton, {backgroundColor: colors.primary}]}
-            onPress={() => setIsCategoryPickerExpanded(true)}
-            activeOpacity={0.8}>
-            <Ionicons
-              name={
-                selectedCategory === "belleza"
-                  ? "sparkles"
-                  : selectedCategory === "cuidado"
-                  ? "heart"
-                  : "paw"
-              }
-              color="#ffffff"
-              size={18}
-            />
-          </TouchableOpacity>
-        )}
-
-        {/* Expanded State - All Categories */}
-        {isCategoryPickerExpanded && (
-          <View
-            style={[styles.categoryIconsContainer, {backgroundColor: "rgba(255, 255, 255, 0.95)"}]}>
-            <TouchableOpacity
-              style={[
-                styles.categoryIcon,
-                selectedCategory === "belleza" && [
-                  styles.activeCategoryIcon,
-                  {backgroundColor: colors.primary},
-                ],
-              ]}
-              onPress={() => {
-                setSelectedCategory("belleza");
-                setIsCategoryPickerExpanded(false);
-              }}
-              activeOpacity={0.8}>
-              <Ionicons
-                name="sparkles"
-                color={selectedCategory === "belleza" ? "#ffffff" : colors.mutedForeground}
-                size={20}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.categoryIcon,
-                selectedCategory === "cuidado" && [
-                  styles.activeCategoryIcon,
-                  {backgroundColor: colors.primary},
-                ],
-              ]}
-              onPress={() => {
-                setSelectedCategory("cuidado");
-                setIsCategoryPickerExpanded(false);
-              }}
-              activeOpacity={0.8}>
-              <Ionicons
-                name="heart"
-                color={selectedCategory === "cuidado" ? "#ffffff" : colors.mutedForeground}
-                size={20}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.categoryIcon,
-                selectedCategory === "mascotas" && [
-                  styles.activeCategoryIcon,
-                  {backgroundColor: colors.primary},
-                ],
-              ]}
-              onPress={() => {
-                setSelectedCategory("mascotas");
-                setIsCategoryPickerExpanded(false);
-              }}
-              activeOpacity={0.8}>
-              <Ionicons
-                name="paw"
-                color={selectedCategory === "mascotas" ? "#ffffff" : colors.mutedForeground}
-                size={20}
-              />
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
     </View>
   );
 }
@@ -1319,8 +1295,68 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -1.5,
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  categorySelector: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  categoryButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  categoryButtonText: {
+    fontSize: 18,
+  },
+  expandedCategoryOptions: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 18,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    gap: 4,
+  },
+  expandedCategoryOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 12,
+    minWidth: 36,
+    justifyContent: "center",
+  },
+  selectedCategoryOption: {
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+  },
+  expandedCategoryEmoji: {
+    fontSize: 16,
+  },
+  expandedCategoryText: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
   headerButton: {
     position: "relative",
+  },
+  subCategoryContainer: {
+    marginBottom: 20,
   },
   feed: {
     flex: 1,
@@ -2113,53 +2149,5 @@ const styles = StyleSheet.create({
   polaroidServicesCount: {
     fontSize: 14,
     fontWeight: "700",
-  },
-
-  // Floating Category Picker
-  floatingCategoryPicker: {
-    position: "absolute",
-    right: 16,
-    top: 120,
-    flexDirection: "column",
-    gap: 8,
-    zIndex: 10,
-  },
-  categoryToggleButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  categoryIconsContainer: {
-    flexDirection: "column",
-    padding: 8,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    gap: 4,
-  },
-  categoryIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "transparent",
-  },
-  activeCategoryIcon: {
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
   },
 });

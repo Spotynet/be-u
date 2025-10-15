@@ -370,4 +370,5 @@ export interface PlaceProfile {
   owner: number;
   services_count: number;
   address: string;
+  professionals?: ProfessionalProfile[];
 }

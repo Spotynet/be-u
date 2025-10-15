@@ -6,12 +6,13 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
 import {Ionicons} from "@expo/vector-icons";
-import {useState} from "react";
+import {useState, useEffect, useRef} from "react";
 import {useAuth} from "@/features/auth";
 
 export default function Login() {
@@ -26,6 +27,67 @@ export default function Login() {
   const [errors, setErrors] = useState({email: "", password: ""});
   const [successMessage, setSuccessMessage] = useState("");
   const [generalError, setGeneralError] = useState("");
+
+  // Animation values
+  const logoScale = useRef(new Animated.Value(0)).current;
+  const logoRotate = useRef(new Animated.Value(0)).current;
+  const sparkleOpacity1 = useRef(new Animated.Value(0)).current;
+  const sparkleOpacity2 = useRef(new Animated.Value(0)).current;
+  const sparkleOpacity3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Logo entrance animation
+    Animated.spring(logoScale, {
+      toValue: 1,
+      tension: 50,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
+
+    // Continuous subtle rotation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(logoRotate, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoRotate, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Sparkle animations with staggered delays
+    const sparkleAnimation = (opacity: Animated.Value, delay: number) => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(opacity, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacity, {
+            toValue: 0,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    };
+
+    sparkleAnimation(sparkleOpacity1, 0);
+    sparkleAnimation(sparkleOpacity2, 400);
+    sparkleAnimation(sparkleOpacity3, 800);
+  }, []);
+
+  const rotateInterpolate = logoRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["-5deg", "5deg"],
+  });
 
   const validateForm = (): boolean => {
     const newErrors = {email: "", password: ""};
@@ -104,24 +166,36 @@ export default function Login() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Logo/Icon */}
+        {/* Animated Logo */}
         <View style={styles.logoContainer}>
-          <View style={[styles.logo, {backgroundColor: colors.primary}]}>
-            <Ionicons name="sparkles" color="#ffffff" size={48} />
-          </View>
+          <Animated.View
+            style={[
+              styles.logoWrapper,
+              {
+                transform: [{scale: logoScale}, {rotate: rotateInterpolate}],
+              },
+            ]}>
+            <View style={[styles.logoBg, {backgroundColor: colors.primary}]}>
+              <Ionicons name="sparkles" color="#ffffff" size={32} />
+            </View>
+            {/* Floating sparkles */}
+            <Animated.View style={[styles.sparkle, styles.sparkle1, {opacity: sparkleOpacity1}]}>
+              <Ionicons name="sparkles" color={colors.primary} size={16} />
+            </Animated.View>
+            <Animated.View style={[styles.sparkle, styles.sparkle2, {opacity: sparkleOpacity2}]}>
+              <Ionicons name="sparkles" color={colors.primary} size={14} />
+            </Animated.View>
+            <Animated.View style={[styles.sparkle, styles.sparkle3, {opacity: sparkleOpacity3}]}>
+              <Ionicons name="sparkles" color={colors.primary} size={12} />
+            </Animated.View>
+          </Animated.View>
           <Text style={[styles.logoText, {color: colors.foreground}]}>Be-U</Text>
-          <Text style={[styles.logoSubtext, {color: colors.mutedForeground}]}>
-            Conectando profesionales y clientes
-          </Text>
         </View>
 
         {/* Welcome Text */}
         <View style={styles.welcomeContainer}>
           <Text style={[styles.welcomeTitle, {color: colors.foreground}]}>
             ¡Bienvenido de vuelta!
-          </Text>
-          <Text style={[styles.welcomeSubtitle, {color: colors.mutedForeground}]}>
-            Inicia sesión para acceder a todos los servicios y continuar tu experiencia
           </Text>
         </View>
 
@@ -268,51 +342,55 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: "center",
-    marginBottom: 32,
+    marginTop: 32,
+    marginBottom: 20,
   },
-  logo: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  logoWrapper: {
+    position: "relative",
+    marginBottom: 16,
+  },
+  logoBg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 20,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
     elevation: 8,
   },
   logoText: {
     fontSize: 28,
-    fontWeight: "800",
-    letterSpacing: 1,
+    fontWeight: "900",
+    letterSpacing: 1.5,
   },
-  logoSubtext: {
-    fontSize: 14,
-    fontWeight: "500",
-    marginTop: 4,
-    textAlign: "center",
+  sparkle: {
+    position: "absolute",
+  },
+  sparkle1: {
+    top: -8,
+    right: -8,
+  },
+  sparkle2: {
+    bottom: -4,
+    left: -8,
+  },
+  sparkle3: {
+    top: 8,
+    left: -12,
   },
   welcomeContainer: {
     alignItems: "center",
+    marginTop: 12,
     marginBottom: 40,
   },
   welcomeTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "800",
-    marginBottom: 12,
     textAlign: "center",
     letterSpacing: 0.5,
-  },
-  welcomeSubtitle: {
-    fontSize: 16,
-    textAlign: "center",
-    lineHeight: 24,
-    paddingHorizontal: 20,
   },
   formContainer: {
     marginBottom: 32,

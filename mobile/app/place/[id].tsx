@@ -17,6 +17,7 @@ import {useRouter, useLocalSearchParams} from "expo-router";
 import {providerApi} from "@/lib/api";
 import {PlaceProfile} from "@/types/global";
 import {BookingFlow} from "@/components/booking/BookingFlow";
+import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 import {mockPlaces, mockServices, mockReviews} from "@/lib/mockData";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
@@ -32,12 +33,55 @@ export default function PlaceDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showBookingFlow, setShowBookingFlow] = useState(false);
   const [selectedService, setSelectedService] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"servicios" | "profesionales" | "opiniones">(
+  const [activeTab, setActiveTab] = useState<"servicios" | "profesionales" | "posts" | "opiniones">(
     "servicios"
   );
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState("todos");
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Mock posts data
+  const salonPosts = [
+    {
+      id: 1,
+      type: "salon",
+      image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400",
+      title: "Nuevo servicio de manicure",
+    },
+    {
+      id: 2,
+      type: "salon",
+      image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400",
+      title: "Corte y peinado especial",
+    },
+    {
+      id: 3,
+      type: "salon",
+      image: "https://images.unsplash.com/photo-1492106087820-71f1a00d2b11?w=400",
+      title: "Maquillaje para eventos",
+    },
+    {
+      id: 4,
+      type: "professional",
+      image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400",
+      title: "Carlos - Nuevo corte",
+      professionalName: "Carlos Mendoza",
+    },
+    {
+      id: 5,
+      type: "professional",
+      image: "https://images.unsplash.com/photo-1492106087820-71f1a00d2b11?w=400",
+      title: "Ana - Maquillaje glamour",
+      professionalName: "Ana López",
+    },
+    {
+      id: 6,
+      type: "salon",
+      image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400",
+      title: "Promoción especial",
+    },
+  ];
 
   useEffect(() => {
     fetchPlaceDetails();
@@ -96,40 +140,6 @@ export default function PlaceDetailScreen() {
     },
   ];
 
-  // Mock salon professionals
-  const salonProfessionals = [
-    {
-      id: 1,
-      name: "Ana López",
-      last_name: "Martínez",
-      specialty: "Colorista",
-      rating: 4.9,
-      experience: "8 años",
-      avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop",
-      services: ["Color Completo", "Balayage", "Mechas"],
-    },
-    {
-      id: 2,
-      name: "Carlos",
-      last_name: "Rodríguez",
-      specialty: "Barbero",
-      rating: 4.8,
-      experience: "5 años",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-      services: ["Corte Clásico", "Barba", "Afeitado"],
-    },
-    {
-      id: 3,
-      name: "María",
-      last_name: "González",
-      specialty: "Manicurista",
-      rating: 4.7,
-      experience: "6 años",
-      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-      services: ["Manicure", "Pedicure", "Gel"],
-    },
-  ];
-
   if (isLoading) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
@@ -181,11 +191,18 @@ export default function PlaceDetailScreen() {
             <Ionicons name="arrow-back" color="#ffffff" size={24} />
           </View>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.headerButton}>
-          <View style={styles.headerButtonBg}>
-            <Ionicons name="heart-outline" color="#ffffff" size={24} />
-          </View>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerButton}>
+            <View style={styles.headerButtonBg}>
+              <Ionicons name="share-outline" color="#ffffff" size={24} />
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerButton}>
+            <View style={styles.headerButtonBg}>
+              <Ionicons name="heart-outline" color="#ffffff" size={24} />
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -217,11 +234,6 @@ export default function PlaceDetailScreen() {
               />
             ))}
           </View>
-
-          {/* Rating Badge */}
-          <View style={styles.ratingBadge}>
-            <Text style={styles.ratingBadgeText}>★ 4.9</Text>
-          </View>
         </View>
 
         {/* Profile Info */}
@@ -242,9 +254,10 @@ export default function PlaceDetailScreen() {
                 </View>
               </View>
             </View>
-            <TouchableOpacity style={[styles.followButton, {backgroundColor: colors.primary}]}>
-              <Ionicons name="checkmark" color="#ffffff" size={16} />
-            </TouchableOpacity>
+            <View style={[styles.ratingBadge, {backgroundColor: "#EF4444"}]}>
+              <Ionicons name="star" color="#ffffff" size={16} />
+              <Text style={styles.ratingText}>4.9</Text>
+            </View>
           </View>
 
           {/* Info Cards */}
@@ -307,7 +320,21 @@ export default function PlaceDetailScreen() {
                   styles.tabText,
                   {color: activeTab === "profesionales" ? colors.primary : colors.mutedForeground},
                 ]}>
-                Profesionales
+                Pros
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                activeTab === "posts" && [styles.activeTab, {borderBottomColor: colors.primary}],
+              ]}
+              onPress={() => setActiveTab("posts")}>
+              <Text
+                style={[
+                  styles.tabText,
+                  {color: activeTab === "posts" ? colors.primary : colors.mutedForeground},
+                ]}>
+                Posts
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -324,9 +351,24 @@ export default function PlaceDetailScreen() {
                   styles.tabText,
                   {color: activeTab === "opiniones" ? colors.primary : colors.mutedForeground},
                 ]}>
-                Opiniones
+                Reviews
               </Text>
             </TouchableOpacity>
+          </View>
+
+          {/* Sub-Category Bar */}
+          <View style={styles.subCategoryContainer}>
+            <SubCategoryBar
+              categories={[
+                {id: "todos", name: "Todos", icon: "apps"},
+                {id: "manicure", name: "Manicure & Pedicure", icon: "hand-left"},
+                {id: "maquillaje", name: "Make Up", icon: "brush"},
+                {id: "barberia", name: "Barbería", icon: "cut"},
+              ]}
+              selectedCategoryId={selectedCategory}
+              onCategorySelect={setSelectedCategory}
+              showLabels={true}
+            />
           </View>
 
           {/* Tab Content */}
@@ -334,47 +376,59 @@ export default function PlaceDetailScreen() {
             <View style={[styles.servicesSection, {backgroundColor: colors.card}]}>
               {place.services && place.services.length > 0 ? (
                 place.services.map((service: any, index: number) => (
-                  <View
+                  <TouchableOpacity
                     key={service.id}
-                    style={[styles.serviceCard, {backgroundColor: colors.background}]}>
-                    <View style={styles.serviceImageContainer}>
-                      <View
-                        style={[
-                          styles.serviceImagePlaceholder,
-                          {backgroundColor: getServiceColor(index)},
-                        ]}>
-                        <Ionicons name={getServiceIcon(index)} color="#ffffff" size={24} />
+                    style={[
+                      styles.serviceCard,
+                      {
+                        backgroundColor: colorScheme === "dark" ? "#1a1f2e" : "#ffffff",
+                        borderColor: colorScheme === "dark" ? "#2d3548" : "#e2e8f0",
+                      },
+                    ]}
+                    activeOpacity={0.95}>
+                    <View style={styles.serviceHeader}>
+                      <View style={[styles.serviceIcon, {backgroundColor: getServiceColor(index)}]}>
+                        <Ionicons name={getServiceIcon(index)} color="#ffffff" size={28} />
                       </View>
-                    </View>
-                    <View style={styles.serviceInfo}>
-                      <Text style={[styles.serviceName, {color: colors.foreground}]}>
-                        {service.name}
-                      </Text>
-                      <Text style={[styles.serviceDescription, {color: colors.mutedForeground}]}>
-                        {service.description}
-                      </Text>
-                      <View style={styles.serviceDetails}>
-                        <View style={styles.serviceDetail}>
-                          <Ionicons name="time-outline" color={colors.primary} size={16} />
-                          <Text style={[styles.serviceDetailText, {color: colors.mutedForeground}]}>
+                      <View style={styles.serviceMainInfo}>
+                        <Text
+                          style={[
+                            styles.serviceName,
+                            {color: colorScheme === "dark" ? "#f1f5f9" : "#1e293b"},
+                          ]}>
+                          {service.name}
+                        </Text>
+                        <View style={styles.serviceMeta}>
+                          <Ionicons
+                            name="time-outline"
+                            size={16}
+                            color={colorScheme === "dark" ? "#94a3b8" : "#64748b"}
+                          />
+                          <Text
+                            style={[
+                              styles.serviceMetaText,
+                              {color: colorScheme === "dark" ? "#94a3b8" : "#64748b"},
+                            ]}>
                             {service.duration}
                           </Text>
                         </View>
-                        <Text style={[styles.servicePrice, {color: colors.primary}]}>
-                          ${service.price} MXN
-                        </Text>
                       </View>
                     </View>
-                    <TouchableOpacity
-                      style={[styles.bookButton, {backgroundColor: colors.primary}]}
-                      onPress={() => {
-                        setSelectedService(service);
-                        setShowBookingFlow(true);
-                      }}
-                      activeOpacity={0.8}>
-                      <Text style={styles.bookButtonText}>Reservar</Text>
-                    </TouchableOpacity>
-                  </View>
+                    <View style={styles.serviceFooter}>
+                      <Text style={[styles.servicePrice, {color: colors.primary}]}>
+                        ${service.price} MXN
+                      </Text>
+                      <TouchableOpacity
+                        style={[styles.reserveButton, {backgroundColor: colors.primary}]}
+                        onPress={() => {
+                          setSelectedService(service);
+                          setShowBookingFlow(true);
+                        }}
+                        activeOpacity={0.8}>
+                        <Text style={styles.reserveButtonText}>Reservar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
                 ))
               ) : (
                 <View style={styles.emptyState}>
@@ -396,50 +450,80 @@ export default function PlaceDetailScreen() {
                 Conoce al equipo que te atenderá
               </Text>
 
-              {salonProfessionals.map((professional, index) => (
-                <View
-                  key={professional.id}
-                  style={[styles.professionalCard, {backgroundColor: colors.background}]}>
-                  <Image source={{uri: professional.avatar}} style={styles.professionalAvatar} />
-                  <View style={styles.professionalInfo}>
-                    <Text style={[styles.professionalName, {color: colors.foreground}]}>
-                      {professional.name} {professional.last_name}
-                    </Text>
-                    <Text style={[styles.professionalSpecialty, {color: colors.primary}]}>
-                      {professional.specialty}
-                    </Text>
-                    <View style={styles.professionalMeta}>
-                      <View style={styles.professionalRating}>
-                        <Ionicons name="star" color="#FFD700" size={14} />
-                        <Text style={[styles.professionalRatingText, {color: colors.foreground}]}>
-                          {professional.rating}
-                        </Text>
-                      </View>
-                      <Text
-                        style={[styles.professionalExperience, {color: colors.mutedForeground}]}>
-                        • {professional.experience}
-                      </Text>
-                    </View>
-                    <View style={styles.professionalServices}>
-                      {professional.services.map((service, serviceIndex) => (
-                        <View
-                          key={serviceIndex}
-                          style={[styles.serviceTag, {backgroundColor: colors.muted}]}>
-                          <Text style={[styles.serviceTagText, {color: colors.foreground}]}>
-                            {service}
-                          </Text>
+              {place.professionals && place.professionals.length > 0 ? (
+                <View style={styles.professionalsGrid}>
+                  {place.professionals.map((professional, index) => {
+                    const borderColors = [
+                      "#8B5CF6",
+                      "#10B981",
+                      "#3B82F6",
+                      "#F59E0B",
+                      "#10B981",
+                      "#8B5CF6",
+                    ];
+                    const borderColor = borderColors[index % borderColors.length];
+
+                    return (
+                      <TouchableOpacity
+                        key={professional.id}
+                        style={[
+                          styles.professionalCardGrid,
+                          index % 2 === 0
+                            ? styles.professionalCardLeft
+                            : styles.professionalCardRight,
+                        ]}
+                        onPress={() => router.push(`/professional/${professional.id}`)}
+                        activeOpacity={0.8}>
+                        <View style={[styles.professionalImageContainer, {borderColor}]}>
+                          <View
+                            style={[
+                              styles.professionalAvatarGrid,
+                              {backgroundColor: colors.primary},
+                            ]}>
+                            <Text style={styles.professionalAvatarTextGrid}>
+                              {professional.name.charAt(0)}
+                              {professional.last_name.charAt(0)}
+                            </Text>
+                          </View>
+                          <View style={[styles.ratingBadgeGrid, {backgroundColor: borderColor}]}>
+                            <Ionicons name="star" color="#ffffff" size={12} />
+                            <Text style={styles.ratingBadgeTextGrid}>{professional.rating}</Text>
+                          </View>
                         </View>
-                      ))}
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.viewProfessionalButton, {backgroundColor: colors.primary}]}
-                    onPress={() => router.push(`/professional/${professional.id}`)}
-                    activeOpacity={0.8}>
-                    <Ionicons name="eye" color="#ffffff" size={16} />
-                  </TouchableOpacity>
+                        <Text style={[styles.professionalNameGrid, {color: colors.foreground}]}>
+                          {professional.name} {professional.last_name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-              ))}
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="people-outline" color={colors.mutedForeground} size={48} />
+                  <Text style={[styles.emptyText, {color: colors.mutedForeground}]}>
+                    No hay profesionales disponibles
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {activeTab === "posts" && (
+            <View style={styles.postsSection}>
+              <View style={styles.postsGrid}>
+                {salonPosts.map((post, index) => (
+                  <TouchableOpacity
+                    key={post.id}
+                    style={styles.postItem}
+                    onPress={() => {
+                      // Navigate to post detail
+                      console.log("Navigate to post:", post.id);
+                    }}
+                    activeOpacity={0.9}>
+                    <Image source={{uri: post.image}} style={styles.postImage} />
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
 
@@ -498,22 +582,6 @@ export default function PlaceDetailScreen() {
         <View style={styles.bottomSpacing} />
       </ScrollView>
 
-      {/* Fixed Bottom Button */}
-      <View style={[styles.fixedBottomButton, {backgroundColor: colors.background}]}>
-        <TouchableOpacity
-          style={[styles.primaryButton, {backgroundColor: colors.primary}]}
-          activeOpacity={0.9}
-          onPress={() => {
-            if (place.services && place.services.length > 0) {
-              setSelectedService(place.services[0]);
-              setShowBookingFlow(true);
-            }
-          }}>
-          <Ionicons name="calendar" color="#ffffff" size={20} />
-          <Text style={styles.primaryButtonText}>Agendar Cita</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Booking Flow Modal */}
       {selectedService && (
         <BookingFlow
@@ -521,6 +589,7 @@ export default function PlaceDetailScreen() {
           onClose={() => setShowBookingFlow(false)}
           provider={place}
           service={selectedService}
+          availableProfessionals={place.professionals}
         />
       )}
     </View>
@@ -565,6 +634,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.3)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   headerButton: {
     padding: 8,
@@ -655,20 +729,6 @@ const styles = StyleSheet.create({
   activeIndicator: {
     backgroundColor: "#ffffff",
   },
-  ratingBadge: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
-    backgroundColor: "#FF4444",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  ratingBadgeText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "700",
-  },
   profileInfo: {
     marginTop: -40,
     borderTopLeftRadius: 24,
@@ -681,8 +741,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
   profileTextContainer: {
     flex: 1,
@@ -717,13 +777,31 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
+  ratingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 4,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  ratingText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
   infoCards: {
     paddingHorizontal: 20,
-    marginBottom: 20,
-    gap: 12,
+    marginBottom: 24,
+    gap: 16,
   },
   infoCard: {
-    padding: 16,
+    padding: 20,
     borderRadius: 12,
   },
   infoCardHeader: {
@@ -754,7 +832,8 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     marginHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 24,
+    marginTop: 20,
     flexDirection: "row",
     borderRadius: 16,
     padding: 4,
@@ -773,74 +852,83 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  subCategoryContainer: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+  },
   servicesSection: {
     marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 20,
+    marginBottom: 24,
+    padding: 24,
     borderRadius: 16,
   },
   serviceCard: {
-    flexDirection: "row",
-    alignItems: "center",
+    borderRadius: 20,
+    marginBottom: 14,
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    borderWidth: 1,
     shadowColor: "#000",
     shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
-  serviceImageContainer: {
-    marginRight: 12,
+  serviceHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
   },
-  serviceImagePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
+  serviceIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
+    marginRight: 14,
   },
-  serviceInfo: {
+  serviceMainInfo: {
     flex: 1,
+    justifyContent: "center",
   },
   serviceName: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "700",
     marginBottom: 4,
+    lineHeight: 22,
   },
-  serviceDescription: {
+  serviceMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  serviceMetaText: {
     fontSize: 14,
-    marginBottom: 8,
-    lineHeight: 20,
+    fontWeight: "500",
   },
-  serviceDetails: {
+  serviceFooter: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  serviceDetail: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  serviceDetailText: {
-    fontSize: 14,
-  },
   servicePrice: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
+    letterSpacing: -0.3,
   },
-  bookButton: {
+  reserveButton: {
     paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    marginLeft: 12,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  bookButtonText: {
+  reserveButtonText: {
     color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
   },
   reviewsSection: {
     marginHorizontal: 20,
@@ -906,15 +994,106 @@ const styles = StyleSheet.create({
   // Professionals Section
   professionalsSection: {
     marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 20,
+    marginBottom: 24,
+    padding: 24,
     borderRadius: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginBottom: 8,
   },
   sectionSubtitle: {
     fontSize: 14,
     marginBottom: 16,
     lineHeight: 20,
   },
+  professionalsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+  },
+  professionalCardGrid: {
+    width: "48%",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  professionalCardLeft: {
+    alignSelf: "flex-start",
+  },
+  professionalCardRight: {
+    alignSelf: "flex-end",
+  },
+  professionalImageContainer: {
+    position: "relative",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  professionalAvatarGrid: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  professionalAvatarTextGrid: {
+    color: "#ffffff",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  ratingBadgeGrid: {
+    position: "absolute",
+    bottom: -8,
+    left: "50%",
+    marginLeft: -20,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 2,
+  },
+  ratingBadgeTextGrid: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  professionalNameGrid: {
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  // Posts Section
+  postsSection: {
+    flex: 1,
+    paddingTop: 0,
+    paddingBottom: 20,
+    alignItems: "center",
+  },
+  postsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    width: "100%",
+  },
+  postItem: {
+    width: "33.33%",
+    aspectRatio: 1,
+    overflow: "hidden",
+  },
+  postImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  // Legacy styles (keeping for compatibility)
   professionalCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -932,6 +1111,13 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     marginRight: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  professionalAvatarText: {
+    color: "#ffffff",
+    fontSize: 18,
+    fontWeight: "700",
   },
   professionalInfo: {
     flex: 1,
@@ -988,37 +1174,5 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 100,
-  },
-  fixedBottomButton: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingBottom: 32,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: -4},
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  primaryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    borderRadius: 16,
-    gap: 8,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  primaryButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
   },
 });

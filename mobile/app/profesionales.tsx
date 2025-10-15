@@ -30,41 +30,6 @@ export default function ProfesionalesScreen() {
     loadProfessionals();
   }, []);
 
-  const renderProfessionalCard = (professional: any) => (
-    <TouchableOpacity
-      key={professional.id}
-      style={[styles.professionalCard, {backgroundColor: colors.card}]}
-      onPress={() => router.push(`/professional/${professional.id}` as any)}
-      activeOpacity={0.8}>
-      <View style={[styles.professionalAvatar, {backgroundColor: "#f0f0f0"}]}>
-        <Text style={styles.avatarText}>
-          {professional.name.charAt(0)}
-          {professional.last_name.charAt(0)}
-        </Text>
-      </View>
-      <View style={styles.professionalInfo}>
-        <Text style={[styles.professionalName, {color: colors.foreground}]} numberOfLines={1}>
-          {professional.name} {professional.last_name}
-        </Text>
-        <Text
-          style={[styles.professionalSpecialty, {color: colors.mutedForeground}]}
-          numberOfLines={1}>
-          {professional.specialty}
-        </Text>
-        <Text style={[styles.professionalCity, {color: colors.mutedForeground}]} numberOfLines={1}>
-          {professional.city}
-        </Text>
-        <View style={styles.professionalRating}>
-          <Ionicons name="star" color="#FFD700" size={14} />
-          <Text style={[styles.ratingText, {color: colors.foreground}]}>
-            {professional.rating} ({professional.reviewsCount})
-          </Text>
-        </View>
-      </View>
-      <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-    </TouchableOpacity>
-  );
-
   if (isLoading) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
@@ -107,7 +72,47 @@ export default function ProfesionalesScreen() {
         </Text>
 
         {professionals.length > 0 ? (
-          <View style={styles.professionalsList}>{professionals.map(renderProfessionalCard)}</View>
+          <View style={styles.professionalsGrid}>
+            {professionals.map((professional, index) => {
+              const borderColors = [
+                "#8B5CF6",
+                "#10B981",
+                "#3B82F6",
+                "#F59E0B",
+                "#10B981",
+                "#8B5CF6",
+              ];
+              const borderColor = borderColors[index % borderColors.length];
+
+              return (
+                <TouchableOpacity
+                  key={professional.id}
+                  style={[
+                    styles.professionalCardGrid,
+                    index % 2 === 0 ? styles.professionalCardLeft : styles.professionalCardRight,
+                  ]}
+                  onPress={() => router.push(`/professional/${professional.id}` as any)}
+                  activeOpacity={0.8}>
+                  <View style={[styles.professionalImageContainer, {borderColor}]}>
+                    <View
+                      style={[styles.professionalAvatarGrid, {backgroundColor: colors.primary}]}>
+                      <Text style={styles.professionalAvatarTextGrid}>
+                        {professional.name.charAt(0)}
+                        {professional.last_name.charAt(0)}
+                      </Text>
+                    </View>
+                    <View style={[styles.ratingBadgeGrid, {backgroundColor: borderColor}]}>
+                      <Ionicons name="star" color="#ffffff" size={12} />
+                      <Text style={styles.ratingBadgeTextGrid}>{professional.rating}</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.professionalNameGrid, {color: colors.foreground}]}>
+                    {professional.name} {professional.last_name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         ) : (
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" color={colors.mutedForeground} size={64} />
@@ -172,6 +177,69 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
   },
+  professionalsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+  },
+  professionalCardGrid: {
+    width: "48%",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  professionalCardLeft: {
+    alignSelf: "flex-start",
+  },
+  professionalCardRight: {
+    alignSelf: "flex-end",
+  },
+  professionalImageContainer: {
+    position: "relative",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  professionalAvatarGrid: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  professionalAvatarTextGrid: {
+    color: "#ffffff",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  ratingBadgeGrid: {
+    position: "absolute",
+    bottom: -8,
+    left: "50%",
+    marginLeft: -20,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 2,
+  },
+  ratingBadgeTextGrid: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  professionalNameGrid: {
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  // Legacy styles (keeping for compatibility)
   professionalsList: {
     gap: 12,
   },

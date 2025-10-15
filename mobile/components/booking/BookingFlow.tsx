@@ -4,8 +4,10 @@ import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {DateTimePicker} from "./DateTimePicker";
+import {ProfessionalSelector} from "./ProfessionalSelector";
 import {mockAvailableSlots} from "@/lib/mockData";
 import {useRouter} from "expo-router";
+import {ProfessionalProfile} from "@/types/global";
 
 // Force reload - BookingFlow component
 
@@ -26,10 +28,20 @@ interface BookingFlowProps {
     last_name?: string;
     type?: "professional" | "place";
   };
+  selectedProfessional?: ProfessionalProfile;
+  availableProfessionals?: ProfessionalProfile[];
   onConfirm?: (bookingData: any) => void;
 }
 
-export function BookingFlow({isVisible, onClose, service, provider, onConfirm}: BookingFlowProps) {
+export function BookingFlow({
+  isVisible,
+  onClose,
+  service,
+  provider,
+  selectedProfessional: initialProfessional,
+  availableProfessionals,
+  onConfirm,
+}: BookingFlowProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
@@ -38,16 +50,29 @@ export function BookingFlow({isVisible, onClose, service, provider, onConfirm}: 
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
+  const [selectedProfessional, setSelectedProfessional] = useState<ProfessionalProfile | null>(
+    initialProfessional || null
+  );
 
-  const steps = [
-    {id: 1, title: "Fecha y Hora", icon: "calendar-outline"},
-    {id: 2, title: "Detalles", icon: "document-text-outline"},
-    {id: 3, title: "Confirmar", icon: "checkmark-circle-outline"},
-  ];
+  // Dynamic steps based on whether we need professional selection
+  const steps = availableProfessionals
+    ? [
+        {id: 1, title: "Profesional", icon: "person-outline"},
+        {id: 2, title: "Fecha y Hora", icon: "calendar-outline"},
+        {id: 3, title: "Detalles", icon: "document-text-outline"},
+        {id: 4, title: "Confirmar", icon: "checkmark-circle-outline"},
+      ]
+    : [
+        {id: 1, title: "Fecha y Hora", icon: "calendar-outline"},
+        {id: 2, title: "Detalles", icon: "document-text-outline"},
+        {id: 3, title: "Confirmar", icon: "checkmark-circle-outline"},
+      ];
+
+  const maxSteps = steps.length;
 
   const handleNext = () => {
     console.log("handleNext called", {currentStep, selectedDate, selectedTime});
-    if (currentStep < 3) {
+    if (currentStep < maxSteps) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -66,6 +91,7 @@ export function BookingFlow({isVisible, onClose, service, provider, onConfirm}: 
     const bookingData = {
       service,
       provider,
+      professional: selectedProfessional,
       date: selectedDate,
       time: selectedTime,
       notes,
@@ -79,11 +105,15 @@ export function BookingFlow({isVisible, onClose, service, provider, onConfirm}: 
     onClose();
 
     // Navigate to confirmation page
+    const providerName = selectedProfessional
+      ? `${selectedProfessional.name} ${selectedProfessional.last_name || ""}`.trim()
+      : `${provider.name} ${provider.last_name || ""}`.trim();
+
     router.push({
       pathname: "/booking-confirmation",
       params: {
         serviceName: service.name,
-        providerName: `${provider.name} ${provider.last_name || ""}`.trim(),
+        providerName,
         date: selectedDate.toLocaleDateString("es-MX"),
         time: selectedTime,
         price: service.price,
@@ -123,7 +153,21 @@ export function BookingFlow({isVisible, onClose, service, provider, onConfirm}: 
   );
 
   const renderStepContent = () => {
-    switch (currentStep) {
+    // If we have professionals to select from, step 1 is professional selection
+    if (availableProfessionals && currentStep === 1) {
+      return (
+        <ProfessionalSelector
+          professionals={availableProfessionals}
+          selectedProfessional={selectedProfessional}
+          onSelectProfessional={setSelectedProfessional}
+        />
+      );
+    }
+
+    // Calculate the actual step based on whether we have professional selection
+    const actualStep = availableProfessionals ? currentStep - 1 : currentStep;
+
+    switch (actualStep) {
       case 1:
         return (
           <DateTimePicker
@@ -171,10 +215,16 @@ export function BookingFlow({isVisible, onClose, service, provider, onConfirm}: 
 
             <View style={[styles.providerCard, {backgroundColor: colors.card}]}>
               <Text style={[styles.providerName, {color: colors.foreground}]}>
-                {provider.name} {provider.last_name || ""}
+                {selectedProfessional
+                  ? `${selectedProfessional.name} ${selectedProfessional.last_name || ""}`.trim()
+                  : `${provider.name} ${provider.last_name || ""}`.trim()}
               </Text>
               <Text style={[styles.providerType, {color: colors.mutedForeground}]}>
-                {provider.type === "professional" ? "Profesional" : "Establecimiento"}
+                {selectedProfessional
+                  ? "Profesional"
+                  : provider.type === "professional"
+                  ? "Profesional"
+                  : "Establecimiento"}
               </Text>
             </View>
 
@@ -251,24 +301,34 @@ export function BookingFlow({isVisible, onClose, service, provider, onConfirm}: 
                 styles.button,
                 styles.primaryButton,
                 {
-                  backgroundColor:
-                    currentStep === 1 && (!selectedDate || !selectedTime)
-                      ? colors.muted
-                      : colors.primary,
+                  backgroundColor: (() => {
+                    // Professional selection step validation
+                    if (availableProfessionals && currentStep === 1 && !selectedProfessional) {
+                      return colors.muted;
+                    }
+                    // Date/time selection step validation
+                    const dateTimeStep = availableProfessionals ? 2 : 1;
+                    if (currentStep === dateTimeStep && (!selectedDate || !selectedTime)) {
+                      return colors.muted;
+                    }
+                    return colors.primary;
+                  })(),
                 },
-                currentStep === 3 && isConfirming && styles.disabledButton,
+                currentStep === maxSteps && isConfirming && styles.disabledButton,
               ]}
-              onPress={currentStep === 3 ? handleConfirm : handleNext}
+              onPress={currentStep === maxSteps ? handleConfirm : handleNext}
               disabled={
-                (currentStep === 1 && (!selectedDate || !selectedTime)) ||
-                (currentStep === 3 && isConfirming)
+                (availableProfessionals && currentStep === 1 && !selectedProfessional) ||
+                (currentStep === (availableProfessionals ? 2 : 1) &&
+                  (!selectedDate || !selectedTime)) ||
+                (currentStep === maxSteps && isConfirming)
               }
               activeOpacity={0.8}>
-              {currentStep === 3 && isConfirming ? (
+              {currentStep === maxSteps && isConfirming ? (
                 <Text style={styles.buttonText}>Confirmando...</Text>
               ) : (
                 <Text style={styles.buttonText}>
-                  {currentStep === 3 ? "Confirmar Reserva" : "Siguiente"}
+                  {currentStep === maxSteps ? "Confirmar Reserva" : "Siguiente"}
                 </Text>
               )}
             </TouchableOpacity>

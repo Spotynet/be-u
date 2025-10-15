@@ -32,10 +32,23 @@ export default function ProfessionalDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showBookingFlow, setShowBookingFlow] = useState(false);
   const [selectedService, setSelectedService] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"servicios" | "opiniones">("servicios");
+  const [activeTab, setActiveTab] = useState<"servicios" | "opiniones" | "posts">("servicios");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Mock posts data for the professional
+  const professionalPosts = [
+    {id: 1, image: "https://picsum.photos/400/400?random=1"},
+    {id: 2, image: "https://picsum.photos/400/400?random=2"},
+    {id: 3, image: "https://picsum.photos/400/400?random=3"},
+    {id: 4, image: "https://picsum.photos/400/400?random=4"},
+    {id: 5, image: "https://picsum.photos/400/400?random=5"},
+    {id: 6, image: "https://picsum.photos/400/400?random=6"},
+    {id: 7, image: "https://picsum.photos/400/400?random=7"},
+    {id: 8, image: "https://picsum.photos/400/400?random=8"},
+    {id: 9, image: "https://picsum.photos/400/400?random=9"},
+  ];
 
   useEffect(() => {
     fetchProfessionalDetails();
@@ -149,11 +162,18 @@ export default function ProfessionalDetailScreen() {
             <Ionicons name="arrow-back" color="#ffffff" size={24} />
           </View>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.headerButton}>
-          <View style={styles.headerButtonBg}>
-            <Ionicons name="share-outline" color="#ffffff" size={24} />
-          </View>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerButton}>
+            <View style={styles.headerButtonBg}>
+              <Ionicons name="share-outline" color="#ffffff" size={24} />
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerButton}>
+            <View style={styles.headerButtonBg}>
+              <Ionicons name="heart-outline" color="#ffffff" size={24} />
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -185,11 +205,6 @@ export default function ProfessionalDetailScreen() {
               />
             ))}
           </View>
-
-          {/* Rating Badge */}
-          <View style={styles.ratingBadge}>
-            <Text style={styles.ratingBadgeText}>★ {professional.rating.toFixed(1)}</Text>
-          </View>
         </View>
 
         {/* Profile Info */}
@@ -214,9 +229,45 @@ export default function ProfessionalDetailScreen() {
                 </View>
               </View>
             </View>
-            <TouchableOpacity style={[styles.followButton, {backgroundColor: colors.primary}]}>
-              <Ionicons name="heart-outline" color="#ffffff" size={16} />
-            </TouchableOpacity>
+            <View style={[styles.ratingBadge, {backgroundColor: "#EF4444"}]}>
+              <Ionicons name="star" color="#ffffff" size={16} />
+              <Text style={styles.ratingText}>{professional.rating.toFixed(1)}</Text>
+            </View>
+          </View>
+
+          {/* Place/Location Section */}
+          <View style={[styles.locationSection, {backgroundColor: colors.card}]}>
+            <View style={styles.locationHeader}>
+              <Ionicons name="business-outline" color={colors.primary} size={20} />
+              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+                {(professional as any).isIndependent ? "Trabajo Independiente" : "Lugar de Trabajo"}
+              </Text>
+            </View>
+            {(professional as any).isIndependent ? (
+              <Text style={[styles.locationText, {color: colors.mutedForeground}]}>
+                Profesional independiente - Atención en diferentes ubicaciones
+              </Text>
+            ) : (professional as any).place ? (
+              <TouchableOpacity
+                style={styles.placeCard}
+                onPress={() => {
+                  router.push(`/place/${(professional as any).place.id}` as any);
+                }}
+                activeOpacity={0.7}>
+                <View style={styles.placeInfo}>
+                  <Text style={[styles.placeName, {color: colors.foreground}]}>
+                    {(professional as any).place.name}
+                  </Text>
+                  <View style={styles.placeAddress}>
+                    <Ionicons name="location" color={colors.mutedForeground} size={14} />
+                    <Text style={[styles.placeAddressText, {color: colors.mutedForeground}]}>
+                      {(professional as any).place.address}
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+              </TouchableOpacity>
+            ) : null}
           </View>
 
           {/* About Section */}
@@ -251,6 +302,20 @@ export default function ProfessionalDetailScreen() {
             <TouchableOpacity
               style={[
                 styles.tab,
+                activeTab === "posts" && [styles.activeTab, {borderBottomColor: colors.primary}],
+              ]}
+              onPress={() => setActiveTab("posts")}>
+              <Text
+                style={[
+                  styles.tabText,
+                  {color: activeTab === "posts" ? colors.primary : colors.mutedForeground},
+                ]}>
+                Publicaciones
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.tab,
                 activeTab === "opiniones" && [
                   styles.activeTab,
                   {borderBottomColor: colors.primary},
@@ -272,43 +337,59 @@ export default function ProfessionalDetailScreen() {
             <View style={[styles.servicesSection, {backgroundColor: colors.card}]}>
               {professional.services && professional.services.length > 0 ? (
                 professional.services.map((service: any, index: number) => (
-                  <View
+                  <TouchableOpacity
                     key={service.id}
-                    style={[styles.serviceCard, {backgroundColor: colors.background}]}>
-                    <View style={styles.serviceImageContainer}>
-                      <View style={[styles.serviceImagePlaceholder, {backgroundColor: "#FFB6C1"}]}>
-                        <Ionicons name="cut" color="#ffffff" size={24} />
+                    style={[
+                      styles.serviceCard,
+                      {
+                        backgroundColor: colorScheme === "dark" ? "#1a1f2e" : "#ffffff",
+                        borderColor: colorScheme === "dark" ? "#2d3548" : "#e2e8f0",
+                      },
+                    ]}
+                    activeOpacity={0.95}>
+                    <View style={styles.serviceHeader}>
+                      <View style={[styles.serviceIcon, {backgroundColor: getServiceColor(index)}]}>
+                        <Ionicons name={getServiceIcon(index)} color="#ffffff" size={28} />
                       </View>
-                    </View>
-                    <View style={styles.serviceInfo}>
-                      <Text style={[styles.serviceName, {color: colors.foreground}]}>
-                        {service.name}
-                      </Text>
-                      <Text style={[styles.serviceDescription, {color: colors.mutedForeground}]}>
-                        {service.description}
-                      </Text>
-                      <View style={styles.serviceDetails}>
-                        <View style={styles.serviceDetail}>
-                          <Ionicons name="time-outline" color={colors.primary} size={16} />
-                          <Text style={[styles.serviceDetailText, {color: colors.mutedForeground}]}>
+                      <View style={styles.serviceMainInfo}>
+                        <Text
+                          style={[
+                            styles.serviceName,
+                            {color: colorScheme === "dark" ? "#f1f5f9" : "#1e293b"},
+                          ]}>
+                          {service.name}
+                        </Text>
+                        <View style={styles.serviceMeta}>
+                          <Ionicons
+                            name="time-outline"
+                            size={16}
+                            color={colorScheme === "dark" ? "#94a3b8" : "#64748b"}
+                          />
+                          <Text
+                            style={[
+                              styles.serviceMetaText,
+                              {color: colorScheme === "dark" ? "#94a3b8" : "#64748b"},
+                            ]}>
                             {service.duration}
                           </Text>
                         </View>
-                        <Text style={[styles.servicePrice, {color: colors.primary}]}>
-                          ${service.price} MXN
-                        </Text>
                       </View>
                     </View>
-                    <TouchableOpacity
-                      style={[styles.bookButton, {backgroundColor: colors.primary}]}
-                      onPress={() => {
-                        setSelectedService(service);
-                        setShowBookingFlow(true);
-                      }}
-                      activeOpacity={0.8}>
-                      <Text style={styles.bookButtonText}>Reservar</Text>
-                    </TouchableOpacity>
-                  </View>
+                    <View style={styles.serviceFooter}>
+                      <Text style={[styles.servicePrice, {color: colors.primary}]}>
+                        ${service.price} MXN
+                      </Text>
+                      <TouchableOpacity
+                        style={[styles.reserveButton, {backgroundColor: colors.primary}]}
+                        onPress={() => {
+                          setSelectedService(service);
+                          setShowBookingFlow(true);
+                        }}
+                        activeOpacity={0.8}>
+                        <Text style={styles.reserveButtonText}>Reservar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
                 ))
               ) : (
                 <View style={styles.emptyState}>
@@ -318,6 +399,25 @@ export default function ProfessionalDetailScreen() {
                   </Text>
                 </View>
               )}
+            </View>
+          )}
+
+          {activeTab === "posts" && (
+            <View style={styles.postsSection}>
+              <View style={styles.postsGrid}>
+                {professionalPosts.map((post, index) => (
+                  <TouchableOpacity
+                    key={post.id}
+                    style={styles.postItem}
+                    onPress={() => {
+                      // Navigate to post detail
+                      console.log("Navigate to post:", post.id);
+                    }}
+                    activeOpacity={0.9}>
+                    <Image source={{uri: post.image}} style={styles.postImage} />
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
 
@@ -376,22 +476,6 @@ export default function ProfessionalDetailScreen() {
         <View style={styles.bottomSpacing} />
       </ScrollView>
 
-      {/* Fixed Bottom Button */}
-      <View style={[styles.fixedBottomButton, {backgroundColor: colors.background}]}>
-        <TouchableOpacity
-          style={[styles.primaryButton, {backgroundColor: colors.primary}]}
-          activeOpacity={0.9}
-          onPress={() => {
-            if (professional.services && professional.services.length > 0) {
-              setSelectedService(professional.services[0]);
-              setShowBookingFlow(true);
-            }
-          }}>
-          <Ionicons name="calendar" color="#ffffff" size={20} />
-          <Text style={styles.primaryButtonText}>Agendar Cita</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Booking Flow Modal */}
       {selectedService && (
         <BookingFlow
@@ -404,6 +488,17 @@ export default function ProfessionalDetailScreen() {
     </View>
   );
 }
+
+// Helper functions for service styling
+const getServiceColor = (index: number) => {
+  const colors = ["#FFB6C1", "#DDA0DD", "#87CEEB", "#98FB98"];
+  return colors[index % colors.length];
+};
+
+const getServiceIcon = (index: number) => {
+  const icons = ["hand-left", "foot", "cut", "color-palette"];
+  return icons[index % icons.length];
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -432,6 +527,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.3)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   headerButton: {
     padding: 8,
@@ -523,15 +623,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
   },
   ratingBadge: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
-    backgroundColor: "#FF4444",
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 4,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  ratingBadgeText: {
+  ratingText: {
     color: "#ffffff",
     fontSize: 14,
     fontWeight: "700",
@@ -548,8 +652,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
   profileTextContainer: {
     flex: 1,
@@ -572,17 +676,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-  followButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
+  locationSection: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 20,
+    borderRadius: 16,
+  },
+  locationHeader: {
+    flexDirection: "row",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
+    gap: 8,
+    marginBottom: 12,
+  },
+  locationText: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  placeCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  placeInfo: {
+    flex: 1,
+  },
+  placeName: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  placeAddress: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  placeAddressText: {
+    fontSize: 14,
+    flex: 1,
   },
   aboutSection: {
     marginHorizontal: 20,
@@ -622,72 +757,77 @@ const styles = StyleSheet.create({
   },
   servicesSection: {
     marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 20,
+    marginBottom: 24,
+    padding: 24,
     borderRadius: 16,
   },
   serviceCard: {
-    flexDirection: "row",
-    alignItems: "center",
+    borderRadius: 20,
+    marginBottom: 14,
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    borderWidth: 1,
     shadowColor: "#000",
     shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
-  serviceImageContainer: {
-    marginRight: 12,
+  serviceHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
   },
-  serviceImagePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
+  serviceIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
+    marginRight: 14,
   },
-  serviceInfo: {
+  serviceMainInfo: {
     flex: 1,
+    justifyContent: "center",
   },
   serviceName: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "700",
     marginBottom: 4,
+    lineHeight: 22,
   },
-  serviceDescription: {
+  serviceMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  serviceMetaText: {
     fontSize: 14,
-    marginBottom: 8,
-    lineHeight: 20,
+    fontWeight: "500",
   },
-  serviceDetails: {
+  serviceFooter: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  serviceDetail: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  serviceDetailText: {
-    fontSize: 14,
-  },
   servicePrice: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
+    letterSpacing: -0.3,
   },
-  bookButton: {
+  reserveButton: {
     paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    marginLeft: 12,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  bookButtonText: {
+  reserveButtonText: {
     color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
   },
   reviewsSection: {
     marginHorizontal: 20,
@@ -751,38 +891,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   bottomSpacing: {
-    height: 100,
+    height: 40,
   },
-  fixedBottomButton: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingBottom: 32,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: -4},
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  primaryButton: {
-    flexDirection: "row",
+  // Posts Section
+  postsSection: {
+    flex: 1,
+    paddingTop: 0,
+    paddingBottom: 20,
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    borderRadius: 16,
-    gap: 8,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
   },
-  primaryButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
+  postsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    width: "100%",
+  },
+  postItem: {
+    width: "33.33%",
+    aspectRatio: 1,
+    overflow: "hidden",
+  },
+  postImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
 });
