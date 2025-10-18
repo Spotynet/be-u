@@ -2,7 +2,9 @@ import {View, Text, StyleSheet, TouchableOpacity, ScrollView} from "react-native
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
-import {useState} from "react";
+import {useState, useEffect} from "react";
+import {serviceApi} from "@/lib/api";
+import {errorUtils} from "@/lib/api";
 
 // Force reload - DateTimePicker component
 
@@ -13,6 +15,9 @@ interface DateTimePickerProps {
   onTimeChange: (time: string) => void;
   availableSlots?: string[];
   serviceDuration?: string;
+  serviceId?: number;
+  providerId?: number;
+  providerType?: "professional" | "place";
 }
 
 export function DateTimePicker({
@@ -22,10 +27,15 @@ export function DateTimePicker({
   onTimeChange,
   availableSlots,
   serviceDuration,
+  serviceId,
+  providerId,
+  providerType,
 }: DateTimePickerProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [apiAvailableSlots, setApiAvailableSlots] = useState<string[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   // Generate dates for the current month
   const generateDates = () => {
@@ -48,9 +58,48 @@ export function DateTimePicker({
     return dates;
   };
 
-  // Generate time slots (9 AM to 6 PM, hourly)
+  // Fetch available slots from API when all required props are available
+  useEffect(() => {
+    const fetchAvailableSlots = async () => {
+      if (!serviceId || !providerId || !providerType || !selectedDate) {
+        return;
+      }
+
+      try {
+        setIsLoadingSlots(true);
+        const dateString = selectedDate.toISOString().split("T")[0]; // YYYY-MM-DD format
+
+        const response = await serviceApi.getAvailableSlots({
+          service_id: serviceId,
+          date: dateString,
+          service_type: providerType,
+        });
+
+        // Extract time slots from API response (assuming it returns array of time strings)
+        const slots = response.data?.available_slots || response.data?.slots || [];
+        setApiAvailableSlots(slots);
+      } catch (error) {
+        console.error("Error fetching available slots:", error);
+        // Fallback to default slots if API fails
+        const defaultSlots: string[] = [];
+        for (let hour = 9; hour <= 18; hour++) {
+          defaultSlots.push(`${hour.toString().padStart(2, "0")}:00`);
+        }
+        setApiAvailableSlots(defaultSlots);
+      } finally {
+        setIsLoadingSlots(false);
+      }
+    };
+
+    fetchAvailableSlots();
+  }, [serviceId, providerId, providerType, selectedDate]);
+
+  // Generate time slots (use API data if available, otherwise fallback)
   const generateTimeSlots = (): string[] => {
     if (availableSlots) return availableSlots;
+    if (apiAvailableSlots.length > 0) return apiAvailableSlots;
+
+    // Default fallback slots
     const slots: string[] = [];
     for (let hour = 9; hour <= 18; hour++) {
       const time = `${hour.toString().padStart(2, "0")}:00`;
@@ -161,31 +210,39 @@ export function DateTimePicker({
       {selectedDate && (
         <View style={styles.timeSection}>
           <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Hora</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.timeSlotsContainer}>
-            {timeSlots.map((time) => (
-              <TouchableOpacity
-                key={time}
-                style={[
-                  styles.timeSlot,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: selectedTime === time ? colors.primary : colors.card,
-                  },
-                ]}
-                onPress={() => onTimeChange(time)}>
-                <Text
+          {isLoadingSlots ? (
+            <View style={styles.loadingContainer}>
+              <Text style={[styles.loadingText, {color: colors.mutedForeground}]}>
+                Cargando horarios disponibles...
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.timeSlotsContainer}>
+              {timeSlots.map((time) => (
+                <TouchableOpacity
+                  key={time}
                   style={[
-                    styles.timeText,
-                    {color: selectedTime === time ? "#ffffff" : colors.foreground},
-                  ]}>
-                  {time}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+                    styles.timeSlot,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: selectedTime === time ? colors.primary : colors.card,
+                    },
+                  ]}
+                  onPress={() => onTimeChange(time)}>
+                  <Text
+                    style={[
+                      styles.timeText,
+                      {color: selectedTime === time ? "#ffffff" : colors.foreground},
+                    ]}>
+                    {time}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
         </View>
       )}
     </View>
@@ -260,5 +317,13 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  loadingContainer: {
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontWeight: "500",
   },
 });

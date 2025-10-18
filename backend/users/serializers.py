@@ -106,7 +106,18 @@ class ProfessionalProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'user_id', 'email', 'rating']
     
     def get_services_count(self, obj):
-        return obj.services.filter(is_active=True).count()
+        total = 0
+        # Services offered independently by the professional
+        try:
+            total += obj.independent_services.filter(is_active=True).count()
+        except Exception:
+            pass
+        # Services assigned to the professional in places
+        try:
+            total += obj.assigned_services.filter(is_active=True).count()
+        except Exception:
+            pass
+        return total
 
 
 class PlaceProfileSerializer(serializers.ModelSerializer):

@@ -5,9 +5,10 @@ import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {DateTimePicker} from "./DateTimePicker";
 import {ProfessionalSelector} from "./ProfessionalSelector";
-import {mockAvailableSlots} from "@/lib/mockData";
 import {useRouter} from "expo-router";
 import {ProfessionalProfile} from "@/types/global";
+import {serviceApi} from "@/lib/api";
+import {errorUtils} from "@/lib/api";
 
 // Force reload - BookingFlow component
 
@@ -181,8 +182,11 @@ export function BookingFlow({
               console.log("Time selected:", time);
               setSelectedTime(time);
             }}
-            availableSlots={mockAvailableSlots}
+            availableSlots={[]} // Will be fetched based on service and provider
             serviceDuration={service.duration}
+            serviceId={service.id}
+            providerId={selectedProfessional?.id || provider.id}
+            providerType={selectedProfessional ? "professional" : provider.type}
           />
         );
       case 2:

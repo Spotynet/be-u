@@ -14,7 +14,8 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
 import {useState, useEffect} from "react";
 import {MediaUploader} from "@/components/posts/MediaUploader";
-import {mockProfessionals, mockPlaces} from "@/lib/mockData";
+import {providerApi} from "@/lib/api";
+import {errorUtils} from "@/lib/api";
 
 export default function CreateReviewScreen() {
   const colorScheme = useColorScheme();
@@ -33,10 +34,58 @@ export default function CreateReviewScreen() {
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [wouldRecommend, setWouldRecommend] = useState(true);
+  const [professionals, setProfessionals] = useState<any[]>([]);
+  const [places, setPlaces] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProviders = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Fetch both professionals and places
+        const [professionalsResponse, placesResponse] = await Promise.all([
+          providerApi.getProfessionalProfiles({page: 1, page_size: 20}),
+          providerApi.getPlaceProfiles({page: 1, page_size: 20}),
+        ]);
+
+        // Transform professionals data
+        const transformedProfessionals = professionalsResponse.data.results.map((prof: any) => ({
+          id: prof.id,
+          name: prof.user?.first_name || prof.name || "Nombre no disponible",
+          last_name: prof.user?.last_name || prof.last_name || "",
+          specialty: prof.bio || "Especialista",
+          city: prof.city || "Ciudad no especificada",
+          type: "professional",
+        }));
+
+        // Transform places data
+        const transformedPlaces = placesResponse.data.results.map((place: any) => ({
+          id: place.id,
+          name: place.name,
+          specialty: place.description || "Establecimiento de belleza",
+          city: place.city,
+          type: "place",
+        }));
+
+        setProfessionals(transformedProfessionals);
+        setPlaces(transformedPlaces);
+      } catch (error: any) {
+        console.error("Error fetching providers:", error);
+        setError(errorUtils.getErrorMessage(error));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProviders();
+  }, []);
 
   const allProviders = [
-    ...mockProfessionals.map((p) => ({...p, type: "professional"})),
-    ...mockPlaces.map((p) => ({...p, type: "place"})),
+    ...professionals.map((p) => ({...p, type: "professional"})),
+    ...places.map((p) => ({...p, type: "place"})),
   ];
 
   const renderStarRating = (currentRating: number, onPress: (rating: number) => void) => (
@@ -140,140 +189,167 @@ export default function CreateReviewScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
-        {/* Provider Selection */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-            ¿Sobre quién es tu reseña?
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <Ionicons name="person-outline" color={colors.mutedForeground} size={64} />
+          <Text style={[styles.loadingText, {color: colors.mutedForeground}]}>
+            Cargando profesionales y lugares...
           </Text>
-          <View style={styles.providersList}>
-            {allProviders.slice(0, 6).map(renderProviderCard)}
-          </View>
         </View>
-
-        {/* Overall Rating */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-            Calificación General
-          </Text>
-          <View style={styles.ratingSection}>
-            {renderStarRating(rating, setRating)}
-            <Text style={[styles.ratingText, {color: colors.mutedForeground}]}>
-              {rating === 0 ? "Selecciona una calificación" : `${rating} de 5 estrellas`}
-            </Text>
-          </View>
-        </View>
-
-        {/* Aspect Ratings */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-            Detalles de la Calificación
-          </Text>
-
-          <View style={styles.aspectRating}>
-            <Text style={[styles.aspectLabel, {color: colors.foreground}]}>
-              Calidad del servicio
-            </Text>
-            {renderStarRating(aspectRatings.quality, (rating) =>
-              setAspectRatings({...aspectRatings, quality: rating})
-            )}
-          </View>
-
-          <View style={styles.aspectRating}>
-            <Text style={[styles.aspectLabel, {color: colors.foreground}]}>Limpieza</Text>
-            {renderStarRating(aspectRatings.cleanliness, (rating) =>
-              setAspectRatings({...aspectRatings, cleanliness: rating})
-            )}
-          </View>
-
-          <View style={styles.aspectRating}>
-            <Text style={[styles.aspectLabel, {color: colors.foreground}]}>Atención</Text>
-            {renderStarRating(aspectRatings.attention, (rating) =>
-              setAspectRatings({...aspectRatings, attention: rating})
-            )}
-          </View>
-
-          <View style={styles.aspectRating}>
-            <Text style={[styles.aspectLabel, {color: colors.foreground}]}>Precio/Valor</Text>
-            {renderStarRating(aspectRatings.value, (rating) =>
-              setAspectRatings({...aspectRatings, value: rating})
-            )}
-          </View>
-        </View>
-
-        {/* Photos */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Fotos (Opcional)</Text>
-          <MediaUploader
-            mediaType="photo"
-            maxFiles={4}
-            onMediaSelected={setPhotos}
-            selectedMedia={photos}
-          />
-        </View>
-
-        {/* Description */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-            Describe tu experiencia
-          </Text>
-          <TextInput
-            style={[
-              styles.textArea,
-              {
-                backgroundColor: colors.inputBackground,
-                color: colors.foreground,
-                borderColor: colors.border,
-              },
-            ]}
-            placeholder="Comparte los detalles de tu experiencia..."
-            placeholderTextColor={colors.mutedForeground}
-            multiline
-            numberOfLines={6}
-            value={description}
-            onChangeText={setDescription}
-            textAlignVertical="top"
-          />
-        </View>
-
-        {/* Recommendation */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" color="#ef4444" size={64} />
+          <Text style={[styles.errorTitle, {color: colors.foreground}]}>Error</Text>
+          <Text style={[styles.errorText, {color: colors.mutedForeground}]}>{error}</Text>
           <TouchableOpacity
-            style={styles.recommendationRow}
-            onPress={() => setWouldRecommend(!wouldRecommend)}
-            activeOpacity={0.7}>
-            <View style={styles.recommendationLeft}>
-              <Ionicons name="heart" color={colors.primary} size={20} />
-              <Text style={[styles.recommendationText, {color: colors.foreground}]}>
-                ¿Recomendarías este lugar/profesional?
-              </Text>
-            </View>
-            <View
-              style={[styles.toggle, wouldRecommend ? styles.toggleActive : styles.toggleInactive]}>
-              <View
-                style={[
-                  styles.toggleCircle,
-                  wouldRecommend ? styles.toggleCircleActive : styles.toggleCircleInactive,
-                ]}
-              />
-            </View>
+            style={[styles.retryButton, {backgroundColor: colors.primary}]}
+            onPress={() => {
+              setError(null);
+              setIsLoading(true);
+              // Re-trigger useEffect
+            }}>
+            <Text style={styles.retryButtonText}>Reintentar</Text>
           </TouchableOpacity>
         </View>
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}>
+          {/* Provider Selection */}
+          <View style={[styles.section, {backgroundColor: colors.card}]}>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+              ¿Sobre quién es tu reseña?
+            </Text>
+            <View style={styles.providersList}>
+              {allProviders.slice(0, 6).map(renderProviderCard)}
+            </View>
+          </View>
 
-        {/* Publish Button */}
-        <TouchableOpacity
-          style={[styles.publishButtonLarge, {backgroundColor: colors.primary}]}
-          onPress={handlePublish}
-          activeOpacity={0.8}>
-          <Ionicons name="star" color="#ffffff" size={24} />
-          <Text style={styles.publishButtonLargeText}>Publicar Reseña</Text>
-        </TouchableOpacity>
+          {/* Overall Rating */}
+          <View style={[styles.section, {backgroundColor: colors.card}]}>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+              Calificación General
+            </Text>
+            <View style={styles.ratingSection}>
+              {renderStarRating(rating, setRating)}
+              <Text style={[styles.ratingText, {color: colors.mutedForeground}]}>
+                {rating === 0 ? "Selecciona una calificación" : `${rating} de 5 estrellas`}
+              </Text>
+            </View>
+          </View>
 
-        <View style={{height: 40}} />
-      </ScrollView>
+          {/* Aspect Ratings */}
+          <View style={[styles.section, {backgroundColor: colors.card}]}>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+              Detalles de la Calificación
+            </Text>
+
+            <View style={styles.aspectRating}>
+              <Text style={[styles.aspectLabel, {color: colors.foreground}]}>
+                Calidad del servicio
+              </Text>
+              {renderStarRating(aspectRatings.quality, (rating) =>
+                setAspectRatings({...aspectRatings, quality: rating})
+              )}
+            </View>
+
+            <View style={styles.aspectRating}>
+              <Text style={[styles.aspectLabel, {color: colors.foreground}]}>Limpieza</Text>
+              {renderStarRating(aspectRatings.cleanliness, (rating) =>
+                setAspectRatings({...aspectRatings, cleanliness: rating})
+              )}
+            </View>
+
+            <View style={styles.aspectRating}>
+              <Text style={[styles.aspectLabel, {color: colors.foreground}]}>Atención</Text>
+              {renderStarRating(aspectRatings.attention, (rating) =>
+                setAspectRatings({...aspectRatings, attention: rating})
+              )}
+            </View>
+
+            <View style={styles.aspectRating}>
+              <Text style={[styles.aspectLabel, {color: colors.foreground}]}>Precio/Valor</Text>
+              {renderStarRating(aspectRatings.value, (rating) =>
+                setAspectRatings({...aspectRatings, value: rating})
+              )}
+            </View>
+          </View>
+
+          {/* Photos */}
+          <View style={[styles.section, {backgroundColor: colors.card}]}>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Fotos (Opcional)</Text>
+            <MediaUploader
+              mediaType="photo"
+              maxFiles={4}
+              onMediaSelected={setPhotos}
+              selectedMedia={photos}
+            />
+          </View>
+
+          {/* Description */}
+          <View style={[styles.section, {backgroundColor: colors.card}]}>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+              Describe tu experiencia
+            </Text>
+            <TextInput
+              style={[
+                styles.textArea,
+                {
+                  backgroundColor: colors.inputBackground,
+                  color: colors.foreground,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder="Comparte los detalles de tu experiencia..."
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+              numberOfLines={6}
+              value={description}
+              onChangeText={setDescription}
+              textAlignVertical="top"
+            />
+          </View>
+
+          {/* Recommendation */}
+          <View style={[styles.section, {backgroundColor: colors.card}]}>
+            <TouchableOpacity
+              style={styles.recommendationRow}
+              onPress={() => setWouldRecommend(!wouldRecommend)}
+              activeOpacity={0.7}>
+              <View style={styles.recommendationLeft}>
+                <Ionicons name="heart" color={colors.primary} size={20} />
+                <Text style={[styles.recommendationText, {color: colors.foreground}]}>
+                  ¿Recomendarías este lugar/profesional?
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.toggle,
+                  wouldRecommend ? styles.toggleActive : styles.toggleInactive,
+                ]}>
+                <View
+                  style={[
+                    styles.toggleCircle,
+                    wouldRecommend ? styles.toggleCircleActive : styles.toggleCircleInactive,
+                  ]}
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Publish Button */}
+          <TouchableOpacity
+            style={[styles.publishButtonLarge, {backgroundColor: colors.primary}]}
+            onPress={handlePublish}
+            activeOpacity={0.8}>
+            <Ionicons name="star" color="#ffffff" size={24} />
+            <Text style={styles.publishButtonLargeText}>Publicar Reseña</Text>
+          </TouchableOpacity>
+
+          <View style={{height: 40}} />
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -462,5 +538,39 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 18,
     fontWeight: "700",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    gap: 16,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  errorText: {
+    fontSize: 15,
+    textAlign: "center",
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

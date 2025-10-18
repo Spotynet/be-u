@@ -1,4 +1,6 @@
-// Mock data for UI development - Static data to visualize components
+// DEPRECATED: Mock data for UI development - Static data to visualize components
+// This file is no longer used in production as all components now use real API data.
+// Keeping for reference and potential future testing purposes.
 
 export const mockProfessionals = [
   {

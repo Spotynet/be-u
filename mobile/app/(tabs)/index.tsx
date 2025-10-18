@@ -998,14 +998,7 @@ export default function Home() {
         style={styles.feed}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.feedContent}>
-        {/* Welcome Message for Authenticated Users */}
-        {isAuthenticated && user && (
-          <View style={styles.welcomeSection}>
-            <Text style={[styles.welcomeText, {color: colors.foreground}]}>
-              ¡Hola, {user.first_name || user.email}! 👋
-            </Text>
-          </View>
-        )}
+        {/* Welcome removed per request */}
 
         {/* Stories - Horizontal Timeline Format (Novedoso) */}
         <View style={styles.storiesSection}>
@@ -1071,7 +1064,7 @@ export default function Home() {
                   <View style={styles.featuredRating}>
                     <Ionicons name="star" color="#FFD700" size={14} />
                     <Text style={[styles.featuredRatingText, {color: colors.foreground}]}>
-                      {professional.rating.toFixed(1)}
+                      {Number(professional.rating || 0).toFixed(1)}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -1174,7 +1167,7 @@ export default function Home() {
                       <View style={styles.polaroidRating}>
                         <Ionicons name="star" color="#FFD700" size={14} />
                         <Text style={[styles.polaroidRatingText, {color: colors.foreground}]}>
-                          {professional.rating.toFixed(1)}
+                          {Number(professional.rating || 0).toFixed(1)}
                         </Text>
                       </View>
                       <Text style={[styles.polaroidServicesCount, {color: "#FF69B4"}]}>

@@ -4,7 +4,8 @@ import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
 import {useState, useEffect} from "react";
-import {mockProfessionals} from "@/lib/mockData";
+import {providerApi} from "@/lib/api";
+import {errorUtils} from "@/lib/api";
 
 export default function ProfesionalesScreen() {
   const colorScheme = useColorScheme();
@@ -12,21 +13,46 @@ export default function ProfesionalesScreen() {
   const router = useRouter();
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadProfessionals = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await providerApi.getProfessionalProfiles({
+        page: 1,
+        page_size: 50, // Get more professionals for the grid
+      });
+
+      // Transform API response to match expected format for UI
+      const transformedProfessionals = response.data.results.map((prof: any) => ({
+        id: prof.id,
+        name: prof.user?.first_name || prof.name || "Nombre no disponible",
+        last_name: prof.user?.last_name || prof.last_name || "",
+        specialty: prof.bio || "Especialista",
+        rating: prof.rating || 4.5,
+        reviewsCount: prof.reviews_count || 0,
+        photo: prof.photo,
+        bio: prof.bio,
+        city: prof.city || "Ciudad no especificada",
+        place: prof.place,
+        isIndependent: prof.is_independent || false,
+        services: prof.services?.map((s: any) => s.id) || [],
+        portfolio: prof.portfolio || [],
+        availability: prof.availability || {},
+      }));
+
+      setProfessionals(transformedProfessionals);
+    } catch (error: any) {
+      console.error("Error loading professionals:", error);
+      setError(errorUtils.getErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadProfessionals = async () => {
-      try {
-        setIsLoading(true);
-        // Simulate loading
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        setProfessionals(mockProfessionals);
-      } catch (error) {
-        console.error("Error loading professionals:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadProfessionals();
   }, []);
 
@@ -45,6 +71,32 @@ export default function ProfesionalesScreen() {
           <Text style={[styles.loadingText, {color: colors.mutedForeground}]}>
             Cargando profesionales...
           </Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
+        <View style={[styles.header, {borderBottomColor: colors.border}]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Profesionales</Text>
+          <View style={{width: 40}} />
+        </View>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" color="#ef4444" size={64} />
+          <Text style={[styles.errorTitle, {color: colors.foreground}]}>Error</Text>
+          <Text style={[styles.errorText, {color: colors.mutedForeground}]}>{error}</Text>
+          <TouchableOpacity
+            style={[styles.retryButton, {backgroundColor: colors.primary}]}
+            onPress={() => {
+              loadProfessionals();
+            }}>
+            <Text style={styles.retryButtonText}>Reintentar</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -176,6 +228,31 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    gap: 16,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  errorText: {
+    fontSize: 15,
+    textAlign: "center",
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "600",
   },
   professionalsGrid: {
     flexDirection: "row",

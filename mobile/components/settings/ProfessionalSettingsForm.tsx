@@ -2,7 +2,7 @@ import {View, Text, TextInput, StyleSheet, TouchableOpacity, Platform} from "rea
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
-import {useState} from "react";
+import {useState, useEffect} from "react";
 import {User, ProfessionalProfile} from "@/types/global";
 
 interface ProfessionalSettingsFormProps {
@@ -22,10 +22,33 @@ export const ProfessionalSettingsForm = ({
   const colors = Colors[colorScheme ?? "light"];
 
   const [email, setEmail] = useState(user.email);
-  const [name, setName] = useState(profile?.name || "");
-  const [lastName, setLastName] = useState(profile?.last_name || "");
+  const [name, setName] = useState(
+    profile?.name || (user as any).firstName || (user as any).first_name || ""
+  );
+  const [lastName, setLastName] = useState(
+    profile?.last_name || (user as any).lastName || (user as any).last_name || ""
+  );
   const [bio, setBio] = useState(profile?.bio || "");
   const [city, setCity] = useState(profile?.city || "");
+
+  // Keep form fields in sync when profile or user changes
+  useEffect(() => {
+    setEmail(user.email);
+    setName(profile?.name || (user as any).firstName || (user as any).first_name || "");
+    setLastName(profile?.last_name || (user as any).lastName || (user as any).last_name || "");
+    setBio(profile?.bio || "");
+    setCity(profile?.city || "");
+  }, [
+    user.email,
+    (user as any).firstName,
+    (user as any).first_name,
+    (user as any).lastName,
+    (user as any).last_name,
+    profile?.name,
+    profile?.last_name,
+    profile?.bio,
+    profile?.city,
+  ]);
 
   const handleSave = async () => {
     const userData = {

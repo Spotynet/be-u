@@ -14,10 +14,10 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
 import {useRouter, useLocalSearchParams} from "expo-router";
-import {providerApi} from "@/lib/api";
+import {providerApi, postApi, reviewApi, serviceApi} from "@/lib/api";
 import {ProfessionalProfile} from "@/types/global";
 import {BookingFlow} from "@/components/booking/BookingFlow";
-import {mockServices} from "@/lib/mockData";
+import {errorUtils} from "@/lib/api";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -37,18 +37,25 @@ export default function ProfessionalDetailScreen() {
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Mock posts data for the professional
-  const professionalPosts = [
-    {id: 1, image: "https://picsum.photos/400/400?random=1"},
-    {id: 2, image: "https://picsum.photos/400/400?random=2"},
-    {id: 3, image: "https://picsum.photos/400/400?random=3"},
-    {id: 4, image: "https://picsum.photos/400/400?random=4"},
-    {id: 5, image: "https://picsum.photos/400/400?random=5"},
-    {id: 6, image: "https://picsum.photos/400/400?random=6"},
-    {id: 7, image: "https://picsum.photos/400/400?random=7"},
-    {id: 8, image: "https://picsum.photos/400/400?random=8"},
-    {id: 9, image: "https://picsum.photos/400/400?random=9"},
-  ];
+  // Posts data - will be fetched from API in real implementation
+  const [professionalPosts, setProfessionalPosts] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchProfessionalPosts = async () => {
+      try {
+        const response = await postApi.getPosts({
+          author: Number(id),
+          page_size: 20,
+        });
+        setProfessionalPosts(response.data.results || []);
+      } catch (error) {
+        console.error("Error fetching professional posts:", error);
+        // Keep empty array as fallback
+      }
+    };
+
+    fetchProfessionalPosts();
+  }, [id]);
 
   useEffect(() => {
     fetchProfessionalDetails();
@@ -67,36 +74,71 @@ export default function ProfessionalDetailScreen() {
       setIsLoading(true);
       setError(null);
 
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Fetch professional profile
+      const professionalResponse = await providerApi.getProfessionalProfile(Number(id));
+      const professionalData = professionalResponse.data;
 
-      // Load mock data
-      const {mockProfessionals, mockServices, mockReviews} = await import("@/lib/mockData");
-      const mockProf = mockProfessionals.find((p) => p.id === Number(id));
-
-      if (!mockProf) {
-        throw new Error("Profesional no encontrado");
-      }
-
-      // Transform to match expected format
-      setProfessional({
-        ...mockProf,
-        email: `${mockProf.name.toLowerCase()}@example.com`,
-        services: mockServices.filter((s) => mockProf.services.includes(s.id)),
-        reviews: mockReviews.filter(
-          (r) => r.providerId === mockProf.id && r.providerType === "professional"
-        ),
+      // Fetch professional services
+      const servicesResponse = await serviceApi.getProfessionalServices({
+        professional: Number(id),
+        is_active: true,
       });
+
+      // Fetch professional reviews
+      const reviewsResponse = await reviewApi.listProfessionals({
+        professional: Number(id),
+        page_size: 10,
+      });
+
+      // Transform API response to match expected format for UI
+      const transformedProfessional: ProfessionalProfile = {
+        id: professionalData.id,
+        user_id: professionalData.user?.id || professionalData.id,
+        email: professionalData.user?.email || "",
+        name: professionalData.user?.first_name || professionalData.name || "Nombre no disponible",
+        last_name: professionalData.user?.last_name || professionalData.last_name || "",
+        bio: professionalData.bio,
+        city: professionalData.city || "Ciudad no especificada",
+        rating: professionalData.rating || 4.5,
+        services_count: professionalData.services_count || 0,
+        photo: professionalData.photo,
+        type: "professional",
+        coordinates: {
+          top: "50%",
+          left: "50%",
+        },
+        avatar: "💇‍♀️",
+        distance: "0.5 km",
+        services: servicesResponse.data.results.map((service: any) => ({
+          id: service.id,
+          name: service.service_name || service.name,
+          duration: service.time || "1 hr",
+          price: service.price,
+          description: service.description || "Servicio profesional",
+        })),
+        reviews: reviewsResponse.data.results.map((review: any) => ({
+          id: review.id,
+          providerId: review.provider_id,
+          providerType: review.provider_type,
+          author: review.client_name || review.user_name || "Cliente",
+          rating: review.rating,
+          date: review.created_at,
+          comment: review.comment,
+          photos: review.photos || [],
+        })),
+      };
+
+      setProfessional(transformedProfessional);
     } catch (err: any) {
       console.error("Error fetching professional:", err);
-      setError(err.message || "Error al cargar el perfil");
+      setError(errorUtils.getErrorMessage(err) || "Error al cargar el perfil");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Mock portfolio images
-  const portfolioImages = [
+  // Portfolio images - would come from API in real implementation
+  const [portfolioImages, setPortfolioImages] = useState<any[]>([
     {
       id: 1,
       image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400&h=300&fit=crop",
@@ -109,7 +151,36 @@ export default function ProfessionalDetailScreen() {
       id: 3,
       image: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=400&h=300&fit=crop",
     },
-  ];
+  ]);
+
+  useEffect(() => {
+    const fetchPortfolioImages = async () => {
+      try {
+        // In a real implementation, this would fetch from the professional's portfolio
+        // For now, we'll use placeholder images
+        setPortfolioImages([
+          {
+            id: 1,
+            image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400&h=300&fit=crop",
+          },
+          {
+            id: 2,
+            image:
+              "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&h=300&fit=crop",
+          },
+          {
+            id: 3,
+            image:
+              "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=400&h=300&fit=crop",
+          },
+        ]);
+      } catch (error) {
+        console.error("Error fetching portfolio images:", error);
+      }
+    };
+
+    fetchPortfolioImages();
+  }, []);
 
   if (isLoading) {
     return (
@@ -231,7 +302,7 @@ export default function ProfessionalDetailScreen() {
             </View>
             <View style={[styles.ratingBadge, {backgroundColor: "#EF4444"}]}>
               <Ionicons name="star" color="#ffffff" size={16} />
-              <Text style={styles.ratingText}>{professional.rating.toFixed(1)}</Text>
+              <Text style={styles.ratingText}>{Number(professional.rating || 0).toFixed(1)}</Text>
             </View>
           </View>
 

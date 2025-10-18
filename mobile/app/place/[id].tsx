@@ -14,11 +14,11 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
 import {useRouter, useLocalSearchParams} from "expo-router";
-import {providerApi} from "@/lib/api";
+import {providerApi, serviceApi, reviewApi, postApi} from "@/lib/api";
 import {PlaceProfile} from "@/types/global";
 import {BookingFlow} from "@/components/booking/BookingFlow";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
-import {mockPlaces, mockServices, mockReviews} from "@/lib/mockData";
+import {errorUtils} from "@/lib/api";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -41,47 +41,32 @@ export default function PlaceDetailScreen() {
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Mock posts data
-  const salonPosts = [
-    {
-      id: 1,
-      type: "salon",
-      image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400",
-      title: "Nuevo servicio de manicure",
-    },
-    {
-      id: 2,
-      type: "salon",
-      image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400",
-      title: "Corte y peinado especial",
-    },
-    {
-      id: 3,
-      type: "salon",
-      image: "https://images.unsplash.com/photo-1492106087820-71f1a00d2b11?w=400",
-      title: "Maquillaje para eventos",
-    },
-    {
-      id: 4,
-      type: "professional",
-      image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400",
-      title: "Carlos - Nuevo corte",
-      professionalName: "Carlos Mendoza",
-    },
-    {
-      id: 5,
-      type: "professional",
-      image: "https://images.unsplash.com/photo-1492106087820-71f1a00d2b11?w=400",
-      title: "Ana - Maquillaje glamour",
-      professionalName: "Ana López",
-    },
-    {
-      id: 6,
-      type: "salon",
-      image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400",
-      title: "Promoción especial",
-    },
-  ];
+  // Posts data - will be fetched from API in real implementation
+  const [salonPosts, setSalonPosts] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchPlacePosts = async () => {
+      try {
+        // Fetch posts from place and its professionals
+        const [placePostsResponse, professionalPostsResponse] = await Promise.all([
+          postApi.getPosts({author: Number(id), page_size: 10}),
+          postApi.getPosts({page_size: 10}), // Get some general posts as fallback
+        ]);
+
+        const placePosts = placePostsResponse.data.results || [];
+        const allPosts = professionalPostsResponse.data.results || [];
+
+        // Combine and deduplicate posts
+        const combinedPosts = [...placePosts, ...allPosts].slice(0, 10);
+        setSalonPosts(combinedPosts);
+      } catch (error) {
+        console.error("Error fetching place posts:", error);
+        // Keep empty array as fallback
+      }
+    };
+
+    fetchPlacePosts();
+  }, [id]);
 
   useEffect(() => {
     fetchPlaceDetails();
@@ -100,32 +85,82 @@ export default function PlaceDetailScreen() {
       setIsLoading(true);
       setError(null);
 
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Fetch place details
+      const placeResponse = await providerApi.getPlaceProfile(Number(id));
+      const placeData = placeResponse.data;
 
-      // Load mock data
-      const placeData = mockPlaces.find((p) => p.id === parseInt(id || "1"));
-      if (placeData) {
-        // Add services and reviews mock
-        const placeWithServices = {
-          ...placeData,
-          services: mockServices.slice(0, 3), // First 3 services
-          reviews: mockReviews.slice(0, 2), // First 2 reviews
-        };
-        setPlace(placeWithServices);
-      } else {
-        setError("Lugar no encontrado");
-      }
+      // Fetch place services
+      const servicesResponse = await serviceApi.getPlaceServices({
+        place: Number(id),
+        is_active: true,
+      });
+
+      // Fetch place reviews
+      const reviewsResponse = await reviewApi.listPlaces({
+        place: Number(id),
+        page_size: 10,
+      });
+
+      // Fetch place professionals
+      const professionalsResponse = await providerApi.getProfessionalProfiles({
+        place: Number(id),
+        page_size: 20,
+      });
+
+      // Transform API response to match expected format for UI
+      const transformedPlace: PlaceProfile = {
+        id: placeData.id,
+        user_id: placeData.id,
+        email: "",
+        name: placeData.name,
+        street: placeData.street || placeData.address,
+        city: placeData.city,
+        country: placeData.country || "México",
+        services_count: placeData.services_count || 0,
+        address: placeData.street || placeData.address || "Dirección no disponible",
+        type: "place",
+        coordinates: {
+          top: "50%",
+          left: "50%",
+        },
+        avatar: "🏢",
+        distance: "0.5 km",
+        services: servicesResponse.data.results.map((service: any) => ({
+          id: service.id,
+          name: service.service_name || service.name,
+          duration: service.time || "1 hr",
+          price: service.price,
+          description: service.description || "Servicio disponible",
+        })),
+        professionals: professionalsResponse.data.results.map((prof: any) => ({
+          id: prof.id,
+          name: prof.user?.first_name || prof.name || "Nombre no disponible",
+          last_name: prof.user?.last_name || prof.last_name || "",
+          rating: prof.rating || 4.5,
+        })),
+        reviews: reviewsResponse.data.results.map((review: any) => ({
+          id: review.id,
+          providerId: review.provider_id,
+          providerType: review.provider_type,
+          author: review.client_name || review.user_name || "Cliente",
+          rating: review.rating,
+          date: review.created_at,
+          comment: review.comment,
+          photos: review.photos || [],
+        })),
+      };
+
+      setPlace(transformedPlace);
     } catch (err: any) {
       console.error("Error fetching place:", err);
-      setError(err.message || "Error al cargar el establecimiento");
+      setError(errorUtils.getErrorMessage(err) || "Error al cargar el establecimiento");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Mock salon images
-  const salonImages = [
+  // Salon images - would come from API in real implementation
+  const [salonImages, setSalonImages] = useState<any[]>([
     {
       id: 1,
       image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop",
@@ -138,7 +173,36 @@ export default function PlaceDetailScreen() {
       id: 3,
       image: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=400&h=300&fit=crop",
     },
-  ];
+  ]);
+
+  useEffect(() => {
+    const fetchSalonImages = async () => {
+      try {
+        // In a real implementation, this would fetch from the place's gallery
+        // For now, we'll use placeholder images
+        setSalonImages([
+          {
+            id: 1,
+            image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop",
+          },
+          {
+            id: 2,
+            image:
+              "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&h=300&fit=crop",
+          },
+          {
+            id: 3,
+            image:
+              "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=400&h=300&fit=crop",
+          },
+        ]);
+      } catch (error) {
+        console.error("Error fetching salon images:", error);
+      }
+    };
+
+    fetchSalonImages();
+  }, []);
 
   if (isLoading) {
     return (

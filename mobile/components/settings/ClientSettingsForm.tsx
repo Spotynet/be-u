@@ -2,7 +2,7 @@ import {View, Text, TextInput, StyleSheet, TouchableOpacity, Platform} from "rea
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
-import {useState} from "react";
+import {useState, useEffect} from "react";
 import {User, ClientProfile} from "@/types/global";
 
 interface ClientSettingsFormProps {
@@ -16,10 +16,24 @@ export const ClientSettingsForm = ({user, profile, onSave, isLoading}: ClientSet
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
 
-  const [firstName, setFirstName] = useState(user.firstName);
-  const [lastName, setLastName] = useState(user.lastName);
+  const [firstName, setFirstName] = useState((user as any).firstName || (user as any).first_name);
+  const [lastName, setLastName] = useState((user as any).lastName || (user as any).last_name);
   const [email, setEmail] = useState(user.email);
   const [phone, setPhone] = useState(profile?.phone || "");
+
+  useEffect(() => {
+    setFirstName((user as any).firstName || (user as any).first_name);
+    setLastName((user as any).lastName || (user as any).last_name);
+    setEmail(user.email);
+    setPhone(profile?.phone || "");
+  }, [
+    user.email,
+    (user as any).firstName,
+    (user as any).first_name,
+    (user as any).lastName,
+    (user as any).last_name,
+    profile?.phone,
+  ]);
 
   const handleSave = async () => {
     const userData = {

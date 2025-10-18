@@ -51,17 +51,47 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle common errors
+// Response interceptor to handle 401 with token refresh
 apiClient.interceptors.response.use(
-  (response: AxiosResponse) => {
-    return response;
-  },
+  (response: AxiosResponse) => response,
   async (error: AxiosError) => {
-    // Handle 401 Unauthorized
-    if (error.response?.status === 401) {
-      // Clear token
+    const originalRequest: any = error.config || {};
+    const status = error.response?.status;
+    const url: string = (originalRequest.url as string) || "";
+
+    // Never try to refresh for auth endpoints to avoid loops
+    const isAuthRefresh = url.includes("/auth/refresh/");
+    const isAuthLogin = url.includes("/auth/login/");
+
+    if (status === 401 && !originalRequest._retry && !isAuthRefresh && !isAuthLogin) {
+      originalRequest._retry = true;
+      try {
+        const refresh = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+        if (refresh) {
+          // Use a plain axios call without our interceptors to avoid recursion
+          const resp = await axios.post(
+            `${API_BASE_URL}/auth/refresh/`,
+            {refresh},
+            {
+              headers: {"Content-Type": "application/json"},
+              timeout: 8000,
+            }
+          );
+          const newAccess: string | undefined = (resp.data as any)?.access;
+          if (newAccess) {
+            await AsyncStorage.setItem(AUTH_TOKEN_KEY, newAccess);
+            originalRequest.headers = originalRequest.headers || {};
+            originalRequest.headers.Authorization = `Bearer ${newAccess}`;
+            return apiClient(originalRequest);
+          }
+        }
+      } catch (_) {
+        // fallthrough
+      }
+
+      // Refresh unavailable or failed: clear and reject
       await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-      // Note: Navigation to login should be handled by the app
+      await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
     }
 
     return Promise.reject(error);
@@ -121,7 +151,10 @@ export const api = {
 // Auth-specific API functions
 export const authApi = {
   login: (credentials: {email: string; password: string}) =>
-    api.post<{message: string; user: any}>("/auth/login/", credentials),
+    api.post<{message: string; user: any; access: string; refresh: string}>(
+      "/auth/login/",
+      credentials
+    ),
 
   register: (userData: {email: string; password: string; firstName: string; lastName: string}) =>
     api.post<{message: string; user: any}>("/auth/register/", userData),
@@ -362,16 +395,25 @@ export const reservationApi = {
 
 // Review management API functions
 export const reviewApi = {
-  getReviews: (params?: {page?: number; service?: number; user?: number}) =>
-    api.get<{results: any[]; count: number}>("/reviews/", {params}),
+  // Aggregated read-only list
+  listAll: (params?: any) => api.get<{results: any[]; count: number}>("/reviews/", {params}),
 
-  getReview: (id: number) => api.get<any>(`/reviews/${id}/`),
+  // Place reviews CRUD
+  listPlaces: (params?: any) =>
+    api.get<{results: any[]; count: number}>("/reviews/places/", {params}),
+  getPlace: (id: number) => api.get<any>(`/reviews/places/${id}/`),
+  createPlace: (data: any) => api.post<any>("/reviews/places/", data),
+  updatePlace: (id: number, data: any) => api.patch<any>(`/reviews/places/${id}/`, data),
+  deletePlace: (id: number) => api.delete(`/reviews/places/${id}/`),
 
-  createReview: (data: any) => api.post<any>("/reviews/", data),
-
-  updateReview: (id: number, data: any) => api.put<any>(`/reviews/${id}/`, data),
-
-  deleteReview: (id: number) => api.delete(`/reviews/${id}/`),
+  // Professional reviews CRUD
+  listProfessionals: (params?: any) =>
+    api.get<{results: any[]; count: number}>("/reviews/professionals/", {params}),
+  getProfessional: (id: number) => api.get<any>(`/reviews/professionals/${id}/`),
+  createProfessional: (data: any) => api.post<any>("/reviews/professionals/", data),
+  updateProfessional: (id: number, data: any) =>
+    api.patch<any>(`/reviews/professionals/${id}/`, data),
+  deleteProfessional: (id: number) => api.delete(`/reviews/professionals/${id}/`),
 };
 
 // Post/Publication management API functions
@@ -411,7 +453,7 @@ export const postApi = {
 
   // Vote in poll
   voteInPoll: (postId: number, optionId: number) =>
-    api.post<any>(`/posts/${postId}/vote/`, {option: optionId}),
+    api.post<any>(`/posts/${postId}/vote/`, {poll_option: optionId}),
 
   // Create review post
   createReviewPost: (data: {service: number; rating: number; caption?: string; images?: any[]}) =>
@@ -425,21 +467,21 @@ export const postApi = {
   // Delete post
   deletePost: (id: number) => api.delete(`/posts/${id}/`),
 
-  // Like/Unlike post
+  // Like toggle
   likePost: (id: number) => api.post<any>(`/posts/${id}/like/`),
-  unlikePost: (id: number) => api.delete(`/posts/${id}/like/`),
+  unlikePost: (id: number) => api.post<any>(`/posts/${id}/like/`),
 
   // Get post comments
   getComments: (postId: number, params?: {page?: number}) =>
     api.get<{results: any[]; count: number}>(`/posts/${postId}/comments/`, {params}),
 
-  // Create comment
+  // Create comment (uses add_comment action)
   createComment: (postId: number, content: string) =>
-    api.post<any>(`/posts/${postId}/comments/`, {content}),
+    api.post<any>(`/posts/${postId}/add_comment/`, {content}),
 
-  // Delete comment
+  // Delete comment (uses delete_comment action)
   deleteComment: (postId: number, commentId: number) =>
-    api.delete(`/posts/${postId}/comments/${commentId}/`),
+    api.delete(`/posts/${postId}/delete_comment/`, {params: {comment_id: commentId}}),
 };
 
 // Token management utilities

@@ -4,7 +4,8 @@ import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
 import {useState, useEffect} from "react";
-import {mockPlaces} from "@/lib/mockData";
+import {providerApi} from "@/lib/api";
+import {errorUtils} from "@/lib/api";
 
 export default function LugaresScreen() {
   const colorScheme = useColorScheme();
@@ -12,21 +13,47 @@ export default function LugaresScreen() {
   const router = useRouter();
   const [places, setPlaces] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadPlaces = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await providerApi.getPlaceProfiles({
+        page: 1,
+        page_size: 50, // Get more places for the list
+      });
+
+      // Transform API response to match expected format for UI
+      const transformedPlaces = response.data.results.map((place: any) => ({
+        id: place.id,
+        name: place.name,
+        address: place.street || place.address || "Dirección no disponible",
+        city: place.city,
+        country: place.country || "México",
+        rating: place.rating || 4.5,
+        reviewsCount: place.reviews_count || 0,
+        photo: place.photo,
+        description: place.description,
+        services: place.services?.map((s: any) => s.id) || [],
+        team: place.team || [],
+        professionals: place.professionals || [],
+        gallery: place.gallery || [],
+        amenities: place.amenities || [],
+        hours: place.hours || {},
+      }));
+
+      setPlaces(transformedPlaces);
+    } catch (error: any) {
+      console.error("Error loading places:", error);
+      setError(errorUtils.getErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadPlaces = async () => {
-      try {
-        setIsLoading(true);
-        // Simulate loading
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        setPlaces(mockPlaces);
-      } catch (error) {
-        console.error("Error loading places:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadPlaces();
   }, []);
 
@@ -75,6 +102,32 @@ export default function LugaresScreen() {
           <Text style={[styles.loadingText, {color: colors.mutedForeground}]}>
             Cargando lugares...
           </Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
+        <View style={[styles.header, {borderBottomColor: colors.border}]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Lugares</Text>
+          <View style={{width: 40}} />
+        </View>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" color="#ef4444" size={64} />
+          <Text style={[styles.errorTitle, {color: colors.foreground}]}>Error</Text>
+          <Text style={[styles.errorText, {color: colors.mutedForeground}]}>{error}</Text>
+          <TouchableOpacity
+            style={[styles.retryButton, {backgroundColor: colors.primary}]}
+            onPress={() => {
+              loadPlaces();
+            }}>
+            <Text style={styles.retryButtonText}>Reintentar</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -166,6 +219,31 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    gap: 16,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  errorText: {
+    fontSize: 15,
+    textAlign: "center",
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "600",
   },
   placesList: {
     gap: 12,

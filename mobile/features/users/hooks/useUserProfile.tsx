@@ -1,5 +1,12 @@
 import {useState, useEffect} from "react";
-import {profileApi, reservationApi, reviewApi, serviceApi, errorUtils} from "@/lib/api";
+import {
+  profileApi,
+  providerApi,
+  reservationApi,
+  reviewApi,
+  serviceApi,
+  errorUtils,
+} from "@/lib/api";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {ClientProfile, ProfessionalProfile, PlaceProfile} from "@/types/global";
 
@@ -57,7 +64,7 @@ export const useUserProfile = () => {
           try {
             const [reservationsRes, reviewsRes] = await Promise.all([
               reservationApi.getReservations({user: user.id}),
-              reviewApi.getReviews({user: user.id}),
+              reviewApi.listAll({user: user.id}),
             ]);
 
             stats = {
@@ -72,6 +79,7 @@ export const useUserProfile = () => {
 
         case "PROFESSIONAL":
           try {
+            // Owner-scoped profile by user id for settings
             const professionalProfileResponse = await profileApi.getProfessionalProfile(user.id);
             profile = professionalProfileResponse.data;
           } catch (err) {
@@ -80,9 +88,10 @@ export const useUserProfile = () => {
 
           // Fetch professional data
           try {
+            const professionalId = (user as any).professional_profile?.id || user.id;
             const [servicesRes, reviewsRes] = await Promise.all([
-              serviceApi.getServices({provider: user.id}),
-              reviewApi.getReviews({professional: user.id}),
+              serviceApi.getProfessionalServices({professional: professionalId}),
+              reviewApi.listProfessionals({professional: professionalId}),
             ]);
 
             services = servicesRes.data.results || [];
@@ -99,6 +108,7 @@ export const useUserProfile = () => {
 
         case "PLACE":
           try {
+            // Owner-scoped profile by user id for settings
             const placeProfileResponse = await profileApi.getPlaceProfile(user.id);
             profile = placeProfileResponse.data;
           } catch (err) {
@@ -107,9 +117,10 @@ export const useUserProfile = () => {
 
           // Fetch place data
           try {
+            const placeId = (user as any).place_profile?.id || user.id;
             const [servicesRes, reviewsRes] = await Promise.all([
-              serviceApi.getServices({place: user.id}),
-              reviewApi.getReviews({place: user.id}),
+              serviceApi.getPlaceServices({place: placeId}),
+              reviewApi.listPlaces({place: placeId}),
             ]);
 
             services = servicesRes.data.results || [];
@@ -161,4 +172,3 @@ export const useUserProfile = () => {
     refreshProfile,
   };
 };
-

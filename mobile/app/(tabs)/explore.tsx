@@ -17,6 +17,8 @@ import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
 import {ProfessionalProfile, PlaceProfile} from "@/types/global";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
+import {providerApi} from "@/lib/api";
+import {errorUtils} from "@/lib/api";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -47,51 +49,60 @@ export default function Explore() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch providers
+  // Fetch providers from API
   const fetchProviders = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Fetch both professionals and places in parallel
+      const [professionalsResponse, placesResponse] = await Promise.all([
+        providerApi.getProfessionalProfiles({
+          page: 1,
+          page_size: 20,
+        }),
+        providerApi.getPlaceProfiles({
+          page: 1,
+          page_size: 20,
+        }),
+      ]);
 
-      // Import mock data dynamically
-      const {mockProfessionals: mockProfs, mockPlaces: mockPls} = await import("@/lib/mockData");
+      // Transform professionals data
+      const transformedProfessionals = professionalsResponse.data.results.map(
+        (prof: any, index: number) => ({
+          id: prof.id,
+          user_id: prof.user?.id || prof.id,
+          email: prof.user?.email || "",
+          name: prof.user?.first_name || prof.name || "Nombre no disponible",
+          last_name: prof.user?.last_name || prof.last_name || "",
+          bio: prof.bio,
+          city: prof.city || "Ciudad no especificada",
+          rating: typeof prof.rating === "number" ? prof.rating : Number(prof.rating) || 0,
+          services_count: prof.services_count || 0,
+          type: "professional",
+          // Add mock coordinates for map display
+          coordinates: {
+            top: `${25 + ((index * 15) % 50)}%`,
+            left: `${20 + ((index * 20) % 60)}%`,
+          },
+          avatar: "💇‍♀️",
+          distance: `${(0.5 + index * 0.3).toFixed(1)} km`,
+        })
+      );
 
-      // Transform mock data to match expected format
-      const transformedProfessionals = mockProfs.map((p, index) => ({
-        id: p.id,
-        user_id: p.id,
-        email: `${p.name.toLowerCase()}@example.com`,
-        name: p.name,
-        last_name: p.last_name,
-        bio: p.bio,
-        city: p.city,
-        rating: p.rating,
-        services_count: p.services.length,
-        type: "professional", // Add type identifier
-        // Add mock coordinates
-        coordinates: {
-          top: `${25 + ((index * 15) % 50)}%`,
-          left: `${20 + ((index * 20) % 60)}%`,
-        },
-        avatar: "💇‍♀️",
-        distance: `${(0.5 + index * 0.3).toFixed(1)} km`,
-      }));
-
-      const transformedPlaces = mockPls.map((p, index) => ({
-        id: p.id,
-        user_id: p.id,
-        email: `${p.name.toLowerCase().replace(/\s/g, "")}@example.com`,
-        name: p.name,
-        street: p.address,
-        city: p.city,
-        country: p.country,
-        services_count: p.services.length,
-        address: p.address,
-        type: "place", // Add type identifier
-        // Add mock coordinates
+      // Transform places data
+      const transformedPlaces = placesResponse.data.results.map((place: any, index: number) => ({
+        id: place.id,
+        user_id: place.id,
+        email: "",
+        name: place.name,
+        street: place.street || place.address,
+        city: place.city,
+        country: place.country || "México",
+        services_count: place.services_count || 0,
+        address: place.street || place.address || "Dirección no disponible",
+        type: "place",
+        // Add mock coordinates for map display
         coordinates: {
           top: `${30 + ((index * 18) % 45)}%`,
           left: `${25 + ((index * 25) % 55)}%`,
@@ -104,7 +115,7 @@ export default function Explore() {
       setPlaces(transformedPlaces);
     } catch (err: any) {
       console.error("❌ Error loading providers:", err);
-      setError(err.message || "Error al cargar los datos");
+      setError(errorUtils.getErrorMessage(err) || "Error al cargar los datos");
     } finally {
       setIsLoading(false);
     }
@@ -246,6 +257,19 @@ export default function Explore() {
               Cargando mapa...
             </Text>
           </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" color="#ef4444" size={64} />
+            <Text style={[styles.errorTitle, {color: colors.foreground}]}>Error</Text>
+            <Text style={[styles.errorText, {color: colors.mutedForeground}]}>{error}</Text>
+            <TouchableOpacity
+              style={[styles.retryButton, {backgroundColor: colors.primary}]}
+              onPress={() => {
+                fetchProviders();
+              }}>
+              <Text style={styles.retryButtonText}>Reintentar</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <>
             {/* Map Background */}
@@ -378,11 +402,11 @@ export default function Explore() {
                     {item.type === "professional" ? `${item.name} ${item.last_name}` : item.name}
                   </Text>
                   <View style={styles.itemMetaVertical}>
-                    {item.rating && (
+                    {typeof item.rating !== "undefined" && (
                       <View style={styles.itemRatingVertical}>
                         <Ionicons name="star" color="#FFD700" size={12} />
                         <Text style={[styles.itemRatingTextVertical, {color: colors.foreground}]}>
-                          {item.rating.toFixed(1)}
+                          {Number(item.rating || 0).toFixed(1)}
                         </Text>
                       </View>
                     )}
@@ -802,6 +826,31 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   loadingText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    gap: 16,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  errorText: {
+    fontSize: 15,
+    textAlign: "center",
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "#ffffff",
     fontSize: 15,
     fontWeight: "600",
   },

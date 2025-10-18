@@ -12,7 +12,7 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useUserProfile, useProfileUpdate} from "@/features/users";
-import {useRouter} from "expo-router";
+import {useRouter, Redirect} from "expo-router";
 import {
   ClientSettingsForm,
   ProfessionalSettingsForm,
@@ -60,10 +60,9 @@ export default function Settings() {
     );
   };
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated (safe for web and native)
   if (!isAuthenticated || !user) {
-    router.replace("/login");
-    return null;
+    return <Redirect href="/login" />;
   }
 
   // Show loading state
@@ -99,7 +98,7 @@ export default function Settings() {
     console.log("User object:", user);
     console.log("User role:", user?.role);
     console.log("Role type:", typeof user?.role);
-    
+
     switch (user?.role) {
       case "CLIENT":
         return (
@@ -135,8 +134,12 @@ export default function Settings() {
             <Text style={[styles.errorText, {color: colors.foreground}]}>
               Tipo de usuario no reconocido
             </Text>
-            <Text style={[styles.errorText, {color: colors.mutedForeground, fontSize: 12, marginTop: 8}]}>
-              Role: {user?.role || 'undefined'} (Type: {typeof user?.role})
+            <Text
+              style={[
+                styles.errorText,
+                {color: colors.mutedForeground, fontSize: 12, marginTop: 8},
+              ]}>
+              Role: {user?.role || "undefined"} (Type: {typeof user?.role})
             </Text>
           </View>
         );

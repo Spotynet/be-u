@@ -49,7 +49,7 @@ class ServiceInPlaceViewSet(viewsets.ModelViewSet):
     """ViewSet for services offered by places"""
     queryset = ServiceInPlace.objects.select_related('place', 'service', 'professional').all()
     serializer_class = ServiceInPlaceSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsServiceOwner]
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -100,7 +100,7 @@ class ProfessionalServiceViewSet(viewsets.ModelViewSet):
     """ViewSet for services offered by independent professionals"""
     queryset = ProfessionalService.objects.select_related('professional', 'service').all()
     serializer_class = ProfessionalServiceSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsServiceOwner]
     
     def get_queryset(self):
         queryset = super().get_queryset()

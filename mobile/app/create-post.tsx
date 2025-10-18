@@ -4,7 +4,7 @@ import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
 import {useAuth} from "@/features/auth/hooks/useAuth";
-import {postFormats} from "@/lib/mockData";
+import {postFormats} from "@/constants/postFormats";
 
 export default function CreatePostScreen() {
   const colorScheme = useColorScheme();

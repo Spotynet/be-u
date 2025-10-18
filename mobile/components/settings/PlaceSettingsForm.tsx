@@ -2,7 +2,7 @@ import {View, Text, TextInput, StyleSheet, TouchableOpacity, Platform} from "rea
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
-import {useState} from "react";
+import {useState, useEffect} from "react";
 import {User, PlaceProfile} from "@/types/global";
 
 interface PlaceSettingsFormProps {
@@ -24,6 +24,26 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
   const [postalCode, setPostalCode] = useState(profile?.postal_code || "");
   const [city, setCity] = useState(profile?.city || "");
   const [country, setCountry] = useState(profile?.country || "");
+
+  useEffect(() => {
+    setEmail(user.email);
+    setName(profile?.name || "");
+    setStreet(profile?.street || "");
+    setNumberExt(profile?.number_ext || "");
+    setNumberInt(profile?.number_int || "");
+    setPostalCode(profile?.postal_code || "");
+    setCity(profile?.city || "");
+    setCountry(profile?.country || "");
+  }, [
+    user.email,
+    profile?.name,
+    profile?.street,
+    profile?.number_ext,
+    profile?.number_int,
+    profile?.postal_code,
+    profile?.city,
+    profile?.country,
+  ]);
 
   const handleSave = async () => {
     const userData = {
