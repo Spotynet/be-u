@@ -416,20 +416,53 @@ export const reviewApi = {
   deleteProfessional: (id: number) => api.delete(`/reviews/professionals/${id}/`),
 };
 
+// Favorites management API functions
+export const favoriteApi = {
+  // Get user favorites
+  getFavorites: (params?: any) => api.get<{results: any[]; count: number}>("/favorites/", {params}),
+
+  // Create favorite
+  createFavorite: (data: {content_type: string; object_id: number}) =>
+    api.post<any>("/favorites/", data),
+
+  // Remove favorite
+  removeFavorite: (id: number) => api.delete(`/favorites/${id}/`),
+
+  // Toggle favorite status
+  toggleFavorite: (data: {content_type: string; object_id: number}) =>
+    api.post<any>("/favorites/toggle/", data),
+
+  // Bulk remove favorites
+  bulkRemove: (favoriteIds: number[]) =>
+    api.post<any>("/favorites/bulk_remove/", {favorite_ids: favoriteIds}),
+
+  // Get favorite statistics
+  getStats: () => api.get<any>("/favorites/stats/"),
+};
+
 // Post/Publication management API functions
 export const postApi = {
   // Get posts feed
   getPosts: (params?: {page?: number; author?: number; type?: string}) =>
-    api.get<{results: any[]; count: number}>("/posts/", {params}),
+    api.get<{results: any[]; count: number}>("/posts/list/", {params}),
 
   // Get single post
-  getPost: (id: number) => api.get<any>(`/posts/${id}/`),
+  getPost: (id: number) => api.get<any>(`/posts/list/${id}/`),
 
   // Create photo post
-  createPhotoPost: (data: {caption?: string; image: any}) =>
-    api.post<any>("/posts/photo/", data, {
-      headers: {"Content-Type": "multipart/form-data"},
-    }),
+  createPhotoPost: (formData: FormData) => {
+    // Don't set Content-Type manually - let axios set it with the correct boundary
+    return api.post<any>("/posts/photo/", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      transformRequest: (data, headers) => {
+        // Remove Content-Type to let browser/axios set it automatically with boundary
+        delete headers["Content-Type"];
+        return data;
+      },
+    });
+  },
 
   // Create video post
   createVideoPost: (data: {caption?: string; video: any; thumbnail?: any}) =>
@@ -462,26 +495,67 @@ export const postApi = {
     }),
 
   // Update post
-  updatePost: (id: number, data: any) => api.put<any>(`/posts/${id}/`, data),
+  updatePost: (id: number, data: any) => api.put<any>(`/posts/list/${id}/`, data),
 
   // Delete post
-  deletePost: (id: number) => api.delete(`/posts/${id}/`),
+  deletePost: (id: number) => api.delete(`/posts/list/${id}/`),
 
   // Like toggle
-  likePost: (id: number) => api.post<any>(`/posts/${id}/like/`),
-  unlikePost: (id: number) => api.post<any>(`/posts/${id}/like/`),
+  likePost: (id: number) => api.post<any>(`/posts/list/${id}/like/`),
+  unlikePost: (id: number) => api.post<any>(`/posts/list/${id}/like/`),
 
   // Get post comments
   getComments: (postId: number, params?: {page?: number}) =>
-    api.get<{results: any[]; count: number}>(`/posts/${postId}/comments/`, {params}),
+    api.get<{results: any[]; count: number}>(`/posts/list/${postId}/comments/`, {params}),
 
   // Create comment (uses add_comment action)
   createComment: (postId: number, content: string) =>
-    api.post<any>(`/posts/${postId}/add_comment/`, {content}),
+    api.post<any>(`/posts/list/${postId}/add_comment/`, {content}),
 
   // Delete comment (uses delete_comment action)
   deleteComment: (postId: number, commentId: number) =>
-    api.delete(`/posts/${postId}/delete_comment/`, {params: {comment_id: commentId}}),
+    api.delete(`/posts/list/${postId}/delete_comment/`, {params: {comment_id: commentId}}),
+};
+
+// Notification management API functions
+export const notificationApi = {
+  // Get notifications with filters
+  getNotifications: (params?: {
+    page?: number;
+    type?: string;
+    status?: string;
+    search?: string;
+    date_from?: string;
+    date_to?: string;
+  }) => api.get<{results: any[]; count: number}>("/notifications/notifications/", {params}),
+
+  // Get single notification
+  getNotification: (id: number) => api.get<any>(`/notifications/notifications/${id}/`),
+
+  // Get notification statistics
+  getStats: () => api.get<any>("/notifications/notifications/stats/"),
+
+  // Mark notification as read
+  markAsRead: (id: number) => api.post<any>(`/notifications/notifications/${id}/mark_read/`),
+
+  // Mark notification as unread
+  markAsUnread: (id: number) => api.post<any>(`/notifications/notifications/${id}/mark_unread/`),
+
+  // Mark all notifications as read
+  markAllAsRead: () => api.post<any>("/notifications/notifications/mark_all_read/"),
+
+  // Bulk actions on notifications
+  bulkAction: (data: {
+    notification_ids: number[];
+    action: "mark_read" | "mark_unread" | "delete";
+  }) => api.post<any>("/notifications/notifications/bulk_action/", data),
+
+  // Update notification
+  updateNotification: (id: number, data: {status: string}) =>
+    api.patch<any>(`/notifications/notifications/${id}/`, data),
+
+  // Delete notification
+  deleteNotification: (id: number) => api.delete(`/notifications/notifications/${id}/`),
 };
 
 // Token management utilities
@@ -511,6 +585,50 @@ export const tokenUtils = {
   isAuthenticated: async (): Promise<boolean> => {
     const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
     return !!token;
+  },
+};
+
+// Token refresh scheduler
+let refreshInterval: NodeJS.Timeout | null = null;
+
+export const tokenRefreshScheduler = {
+  start: async () => {
+    // Clear existing interval
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+    }
+
+    // Refresh token every 3 hours (before 4-hour expiration)
+    refreshInterval = setInterval(async () => {
+      try {
+        const refresh = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+        if (refresh) {
+          const resp = await axios.post(
+            `${API_BASE_URL}/auth/refresh/`,
+            {refresh},
+            {headers: {"Content-Type": "application/json"}, timeout: 8000}
+          );
+          const newAccess = resp.data?.access;
+          const newRefresh = resp.data?.refresh;
+
+          if (newAccess) {
+            await AsyncStorage.setItem(AUTH_TOKEN_KEY, newAccess);
+          }
+          if (newRefresh) {
+            await AsyncStorage.setItem(REFRESH_TOKEN_KEY, newRefresh);
+          }
+        }
+      } catch (error) {
+        console.error("Background token refresh failed:", error);
+      }
+    }, 3 * 60 * 60 * 1000); // 3 hours
+  },
+
+  stop: () => {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
   },
 };
 

@@ -41,11 +41,14 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
+    'storages',
     'users',
     'services',
     'reservations',
     'reviews',
     'posts',
+    'notifications',
+    'favorites',
 ]
 
 MIDDLEWARE = [
@@ -210,8 +213,8 @@ CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=4),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
@@ -234,3 +237,26 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
+
+# AWS S3 Configuration
+AWS_ACCESS_KEY_ID = 'AKIAXBZV5BYXMHMUVG4S'
+AWS_SECRET_ACCESS_KEY = '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'
+AWS_STORAGE_BUCKET_NAME = 'stg-be-u'
+AWS_S3_REGION_NAME = 'us-east-2'
+AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
+
+# IMPORTANT: Set to None to avoid ACL errors when Block Public Access is enabled
+AWS_DEFAULT_ACL = None
+
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',
+}
+AWS_S3_FILE_OVERWRITE = False
+
+# Set to True to use bucket policy instead of ACLs
+AWS_QUERYSTRING_AUTH = True
+AWS_QUERYSTRING_EXPIRE = 3600  # URL expiration time in seconds (1 hour)
+
+# Use S3 for media files
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'

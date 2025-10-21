@@ -1,5 +1,5 @@
 import React, {createContext, useContext, useState, useEffect, ReactNode} from "react";
-import {authApi, tokenUtils} from "@/lib/api";
+import {authApi, tokenUtils, tokenRefreshScheduler} from "@/lib/api";
 import {AuthContextType, AuthState, LoginCredentials, RegisterCredentials} from "../types";
 import {User} from "@/types/global";
 
@@ -37,6 +37,9 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
             user: response.data.user,
             isLoading: false,
           }));
+
+          // Start background token refresh
+          tokenRefreshScheduler.start();
         } catch (error) {
           // Token is invalid, clear it
           await tokenUtils.removeToken();
@@ -63,6 +66,9 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
         user: response.data.user,
         isLoading: false,
       }));
+
+      // Start background token refresh
+      tokenRefreshScheduler.start();
     } catch (error: any) {
       setState((prev) => ({
         ...prev,
@@ -87,6 +93,9 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
         user: response.data.user,
         isLoading: false,
       }));
+
+      // Start background token refresh
+      tokenRefreshScheduler.start();
     } catch (error: any) {
       setState((prev) => ({
         ...prev,
@@ -103,7 +112,10 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
     } catch (error) {
       // Continue with logout even if API call fails
     } finally {
-      // Clear stored token
+      // Stop background token refresh
+      tokenRefreshScheduler.stop();
+
+      // Clear stored tokens
       await tokenUtils.removeToken();
       setState({
         user: null,

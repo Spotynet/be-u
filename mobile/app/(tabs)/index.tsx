@@ -8,16 +8,14 @@ import {
   Dimensions,
   Animated,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useRef, useEffect} from "react";
-import {getCategoryEmoji} from "@/constants/categories";
 import {useRouter} from "expo-router";
-import {useAuth} from "@/features/auth";
-import {providerApi} from "@/lib/api";
-import {ProfessionalProfile, PlaceProfile} from "@/types/global";
+import {postApi} from "@/lib/api";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
@@ -25,48 +23,22 @@ const {width: SCREEN_WIDTH} = Dimensions.get("window");
 export default function Home() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
-  const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const router = useRouter();
+
+  // Mock categories and stories (keep UI)
   const [selectedCategory, setSelectedCategory] = useState<"belleza" | "cuidado" | "mascotas">(
     "belleza"
   );
   const [isCategoryPickerExpanded, setIsCategoryPickerExpanded] = useState(false);
   const [selectedSubCategory, setSelectedSubCategory] = useState("todos");
-
   const categories = [
     {id: "belleza", emoji: "💅", name: "Belleza"},
     {id: "cuidado", emoji: "❤️", name: "Cuidado"},
     {id: "mascotas", emoji: "🐾", name: "Mascotas"},
   ];
-  const router = useRouter();
-  const {user, isAuthenticated, logout} = useAuth();
-
-  // Featured providers state
-  const [professionals, setProfessionals] = useState<ProfessionalProfile[]>([]);
-  const [places, setPlaces] = useState<PlaceProfile[]>([]);
-  const [isFeaturedLoading, setIsFeaturedLoading] = useState(false);
-
-  useEffect(() => {
-    fetchFeaturedProviders();
-  }, []);
-
-  const fetchFeaturedProviders = async () => {
-    try {
-      setIsFeaturedLoading(true);
-      const [professionalsRes, placesRes] = await Promise.all([
-        providerApi.getProfessionalProfiles({page: 1}),
-        providerApi.getPlaceProfiles({page: 1}),
-      ]);
-      // Get only first 3 of each
-      setProfessionals((professionalsRes.data.results || []).slice(0, 3));
-      setPlaces((placesRes.data.results || []).slice(0, 3));
-    } catch (err) {
-      console.error("Error fetching featured:", err);
-    } finally {
-      setIsFeaturedLoading(false);
-    }
-  };
-
-  // Historias - Formato horizontal tipo timeline novedoso
   const stories = [
     {
       id: 1,
@@ -101,6 +73,32 @@ export default function Home() {
       badge: "💅",
     },
   ];
+
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      const res = await postApi.getPosts();
+      setPosts(res.data.results || []);
+    } catch (err) {
+      console.error("Error fetching posts:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      const res = await postApi.getPosts();
+      setPosts(res.data.results || []);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // Feed posts - Mix dinámico de formatos
   const feedPosts = [
@@ -257,27 +255,45 @@ export default function Home() {
     },
   ];
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "belleza":
-        return "#FF69B4";
-      case "wellness":
-        return "#DDA0DD";
-      case "mascotas":
-        return "#FFB347";
-      default:
-        return colors.primary;
-    }
-  };
-
-  const toggleLike = (id: number) => {
-    const newLiked = new Set(likedPosts);
-    if (newLiked.has(id)) {
-      newLiked.delete(id);
-    } else {
-      newLiked.add(id);
-    }
-    setLikedPosts(newLiked);
+  const renderDbPost = (post: any) => {
+    const firstMedia = (post.media || [])[0];
+    const imageUrl = firstMedia?.media_url || firstMedia?.media_file;
+    const authorName = post.author?.first_name || post.author?.username || "";
+    return (
+      <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card}]}>
+        <View style={styles.postHeader}>
+          <View style={styles.postUserInfo}>
+            <Text style={[styles.postUserNameText, {color: colors.foreground}]} numberOfLines={1}>
+              {authorName}
+            </Text>
+            <Text style={[styles.postTime, {color: colors.mutedForeground}]}>
+              #{post.post_type}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.postMoreButton}>
+            <Ionicons name="ellipsis-horizontal" color={colors.mutedForeground} size={20} />
+          </TouchableOpacity>
+        </View>
+        {imageUrl ? <Image source={{uri: imageUrl}} style={styles.snapshotImage} /> : null}
+        {post.content ? (
+          <Text style={[styles.postDescription, {color: colors.foreground}]}>{post.content}</Text>
+        ) : null}
+        <View style={styles.postActions}>
+          <View style={styles.postAction}>
+            <Ionicons name="heart-outline" color={colors.mutedForeground} size={22} />
+            <Text style={[styles.postActionText, {color: colors.foreground}]}>
+              {post.likes_count}
+            </Text>
+          </View>
+          <View style={styles.postAction}>
+            <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={22} />
+            <Text style={[styles.postActionText, {color: colors.foreground}]}>
+              {post.comments_count}
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
   };
 
   const renderTransformation = (post: any) => (
@@ -925,7 +941,6 @@ export default function Home() {
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Header */}
       <View
         style={[
           styles.header,
@@ -934,18 +949,15 @@ export default function Home() {
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>Be-U</Text>
         <View style={styles.headerActions}>
           <View style={styles.categorySelector}>
-            {/* Collapsed State - Single Button */}
             {!isCategoryPickerExpanded && (
               <TouchableOpacity
                 style={[styles.categoryButton, {backgroundColor: colors.card}]}
                 onPress={() => setIsCategoryPickerExpanded(true)}>
                 <Text style={[styles.categoryButtonText, {color: colors.foreground}]}>
-                  {categories.find((cat) => cat.id === selectedCategory)?.emoji}
+                  {categories.find((c) => c.id === selectedCategory)?.emoji}
                 </Text>
               </TouchableOpacity>
             )}
-
-            {/* Expanded State - Horizontal Options */}
             {isCategoryPickerExpanded && (
               <View style={[styles.expandedCategoryOptions, {backgroundColor: colors.card}]}>
                 {categories.map((category) => (
@@ -956,7 +968,7 @@ export default function Home() {
                       selectedCategory === category.id && styles.selectedCategoryOption,
                     ]}
                     onPress={() => {
-                      setSelectedCategory(category.id as "belleza" | "cuidado" | "mascotas");
+                      setSelectedCategory(category.id as any);
                       setIsCategoryPickerExpanded(false);
                     }}>
                     <Text style={styles.expandedCategoryEmoji}>{category.emoji}</Text>
@@ -970,14 +982,13 @@ export default function Home() {
               </View>
             )}
           </View>
-
           <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/create-post")}>
             <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Sub Category Bar */}
+      {/* Sub Category Bar (mock) */}
       <View style={styles.subCategoryContainer}>
         <SubCategoryBar
           categories={[
@@ -997,17 +1008,53 @@ export default function Home() {
       <ScrollView
         style={styles.feed}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={styles.feedContent}>
-        {/* Welcome removed per request */}
-
-        {/* Stories - Horizontal Timeline Format (Novedoso) */}
+        {/* Stories (mock) */}
         <View style={styles.storiesSection}>
           <Text style={[styles.storiesTitle, {color: colors.foreground}]}>Historias</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.storiesContainer}>
-            {stories.map((story) => (
+            {[
+              {
+                id: 1,
+                user: "Be-U Spa",
+                avatar:
+                  "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&h=100&fit=crop",
+                preview:
+                  "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=200&h=300&fit=crop",
+                badge: "✨",
+              },
+              {
+                id: 2,
+                user: "Ana López",
+                avatar:
+                  "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop",
+                preview:
+                  "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=200&h=300&fit=crop",
+                badge: "💇‍♀️",
+              },
+              {
+                id: 3,
+                user: "Zen Studio",
+                avatar:
+                  "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=100&h=100&fit=crop",
+                preview:
+                  "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=200&h=300&fit=crop",
+                badge: "🧘",
+              },
+              {
+                id: 4,
+                user: "María G.",
+                avatar:
+                  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
+                preview:
+                  "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=200&h=300&fit=crop",
+                badge: "💅",
+              },
+            ].map((story) => (
               <TouchableOpacity key={story.id} style={styles.storyCard} activeOpacity={0.9}>
                 <Image source={{uri: story.preview}} style={styles.storyPreview} />
                 <View style={styles.storyOverlay}>
@@ -1025,246 +1072,13 @@ export default function Home() {
             ))}
           </ScrollView>
         </View>
-
-        {/* Destacados Section */}
-        {!isFeaturedLoading && (professionals.length > 0 || places.length > 0) && (
-          <View style={styles.featuredSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>✨ Destacados</Text>
-              <TouchableOpacity onPress={() => router.push("/explore")}>
-                <Text style={[styles.seeAllText, {color: colors.primary}]}>Ver todo</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.featuredScroll}>
-              {professionals.map((professional, index) => (
-                <TouchableOpacity
-                  key={`prof-${professional.id}`}
-                  style={[
-                    styles.featuredCard,
-                    {backgroundColor: colors.card},
-                    index % 2 === 0
-                      ? {transform: [{rotate: "2deg"}]}
-                      : {transform: [{rotate: "-2deg"}]},
-                  ]}
-                  onPress={() => router.push(`/professional/${professional.id}`)}
-                  activeOpacity={0.95}>
-                  <View style={[styles.featuredAvatar, {backgroundColor: "#FFB6C1"}]}>
-                    <Text style={styles.featuredInitials}>
-                      {professional.name[0]}
-                      {professional.last_name[0]}
-                    </Text>
-                  </View>
-                  <Text style={[styles.featuredName, {color: colors.foreground}]} numberOfLines={1}>
-                    {professional.name} {professional.last_name}
-                  </Text>
-                  <View style={styles.featuredRating}>
-                    <Ionicons name="star" color="#FFD700" size={14} />
-                    <Text style={[styles.featuredRatingText, {color: colors.foreground}]}>
-                      {Number(professional.rating || 0).toFixed(1)}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-              {places.map((place, index) => (
-                <TouchableOpacity
-                  key={`place-${place.id}`}
-                  style={[
-                    styles.featuredCard,
-                    {backgroundColor: colors.card},
-                    index % 2 === 0
-                      ? {transform: [{rotate: "-2deg"}]}
-                      : {transform: [{rotate: "2deg"}]},
-                  ]}
-                  onPress={() => router.push(`/place/${place.id}`)}
-                  activeOpacity={0.95}>
-                  <View style={[styles.featuredAvatar, {backgroundColor: "#DDA0DD"}]}>
-                    <Text style={styles.featuredInitials}>
-                      {place.name.substring(0, 2).toUpperCase()}
-                    </Text>
-                  </View>
-                  <Text style={[styles.featuredName, {color: colors.foreground}]} numberOfLines={1}>
-                    {place.name}
-                  </Text>
-                  <Text
-                    style={[styles.featuredLocation, {color: colors.mutedForeground}]}
-                    numberOfLines={1}>
-                    {place.city || place.address}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+        {loading ? (
+          <View style={{padding: 24, alignItems: "center"}}>
+            <ActivityIndicator size="small" color={colors.primary} />
           </View>
+        ) : (
+          <View style={styles.postsSection}>{posts.map((p) => renderDbPost(p))}</View>
         )}
-
-        {/* Professionals Carousel */}
-        {!isFeaturedLoading && professionals.length > 0 && (
-          <View style={styles.polaroidSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-                💅 Profesionales ({professionals.length})
-              </Text>
-              <TouchableOpacity onPress={() => router.push("/profesionales")}>
-                <Text style={[styles.seeAllText, {color: colors.primary}]}>Ver todo</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.polaroidScroll}
-              snapToInterval={SCREEN_WIDTH * 0.7 + 16}
-              decelerationRate="fast">
-              {professionals.map((professional, index) => (
-                <TouchableOpacity
-                  key={professional.id}
-                  style={[
-                    styles.polaroidCard,
-                    {backgroundColor: colors.card},
-                    index % 2 === 0
-                      ? {transform: [{rotate: "2deg"}]}
-                      : {transform: [{rotate: "-2deg"}]},
-                  ]}
-                  onPress={() => router.push(`/professional/${professional.id}`)}
-                  activeOpacity={0.95}>
-                  <View style={styles.polaroidImageWrapper}>
-                    <View style={[styles.polaroidImagePlaceholder, {backgroundColor: "#FFB6C1"}]}>
-                      <Text style={styles.polaroidInitials}>
-                        {professional.name[0]}
-                        {professional.last_name[0]}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.polaroidLikeButton, {backgroundColor: "#ffffff"}]}>
-                      <Ionicons name="heart-outline" color="#FF69B4" size={20} />
-                    </TouchableOpacity>
-                    {professional.rating >= 4.5 && (
-                      <View style={[styles.polaroidBadge, {backgroundColor: "#FFD700"}]}>
-                        <Text style={styles.polaroidBadgeText}>⭐ Top</Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.polaroidInfo}>
-                    <Text style={[styles.polaroidProvider, {color: colors.mutedForeground}]}>
-                      {professional.city || "Profesional"}
-                    </Text>
-                    <Text
-                      style={[styles.polaroidTitle, {color: colors.foreground}]}
-                      numberOfLines={1}>
-                      {professional.name} {professional.last_name}
-                    </Text>
-                    {professional.bio && (
-                      <Text
-                        style={[styles.polaroidBio, {color: colors.mutedForeground}]}
-                        numberOfLines={2}>
-                        {professional.bio}
-                      </Text>
-                    )}
-                    <View style={styles.polaroidFooter}>
-                      <View style={styles.polaroidRating}>
-                        <Ionicons name="star" color="#FFD700" size={14} />
-                        <Text style={[styles.polaroidRatingText, {color: colors.foreground}]}>
-                          {Number(professional.rating || 0).toFixed(1)}
-                        </Text>
-                      </View>
-                      <Text style={[styles.polaroidServicesCount, {color: "#FF69B4"}]}>
-                        {professional.services_count} servicios
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Places Carousel */}
-        {!isFeaturedLoading && places.length > 0 && (
-          <View style={styles.polaroidSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-                🏢 Establecimientos ({places.length})
-              </Text>
-              <TouchableOpacity onPress={() => router.push("/lugares")}>
-                <Text style={[styles.seeAllText, {color: colors.primary}]}>Ver todo</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.polaroidScroll}
-              snapToInterval={SCREEN_WIDTH * 0.7 + 16}
-              decelerationRate="fast">
-              {places.map((place, index) => (
-                <TouchableOpacity
-                  key={place.id}
-                  style={[
-                    styles.polaroidCard,
-                    {backgroundColor: colors.card},
-                    index % 2 === 0
-                      ? {transform: [{rotate: "-2deg"}]}
-                      : {transform: [{rotate: "2deg"}]},
-                  ]}
-                  onPress={() => router.push(`/place/${place.id}`)}
-                  activeOpacity={0.95}>
-                  <View style={styles.polaroidImageWrapper}>
-                    <View style={[styles.polaroidImagePlaceholder, {backgroundColor: "#DDA0DD"}]}>
-                      <Text style={styles.polaroidInitials}>
-                        {place.name.substring(0, 2).toUpperCase()}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.polaroidLikeButton, {backgroundColor: "#ffffff"}]}>
-                      <Ionicons name="heart-outline" color="#FF69B4" size={20} />
-                    </TouchableOpacity>
-                    {place.services_count > 5 && (
-                      <View style={[styles.polaroidBadge, {backgroundColor: "#FF69B4"}]}>
-                        <Text style={styles.polaroidBadgeText}>Popular</Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.polaroidInfo}>
-                    <Text style={[styles.polaroidProvider, {color: colors.mutedForeground}]}>
-                      {place.city || place.country || "Establecimiento"}
-                    </Text>
-                    <Text
-                      style={[styles.polaroidTitle, {color: colors.foreground}]}
-                      numberOfLines={1}>
-                      {place.name}
-                    </Text>
-                    <Text
-                      style={[styles.polaroidAddress, {color: colors.mutedForeground}]}
-                      numberOfLines={1}>
-                      <Ionicons name="location" size={12} color={colors.mutedForeground} />
-                      {"  "}
-                      {place.address}
-                    </Text>
-                    <View style={styles.polaroidFooter}>
-                      <View style={styles.polaroidRating}>
-                        <Ionicons name="briefcase" color="#DDA0DD" size={14} />
-                        <Text style={[styles.polaroidRatingText, {color: colors.foreground}]}>
-                          {place.services_count} servicios
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Feed Label */}
-        <View style={styles.feedLabelSection}>
-          <Text style={[styles.feedLabel, {color: colors.foreground}]}>Feed</Text>
-        </View>
-
-        {/* Feed Posts */}
-        <View style={styles.postsSection}>{feedPosts.map((post) => renderPost(post))}</View>
       </ScrollView>
     </View>
   );

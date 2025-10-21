@@ -124,11 +124,74 @@ def logout_view(request):
         return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated])
 def profile_view(request):
-    serializer = UserSerializer(request.user)
-    return Response(serializer.data)
+    user = request.user
+    
+    if request.method == 'GET':
+        user_data = UserSerializer(user).data
+        
+        # Include role-specific profile
+        profile_data = None
+        if user.role == 'CLIENT':
+            if hasattr(user, 'client_profile'):
+                profile_data = ClientProfileSerializer(user.client_profile).data
+        elif user.role == 'PROFESSIONAL':
+            if hasattr(user, 'professional_profile'):
+                profile_data = ProfessionalProfileSerializer(user.professional_profile).data
+        elif user.role == 'PLACE':
+            if hasattr(user, 'place_profile'):
+                profile_data = PlaceProfileSerializer(user.place_profile).data
+        
+        return Response({
+            'user': user_data,
+            'profile': profile_data
+        })
+    
+    elif request.method == 'PUT':
+        # Update user data
+        user_serializer = UserSerializer(user, data=request.data, partial=True)
+        if user_serializer.is_valid():
+            user_serializer.save()
+        
+        # Update role-specific profile
+        profile_data = None
+        if user.role == 'CLIENT':
+            if hasattr(user, 'client_profile'):
+                profile_serializer = ClientProfileSerializer(
+                    user.client_profile, 
+                    data=request.data, 
+                    partial=True
+                )
+                if profile_serializer.is_valid():
+                    profile_serializer.save()
+                profile_data = profile_serializer.data
+        elif user.role == 'PROFESSIONAL':
+            if hasattr(user, 'professional_profile'):
+                profile_serializer = ProfessionalProfileSerializer(
+                    user.professional_profile, 
+                    data=request.data, 
+                    partial=True
+                )
+                if profile_serializer.is_valid():
+                    profile_serializer.save()
+                profile_data = profile_serializer.data
+        elif user.role == 'PLACE':
+            if hasattr(user, 'place_profile'):
+                profile_serializer = PlaceProfileSerializer(
+                    user.place_profile, 
+                    data=request.data, 
+                    partial=True
+                )
+                if profile_serializer.is_valid():
+                    profile_serializer.save()
+                profile_data = profile_serializer.data
+        
+        return Response({
+            'user': UserSerializer(user).data,
+            'profile': profile_data
+        })
 
 
 class ProfessionalProfileViewSet(viewsets.ReadOnlyModelViewSet):

@@ -1,176 +1,295 @@
-import {useState, useEffect} from "react";
+import {useState, useEffect, useCallback} from "react";
 import {Alert} from "react-native";
-import {Notification, NotificationFilters} from "../types";
+import {Notification, NotificationFilters, NotificationType} from "../types";
+import {notificationApi} from "@/lib/api";
 
-// TODO: Replace with actual API integration
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: 1,
-    type: "reservation",
-    title: "Reserva Confirmada",
-    message:
-      'Tu reserva para "Corte y Peinado" con María González ha sido confirmada para el 15 de octubre a las 2:00 PM',
-    timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
-    status: "unread",
-    relatedId: 123,
-    metadata: {
-      reservationCode: "RES-001",
-      serviceName: "Corte y Peinado",
-      providerName: "María González",
-    },
-  },
-  {
-    id: 2,
-    type: "review",
-    title: "Nueva Reseña",
-    message: 'Juan Pérez ha dejado una reseña de 5 estrellas para tu servicio "Masaje Relajante"',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-    status: "read",
-    relatedId: 456,
-    metadata: {
-      serviceName: "Masaje Relajante",
-      rating: 5,
-    },
-  },
-  {
-    id: 3,
-    type: "system",
-    title: "Mantenimiento Programado",
-    message:
-      "La aplicación estará en mantenimiento el domingo de 2:00 AM a 4:00 AM. Gracias por tu comprensión.",
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-    status: "read",
-  },
-  {
-    id: 4,
-    type: "reservation",
-    title: "Recordatorio de Cita",
-    message: 'Tienes una cita mañana a las 10:00 AM para "Manicure Francesa" con Beauty Studio',
-    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
-    status: "unread",
-    relatedId: 789,
-    metadata: {
-      reservationCode: "RES-002",
-      serviceName: "Manicure Francesa",
-      providerName: "Beauty Studio",
-    },
-  },
-  {
-    id: 5,
-    type: "message",
-    title: "Mensaje de tu Estilista",
-    message: "Hola! ¿Podrías llegar 15 minutos antes para tu cita? Gracias!",
-    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(), // 12 hours ago
-    status: "unread",
-    relatedId: 101,
-    metadata: {
-      providerName: "Carlos Estilista",
-    },
-  },
-];
+// Map backend notification types to Spanish frontend types (now both use Spanish)
+const mapNotificationType = (backendType: string): NotificationType => {
+  // Backend now uses Spanish types, so we can use them directly
+  if (["reserva", "reseña", "sistema", "mensaje"].includes(backendType)) {
+    return backendType as NotificationType;
+  }
+  return "sistema"; // Default fallback
+};
 
 export const useNotifications = (filters?: NotificationFilters) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<{
+    total_count: number;
+    unread_count: number;
+    by_type: Record<string, number>;
+    by_status: Record<string, number>;
+  } | null>(null);
 
-  // TODO: Replace with actual API call
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Prepare API parameters
+      const params: any = {};
+      if (filters?.type) params.type = filters.type;
+      if (filters?.status) params.status = filters.status;
+      if (filters?.dateFrom) params.date_from = filters.dateFrom;
+      if (filters?.dateTo) params.date_to = filters.dateTo;
 
-      let filteredNotifications = [...MOCK_NOTIFICATIONS];
+      // Fetch notifications
+      const response = await notificationApi.getNotifications(params);
 
-      // Apply filters
-      if (filters?.type) {
-        filteredNotifications = filteredNotifications.filter((n) => n.type === filters.type);
-      }
+      // Transform API response to match our Notification interface
+      const transformedNotifications: Notification[] = response.data.results.map((item: any) => ({
+        id: item.id,
+        type: mapNotificationType(item.type),
+        title: item.title,
+        message: item.message,
+        timestamp: item.created_at,
+        status: item.status,
+        relatedId: item.content_object?.id,
+        metadata: item.metadata || {},
+      }));
 
-      if (filters?.status) {
-        filteredNotifications = filteredNotifications.filter((n) => n.status === filters.status);
-      }
-
-      // Sort by timestamp (newest first)
-      filteredNotifications.sort(
-        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-
-      setNotifications(filteredNotifications);
-    } catch (err) {
-      setError("Error al cargar las notificaciones");
+      setNotifications(transformedNotifications);
+    } catch (err: any) {
       console.error("Error fetching notifications:", err);
+
+      // Handle 404 or API not available as empty state instead of error
+      if (
+        err.status === 404 ||
+        err.message?.includes("404") ||
+        err.message?.includes("not found")
+      ) {
+        setNotifications([]);
+        setError(null);
+        // Set empty stats when API is not available
+        setStats({
+          total_count: 0,
+          unread_count: 0,
+          by_type: {},
+          by_status: {read: 0, unread: 0},
+        });
+      } else {
+        setError(err.message || "Error al cargar las notificaciones");
+      }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filters]);
 
-  // TODO: Replace with actual API call
-  const markAsRead = async (notificationId: number) => {
+  const fetchStats = useCallback(async () => {
     try {
-      setNotifications((prev) =>
-        prev.map((notification) =>
-          notification.id === notificationId
-            ? {...notification, status: "read" as NotificationStatus}
-            : notification
-        )
-      );
+      const response = await notificationApi.getStats();
+      setStats(response.data);
+    } catch (err: any) {
+      console.error("Error fetching notification stats:", err);
 
-      // TODO: Call API to mark as read
-      // await notificationApi.markAsRead(notificationId);
-    } catch (err) {
-      console.error("Error marking notification as read:", err);
-      Alert.alert("Error", "No se pudo marcar la notificación como leída");
+      // Handle 404 or API not available as empty stats
+      if (
+        err.status === 404 ||
+        err.message?.includes("404") ||
+        err.message?.includes("not found")
+      ) {
+        setStats({
+          total_count: 0,
+          unread_count: 0,
+          by_type: {},
+          by_status: {read: 0, unread: 0},
+        });
+      }
     }
-  };
+  }, []);
 
-  // TODO: Replace with actual API call
-  const markAllAsRead = async () => {
+  const markAsRead = useCallback(
+    async (notificationId: number) => {
+      try {
+        await notificationApi.markAsRead(notificationId);
+
+        // Update local state
+        setNotifications((prev) =>
+          prev.map((notification) =>
+            notification.id === notificationId
+              ? {...notification, status: "read" as const}
+              : notification
+          )
+        );
+
+        // Update stats
+        if (stats) {
+          setStats((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  unread_count: Math.max(0, prev.unread_count - 1),
+                  by_status: {
+                    ...prev.by_status,
+                    read: (prev.by_status.read || 0) + 1,
+                    unread: Math.max(0, (prev.by_status.unread || 0) - 1),
+                  },
+                }
+              : null
+          );
+        }
+      } catch (err: any) {
+        console.error("Error marking notification as read:", err);
+        Alert.alert("Error", err.message || "No se pudo marcar la notificación como leída");
+      }
+    },
+    [stats]
+  );
+
+  const markAsUnread = useCallback(
+    async (notificationId: number) => {
+      try {
+        await notificationApi.markAsUnread(notificationId);
+
+        // Update local state
+        setNotifications((prev) =>
+          prev.map((notification) =>
+            notification.id === notificationId
+              ? {...notification, status: "unread" as const}
+              : notification
+          )
+        );
+
+        // Update stats
+        if (stats) {
+          setStats((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  unread_count: prev.unread_count + 1,
+                  by_status: {
+                    ...prev.by_status,
+                    read: Math.max(0, (prev.by_status.read || 0) - 1),
+                    unread: (prev.by_status.unread || 0) + 1,
+                  },
+                }
+              : null
+          );
+        }
+      } catch (err: any) {
+        console.error("Error marking notification as unread:", err);
+        Alert.alert("Error", err.message || "No se pudo marcar la notificación como no leída");
+      }
+    },
+    [stats]
+  );
+
+  const markAllAsRead = useCallback(async () => {
     try {
+      await notificationApi.markAllAsRead();
+
+      // Update local state
       setNotifications((prev) =>
-        prev.map((notification) => ({...notification, status: "read" as NotificationStatus}))
+        prev.map((notification) => ({...notification, status: "read" as const}))
       );
 
-      // TODO: Call API to mark all as read
-      // await notificationApi.markAllAsRead();
-    } catch (err) {
+      // Update stats
+      if (stats) {
+        setStats((prev) =>
+          prev
+            ? {
+                ...prev,
+                unread_count: 0,
+                by_status: {
+                  ...prev.by_status,
+                  read: prev.total_count,
+                  unread: 0,
+                },
+              }
+            : null
+        );
+      }
+    } catch (err: any) {
       console.error("Error marking all notifications as read:", err);
-      Alert.alert("Error", "No se pudieron marcar todas las notificaciones como leídas");
+      Alert.alert(
+        "Error",
+        err.message || "No se pudieron marcar todas las notificaciones como leídas"
+      );
     }
-  };
+  }, [stats]);
 
-  // TODO: Replace with actual API call
-  const deleteNotification = async (notificationId: number) => {
-    try {
-      setNotifications((prev) => prev.filter((notification) => notification.id !== notificationId));
+  const deleteNotification = useCallback(
+    async (notificationId: number) => {
+      try {
+        await notificationApi.deleteNotification(notificationId);
 
-      // TODO: Call API to delete notification
-      // await notificationApi.deleteNotification(notificationId);
-    } catch (err) {
-      console.error("Error deleting notification:", err);
-      Alert.alert("Error", "No se pudo eliminar la notificación");
-    }
-  };
+        // Update local state
+        setNotifications((prev) =>
+          prev.filter((notification) => notification.id !== notificationId)
+        );
+
+        // Update stats
+        if (stats) {
+          const deletedNotification = notifications.find((n) => n.id === notificationId);
+          const wasUnread = deletedNotification?.status === "unread";
+
+          setStats((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  total_count: prev.total_count - 1,
+                  unread_count: wasUnread ? Math.max(0, prev.unread_count - 1) : prev.unread_count,
+                  by_status: {
+                    ...prev.by_status,
+                    [deletedNotification?.status || "read"]: Math.max(
+                      0,
+                      (prev.by_status[deletedNotification?.status || "read"] || 0) - 1
+                    ),
+                  },
+                }
+              : null
+          );
+        }
+      } catch (err: any) {
+        console.error("Error deleting notification:", err);
+        Alert.alert("Error", err.message || "No se pudo eliminar la notificación");
+      }
+    },
+    [notifications, stats]
+  );
+
+  const bulkAction = useCallback(
+    async (notificationIds: number[], action: "mark_read" | "mark_unread" | "delete") => {
+      try {
+        await notificationApi.bulkAction({
+          notification_ids: notificationIds,
+          action,
+        });
+
+        // Refresh notifications after bulk action
+        await fetchNotifications();
+        await fetchStats();
+      } catch (err: any) {
+        console.error("Error performing bulk action:", err);
+        Alert.alert("Error", err.message || "No se pudo realizar la acción en lote");
+      }
+    },
+    [fetchNotifications, fetchStats]
+  );
 
   useEffect(() => {
     fetchNotifications();
-  }, [filters]);
+    fetchStats();
+  }, [fetchNotifications, fetchStats]);
 
+  // Calculate unread count from local state as fallback
   const unreadCount = notifications.filter((n) => n.status === "unread").length;
 
   return {
     notifications,
     isLoading,
     error,
-    unreadCount,
+    unreadCount: stats?.unread_count ?? unreadCount,
+    stats,
     fetchNotifications,
+    fetchStats,
     markAsRead,
+    markAsUnread,
     markAllAsRead,
     deleteNotification,
+    bulkAction,
     refreshNotifications: fetchNotifications,
   };
 };
-

@@ -31,54 +31,6 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | undefined>();
 
-  // Mock data for development
-  const mockReservations: Reservation[] = [
-    {
-      id: 1,
-      user: 1,
-      service: 101,
-      service_name: "Corte y Peinado",
-      provider_name: "Ana López",
-      provider_type: "PROFESSIONAL",
-      date: "2024-12-20",
-      time: "10:00 AM",
-      status: "CONFIRMED",
-      duration: "45 min",
-      price: 500,
-      notes: "Prefiero estilo moderno",
-      created_at: "2024-12-15T10:00:00Z",
-    },
-    {
-      id: 2,
-      user: 1,
-      service: 102,
-      service_name: "Color Completo",
-      provider_name: "Be-U Spa Premium",
-      provider_type: "PLACE",
-      date: "2024-12-22",
-      time: "2:00 PM",
-      status: "PENDING",
-      duration: "2 hrs",
-      price: 1200,
-      notes: "Quiero un tono castaño claro",
-      created_at: "2024-12-16T14:00:00Z",
-    },
-    {
-      id: 3,
-      user: 1,
-      service: 103,
-      service_name: "Manicure",
-      provider_name: "Sofía Martínez",
-      provider_type: "PROFESSIONAL",
-      date: "2024-12-18",
-      time: "11:30 AM",
-      status: "COMPLETED",
-      duration: "1 hr",
-      price: 350,
-      created_at: "2024-12-10T09:00:00Z",
-    },
-  ];
-
   // For clients
   const {
     reservations: clientReservations,
@@ -104,9 +56,8 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
   const isClient = userRole === "CLIENT";
   const isProvider = userRole === "PROFESSIONAL" || userRole === "PLACE";
 
-  // Use mock data if no real reservations
-  const rawReservations = isClient ? clientReservations : providerReservations;
-  const reservations = rawReservations.length > 0 ? rawReservations : mockReservations;
+  // Use real data from API
+  const reservations = isClient ? clientReservations : providerReservations;
   const isLoading = isClient ? clientLoading : providerLoading;
   const error = isClient ? clientError : providerError;
 
@@ -208,7 +159,7 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
   });
 
   // Show loading state
-  if (isLoading && reservations.length === 0) {
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -241,17 +192,24 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Ionicons name="calendar-outline" color={colors.mutedForeground} size={64} />
-      <Text style={[styles.emptyTitle, {color: colors.foreground}]}>No hay reservas</Text>
+      <Text style={[styles.emptyTitle, {color: colors.foreground}]}>
+        {filteredReservations.length === 0 && reservations.length > 0
+          ? "No hay reservas con este filtro"
+          : "No hay reservas"}
+      </Text>
       <Text style={[styles.emptySubtitle, {color: colors.mutedForeground}]}>
-        {isClient
+        {filteredReservations.length === 0 && reservations.length > 0
+          ? "Intenta cambiar el filtro o la fecha para ver más reservas."
+          : isClient
           ? "Aún no has hecho ninguna reserva. Explora profesionales y lugares para agendar tu primera cita."
           : "No tienes reservas pendientes. Cuando recibas reservas aparecerán aquí."}
       </Text>
-      {isClient && (
+      {isClient && filteredReservations.length === 0 && reservations.length === 0 && (
         <TouchableOpacity
           style={[styles.exploreButton, {backgroundColor: colors.primary}]}
-          onPress={() => router.push("/explore")}>
-          <Text style={styles.exploreButtonText}>Explorar</Text>
+          onPress={() => router.push("/(tabs)/explore")}
+          activeOpacity={0.9}>
+          <Text style={styles.exploreButtonText}>Explorar Servicios</Text>
         </TouchableOpacity>
       )}
     </View>

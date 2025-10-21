@@ -3,6 +3,18 @@ from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
+from storages.backends.s3boto3 import S3Boto3Storage
+
+# Custom S3 storage for media files
+class MediaStorage(S3Boto3Storage):
+    bucket_name = settings.AWS_STORAGE_BUCKET_NAME
+    custom_domain = settings.AWS_S3_CUSTOM_DOMAIN
+    location = 'media'
+    default_acl = None  # Use bucket policy instead of ACLs
+    # Avoid HEAD requests (exists checks) that can fail with 403 on some bucket policies
+    # We generate unique filenames for uploads, so overwrite risk is negligible
+    file_overwrite = True
+    querystring_auth = True  # Use signed URLs for access
 
 class Post(models.Model):
     POST_TYPES = [
@@ -36,7 +48,7 @@ class Post(models.Model):
 class PostMedia(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='media')
     media_type = models.CharField(max_length=10, choices=[('image', 'Image'), ('video', 'Video')])
-    media_file = models.FileField(upload_to='posts/media/')
+    media_file = models.FileField(upload_to='posts/media/', storage=MediaStorage())
     caption = models.TextField(blank=True, null=True)
     order = models.PositiveIntegerField(default=0)
 

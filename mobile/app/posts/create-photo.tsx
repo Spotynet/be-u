@@ -7,6 +7,7 @@ import {
   TextInput,
   Alert,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
@@ -14,6 +15,7 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
 import {useState} from "react";
 import {MediaUploader} from "@/components/posts/MediaUploader";
+import {postApi} from "@/lib/api";
 
 export default function CreatePhotoPostScreen() {
   const colorScheme = useColorScheme();
@@ -23,8 +25,9 @@ export default function CreatePhotoPostScreen() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     if (photos.length === 0) {
       Alert.alert("Error", "Agrega al menos una foto");
       return;
@@ -35,13 +38,52 @@ export default function CreatePhotoPostScreen() {
       return;
     }
 
-    // Simulate publish
-    Alert.alert("¡Publicado!", "Tu foto ha sido publicada exitosamente", [
-      {
-        text: "Ver Publicación",
-        onPress: () => router.push("/(tabs)/"),
-      },
-    ]);
+    try {
+      setIsUploading(true);
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append("content", description);
+      formData.append("post_type", "photo");
+
+      // Add photos to FormData
+      if (Platform.OS === "web") {
+        // On web, convert URIs to Blob/File objects
+        await Promise.all(
+          photos.map(async (photoUri, index) => {
+            const res = await fetch(photoUri);
+            const blob = await res.blob();
+            const mimeType = blob.type || "image/jpeg";
+            const ext = (mimeType.split("/")[1] || "jpg").replace("jpeg", "jpg");
+            const file = new File([blob], `photo_${Date.now()}_${index}.${ext}`, {type: mimeType});
+            formData.append("media", file);
+          })
+        );
+      } else {
+        // On native, use the React Native file descriptor
+        photos.forEach((photoUri, index) => {
+          const uriParts = photoUri.split(".");
+          const fileType = uriParts[uriParts.length - 1] || "jpg";
+          const rnFile = {
+            uri: photoUri,
+            type: `image/${fileType === "jpg" ? "jpeg" : fileType}`,
+            name: `photo_${Date.now()}_${index}.${fileType}`,
+          } as any;
+          formData.append("media", rnFile);
+        });
+      }
+
+      // Call the API
+      const response = await postApi.createPhotoPost(formData);
+
+      // Navigate back to home/feed upon success
+      router.replace("/");
+    } catch (error) {
+      console.error("Error creating post:", error);
+      Alert.alert("Error", "No se pudo publicar la foto. Inténtalo de nuevo.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -52,8 +94,15 @@ export default function CreatePhotoPostScreen() {
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>Foto + Descripción</Text>
-        <TouchableOpacity onPress={handlePublish} style={styles.publishButton}>
-          <Text style={[styles.publishButtonText, {color: colors.primary}]}>Publicar</Text>
+        <TouchableOpacity
+          onPress={handlePublish}
+          style={styles.publishButton}
+          disabled={isUploading}>
+          {isUploading ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Text style={[styles.publishButtonText, {color: colors.primary}]}>Publicar</Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -135,11 +184,21 @@ export default function CreatePhotoPostScreen() {
 
         {/* Publish Button (Bottom) */}
         <TouchableOpacity
-          style={[styles.publishButtonLarge, {backgroundColor: colors.primary}]}
+          style={[
+            styles.publishButtonLarge,
+            {backgroundColor: isUploading ? colors.muted : colors.primary},
+          ]}
           onPress={handlePublish}
-          activeOpacity={0.8}>
-          <Ionicons name="checkmark-circle" color="#ffffff" size={24} />
-          <Text style={styles.publishButtonLargeText}>Publicar Ahora</Text>
+          activeOpacity={0.8}
+          disabled={isUploading}>
+          {isUploading ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <Ionicons name="checkmark-circle" color="#ffffff" size={24} />
+          )}
+          <Text style={styles.publishButtonLargeText}>
+            {isUploading ? "Publicando..." : "Publicar Ahora"}
+          </Text>
         </TouchableOpacity>
 
         <View style={{height: 40}} />

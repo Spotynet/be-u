@@ -8,9 +8,16 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'first_name', 'last_name']
 
 class PostMediaSerializer(serializers.ModelSerializer):
+    media_url = serializers.SerializerMethodField()
+    
     class Meta:
         model = PostMedia
-        fields = ['id', 'media_type', 'media_file', 'caption', 'order']
+        fields = ['id', 'media_type', 'media_file', 'media_url', 'caption', 'order']
+    
+    def get_media_url(self, obj):
+        if obj.media_file:
+            return obj.media_file.url
+        return None
 
 class PollOptionSerializer(serializers.ModelSerializer):
     votes_count = serializers.SerializerMethodField()
@@ -79,9 +86,14 @@ class PostCreateSerializer(serializers.ModelSerializer):
 
         # Handle media uploads
         for i, media_file in enumerate(media_files):
+            # Determine media type based on file extension
+            file_extension = media_file.name.lower().split('.')[-1]
+            media_type = 'video' if file_extension in ['mp4', 'mov', 'avi', 'mkv', 'webm'] else 'image'
+            
             PostMedia.objects.create(
                 post=post,
                 media_file=media_file,
+                media_type=media_type,
                 order=i
             )
 

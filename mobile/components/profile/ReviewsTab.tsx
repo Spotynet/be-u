@@ -1,8 +1,16 @@
-import {View, Text, ScrollView, StyleSheet, TouchableOpacity} from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
-import {useState} from "react";
+import {useAuth} from "@/features/auth";
+import {useReviews} from "@/features/reviews";
 
 interface ReviewsTabProps {
   userRole: "CLIENT" | "PROFESSIONAL" | "PLACE";
@@ -11,39 +19,14 @@ interface ReviewsTabProps {
 export function ReviewsTab({userRole}: ReviewsTabProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
+  const {user} = useAuth();
 
-  // Mock reviews data
-  const [reviews] = useState<any[]>([
-    {
-      id: 1,
-      rating: 5,
-      comment:
-        "Excelente servicio! Ana es muy profesional y el resultado fue increíble. Definitivamente volveré.",
-      providerName: "Ana López",
-      serviceName: "Corte y Peinado",
-      date: "2024-12-15",
-      photos: [],
-    },
-    {
-      id: 2,
-      rating: 4,
-      comment:
-        "Muy buen lugar, ambiente agradable y atención de calidad. Solo el tiempo de espera fue un poco largo.",
-      providerName: "Be-U Spa Premium",
-      serviceName: "Color Completo",
-      date: "2024-12-10",
-      photos: [],
-    },
-    {
-      id: 3,
-      rating: 5,
-      comment: "Sofía hizo un trabajo increíble con mi manicure. Super recomendada!",
-      providerName: "Sofía Martínez",
-      serviceName: "Manicure",
-      date: "2024-12-08",
-      photos: [],
-    },
-  ]);
+  // Determine review type based on user role
+  const reviewType =
+    userRole === "CLIENT" ? "client" : userRole === "PROFESSIONAL" ? "professional" : "place";
+
+  // Fetch real reviews data
+  const {reviews, isLoading, error, refreshReviews} = useReviews(user?.id, reviewType);
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -57,6 +40,38 @@ export function ReviewsTab({userRole}: ReviewsTabProps) {
     </View>
   );
 
+  const renderErrorState = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="alert-circle-outline" color="#ef4444" size={64} />
+      <Text style={[styles.emptyTitle, {color: colors.foreground}]}>Error al cargar reseñas</Text>
+      <Text style={[styles.emptyText, {color: colors.mutedForeground}]}>{error}</Text>
+      <TouchableOpacity
+        style={[styles.retryButton, {backgroundColor: colors.primary}]}
+        onPress={refreshReviews}
+        activeOpacity={0.9}>
+        <Text style={styles.retryButtonText}>Reintentar</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderLoadingState = () => (
+    <View style={styles.emptyState}>
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={[styles.emptyText, {color: colors.mutedForeground}]}>Cargando reseñas...</Text>
+    </View>
+  );
+
+  // Show loading state
+  if (isLoading) {
+    return renderLoadingState();
+  }
+
+  // Show error state
+  if (error) {
+    return renderErrorState();
+  }
+
+  // Show empty state
   if (reviews.length === 0) {
     return renderEmptyState();
   }
@@ -69,14 +84,16 @@ export function ReviewsTab({userRole}: ReviewsTabProps) {
             <View style={styles.reviewHeader}>
               <View style={styles.headerLeft}>
                 <Text style={[styles.providerName, {color: colors.foreground}]}>
-                  {review.providerName}
+                  {userRole === "CLIENT"
+                    ? review.professional_name || review.place_name || "Proveedor"
+                    : review.client_name || "Cliente"}
                 </Text>
                 <Text style={[styles.serviceName, {color: colors.mutedForeground}]}>
-                  {review.serviceName}
+                  {review.service_name || "Servicio"}
                 </Text>
               </View>
               <Text style={[styles.reviewDate, {color: colors.mutedForeground}]}>
-                {new Date(review.date).toLocaleDateString("es-MX", {
+                {new Date(review.created_at).toLocaleDateString("es-MX", {
                   day: "numeric",
                   month: "short",
                 })}
@@ -172,5 +189,17 @@ const styles = StyleSheet.create({
   reviewText: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  retryButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  retryButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
   },
 });

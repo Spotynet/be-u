@@ -1,4 +1,4 @@
-export type NotificationType = "reservation" | "review" | "system" | "message";
+export type NotificationType = "reserva" | "reseña" | "sistema" | "mensaje";
 export type NotificationStatus = "read" | "unread";
 
 export interface Notification {
@@ -25,4 +25,3 @@ export interface NotificationFilters {
   dateFrom?: string;
   dateTo?: string;
 }
-

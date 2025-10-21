@@ -29,9 +29,11 @@ export default function Notificaciones() {
     isLoading,
     error,
     unreadCount,
+    stats,
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    bulkAction,
     refreshNotifications,
   } = useNotifications();
 
@@ -43,17 +45,17 @@ export default function Notificaciones() {
 
     // TODO: Navigate to relevant screen based on notification type
     switch (notification.type) {
-      case "reservation":
+      case "reserva":
         // Navigate to reservation details or profile reservations tab
         router.push("/(tabs)/perfil");
         break;
-      case "review":
+      case "reseña":
         // Navigate to review details or service page
         break;
-      case "message":
+      case "mensaje":
         // Navigate to messages or chat
         break;
-      case "system":
+      case "sistema":
         // Show system message details or do nothing
         break;
       default:
@@ -163,21 +165,21 @@ export default function Notificaciones() {
           <TouchableOpacity
             style={[
               styles.filterTab,
-              activeFilter === "reservation" && [
+              activeFilter === "reserva" && [
                 styles.filterTabActive,
                 {backgroundColor: "#ffffff20"},
               ],
             ]}
-            onPress={() => setActiveFilter("reservation")}
+            onPress={() => setActiveFilter("reserva")}
             activeOpacity={0.7}>
             <Text
               style={[
                 styles.filterTabText,
-                {color: activeFilter === "reservation" ? "#ffffff" : "#ffffff80"},
+                {color: activeFilter === "reserva" ? "#ffffff" : "#ffffff80"},
               ]}>
               Reservas
             </Text>
-            {activeFilter === "reservation" && (
+            {activeFilter === "reserva" && (
               <View style={[styles.filterTabIndicator, {backgroundColor: "#ffffff"}]} />
             )}
           </TouchableOpacity>
@@ -185,18 +187,18 @@ export default function Notificaciones() {
           <TouchableOpacity
             style={[
               styles.filterTab,
-              activeFilter === "review" && [styles.filterTabActive, {backgroundColor: "#ffffff20"}],
+              activeFilter === "reseña" && [styles.filterTabActive, {backgroundColor: "#ffffff20"}],
             ]}
-            onPress={() => setActiveFilter("review")}
+            onPress={() => setActiveFilter("reseña")}
             activeOpacity={0.7}>
             <Text
               style={[
                 styles.filterTabText,
-                {color: activeFilter === "review" ? "#ffffff" : "#ffffff80"},
+                {color: activeFilter === "reseña" ? "#ffffff" : "#ffffff80"},
               ]}>
               Reseñas
             </Text>
-            {activeFilter === "review" && (
+            {activeFilter === "reseña" && (
               <View style={[styles.filterTabIndicator, {backgroundColor: "#ffffff"}]} />
             )}
           </TouchableOpacity>
@@ -204,18 +206,21 @@ export default function Notificaciones() {
           <TouchableOpacity
             style={[
               styles.filterTab,
-              activeFilter === "system" && [styles.filterTabActive, {backgroundColor: "#ffffff20"}],
+              activeFilter === "sistema" && [
+                styles.filterTabActive,
+                {backgroundColor: "#ffffff20"},
+              ],
             ]}
-            onPress={() => setActiveFilter("system")}
+            onPress={() => setActiveFilter("sistema")}
             activeOpacity={0.7}>
             <Text
               style={[
                 styles.filterTabText,
-                {color: activeFilter === "system" ? "#ffffff" : "#ffffff80"},
+                {color: activeFilter === "sistema" ? "#ffffff" : "#ffffff80"},
               ]}>
               Sistema
             </Text>
-            {activeFilter === "system" && (
+            {activeFilter === "sistema" && (
               <View style={[styles.filterTabIndicator, {backgroundColor: "#ffffff"}]} />
             )}
           </TouchableOpacity>
@@ -247,9 +252,14 @@ export default function Notificaciones() {
           </Text>
           <Text style={[styles.emptySubtitle, {color: colors.mutedForeground}]}>
             {activeFilter === "all"
-              ? "Cuando recibas notificaciones aparecerán aquí"
+              ? "Cuando recibas notificaciones aparecerán aquí. Las notificaciones te mantendrán informado sobre tus reservas, reseñas y mensajes importantes."
               : `No tienes notificaciones de ${activeFilter} por ahora`}
           </Text>
+          {stats && stats.total_count > 0 && (
+            <Text style={[styles.statsText, {color: colors.mutedForeground}]}>
+              Tienes {stats.total_count} notificaciones en total
+            </Text>
+          )}
         </View>
       ) : (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -373,5 +383,9 @@ const styles = StyleSheet.create({
   notificationsList: {
     paddingTop: 16,
   },
+  statsText: {
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 8,
+  },
 });
-
