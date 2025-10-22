@@ -3,6 +3,7 @@ import {View, Text, TouchableOpacity, StyleSheet, Alert} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Notification} from "@/features/notifications";
 
 interface NotificationCardProps {
@@ -19,7 +20,7 @@ export const NotificationCard = ({
   onDelete,
 }: NotificationCardProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
 
   const getIcon = () => {
     switch (notification.type) {
@@ -264,4 +265,3 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
-

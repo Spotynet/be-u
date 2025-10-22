@@ -1,6 +1,7 @@
 import {View, Text, TouchableOpacity, StyleSheet, Animated} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useState, useRef, useEffect} from "react";
 import {Ionicons} from "@expo/vector-icons";
 import {EnhancedReservationsTab} from "./EnhancedReservationsTab";
@@ -15,7 +16,7 @@ interface ProfileTabsProps {
 
 export function ProfileTabs({userRole}: ProfileTabsProps) {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const [activeTab, setActiveTab] = useState<TabName>("reservations");
   const slideAnim = useRef(new Animated.Value(0)).current;
 

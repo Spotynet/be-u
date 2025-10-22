@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState} from "react";
 import {useAuth} from "@/features/auth";
@@ -19,7 +20,7 @@ import {useRouter, useLocalSearchParams} from "expo-router";
 
 export default function BookingScreen() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const router = useRouter();
   const {user, isAuthenticated} = useAuth();
   const params = useLocalSearchParams<{
@@ -568,17 +569,3 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-

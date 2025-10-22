@@ -2,6 +2,7 @@ import {Stack} from "expo-router";
 import {SafeAreaProvider} from "react-native-safe-area-context";
 import {AuthProvider} from "@/features/auth";
 import {ThemeProvider} from "@/contexts/ThemeContext";
+import {ThemeVariantProvider} from "@/contexts/ThemeVariantContext";
 import {useEffect} from "react";
 import {AppState} from "react-native";
 import {tokenRefreshScheduler} from "@/lib/api";
@@ -23,13 +24,15 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AuthProvider>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-            }}
-          />
-        </AuthProvider>
+        <ThemeVariantProvider>
+          <AuthProvider>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+              }}
+            />
+          </AuthProvider>
+        </ThemeVariantProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

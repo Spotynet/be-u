@@ -3,6 +3,7 @@ import {View, Text, TouchableOpacity, ScrollView, StyleSheet} from "react-native
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 
 export interface SubCategory {
   id: string;
@@ -29,7 +30,7 @@ export const SubCategoryBar = ({
   style,
 }: SubCategoryBarProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
 
   const handleCategoryPress = (categoryId: string) => {
     onCategorySelect?.(categoryId);

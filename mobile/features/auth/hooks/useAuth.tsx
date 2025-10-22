@@ -108,10 +108,27 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
 
   const logout = async () => {
     try {
-      await authApi.logout();
-    } catch (error) {
+      console.log("🔓 Auth logout: Calling API logout...");
+      console.log(
+        "🔓 Auth logout: API URL:",
+        process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000/api"
+      );
+
+      const response = await authApi.logout();
+      console.log("🔓 Auth logout: API logout successful", response);
+    } catch (error: any) {
+      console.log("🔓 Auth logout: API logout failed, continuing with local logout:");
+      console.log("🔓 Auth logout: Error details:", {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method,
+      });
       // Continue with logout even if API call fails
     } finally {
+      console.log("🔓 Auth logout: Clearing tokens and updating state...");
       // Stop background token refresh
       tokenRefreshScheduler.stop();
 
@@ -122,6 +139,7 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
         isLoading: false,
         error: null,
       });
+      console.log("🔓 Auth logout: Logout completed");
     }
   };
 

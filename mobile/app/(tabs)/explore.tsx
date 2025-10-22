@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
@@ -24,10 +25,10 @@ const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
 export default function Explore() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors, setVariant} = useThemeVariant();
   const router = useRouter();
 
-  const [selectedItem, setSelectedItem] = useState<number | null>(null);
+  const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [isListExpanded, setIsListExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubCategory, setSelectedSubCategory] = useState("todos");
@@ -67,40 +68,50 @@ export default function Explore() {
         }),
       ]);
 
-      // Transform professionals data
-      const transformedProfessionals = professionalsResponse.data.results.map(
-        (prof: any, index: number) => ({
-          id: prof.id,
-          user_id: prof.user?.id || prof.id,
-          email: prof.user?.email || "",
-          name: prof.user?.first_name || prof.name || "Nombre no disponible",
-          last_name: prof.user?.last_name || prof.last_name || "",
-          bio: prof.bio,
-          city: prof.city || "Ciudad no especificada",
-          rating: typeof prof.rating === "number" ? prof.rating : Number(prof.rating) || 0,
-          services_count: prof.services_count || 0,
-          type: "professional",
-          // Add mock coordinates for map display
-          coordinates: {
-            top: `${25 + ((index * 15) % 50)}%`,
-            left: `${20 + ((index * 20) % 60)}%`,
-          },
-          avatar: "💇‍♀️",
-          distance: `${(0.5 + index * 0.3).toFixed(1)} km`,
-        })
+      console.log(
+        "🔍 Raw professionals response:",
+        JSON.stringify(professionalsResponse.data, null, 2)
       );
+      console.log("🔍 Raw places response:", JSON.stringify(placesResponse.data, null, 2));
+
+      // Transform professionals data
+      const professionalsData = professionalsResponse.data.results || [];
+      const transformedProfessionals = professionalsData.map((prof: any, index: number) => ({
+        id: `prof_${index}_${Date.now()}`, // Ensure completely unique ID
+        user_id: prof.user?.id || prof.id,
+        email: prof.user?.email || "",
+        name: prof.user?.first_name || prof.name || `Profesional ${index + 1}`,
+        last_name: prof.user?.last_name || prof.last_name || "",
+        bio: prof.bio || prof.user?.bio || `Profesional especializado en belleza ${index + 1}`,
+        city: prof.city || prof.user?.city || "Ciudad no especificada",
+        rating:
+          typeof prof.rating === "number" ? prof.rating : Number(prof.rating) || 4.0 + index * 0.1,
+        services_count: prof.services_count || 0,
+        type: "professional",
+        // Add mock coordinates for map display
+        coordinates: {
+          top: `${25 + ((index * 15) % 50)}%`,
+          left: `${20 + ((index * 20) % 60)}%`,
+        },
+        avatar: "💇‍♀️",
+        distance: `${(0.5 + index * 0.3).toFixed(1)} km`,
+      }));
 
       // Transform places data
-      const transformedPlaces = placesResponse.data.results.map((place: any, index: number) => ({
-        id: place.id,
+      const placesData = placesResponse.data.results || [];
+      const transformedPlaces = placesData.map((place: any, index: number) => ({
+        id: `place_${index}_${Date.now()}`, // Ensure completely unique ID
         user_id: place.id,
         email: "",
-        name: place.name,
+        name: place.name || `Lugar ${index + 1}`,
+        last_name: "", // Places don't have last names
         street: place.street || place.address,
-        city: place.city,
+        city: place.city || "Ciudad no especificada",
         country: place.country || "México",
         services_count: place.services_count || 0,
         address: place.street || place.address || "Dirección no disponible",
+        bio: place.bio || place.description || `Descripción del lugar ${index + 1}`,
+        rating: place.rating || 4.0 + index * 0.1, // Mock rating for places
         type: "place",
         // Add mock coordinates for map display
         coordinates: {
@@ -111,8 +122,100 @@ export default function Explore() {
         distance: `${(0.6 + index * 0.4).toFixed(1)} km`,
       }));
 
-      setProfessionals(transformedProfessionals);
-      setPlaces(transformedPlaces);
+      console.log(
+        "🔍 Transformed professionals:",
+        transformedProfessionals.map((p) => ({id: p.id, name: p.name, type: p.type}))
+      );
+      console.log(
+        "🔍 Transformed places:",
+        transformedPlaces.map((p) => ({id: p.id, name: p.name, type: p.type}))
+      );
+
+      console.log("🔍 Setting professionals:", transformedProfessionals.length);
+      console.log("🔍 Setting places:", transformedPlaces.length);
+
+      // Add mock data if API returns empty results
+      if (transformedProfessionals.length === 0) {
+        console.log("🔍 No professionals found, adding mock data");
+        const mockProfessionals = [
+          {
+            id: `mock_prof_0_${Date.now()}`,
+            user_id: 1,
+            email: "ana@example.com",
+            name: "Ana",
+            last_name: "López",
+            bio: "Estilista profesional con 10 años de experiencia",
+            city: "Ciudad de México",
+            rating: 4.9,
+            services_count: 5,
+            type: "professional",
+            coordinates: {top: "30%", left: "40%"},
+            avatar: "💇‍♀️",
+            distance: "0.5 km",
+          },
+          {
+            id: `mock_prof_1_${Date.now()}`,
+            user_id: 2,
+            email: "maria@example.com",
+            name: "María",
+            last_name: "García",
+            bio: "Especialista en uñas y cuidado personal",
+            city: "Ciudad de México",
+            rating: 4.7,
+            services_count: 3,
+            type: "professional",
+            coordinates: {top: "45%", left: "60%"},
+            avatar: "💅",
+            distance: "0.8 km",
+          },
+        ];
+        setProfessionals(mockProfessionals);
+      } else {
+        setProfessionals(transformedProfessionals);
+      }
+
+      if (transformedPlaces.length === 0) {
+        console.log("🔍 No places found, adding mock data");
+        const mockPlaces = [
+          {
+            id: `mock_place_0_${Date.now()}`,
+            user_id: 3,
+            email: "",
+            name: "Salón de Belleza Luna",
+            last_name: "",
+            bio: "Salón especializado en tratamientos faciales y corporales",
+            city: "Ciudad de México",
+            rating: 4.8,
+            services_count: 8,
+            type: "place",
+            coordinates: {top: "35%", left: "25%"},
+            avatar: "🏢",
+            distance: "1.2 km",
+          },
+          {
+            id: `mock_place_1_${Date.now()}`,
+            user_id: 4,
+            email: "",
+            name: "Centro de Estética Moderna",
+            last_name: "",
+            bio: "Centro de estética con tecnología de vanguardia",
+            city: "Ciudad de México",
+            rating: 4.6,
+            services_count: 12,
+            type: "place",
+            coordinates: {top: "50%", left: "70%"},
+            avatar: "🏢",
+            distance: "1.5 km",
+          },
+        ];
+        setPlaces(mockPlaces);
+      } else {
+        setPlaces(transformedPlaces);
+      }
+
+      // Log the first few items to verify data structure
+      console.log("🔍 First professional:", transformedProfessionals[0]);
+      console.log("🔍 First place:", transformedPlaces[0]);
     } catch (err: any) {
       console.error("❌ Error loading providers:", err);
       setError(errorUtils.getErrorMessage(err) || "Error al cargar los datos");
@@ -144,6 +247,23 @@ export default function Explore() {
 
   const mapItems = [...professionals, ...places];
   const selectedItemData = mapItems.find((item: any) => item.id === selectedItem);
+
+  if (selectedItem) {
+    console.log("🔍 Looking for selected item ID:", selectedItem);
+    console.log("🔍 Found selected item data:", JSON.stringify(selectedItemData, null, 2));
+    console.log(
+      "🔍 All available items:",
+      mapItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        type: item.type,
+        last_name: item.last_name,
+      }))
+    );
+    console.log("🔍 Professionals count:", professionals.length);
+    console.log("🔍 Places count:", places.length);
+    console.log("🔍 Total mapItems count:", mapItems.length);
+  }
 
   const filteredItems = mapItems.filter((item: any) => {
     if (!searchQuery) return true;
@@ -190,6 +310,7 @@ export default function Explore() {
                     ]}
                     onPress={() => {
                       setSelectedCategory(category.id as "belleza" | "cuidado" | "mascotas");
+                      setVariant(category.id as any);
                       setIsCategoryPickerExpanded(false);
                     }}>
                     <Text style={styles.expandedCategoryEmoji}>{category.emoji}</Text>
@@ -273,7 +394,7 @@ export default function Explore() {
         ) : (
           <>
             {/* Map Background */}
-            <View style={[styles.mapBackground, {backgroundColor: "#F8F8F8"}]}>
+            <View style={[styles.mapBackground, {backgroundColor: colors.muted}]}>
               {/* Grid pattern */}
               <View style={styles.mapGrid}>
                 {[...Array(8)].map((_, i) => (
@@ -322,7 +443,14 @@ export default function Explore() {
                             borderColor: colors.primary,
                           },
                         ]}
-                        onPress={() => setSelectedItem(isSelected ? null : item.id)}
+                        onPress={() => {
+                          console.log("📍 Pin clicked - Item:", {
+                            id: item.id,
+                            name: item.name,
+                            type: item.type,
+                          });
+                          setSelectedItem(isSelected ? null : item.id);
+                        }}
                         activeOpacity={0.9}>
                         <Text style={styles.pinAvatar}>{item.avatar}</Text>
                       </TouchableOpacity>
@@ -386,7 +514,14 @@ export default function Explore() {
               <TouchableOpacity
                 key={item.id}
                 style={[styles.itemCardVertical, {backgroundColor: colors.card}]}
-                onPress={() => setSelectedItem(item.id)}
+                onPress={() => {
+                  console.log("📋 List item clicked - Item:", {
+                    id: item.id,
+                    name: item.name,
+                    type: item.type,
+                  });
+                  setSelectedItem(item.id);
+                }}
                 activeOpacity={0.95}>
                 <View style={[styles.itemAvatarVertical, {backgroundColor: colors.primary}]}>
                   <Text style={styles.itemAvatarTextVertical}>

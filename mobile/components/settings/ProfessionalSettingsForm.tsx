@@ -2,6 +2,7 @@ import {View, Text, TextInput, StyleSheet, TouchableOpacity, Platform} from "rea
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useState, useEffect} from "react";
 import {User, ProfessionalProfile} from "@/types/global";
 
@@ -19,25 +20,32 @@ export const ProfessionalSettingsForm = ({
   isLoading,
 }: ProfessionalSettingsFormProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
 
   const [email, setEmail] = useState(user.email);
   const [name, setName] = useState(
-    profile?.name || (user as any).firstName || (user as any).first_name || ""
+    (user as any).firstName || (user as any).first_name || profile?.name || ""
   );
   const [lastName, setLastName] = useState(
-    profile?.last_name || (user as any).lastName || (user as any).last_name || ""
+    (user as any).lastName || (user as any).last_name || profile?.last_name || ""
   );
   const [bio, setBio] = useState(profile?.bio || "");
   const [city, setCity] = useState(profile?.city || "");
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Keep form fields in sync when profile or user changes
+  // Initialize form fields only once when component mounts
   useEffect(() => {
-    setEmail(user.email);
-    setName(profile?.name || (user as any).firstName || (user as any).first_name || "");
-    setLastName(profile?.last_name || (user as any).lastName || (user as any).last_name || "");
-    setBio(profile?.bio || "");
-    setCity(profile?.city || "");
+    if (!isInitialized) {
+      console.log("ProfessionalSettingsForm - User data:", user);
+      console.log("ProfessionalSettingsForm - Profile data:", profile);
+
+      setEmail(user.email);
+      setName((user as any).firstName || (user as any).first_name || profile?.name || "");
+      setLastName((user as any).lastName || (user as any).last_name || profile?.last_name || "");
+      setBio(profile?.bio || "");
+      setCity(profile?.city || "");
+      setIsInitialized(true);
+    }
   }, [
     user.email,
     (user as any).firstName,
@@ -48,11 +56,14 @@ export const ProfessionalSettingsForm = ({
     profile?.last_name,
     profile?.bio,
     profile?.city,
+    isInitialized,
   ]);
 
   const handleSave = async () => {
     const userData = {
       email,
+      firstName: name,
+      lastName: lastName,
     };
 
     const profileData = {
@@ -61,6 +72,9 @@ export const ProfessionalSettingsForm = ({
       bio,
       city,
     };
+
+    console.log("Saving profile data:", profileData);
+    console.log("Saving user data:", userData);
 
     await onSave(userData, profileData);
   };

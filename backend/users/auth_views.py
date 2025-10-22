@@ -101,8 +101,15 @@ def register_view(request):
 
 @api_view(['POST'])
 def logout_view(request):
-    logout(request)
-    return Response({'message': 'Logout successful'})
+    try:
+        # For JWT-based authentication, we don't need to call Django's logout
+        # The token will be invalidated on the client side
+        # If you want to blacklist the token, you would need to implement token blacklisting
+        
+        # For now, just return success - the client will remove the token
+        return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

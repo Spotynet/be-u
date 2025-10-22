@@ -2,6 +2,7 @@ import React from "react";
 import {View, ViewProps, StyleSheet} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 
 interface CardProps extends ViewProps {
   children: React.ReactNode;
@@ -9,7 +10,7 @@ interface CardProps extends ViewProps {
 
 export const Card = ({children, style, ...props}: CardProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
 
   return (
     <View

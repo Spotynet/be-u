@@ -2,6 +2,7 @@ import {View, Text, TextInput, StyleSheet, TouchableOpacity, Platform} from "rea
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useState, useEffect} from "react";
 import {User, ClientProfile} from "@/types/global";
 
@@ -14,7 +15,7 @@ interface ClientSettingsFormProps {
 
 export const ClientSettingsForm = ({user, profile, onSave, isLoading}: ClientSettingsFormProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
 
   const [firstName, setFirstName] = useState((user as any).firstName || (user as any).first_name);
   const [lastName, setLastName] = useState((user as any).lastName || (user as any).last_name);

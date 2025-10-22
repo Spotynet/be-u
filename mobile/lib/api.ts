@@ -42,19 +42,47 @@ apiClient.interceptors.request.use(
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log("🔓 API Request: Adding auth token to request");
+    } else {
+      console.log("🔓 API Request: No auth token found");
     }
+
+    console.log("🔓 API Request:", {
+      url: config.url,
+      method: config.method,
+      baseURL: config.baseURL,
+      fullURL: `${config.baseURL}${config.url}`,
+      hasAuth: !!config.headers.Authorization,
+    });
 
     return config;
   },
   (error) => {
+    console.log("🔓 API Request Error:", error);
     return Promise.reject(error);
   }
 );
 
 // Response interceptor to handle 401 with token refresh
 apiClient.interceptors.response.use(
-  (response: AxiosResponse) => response,
+  (response: AxiosResponse) => {
+    console.log("🔓 API Response:", {
+      url: response.config.url,
+      method: response.config.method,
+      status: response.status,
+      statusText: response.statusText,
+    });
+    return response;
+  },
   async (error: AxiosError) => {
+    console.log("🔓 API Response Error:", {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+    });
     const originalRequest: any = error.config || {};
     const status = error.response?.status;
     const url: string = (originalRequest.url as string) || "";
@@ -172,20 +200,43 @@ export const authApi = {
 // Profile management API functions
 export const profileApi = {
   // Client Profile
-  getClientProfile: (userId: number) => api.get<any>(`/users/${userId}/client-profile/`),
-  updateClientProfile: (userId: number, data: any) =>
-    api.put<any>(`/users/${userId}/client-profile/`, data),
+  getClientProfile: (userId: number) => api.get<any>(`/auth/profile/`),
+  updateClientProfile: (userId: number, data: any) => api.put<any>(`/auth/profile/`, data),
 
   // Professional Profile
-  getProfessionalProfile: (userId: number) =>
-    api.get<any>(`/users/${userId}/professional-profile/`),
-  updateProfessionalProfile: (userId: number, data: any) =>
-    api.put<any>(`/users/${userId}/professional-profile/`, data),
+  getProfessionalProfile: (userId: number) => api.get<any>(`/professionals/${userId}/`),
+  updateProfessionalProfile: (userId: number, data: any) => api.put<any>(`/auth/profile/`, data),
 
   // Place Profile
-  getPlaceProfile: (userId: number) => api.get<any>(`/users/${userId}/place-profile/`),
-  updatePlaceProfile: (userId: number, data: any) =>
-    api.put<any>(`/users/${userId}/place-profile/`, data),
+  getPlaceProfile: (userId: number) => api.get<any>(`/places/${userId}/`),
+  updatePlaceProfile: (userId: number, data: any) => api.put<any>(`/auth/profile/`, data),
+};
+
+// Profile customization API functions
+export const profileCustomizationApi = {
+  // Get all profile customization data
+  getProfileCustomization: () => api.get<any>(`/profile/customization/`),
+
+  // Profile Images
+  getProfileImages: () => api.get<any>(`/profile/images/`),
+  uploadProfileImage: (data: FormData) =>
+    api.post<any>(`/profile/images/`, data, {
+      headers: {"Content-Type": "multipart/form-data"},
+    }),
+  updateProfileImage: (imageId: number, data: any) =>
+    api.put<any>(`/profile/images/${imageId}/`, data),
+  deleteProfileImage: (imageId: number) => api.delete<any>(`/profile/images/${imageId}/`),
+
+  // Custom Services
+  getCustomServices: () => api.get<any>(`/profile/services/`),
+  createCustomService: (data: any) => api.post<any>(`/profile/services/`, data),
+  updateCustomService: (serviceId: number, data: any) =>
+    api.put<any>(`/profile/services/${serviceId}/`, data),
+  deleteCustomService: (serviceId: number) => api.delete<any>(`/profile/services/${serviceId}/`),
+
+  // Availability Schedule
+  getAvailabilitySchedule: () => api.get<any>(`/profile/availability/`),
+  updateAvailabilitySchedule: (data: any) => api.post<any>(`/profile/availability/`, data),
 };
 
 // User management API functions

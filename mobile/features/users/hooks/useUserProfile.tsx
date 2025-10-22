@@ -39,6 +39,8 @@ export const useUserProfile = () => {
       return;
     }
 
+    console.log("Fetching profile for user:", user);
+
     try {
       setIsLoading(true);
       setError(null);
@@ -53,8 +55,9 @@ export const useUserProfile = () => {
       switch (user.role) {
         case "CLIENT":
           try {
-            const clientProfileResponse = await profileApi.getClientProfile(user.id);
-            profile = clientProfileResponse.data;
+            const profileResponse = await profileApi.getClientProfile(user.id); // This uses /auth/profile/
+            console.log("Client profile response:", profileResponse.data);
+            profile = profileResponse.data.profile; // Extract profile from response
           } catch (err) {
             // Profile might not exist yet, that's okay
             console.log("No client profile found");
@@ -79,9 +82,10 @@ export const useUserProfile = () => {
 
         case "PROFESSIONAL":
           try {
-            // Owner-scoped profile by user id for settings
-            const professionalProfileResponse = await profileApi.getProfessionalProfile(user.id);
-            profile = professionalProfileResponse.data;
+            // Get current user's profile data
+            const profileResponse = await profileApi.getClientProfile(user.id); // This uses /auth/profile/
+            console.log("Professional profile response:", profileResponse.data);
+            profile = profileResponse.data.profile; // Extract profile from response
           } catch (err) {
             console.log("No professional profile found");
           }
@@ -108,9 +112,9 @@ export const useUserProfile = () => {
 
         case "PLACE":
           try {
-            // Owner-scoped profile by user id for settings
-            const placeProfileResponse = await profileApi.getPlaceProfile(user.id);
-            profile = placeProfileResponse.data;
+            // Get current user's profile data
+            const profileResponse = await profileApi.getClientProfile(user.id); // This uses /auth/profile/
+            profile = profileResponse.data.profile; // Extract profile from response
           } catch (err) {
             console.log("No place profile found");
           }

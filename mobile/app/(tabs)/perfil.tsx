@@ -1,6 +1,7 @@
 import {View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useUserProfile} from "@/features/users/hooks/useUserProfile";
@@ -9,7 +10,7 @@ import {useRouter} from "expo-router";
 
 export default function Perfil() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const router = useRouter();
   const {user, isAuthenticated, logout: authLogout} = useAuth();
   const {profile, stats, services, portfolio, teamMembers, isLoading, error, refreshProfile} =

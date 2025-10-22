@@ -2,6 +2,7 @@ import React from "react";
 import {TextInput, TextInputProps, View, Text, StyleSheet} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -10,7 +11,7 @@ interface InputProps extends TextInputProps {
 
 export const Input = ({label, error, style, ...props}: InputProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
 
   return (
     <View style={styles.container}>

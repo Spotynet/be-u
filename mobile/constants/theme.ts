@@ -98,6 +98,86 @@ export const Colors = {
   },
 };
 
+export const ThemeVariants = {
+  belleza: {
+    primary: "#8B5CF6", // Regular purple
+    primaryForeground: "#ffffff",
+    tint: "#8B5CF6",
+    // Light mode colors
+    light: {
+      background: "#ffffff",
+      foreground: "#1f2937",
+      card: "#ffffff",
+      cardForeground: "#1f2937",
+      border: "#e5e7eb",
+      muted: "#f9fafb",
+      mutedForeground: "#6b7280",
+    },
+    // Dark mode colors
+    dark: {
+      background: "#0f172a",
+      foreground: "#f8fafc",
+      card: "#1e293b",
+      cardForeground: "#f8fafc",
+      border: "#334155",
+      muted: "#1e293b",
+      mutedForeground: "#94a3b8",
+    },
+  },
+  cuidado: {
+    primary: "#C4B5FD", // Light purple
+    primaryForeground: "#1e1b4b",
+    tint: "#C4B5FD",
+    // Light mode colors
+    light: {
+      background: "#ffffff",
+      foreground: "#1f2937",
+      card: "#ffffff",
+      cardForeground: "#1f2937",
+      border: "#e5e7eb",
+      muted: "#f9fafb",
+      mutedForeground: "#6b7280",
+    },
+    // Dark mode colors
+    dark: {
+      background: "#0f172a",
+      foreground: "#f8fafc",
+      card: "#1e293b",
+      cardForeground: "#f8fafc",
+      border: "#334155",
+      muted: "#1e293b",
+      mutedForeground: "#94a3b8",
+    },
+  },
+  mascotas: {
+    primary: "#B026FF", // Neon purple
+    primaryForeground: "#ffffff",
+    tint: "#B026FF",
+    // Light mode colors
+    light: {
+      background: "#ffffff",
+      foreground: "#1f2937",
+      card: "#ffffff",
+      cardForeground: "#1f2937",
+      border: "#e5e7eb",
+      muted: "#f9fafb",
+      mutedForeground: "#6b7280",
+    },
+    // Dark mode colors
+    dark: {
+      background: "#0f172a",
+      foreground: "#f8fafc",
+      card: "#1e293b",
+      cardForeground: "#f8fafc",
+      border: "#334155",
+      muted: "#1e293b",
+      mutedForeground: "#94a3b8",
+    },
+  },
+};
+
+export type ThemeVariant = keyof typeof ThemeVariants;
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */

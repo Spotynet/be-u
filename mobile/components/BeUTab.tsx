@@ -4,6 +4,7 @@ import {Ionicons} from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 
 interface BeUTabProps {
   onPress: () => void;
@@ -12,7 +13,7 @@ interface BeUTabProps {
 
 export const BeUTab = ({onPress, focused}: BeUTabProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
 
   const handlePress = () => {
     // Add haptic feedback for iOS

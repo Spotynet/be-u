@@ -2,6 +2,7 @@ import React from "react";
 import {View, Text, StyleSheet, TouchableOpacity, FlatList} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {UserService} from "@/types/global";
 import {Ionicons} from "@expo/vector-icons";
 
@@ -21,7 +22,7 @@ export const ServiceList = ({
   isLoading,
 }: ServiceListProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
 
   const renderServiceItem = ({item}: {item: UserService}) => {
     const isProfessionalService = item.type === "professional_service";
@@ -261,17 +262,3 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-

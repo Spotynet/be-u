@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
 import {useRouter, useLocalSearchParams} from "expo-router";
@@ -24,7 +25,7 @@ const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
 export default function PlaceDetailScreen() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const router = useRouter();
   const {id} = useLocalSearchParams<{id: string}>();
 

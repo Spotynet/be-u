@@ -2,6 +2,7 @@ import React from "react";
 import {View, Text, StyleSheet, TouchableOpacity, ScrollView} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {TimeSlot} from "@/types/global";
 import {Ionicons} from "@expo/vector-icons";
 
@@ -14,7 +15,7 @@ interface TimeSlotPickerProps {
 
 export const TimeSlotPicker = ({slots, selectedTime, onSelectTime, date}: TimeSlotPickerProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
 
   return (
     <View style={styles.container}>
@@ -192,17 +193,3 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-

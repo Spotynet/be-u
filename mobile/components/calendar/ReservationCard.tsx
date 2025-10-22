@@ -2,6 +2,7 @@ import React from "react";
 import {View, Text, StyleSheet, TouchableOpacity} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Reservation} from "@/types/global";
 import {Ionicons} from "@expo/vector-icons";
 
@@ -25,7 +26,7 @@ export const ReservationCard = ({
   onPress,
 }: ReservationCardProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -269,17 +270,3 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-

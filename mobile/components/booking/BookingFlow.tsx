@@ -3,6 +3,7 @@ import {View, Text, Modal, StyleSheet, TouchableOpacity, ScrollView, Platform} f
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {DateTimePicker} from "./DateTimePicker";
 import {ProfessionalSelector} from "./ProfessionalSelector";
 import {useRouter} from "expo-router";
@@ -44,7 +45,7 @@ export function BookingFlow({
   onConfirm,
 }: BookingFlowProps) {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());

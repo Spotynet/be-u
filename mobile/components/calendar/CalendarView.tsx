@@ -3,6 +3,7 @@ import {View, Text, StyleSheet, TouchableOpacity} from "react-native";
 import {Calendar, DateData} from "react-native-calendars";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Reservation, ReservationStatus} from "@/types/global";
 import {Ionicons} from "@expo/vector-icons";
 
@@ -22,7 +23,7 @@ export const CalendarView = ({
   maxDate,
 }: CalendarViewProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
 
   // Group reservations by date
   const markedDates: any = {};
@@ -159,17 +160,3 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-

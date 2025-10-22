@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from . import views, auth_views
+from . import views, auth_views, profile_views
 
 router = DefaultRouter()
 router.register(r'users', views.UserViewSet)
@@ -14,4 +14,12 @@ urlpatterns = [
     path('auth/logout/', auth_views.logout_view, name='logout'),
     path('auth/refresh/', auth_views.refresh_token_view, name='refresh'),
     path('auth/profile/', views.profile_view, name='profile'),
+    
+    # Profile customization endpoints
+    path('profile/images/', profile_views.profile_images_view, name='profile-images'),
+    path('profile/images/<int:image_id>/', profile_views.profile_image_detail_view, name='profile-image-detail'),
+    path('profile/services/', profile_views.custom_services_view, name='custom-services'),
+    path('profile/services/<int:service_id>/', profile_views.custom_service_detail_view, name='custom-service-detail'),
+    path('profile/availability/', profile_views.availability_schedule_view, name='availability-schedule'),
+    path('profile/customization/', profile_views.profile_customization_view, name='profile-customization'),
 ]

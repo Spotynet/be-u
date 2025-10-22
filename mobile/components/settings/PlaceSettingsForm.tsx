@@ -2,6 +2,7 @@ import {View, Text, TextInput, StyleSheet, TouchableOpacity, Platform} from "rea
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useState, useEffect} from "react";
 import {User, PlaceProfile} from "@/types/global";
 
@@ -14,7 +15,7 @@ interface PlaceSettingsFormProps {
 
 export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSettingsFormProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
 
   const [email, setEmail] = useState(user.email);
   const [name, setName] = useState(profile?.name || "");

@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
@@ -22,11 +23,39 @@ const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
 export default function Home() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors, setVariant} = useThemeVariant();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
   const router = useRouter();
+
+  // Helper function to get category color
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "belleza":
+        return "#8B5CF6";
+      case "cuidado":
+        return "#C4B5FD";
+      case "mascotas":
+        return "#B026FF";
+      default:
+        return colors.primary;
+    }
+  };
+
+  // Toggle like function
+  const toggleLike = (postId: number) => {
+    setLikedPosts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(postId)) {
+        newSet.delete(postId);
+      } else {
+        newSet.add(postId);
+      }
+      return newSet;
+    });
+  };
 
   // Mock categories and stories (keep UI)
   const [selectedCategory, setSelectedCategory] = useState<"belleza" | "cuidado" | "mascotas">(
@@ -969,6 +998,7 @@ export default function Home() {
                     ]}
                     onPress={() => {
                       setSelectedCategory(category.id as any);
+                      setVariant(category.id as any);
                       setIsCategoryPickerExpanded(false);
                     }}>
                     <Text style={styles.expandedCategoryEmoji}>{category.emoji}</Text>

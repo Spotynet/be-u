@@ -6,20 +6,22 @@ import {HapticTab} from "@/components/haptic-tab";
 import {BeUTab} from "@/components/BeUTab";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const {colors} = useThemeVariant();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
-        tabBarInactiveTintColor: Colors[colorScheme ?? "light"].tabIconDefault,
+        tabBarActiveTintColor: colors.tint,
+        tabBarInactiveTintColor: colors.mutedForeground,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: {
-          backgroundColor: Colors[colorScheme ?? "light"].background,
-          borderTopColor: Colors[colorScheme ?? "light"].border,
+          backgroundColor: colors.background,
+          borderTopColor: colors.border,
           height: 80, // Increased height to accommodate elevated button
           paddingBottom: 20,
         },

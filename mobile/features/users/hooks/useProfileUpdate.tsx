@@ -108,26 +108,18 @@ export const useProfileUpdate = (userId: number, userRole: string) => {
       setIsLoading(true);
       setError(null);
 
-      // Update user info if provided
-      if (userData) {
-        await updateUserInfo(userData);
-      }
+      console.log("updateProfile called with:", {profileData, userData, userRole});
 
-      // Update role-specific profile
-      let result;
-      switch (userRole) {
-        case "CLIENT":
-          result = await updateClientProfile(profileData);
-          break;
-        case "PROFESSIONAL":
-          result = await updateProfessionalProfile(profileData);
-          break;
-        case "PLACE":
-          result = await updatePlaceProfile(profileData);
-          break;
-        default:
-          throw new Error("Invalid user role");
-      }
+      // Combine user data and profile data into a single request
+      const combinedData = {
+        ...userData,
+        ...profileData,
+      };
+
+      console.log("Sending combined data to /auth/profile/:", combinedData);
+
+      // Use the single /auth/profile/ endpoint for all updates
+      const result = await authApi.updateProfile(combinedData);
 
       return result;
     } catch (err) {

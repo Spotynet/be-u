@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useRouter} from "expo-router";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
@@ -17,7 +18,7 @@ import {useAuth} from "@/features/auth";
 
 export default function Login() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const router = useRouter();
   const {login, isLoading} = useAuth();
 

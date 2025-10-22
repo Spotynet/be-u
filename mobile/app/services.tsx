@@ -1,6 +1,7 @@
 import {View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect} from "react";
 import {useAuth} from "@/features/auth";
@@ -11,7 +12,7 @@ import {UserService} from "@/types/global";
 
 export default function ServicesScreen() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const router = useRouter();
   const {user, isAuthenticated} = useAuth();
 
@@ -166,17 +167,3 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-

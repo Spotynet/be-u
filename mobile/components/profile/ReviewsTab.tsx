@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useAuth} from "@/features/auth";
 import {useReviews} from "@/features/reviews";
@@ -18,7 +19,7 @@ interface ReviewsTabProps {
 
 export function ReviewsTab({userRole}: ReviewsTabProps) {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const {user} = useAuth();
 
   // Determine review type based on user role

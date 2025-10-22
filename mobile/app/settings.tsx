@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useUserProfile, useProfileUpdate} from "@/features/users";
@@ -21,7 +22,7 @@ import {
 
 export default function Settings() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors, colorMode, setColorMode} = useThemeVariant();
   const router = useRouter();
   const {user, isAuthenticated, logout} = useAuth();
   const {profile, isLoading: profileLoading, refreshProfile} = useUserProfile();
@@ -39,6 +40,45 @@ export default function Settings() {
   };
 
   const handleLogout = () => {
+    console.log("🔓 Logout button pressed");
+
+    // For testing, let's try direct logout without confirmation
+    const performLogout = async () => {
+      try {
+        console.log("🔓 Starting logout process...");
+        console.log("🔓 Current user before logout:", user);
+        console.log("🔓 Is authenticated before logout:", isAuthenticated);
+
+        await logout();
+
+        console.log("🔓 Logout successful, navigating to login...");
+        console.log("🔓 User after logout:", user);
+        console.log("🔓 Is authenticated after logout:", isAuthenticated);
+
+        // Try different navigation methods
+        try {
+          router.replace("/login");
+        } catch (navError) {
+          console.log("🔓 Router replace failed, trying push:", navError);
+          router.push("/login");
+        }
+      } catch (error) {
+        console.error("🔓 Logout error:", error);
+        // Still navigate to login even if logout fails
+        try {
+          router.replace("/login");
+        } catch (navError) {
+          console.log("🔓 Router replace failed, trying push:", navError);
+          router.push("/login");
+        }
+      }
+    };
+
+    // Try direct logout first for testing
+    performLogout();
+
+    // Uncomment this for confirmation dialog:
+    /*
     Alert.alert(
       "Cerrar Sesión",
       "¿Estás seguro que deseas cerrar sesión?",
@@ -50,14 +90,12 @@ export default function Settings() {
         {
           text: "Cerrar Sesión",
           style: "destructive",
-          onPress: async () => {
-            await logout();
-            router.replace("/login");
-          },
+          onPress: performLogout,
         },
       ],
       {cancelable: true}
     );
+    */
   };
 
   // Redirect if not authenticated (safe for web and native)
@@ -96,6 +134,7 @@ export default function Settings() {
   // Render appropriate form based on user role
   const renderSettingsForm = () => {
     console.log("User object:", user);
+    console.log("Profile object:", profile);
     console.log("User role:", user?.role);
     console.log("Role type:", typeof user?.role);
 
@@ -174,6 +213,35 @@ export default function Settings() {
           <View style={styles.additionalOptions}>
             <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Opciones</Text>
 
+            {/* Light/Dark Mode Toggle */}
+            <TouchableOpacity
+              style={[
+                styles.optionButton,
+                {backgroundColor: colors.card, borderColor: colors.border},
+              ]}
+              onPress={() => setColorMode(colorMode === "light" ? "dark" : "light")}
+              activeOpacity={0.7}>
+              <View style={styles.optionLeft}>
+                <View style={[styles.optionIcon, {backgroundColor: colors.primary + "15"}]}>
+                  <Ionicons
+                    name={colorMode === "light" ? "sunny" : "moon"}
+                    color={colors.primary}
+                    size={20}
+                  />
+                </View>
+                <Text style={[styles.optionText, {color: colors.foreground}]}>
+                  {colorMode === "light" ? "Modo Oscuro" : "Modo Claro"}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.toggleSwitch,
+                  {backgroundColor: colorMode === "dark" ? colors.primary : colors.muted},
+                ]}>
+                <View style={[styles.toggleThumb, {backgroundColor: "#ffffff"}]} />
+              </View>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={[
                 styles.optionButton,
@@ -241,7 +309,10 @@ export default function Settings() {
             {/* Logout Button */}
             <TouchableOpacity
               style={[styles.logoutButton, {backgroundColor: "#ef4444"}]}
-              onPress={handleLogout}
+              onPress={() => {
+                console.log("🔓 Logout button onPress triggered");
+                handleLogout();
+              }}
               activeOpacity={0.9}>
               <Ionicons name="log-out" color="#ffffff" size={20} />
               <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
@@ -362,5 +433,25 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 13,
+  },
+  toggleSwitch: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    paddingHorizontal: 2,
+  },
+  toggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
 });
