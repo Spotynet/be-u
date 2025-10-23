@@ -1,5 +1,5 @@
 import React from "react";
-import {TouchableOpacity, StyleSheet, Platform} from "react-native";
+import {TouchableOpacity, StyleSheet, Platform, View} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import {Colors} from "@/constants/theme";
@@ -11,7 +11,7 @@ interface BeUTabProps {
   focused: boolean;
 }
 
-export const BeUTab = ({onPress, focused}: BeUTabProps) => {
+const BeUTab = ({onPress, focused}: BeUTabProps) => {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
 
@@ -85,3 +85,5 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
 });
+
+export default BeUTab;

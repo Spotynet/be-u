@@ -3,7 +3,7 @@ import React from "react";
 import {Ionicons} from "@expo/vector-icons";
 
 import {HapticTab} from "@/components/haptic-tab";
-import {BeUTab} from "@/components/BeUTab";
+import BeUTab from "@/components/BeUTab";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
