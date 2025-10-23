@@ -11,7 +11,7 @@ export default function DebugScreen() {
     // Collect debug information
     const info = {
       // Environment variables
-      EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+      EXPO_PUBLIC_API_URL: "https://stg.be-u.ai/api (HARDCODED)",
       NODE_ENV: process.env.NODE_ENV,
       EXPO_PUBLIC_DEBUG: process.env.EXPO_PUBLIC_DEBUG,
       EXPO_PUBLIC_EAS_BUILD: process.env.EXPO_PUBLIC_EAS_BUILD,
@@ -33,13 +33,13 @@ export default function DebugScreen() {
   const testApiConnection = async () => {
     try {
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000/api"}/health/`
+        `https://stg.be-u.ai/api/health/`
       );
       setDebugInfo((prev) => ({
         ...prev,
         apiTest: response.ok ? "Connected ✅" : `Error: ${response.status}`,
       }));
-    } catch (error) {
+    } catch (error: any) {
       setDebugInfo((prev) => ({
         ...prev,
         apiTest: `Failed: ${error.message}`,
@@ -66,7 +66,7 @@ export default function DebugScreen() {
           <Text style={styles.sectionTitle}>Environment Variables</Text>
           <View style={styles.infoRow}>
             <Text style={styles.label}>API URL:</Text>
-            <Text style={styles.value}>{debugInfo.EXPO_PUBLIC_API_URL || "Not set"}</Text>
+            <Text style={styles.value}>{debugInfo.EXPO_PUBLIC_API_URL}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.label}>Node ENV:</Text>
@@ -124,9 +124,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
   },
@@ -140,7 +138,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: 16,
   },
   section: {
     marginBottom: 24,
@@ -161,7 +159,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
     color: "#374151",
     flex: 1,
   },
@@ -173,17 +171,19 @@ const styles = StyleSheet.create({
   },
   success: {
     color: "#10b981",
+    fontWeight: "bold",
   },
   error: {
     color: "#ef4444",
+    fontWeight: "bold",
   },
   copyButton: {
     backgroundColor: "#3b82f6",
-    paddingVertical: 12,
     paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
-    marginTop: 20,
+    marginTop: 16,
   },
   copyButtonText: {
     color: "#ffffff",

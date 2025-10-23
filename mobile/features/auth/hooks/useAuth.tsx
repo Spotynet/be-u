@@ -111,7 +111,7 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
       console.log("🔓 Auth logout: Calling API logout...");
       console.log(
         "🔓 Auth logout: API URL:",
-        process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000/api"
+        "https://stg.be-u.ai/api"
       );
 
       const response = await authApi.logout();

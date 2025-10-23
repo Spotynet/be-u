@@ -63,7 +63,7 @@ export class ErrorBoundary extends Component<Props, State> {
               configuration problem.
             </Text>
 
-            {/* Always show error details in EAS builds for debugging */}
+            {/* Always show error details for debugging */}
             {this.state.error && (
               <ScrollView style={styles.errorDetails}>
                 <Text style={styles.errorTitle}>Error Details:</Text>
@@ -76,11 +76,14 @@ export class ErrorBoundary extends Component<Props, State> {
                 )}
                 <Text style={styles.errorTitle}>Environment Info:</Text>
                 <Text style={styles.errorText}>
-                  API URL: {process.env.EXPO_PUBLIC_API_URL || "Not set"}
+                  API URL: https://stg.be-u.ai/api (HARDCODED)
                 </Text>
                 <Text style={styles.errorText}>Node ENV: {process.env.NODE_ENV || "Not set"}</Text>
                 <Text style={styles.errorText}>
                   EAS Build: {process.env.EXPO_PUBLIC_EAS_BUILD || "Not set"}
+                </Text>
+                <Text style={styles.errorText}>
+                  Debug Mode: {process.env.EXPO_PUBLIC_DEBUG || "Not set"}
                 </Text>
               </ScrollView>
             )}
@@ -125,11 +128,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   errorDetails: {
-    maxHeight: 200,
+    maxHeight: 300,
     backgroundColor: "#f3f4f6",
     padding: 12,
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: 24,
     width: "100%",
   },
   errorTitle: {

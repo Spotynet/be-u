@@ -20,48 +20,10 @@ export interface ApiError {
   errors?: Record<string, string[]>;
 }
 
-// API Configuration with better fallback handling
-const getApiBaseUrl = () => {
-  // Check multiple sources for API URL
-  const envUrl = process.env.EXPO_PUBLIC_API_URL;
-  const defaultUrl = "http://localhost:8000/api";
+// API Configuration - HARDCODED for testing
+const API_BASE_URL = "https://stg.be-u.ai/api";
 
-  // For EAS builds, try to detect environment
-  const isEASBuild = process.env.EXPO_PUBLIC_EAS_BUILD === "true";
-  const isProduction = process.env.NODE_ENV === "production";
-
-  let finalUrl = envUrl || defaultUrl;
-
-  // Fallback logic for EAS builds
-  if (isEASBuild && !envUrl) {
-    if (isProduction) {
-      finalUrl = "https://be-u.ai/api";
-    } else {
-      finalUrl = "https://stg.be-u.ai/api";
-    }
-  }
-
-  // Log for debugging
-  console.log("🔧 Environment Configuration:", {
-    EXPO_PUBLIC_API_URL: envUrl,
-    NODE_ENV: process.env.NODE_ENV,
-    EXPO_PUBLIC_DEBUG: process.env.EXPO_PUBLIC_DEBUG,
-    EXPO_PUBLIC_EAS_BUILD: process.env.EXPO_PUBLIC_EAS_BUILD,
-    isEASBuild,
-    isProduction,
-    Final_API_URL: finalUrl,
-  });
-
-  // Validate the final URL
-  if (!finalUrl || finalUrl === "undefined") {
-    console.error("🚨 CRITICAL: API URL is undefined or invalid:", finalUrl);
-    throw new Error("API URL is not properly configured. Please check environment variables.");
-  }
-
-  return finalUrl;
-};
-
-const API_BASE_URL = getApiBaseUrl();
+console.log("🔧 HARDCODED API URL:", API_BASE_URL);
 const AUTH_TOKEN_KEY = "@auth_token";
 const REFRESH_TOKEN_KEY = "@refresh_token";
 

@@ -248,7 +248,7 @@ export default function Explore() {
   useEffect(() => {
     // Debug environment variables
     console.log("🔧 Explore Page Environment:", {
-      EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+      EXPO_PUBLIC_API_URL: "https://stg.be-u.ai/api",
       NODE_ENV: process.env.NODE_ENV,
     });
 
