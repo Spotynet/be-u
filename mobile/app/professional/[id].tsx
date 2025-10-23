@@ -28,6 +28,29 @@ export default function ProfessionalDetailScreen() {
   const router = useRouter();
   const {id} = useLocalSearchParams<{id: string}>();
 
+  // Extract numeric ID from the string (e.g., "professional_0_1761200070463" -> "1761200070463")
+  const numericId = id?.includes("_") ? id.split("_").pop() : id;
+
+  // Validate that we have a valid numeric ID
+  if (!numericId || isNaN(Number(numericId))) {
+    return (
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
+        <View style={[styles.header, {backgroundColor: colors.background}]}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" color="#ef4444" size={64} />
+          <Text style={[styles.errorTitle, {color: colors.foreground}]}>Error</Text>
+          <Text style={[styles.errorText, {color: colors.mutedForeground}]}>
+            ID de profesional inválido
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   const [professional, setProfessional] = useState<ProfessionalProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +68,7 @@ export default function ProfessionalDetailScreen() {
     const fetchProfessionalPosts = async () => {
       try {
         const response = await postApi.getPosts({
-          author: Number(id),
+          author: Number(numericId),
           page_size: 20,
         });
         setProfessionalPosts(response.data.results || []);
@@ -56,11 +79,11 @@ export default function ProfessionalDetailScreen() {
     };
 
     fetchProfessionalPosts();
-  }, [id]);
+  }, [numericId]);
 
   useEffect(() => {
     fetchProfessionalDetails();
-  }, [id]);
+  }, [numericId]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -76,18 +99,18 @@ export default function ProfessionalDetailScreen() {
       setError(null);
 
       // Fetch professional profile
-      const professionalResponse = await providerApi.getProfessionalProfile(Number(id));
+      const professionalResponse = await providerApi.getProfessionalProfile(Number(numericId));
       const professionalData = professionalResponse.data;
 
       // Fetch professional services
       const servicesResponse = await serviceApi.getProfessionalServices({
-        professional: Number(id),
+        professional: Number(numericId),
         is_active: true,
       });
 
       // Fetch professional reviews
       const reviewsResponse = await reviewApi.listProfessionals({
-        professional: Number(id),
+        professional: Number(numericId),
         page_size: 10,
       });
 

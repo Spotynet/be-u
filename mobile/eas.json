@@ -1,0 +1,28 @@
+{
+    "cli": {
+        "version": ">= 5.9.0"
+    },
+    "build": {
+        "development": {
+            "developmentClient": true,
+            "distribution": "internal",
+            "env": {
+                "EXPO_PUBLIC_API_URL": "http://localhost:8000/api"
+            }
+        },
+        "preview": {
+            "distribution": "internal",
+            "env": {
+                "EXPO_PUBLIC_API_URL": "https://stg.be-u.ai/api"
+            }
+        },
+        "production": {
+            "env": {
+                "EXPO_PUBLIC_API_URL": "https://be-u.ai/api"
+            }
+        }
+    },
+    "submit": {
+        "production": {}
+    }
+}

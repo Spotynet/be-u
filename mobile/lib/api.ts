@@ -20,8 +20,24 @@ export interface ApiError {
   errors?: Record<string, string[]>;
 }
 
-// API Configuration
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000/api";
+// API Configuration with better fallback handling
+const getApiBaseUrl = () => {
+  // Check multiple sources for API URL
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  const defaultUrl = "http://localhost:8000/api";
+
+  // Log for debugging
+  console.log("🔧 Environment Configuration:", {
+    EXPO_PUBLIC_API_URL: envUrl,
+    NODE_ENV: process.env.NODE_ENV,
+    EXPO_PUBLIC_DEBUG: process.env.EXPO_PUBLIC_DEBUG,
+    Final_API_URL: envUrl || defaultUrl,
+  });
+
+  return envUrl || defaultUrl;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 const AUTH_TOKEN_KEY = "@auth_token";
 const REFRESH_TOKEN_KEY = "@refresh_token";
 
@@ -150,6 +166,20 @@ export const apiCall = async <T = any>(
     const axiosError = error as AxiosError;
     const errorData = axiosError.response?.data as any;
 
+    // Handle specific backend errors
+    if (errorData?.message?.includes("missing 1 required positional argument")) {
+      throw new Error(
+        "Registration data is incomplete. Please check all fields are filled correctly."
+      );
+    }
+
+    // Handle network errors
+    if (axiosError.code === "NETWORK_ERROR" || axiosError.message.includes("Network Error")) {
+      throw new Error(
+        "Network Error - Unable to connect to server. Please check your internet connection and try again."
+      );
+    }
+
     throw {
       message: errorData?.error || errorData?.message || axiosError.message || "An error occurred",
       status: axiosError.response?.status || 500,
@@ -184,8 +214,17 @@ export const authApi = {
       credentials
     ),
 
-  register: (userData: {email: string; password: string; firstName: string; lastName: string}) =>
-    api.post<{message: string; user: any}>("/auth/register/", userData),
+  register: (userData: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    username: string;
+  }) =>
+    api.post<{message: string; user: any; access: string; refresh: string}>(
+      "/auth/register/",
+      userData
+    ),
 
   logout: () => api.post("/auth/logout/"),
 

@@ -56,6 +56,8 @@ export default function Explore() {
       setIsLoading(true);
       setError(null);
 
+      console.log("🔍 Fetching providers from API...");
+
       // Fetch both professionals and places in parallel
       const [professionalsResponse, placesResponse] = await Promise.all([
         providerApi.getProfessionalProfiles({
@@ -217,14 +219,39 @@ export default function Explore() {
       console.log("🔍 First professional:", transformedProfessionals[0]);
       console.log("🔍 First place:", transformedPlaces[0]);
     } catch (err: any) {
-      console.error("❌ Error loading providers:", err);
-      setError(errorUtils.getErrorMessage(err) || "Error al cargar los datos");
+      console.error("❌ Error loading providers:", {
+        message: err.message,
+        code: err.code,
+        status: err.status,
+        response: err.response?.data,
+        stack: err.stack,
+      });
+
+      // Provide more specific error messages
+      let errorMessage = "Error al cargar los datos";
+      if (err.message?.includes("Network Error")) {
+        errorMessage = "Error de conexión. Verifica tu internet e intenta de nuevo.";
+      } else if (err.message?.includes("timeout")) {
+        errorMessage = "Tiempo de espera agotado. Intenta de nuevo.";
+      } else if (err.status === 404) {
+        errorMessage = "Servicio no encontrado. Contacta soporte.";
+      } else if (err.status >= 500) {
+        errorMessage = "Error del servidor. Intenta más tarde.";
+      }
+
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    // Debug environment variables
+    console.log("🔧 Explore Page Environment:", {
+      EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+      NODE_ENV: process.env.NODE_ENV,
+    });
+
     fetchProviders();
   }, []);
 

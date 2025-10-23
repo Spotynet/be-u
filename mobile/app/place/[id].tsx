@@ -29,6 +29,29 @@ export default function PlaceDetailScreen() {
   const router = useRouter();
   const {id} = useLocalSearchParams<{id: string}>();
 
+  // Extract numeric ID from the string (e.g., "place_0_1761200070463" -> "1761200070463")
+  const numericId = id?.includes("_") ? id.split("_").pop() : id;
+
+  // Validate that we have a valid numeric ID
+  if (!numericId || isNaN(Number(numericId))) {
+    return (
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
+        <View style={[styles.header, {backgroundColor: colors.background}]}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" color="#ef4444" size={64} />
+          <Text style={[styles.errorTitle, {color: colors.foreground}]}>Error</Text>
+          <Text style={[styles.errorText, {color: colors.mutedForeground}]}>
+            ID de establecimiento inválido
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   const [place, setPlace] = useState<PlaceProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +73,7 @@ export default function PlaceDetailScreen() {
       try {
         // Fetch posts from place and its professionals
         const [placePostsResponse, professionalPostsResponse] = await Promise.all([
-          postApi.getPosts({author: Number(id), page_size: 10}),
+          postApi.getPosts({author: Number(numericId), page_size: 10}),
           postApi.getPosts({page_size: 10}), // Get some general posts as fallback
         ]);
 
@@ -67,11 +90,11 @@ export default function PlaceDetailScreen() {
     };
 
     fetchPlacePosts();
-  }, [id]);
+  }, [numericId]);
 
   useEffect(() => {
     fetchPlaceDetails();
-  }, [id]);
+  }, [numericId]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -87,24 +110,24 @@ export default function PlaceDetailScreen() {
       setError(null);
 
       // Fetch place details
-      const placeResponse = await providerApi.getPlaceProfile(Number(id));
+      const placeResponse = await providerApi.getPlaceProfile(Number(numericId));
       const placeData = placeResponse.data;
 
       // Fetch place services
       const servicesResponse = await serviceApi.getPlaceServices({
-        place: Number(id),
+        place: Number(numericId),
         is_active: true,
       });
 
       // Fetch place reviews
       const reviewsResponse = await reviewApi.listPlaces({
-        place: Number(id),
+        place: Number(numericId),
         page_size: 10,
       });
 
       // Fetch place professionals
       const professionalsResponse = await providerApi.getProfessionalProfiles({
-        place: Number(id),
+        place: Number(numericId),
         page_size: 20,
       });
 
