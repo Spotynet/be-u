@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-t+roqsej)7g3t9t#@t1s&)b%i-7euhxd7_do1wjtz#6hpv20uc
 DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'stg.be-u.ai', 'be-u.ai', '*.be-u.ai']
-
+CORS_ALLOW_ALL_ORIGINS = True
 
 # Application definition
 
