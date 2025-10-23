@@ -6,6 +6,7 @@ import {ThemeVariantProvider} from "@/contexts/ThemeVariantContext";
 import {useEffect} from "react";
 import {AppState} from "react-native";
 import {tokenRefreshScheduler} from "@/lib/api";
+import {ErrorBoundary} from "@/components/ErrorBoundary";
 
 export default function RootLayout() {
   useEffect(() => {
@@ -22,18 +23,20 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <ThemeVariantProvider>
-          <AuthProvider>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-              }}
-            />
-          </AuthProvider>
-        </ThemeVariantProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <ThemeVariantProvider>
+            <AuthProvider>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                }}
+              />
+            </AuthProvider>
+          </ThemeVariantProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

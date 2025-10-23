@@ -26,15 +26,33 @@ const getApiBaseUrl = () => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
   const defaultUrl = "http://localhost:8000/api";
 
+  // For EAS builds, try to detect environment
+  const isEASBuild = process.env.EXPO_PUBLIC_EAS_BUILD === "true";
+  const isProduction = process.env.NODE_ENV === "production";
+
+  let finalUrl = envUrl || defaultUrl;
+
+  // Fallback logic for EAS builds
+  if (isEASBuild && !envUrl) {
+    if (isProduction) {
+      finalUrl = "https://be-u.ai/api";
+    } else {
+      finalUrl = "https://stg.be-u.ai/api";
+    }
+  }
+
   // Log for debugging
   console.log("🔧 Environment Configuration:", {
     EXPO_PUBLIC_API_URL: envUrl,
     NODE_ENV: process.env.NODE_ENV,
     EXPO_PUBLIC_DEBUG: process.env.EXPO_PUBLIC_DEBUG,
-    Final_API_URL: envUrl || defaultUrl,
+    EXPO_PUBLIC_EAS_BUILD: process.env.EXPO_PUBLIC_EAS_BUILD,
+    isEASBuild,
+    isProduction,
+    Final_API_URL: finalUrl,
   });
 
-  return envUrl || defaultUrl;
+  return finalUrl;
 };
 
 const API_BASE_URL = getApiBaseUrl();
