@@ -52,6 +52,12 @@ const getApiBaseUrl = () => {
     Final_API_URL: finalUrl,
   });
 
+  // Validate the final URL
+  if (!finalUrl || finalUrl === "undefined") {
+    console.error("🚨 CRITICAL: API URL is undefined or invalid:", finalUrl);
+    throw new Error("API URL is not properly configured. Please check environment variables.");
+  }
+
   return finalUrl;
 };
 

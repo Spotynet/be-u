@@ -7,6 +7,7 @@ import {useEffect} from "react";
 import {AppState} from "react-native";
 import {tokenRefreshScheduler} from "@/lib/api";
 import {ErrorBoundary} from "@/components/ErrorBoundary";
+import {FallbackErrorScreen} from "@/components/FallbackErrorScreen";
 
 export default function RootLayout() {
   useEffect(() => {
@@ -23,7 +24,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ErrorBoundary>
+    <ErrorBoundary fallback={<FallbackErrorScreen />}>
       <SafeAreaProvider>
         <ThemeProvider>
           <ThemeVariantProvider>

@@ -63,12 +63,25 @@ export class ErrorBoundary extends Component<Props, State> {
               configuration problem.
             </Text>
 
-            {__DEV__ && this.state.error && (
+            {/* Always show error details in EAS builds for debugging */}
+            {this.state.error && (
               <ScrollView style={styles.errorDetails}>
+                <Text style={styles.errorTitle}>Error Details:</Text>
                 <Text style={styles.errorText}>{this.state.error.toString()}</Text>
                 {this.state.errorInfo && (
-                  <Text style={styles.errorText}>{this.state.errorInfo.componentStack}</Text>
+                  <>
+                    <Text style={styles.errorTitle}>Component Stack:</Text>
+                    <Text style={styles.errorText}>{this.state.errorInfo.componentStack}</Text>
+                  </>
                 )}
+                <Text style={styles.errorTitle}>Environment Info:</Text>
+                <Text style={styles.errorText}>
+                  API URL: {process.env.EXPO_PUBLIC_API_URL || "Not set"}
+                </Text>
+                <Text style={styles.errorText}>Node ENV: {process.env.NODE_ENV || "Not set"}</Text>
+                <Text style={styles.errorText}>
+                  EAS Build: {process.env.EXPO_PUBLIC_EAS_BUILD || "Not set"}
+                </Text>
               </ScrollView>
             )}
 
@@ -119,10 +132,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     width: "100%",
   },
+  errorTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#dc2626",
+    marginTop: 8,
+    marginBottom: 4,
+  },
   errorText: {
     fontSize: 12,
     color: "#dc2626",
     fontFamily: "monospace",
+    lineHeight: 16,
   },
   retryButton: {
     backgroundColor: "#3b82f6",
