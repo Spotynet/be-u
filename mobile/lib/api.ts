@@ -21,7 +21,7 @@ export interface ApiError {
 }
 
 // API Configuration
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000/api";
+const API_BASE_URL = "http://localhost:8000/api";
 const AUTH_TOKEN_KEY = "@auth_token";
 const REFRESH_TOKEN_KEY = "@refresh_token";
 
