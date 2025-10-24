@@ -1,42 +1,21 @@
 {
-    "cli": {
-        "version": ">= 5.9.0"
+  "cli": {
+    "version": ">= 16.19.3",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
     },
-    "build": {
-        "development": {
-            "developmentClient": true,
-            "distribution": "internal",
-            "env": {
-                "EXPO_PUBLIC_API_URL": "http://localhost:8000/api",
-                "EXPO_PUBLIC_EAS_BUILD": "true",
-                "EXPO_PUBLIC_DEBUG": "true"
-            }
-        },
-        "preview": {
-            "distribution": "internal",
-            "env": {
-                "EXPO_PUBLIC_API_URL": "https://stg.be-u.ai/api",
-                "EXPO_PUBLIC_EAS_BUILD": "true",
-                "EXPO_PUBLIC_DEBUG": "true"
-            }
-        },
-        "staging": {
-            "distribution": "internal",
-            "env": {
-                "EXPO_PUBLIC_API_URL": "https://stg.be-u.ai/api",
-                "EXPO_PUBLIC_EAS_BUILD": "true",
-                "EXPO_PUBLIC_DEBUG": "true"
-            }
-        },
-        "production": {
-            "env": {
-                "EXPO_PUBLIC_API_URL": "https://be-u.ai/api",
-                "EXPO_PUBLIC_EAS_BUILD": "true",
-                "EXPO_PUBLIC_DEBUG": "false"
-            }
-        }
+    "preview": {
+      "distribution": "internal"
     },
-    "submit": {
-        "production": {}
+    "production": {
+      "autoIncrement": true
     }
+  },
+  "submit": {
+    "production": {}
+  }
 }
