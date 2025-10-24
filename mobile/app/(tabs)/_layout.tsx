@@ -3,7 +3,6 @@ import React from "react";
 import {Ionicons} from "@expo/vector-icons";
 
 import {HapticTab} from "@/components/haptic-tab";
-import BeUTab from "@/components/BeUTab";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
@@ -48,9 +47,8 @@ export default function TabLayout() {
         name="be-u"
         options={{
           title: "Be-U",
-          tabBarIcon: ({color, focused}) => <BeUTab focused={focused} onPress={() => {}} />,
-          tabBarButton: (props) => (
-            <BeUTab focused={props.accessibilityState?.selected || false} onPress={props.onPress} />
+          tabBarIcon: ({color, focused}) => (
+            <Ionicons name={focused ? "sparkles" : "sparkles-outline"} color={color} size={24} />
           ),
         }}
       />

@@ -8,7 +8,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import User
+from .serializers import UserSerializer
 import json
+import logging
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -33,14 +38,7 @@ def login_view(request):
                 'message': 'Login successful',
                 'access': str(access_token),
                 'refresh': str(refresh),
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'email': user.email,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'role': user.role,
-                }
+                'user': UserSerializer(user).data
             })
         else:
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -54,49 +52,101 @@ def login_view(request):
 @permission_classes([AllowAny])
 @csrf_exempt
 def register_view(request):
+    logger.info("=== REGISTRATION REQUEST STARTED ===")
+    logger.info(f"Request method: {request.method}")
+    logger.info(f"Request headers: {dict(request.headers)}")
+    logger.info(f"Request body (raw): {request.body}")
+    
     try:
         data = json.loads(request.body)
+        logger.info(f"Parsed JSON data: {data}")
+        
         email = data.get('email')
         password = data.get('password')
         first_name = data.get('firstName', '')
         last_name = data.get('lastName', '')
+        username = data.get('username', '')
         
-        if not email or not password:
-            return Response({'error': 'Email and password required'}, status=status.HTTP_400_BAD_REQUEST)
+        logger.info(f"Extracted fields:")
+        logger.info(f"  - email: {email}")
+        logger.info(f"  - password: {'*' * len(password) if password else 'None'}")
+        logger.info(f"  - first_name: {first_name}")
+        logger.info(f"  - last_name: {last_name}")
+        logger.info(f"  - username: {username}")
+        
+        if not email or not password or not username:
+            logger.warning("Missing required fields")
+            logger.warning(f"  - email present: {bool(email)}")
+            logger.warning(f"  - password present: {bool(password)}")
+            logger.warning(f"  - username present: {bool(username)}")
+            return Response({'error': 'Email, password, and username are required'}, status=status.HTTP_400_BAD_REQUEST)
         
         # Check if user already exists
+        logger.info("Checking if email already exists...")
         if User.objects.filter(email=email).exists():
+            logger.warning(f"Email {email} already exists in database")
             return Response({'error': 'User with this email already exists'}, status=status.HTTP_400_BAD_REQUEST)
+        logger.info("Email is available")
         
-        # Create user (username will be auto-generated from email in User.save())
+        # Check if username already exists
+        logger.info("Checking if username already exists...")
+        if User.objects.filter(username=username).exists():
+            logger.warning(f"Username {username} already exists in database")
+            return Response({'error': 'Username already exists'}, status=status.HTTP_400_BAD_REQUEST)
+        logger.info("Username is available")
+        
+        # Create user
+        logger.info("Creating user in database...")
+        logger.info(f"User creation parameters:")
+        logger.info(f"  - username: {username}")
+        logger.info(f"  - email: {email}")
+        logger.info(f"  - first_name: {first_name}")
+        logger.info(f"  - last_name: {last_name}")
+        
         user = User.objects.create_user(
+            username=username,
             email=email,
             password=password,
             first_name=first_name,
             last_name=last_name
         )
         
+        logger.info(f"User created successfully with ID: {user.id}")
+        logger.info(f"User details: {user}")
+        
         # Generate JWT tokens for new user
+        logger.info("Generating JWT tokens...")
         refresh = RefreshToken.for_user(user)
         access_token = refresh.access_token
+        logger.info("JWT tokens generated successfully")
         
-        return Response({
+        # Serialize user data
+        logger.info("Serializing user data...")
+        user_data = UserSerializer(user).data
+        logger.info(f"Serialized user data: {user_data}")
+        
+        response_data = {
             'message': 'User created successfully',
             'access': str(access_token),
             'refresh': str(refresh),
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'role': user.role,
-            }
-        }, status=status.HTTP_201_CREATED)
+            'user': user_data
+        }
         
-    except json.JSONDecodeError:
+        logger.info("=== REGISTRATION SUCCESSFUL ===")
+        logger.info(f"Response data: {response_data}")
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error: {e}")
+        logger.error(f"Request body that caused error: {request.body}")
         return Response({'error': 'Invalid JSON'}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
+        logger.error(f"Unexpected error during registration: {e}")
+        logger.error(f"Error type: {type(e)}")
+        logger.error(f"Error details: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])

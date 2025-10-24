@@ -26,6 +26,7 @@ export interface LoginCredentials {
 export interface RegisterData {
   firstName: string;
   lastName: string;
+  username: string;
   email: string;
   password: string;
   phoneNumber?: string;
@@ -69,4 +70,3 @@ export interface AuthContextType {
   error: string | null;
   clearError: () => void;
 }
-

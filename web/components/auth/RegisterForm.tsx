@@ -9,6 +9,7 @@ export const RegisterForm = () => {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
+    username: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -44,6 +45,7 @@ export const RegisterForm = () => {
       const registerData: RegisterData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
+        username: formData.username,
         email: formData.email,
         password: formData.password,
       };
@@ -120,6 +122,34 @@ export const RegisterForm = () => {
                     />
                   </svg>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Username Input */}
+          <div className="relative">
+            <label className="block text-foreground-secondary text-sm font-medium mb-2">
+              Nombre de Usuario
+            </label>
+            <div className="relative">
+              <input
+                name="username"
+                type="text"
+                required
+                placeholder="Tu nombre de usuario"
+                value={formData.username}
+                onChange={handleInputChange}
+                disabled={isLoading}
+                className="w-full bg-transparent border-0 border-b-2 border-primary/50 text-foreground placeholder-foreground-muted focus:border-primary focus:outline-none py-3 px-0 transition-colors"
+              />
+              <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
+                <svg className="w-5 h-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fillRule="evenodd"
+                    d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                    clipRule="evenodd"
+                  />
+                </svg>
               </div>
             </div>
           </div>
@@ -264,4 +294,3 @@ export const RegisterForm = () => {
     </div>
   );
 };
-
