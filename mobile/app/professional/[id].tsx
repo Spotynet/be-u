@@ -56,7 +56,9 @@ export default function ProfessionalDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showBookingFlow, setShowBookingFlow] = useState(false);
   const [selectedService, setSelectedService] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"servicios" | "opiniones" | "posts">("servicios");
+  const [activeTab, setActiveTab] = useState<"servicios" | "opiniones" | "posts" | "personalizar">(
+    "servicios"
+  );
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -425,6 +427,23 @@ export default function ProfessionalDetailScreen() {
                 Opiniones
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                activeTab === "personalizar" && [
+                  styles.activeTab,
+                  {borderBottomColor: colors.primary},
+                ],
+              ]}
+              onPress={() => setActiveTab("personalizar")}>
+              <Text
+                style={[
+                  styles.tabText,
+                  {color: activeTab === "personalizar" ? colors.primary : colors.mutedForeground},
+                ]}>
+                Personalizar
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Tab Content */}
@@ -563,6 +582,83 @@ export default function ProfessionalDetailScreen() {
                   </Text>
                 </View>
               )}
+            </View>
+          )}
+
+          {activeTab === "personalizar" && (
+            <View style={[styles.personalizarSection, {backgroundColor: colors.card}]}>
+              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+                Personalizar Perfil
+              </Text>
+              <Text style={[styles.sectionSubtitle, {color: colors.mutedForeground}]}>
+                Personaliza tu perfil para atraer más clientes
+              </Text>
+
+              {/* Image Gallery Section */}
+              <View style={styles.personalizarCard}>
+                <View style={styles.personalizarCardHeader}>
+                  <Ionicons name="images" color={colors.primary} size={20} />
+                  <Text style={[styles.personalizarCardTitle, {color: colors.foreground}]}>
+                    Galería de Imágenes (0/10)
+                  </Text>
+                </View>
+                <Text style={[styles.personalizarCardDescription, {color: colors.mutedForeground}]}>
+                  Agrega imágenes de tu trabajo para mostrar a los clientes
+                </Text>
+                <View style={styles.imageGalleryPlaceholder}>
+                  <Ionicons name="image-outline" color={colors.mutedForeground} size={48} />
+                  <Text style={[styles.placeholderText, {color: colors.mutedForeground}]}>
+                    No hay imágenes
+                  </Text>
+                  <Text style={[styles.placeholderSubtext, {color: colors.mutedForeground}]}>
+                    Agrega imágenes de tu trabajo para atraer más clientes
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.addImageButton, {backgroundColor: colors.primary}]}
+                  activeOpacity={0.8}>
+                  <Ionicons name="camera" color="#ffffff" size={20} />
+                  <Text style={styles.addImageButtonText}>Agregar Primera Imagen</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Services Management Section */}
+              <View style={styles.personalizarCard}>
+                <View style={styles.personalizarCardHeader}>
+                  <Ionicons name="briefcase" color={colors.primary} size={20} />
+                  <Text style={[styles.personalizarCardTitle, {color: colors.foreground}]}>
+                    Mis Servicios
+                  </Text>
+                </View>
+                <Text style={[styles.personalizarCardDescription, {color: colors.mutedForeground}]}>
+                  Gestiona los servicios que ofreces
+                </Text>
+                <TouchableOpacity
+                  style={[styles.manageButton, {backgroundColor: colors.primary}]}
+                  activeOpacity={0.8}>
+                  <Text style={styles.manageButtonText}>Gestionar Servicios</Text>
+                  <Ionicons name="chevron-forward" color="#ffffff" size={16} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Availability Section */}
+              <View style={styles.personalizarCard}>
+                <View style={styles.personalizarCardHeader}>
+                  <Ionicons name="calendar" color={colors.primary} size={20} />
+                  <Text style={[styles.personalizarCardTitle, {color: colors.foreground}]}>
+                    Disponibilidad
+                  </Text>
+                </View>
+                <Text style={[styles.personalizarCardDescription, {color: colors.mutedForeground}]}>
+                  Configura tus horarios de trabajo
+                </Text>
+                <TouchableOpacity
+                  style={[styles.manageButton, {backgroundColor: colors.primary}]}
+                  activeOpacity={0.8}>
+                  <Text style={styles.manageButtonText}>Configurar Horarios</Text>
+                  <Ionicons name="chevron-forward" color="#ffffff" size={16} />
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </Animated.View>
@@ -1010,5 +1106,81 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     resizeMode: "cover",
+  },
+  // Personalizar Section Styles
+  personalizarSection: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+    padding: 24,
+    borderRadius: 16,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  personalizarCard: {
+    marginBottom: 20,
+    padding: 20,
+    borderRadius: 12,
+    backgroundColor: "rgba(139, 92, 246, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.1)",
+  },
+  personalizarCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  personalizarCardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  personalizarCardDescription: {
+    fontSize: 14,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  imageGalleryPlaceholder: {
+    alignItems: "center",
+    paddingVertical: 32,
+    gap: 8,
+  },
+  placeholderText: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  placeholderSubtext: {
+    fontSize: 14,
+    textAlign: "center",
+  },
+  addImageButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 16,
+  },
+  addImageButtonText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  manageButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  manageButtonText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

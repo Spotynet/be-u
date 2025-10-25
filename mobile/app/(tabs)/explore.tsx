@@ -58,27 +58,52 @@ export default function Explore() {
 
       console.log("🔍 Fetching providers from API...");
 
-      // Fetch both professionals and places in parallel
-      const [professionalsResponse, placesResponse] = await Promise.all([
-        providerApi.getProfessionalProfiles({
-          page: 1,
-          page_size: 20,
-        }),
-        providerApi.getPlaceProfiles({
-          page: 1,
-          page_size: 20,
-        }),
+      // Function to fetch all pages of data
+      const fetchAllPages = async (apiCall: any, initialParams: any) => {
+        let allResults: any[] = [];
+        let page = 1;
+        let hasNext = true;
+
+        while (hasNext) {
+          try {
+            const response = await apiCall({
+              ...initialParams,
+              page,
+              page_size: 50, // Use smaller page size for better performance
+            });
+
+            const results = response.data.results || [];
+            allResults = [...allResults, ...results];
+
+            // Check if there are more pages
+            hasNext = response.data.next !== null && response.data.next !== undefined;
+            page++;
+
+            // Safety check to prevent infinite loops
+            if (page > 10) {
+              console.log("🔍 Safety limit reached, stopping pagination");
+              break;
+            }
+          } catch (error) {
+            console.error("🔍 Error fetching page", page, error);
+            break;
+          }
+        }
+
+        return allResults;
+      };
+
+      // Fetch all professionals and places
+      const [allProfessionals, allPlaces] = await Promise.all([
+        fetchAllPages(providerApi.getProfessionalProfiles, {}),
+        fetchAllPages(providerApi.getPlaceProfiles, {}),
       ]);
 
-      console.log(
-        "🔍 Raw professionals response:",
-        JSON.stringify(professionalsResponse.data, null, 2)
-      );
-      console.log("🔍 Raw places response:", JSON.stringify(placesResponse.data, null, 2));
+      console.log("🔍 Total professionals fetched:", allProfessionals.length);
+      console.log("🔍 Total places fetched:", allPlaces.length);
 
       // Transform professionals data
-      const professionalsData = professionalsResponse.data.results || [];
-      const transformedProfessionals = professionalsData.map((prof: any, index: number) => ({
+      const transformedProfessionals = allProfessionals.map((prof: any, index: number) => ({
         id: `prof_${index}_${Date.now()}`, // Ensure completely unique ID
         user_id: prof.user?.id || prof.id,
         email: prof.user?.email || "",
@@ -100,8 +125,7 @@ export default function Explore() {
       }));
 
       // Transform places data
-      const placesData = placesResponse.data.results || [];
-      const transformedPlaces = placesData.map((place: any, index: number) => ({
+      const transformedPlaces = allPlaces.map((place: any, index: number) => ({
         id: `place_${index}_${Date.now()}`, // Ensure completely unique ID
         user_id: place.id,
         email: "",
@@ -135,6 +159,10 @@ export default function Explore() {
 
       console.log("🔍 Setting professionals:", transformedProfessionals.length);
       console.log("🔍 Setting places:", transformedPlaces.length);
+      console.log(
+        "🔍 Total items to display:",
+        transformedProfessionals.length + transformedPlaces.length
+      );
 
       // Add mock data if API returns empty results
       if (transformedProfessionals.length === 0) {

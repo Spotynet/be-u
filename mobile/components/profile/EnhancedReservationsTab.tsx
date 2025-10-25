@@ -18,7 +18,6 @@ import {useReservations, useIncomingReservations} from "@/features/reservations"
 import {CalendarView, ReservationCard} from "@/components/calendar";
 import {Reservation} from "@/types/global";
 import {Alert} from "react-native";
-import {ProfileCustomizationTab} from "./ProfileCustomizationTab";
 
 interface EnhancedReservationsTabProps {
   userRole: "CLIENT" | "PROFESSIONAL" | "PLACE";
@@ -32,7 +31,6 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
 
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | undefined>();
-  const [showCustomization, setShowCustomization] = useState(false);
 
   // For clients
   const {
@@ -320,38 +318,6 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
         </View>
       )}
 
-      {/* Profile Customization Section (for providers) */}
-      {isProvider && (
-        <View
-          style={[
-            styles.customizationSection,
-            {backgroundColor: colors.card, borderColor: colors.border},
-          ]}>
-          <TouchableOpacity
-            style={styles.customizationHeader}
-            onPress={() => setShowCustomization(!showCustomization)}
-            activeOpacity={0.7}>
-            <View style={styles.customizationHeaderLeft}>
-              <Ionicons name="settings-outline" size={20} color={colors.primary} />
-              <Text style={[styles.customizationHeaderText, {color: colors.foreground}]}>
-                Personalizar Perfil
-              </Text>
-            </View>
-            <Ionicons
-              name={showCustomization ? "chevron-up" : "chevron-down"}
-              size={20}
-              color={colors.mutedForeground}
-            />
-          </TouchableOpacity>
-
-          {showCustomization && (
-            <View style={styles.customizationContent}>
-              <ProfileCustomizationTab />
-            </View>
-          )}
-        </View>
-      )}
-
       {/* Reservations List */}
       {filteredReservations.length === 0 ? (
         renderEmptyState()
@@ -494,31 +460,5 @@ const styles = StyleSheet.create({
   },
   reservationsList: {
     padding: 16,
-  },
-  customizationSection: {
-    margin: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  customizationHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  customizationHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  customizationHeaderText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  customizationContent: {
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
   },
 });
