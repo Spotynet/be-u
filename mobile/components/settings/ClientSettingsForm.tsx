@@ -20,20 +20,20 @@ export const ClientSettingsForm = ({user, profile, onSave, isLoading}: ClientSet
   const [firstName, setFirstName] = useState((user as any).firstName || (user as any).first_name);
   const [lastName, setLastName] = useState((user as any).lastName || (user as any).last_name);
   const [email, setEmail] = useState(user.email);
-  const [phone, setPhone] = useState(profile?.phone || "");
+  const [phone, setPhone] = useState(user.phone || "");
 
   useEffect(() => {
     setFirstName((user as any).firstName || (user as any).first_name);
     setLastName((user as any).lastName || (user as any).last_name);
     setEmail(user.email);
-    setPhone(profile?.phone || "");
+    setPhone(user.phone || "");
   }, [
     user.email,
+    user.phone,
     (user as any).firstName,
     (user as any).first_name,
     (user as any).lastName,
     (user as any).last_name,
-    profile?.phone,
   ]);
 
   const handleSave = async () => {
@@ -41,11 +41,10 @@ export const ClientSettingsForm = ({user, profile, onSave, isLoading}: ClientSet
       firstName,
       lastName,
       email,
-    };
-
-    const profileData = {
       phone,
     };
+
+    const profileData = {};
 
     await onSave(userData, profileData);
   };

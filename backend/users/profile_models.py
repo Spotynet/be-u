@@ -1,8 +1,22 @@
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.conf import settings
+from storages.backends.s3boto3 import S3Boto3Storage
 from .models import ProfessionalProfile, PlaceProfile
 import uuid
+
+
+# Custom S3 storage for profile images (same as posts)
+class ProfileImageStorage(S3Boto3Storage):
+    bucket_name = settings.AWS_STORAGE_BUCKET_NAME
+    custom_domain = settings.AWS_S3_CUSTOM_DOMAIN
+    location = 'media'
+    default_acl = None  # Use bucket policy instead of ACLs
+    # Avoid HEAD requests (exists checks) that can fail with 403 on some bucket policies
+    # We generate unique filenames for uploads, so overwrite risk is negligible
+    file_overwrite = True
+    querystring_auth = True  # Use signed URLs for access
 
 
 class ProfileImage(models.Model):
@@ -13,7 +27,7 @@ class ProfileImage(models.Model):
     object_id = models.PositiveIntegerField()
     profile = GenericForeignKey('content_type', 'object_id')
     
-    image = models.ImageField(upload_to="profile_images/")
+    image = models.ImageField(upload_to="profile_images/", storage=ProfileImageStorage())
     caption = models.CharField(max_length=200, blank=True, null=True)
     is_primary = models.BooleanField(default=False, help_text="Primary image for the profile")
     order = models.PositiveIntegerField(default=0, help_text="Display order")
@@ -102,6 +116,8 @@ class TimeSlot(models.Model):
     
     def __str__(self):
         return f"{self.schedule.get_day_of_week_display()}: {self.start_time} - {self.end_time}"
+
+
 
 
 

@@ -398,7 +398,11 @@ export default function DiscoverScreen() {
         <TouchableOpacity
           style={[styles.actionButton, styles.superLikeButton, {backgroundColor: "#1e90ff"}]}
           activeOpacity={0.9}>
-          <Ionicons name="star" color="#ffffff" size={28} />
+          <Image
+            source={require("@/assets/images/BE-U-white.png")}
+            style={styles.superLikeIcon}
+            resizeMode="contain"
+          />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -706,6 +710,10 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
+  },
+  superLikeIcon: {
+    width: 28,
+    height: 28,
   },
 
   // Empty State

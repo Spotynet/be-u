@@ -23,6 +23,7 @@ export const ProfessionalSettingsForm = ({
   const {colors} = useThemeVariant();
 
   const [email, setEmail] = useState(user.email);
+  const [phone, setPhone] = useState(user.phone || "");
   const [name, setName] = useState(
     (user as any).firstName || (user as any).first_name || profile?.name || ""
   );
@@ -40,6 +41,7 @@ export const ProfessionalSettingsForm = ({
       console.log("ProfessionalSettingsForm - Profile data:", profile);
 
       setEmail(user.email);
+      setPhone(user.phone || "");
       setName((user as any).firstName || (user as any).first_name || profile?.name || "");
       setLastName((user as any).lastName || (user as any).last_name || profile?.last_name || "");
       setBio(profile?.bio || "");
@@ -48,6 +50,7 @@ export const ProfessionalSettingsForm = ({
     }
   }, [
     user.email,
+    user.phone,
     (user as any).firstName,
     (user as any).first_name,
     (user as any).lastName,
@@ -62,6 +65,7 @@ export const ProfessionalSettingsForm = ({
   const handleSave = async () => {
     const userData = {
       email,
+      phone,
       firstName: name,
       lastName: lastName,
     };
@@ -187,6 +191,25 @@ export const ProfessionalSettingsForm = ({
               placeholderTextColor={colors.mutedForeground}
               keyboardType="email-address"
               autoCapitalize="none"
+            />
+          </View>
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Teléfono</Text>
+          <View
+            style={[
+              styles.inputContainer,
+              {backgroundColor: colors.card, borderColor: colors.border},
+            ]}>
+            <Ionicons name="call-outline" color={colors.mutedForeground} size={18} />
+            <TextInput
+              style={[styles.input, {color: colors.foreground}]}
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="+1234567890"
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="phone-pad"
             />
           </View>
         </View>

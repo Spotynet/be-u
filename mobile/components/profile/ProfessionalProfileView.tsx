@@ -7,12 +7,16 @@ import {
   Image,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {User, ProfessionalProfile} from "@/types/global";
 import {useRouter} from "expo-router";
+import {useState, useEffect} from "react";
+import {profileCustomizationApi} from "@/lib/api";
 import {ProfileTabs} from "./ProfileTabs";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
@@ -36,9 +40,37 @@ export const ProfessionalProfileView = ({
   portfolio = [],
 }: ProfessionalProfileViewProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const router = useRouter();
   const isDark = colorScheme === "dark";
+
+  const [customServices, setCustomServices] = useState<any[]>([]);
+  const [customImages, setCustomImages] = useState<any[]>([]);
+  const [loadingCustomization, setLoadingCustomization] = useState(false);
+
+  useEffect(() => {
+    loadCustomizationData();
+  }, []);
+
+  const loadCustomizationData = async () => {
+    try {
+      setLoadingCustomization(true);
+      const [servicesResponse, imagesResponse] = await Promise.all([
+        profileCustomizationApi.getCustomServices(),
+        profileCustomizationApi.getProfileImages(),
+      ]);
+      setCustomServices(servicesResponse.data || []);
+      setCustomImages(imagesResponse.data || []);
+    } catch (error) {
+      console.log("Customization data not available:", error);
+    } finally {
+      setLoadingCustomization(false);
+    }
+  };
+
+  // Use custom services if available, otherwise fall back to passed services
+  const displayServices = customServices.length > 0 ? customServices : services;
+  const displayPortfolio = customImages.length > 0 ? customImages : portfolio;
 
   const getInitials = (firstName?: string, lastName?: string) => {
     const first = firstName?.charAt(0) || "";
@@ -141,9 +173,9 @@ export const ProfessionalProfileView = ({
           </TouchableOpacity>
         </View>
 
-        {services.length > 0 ? (
+        {displayServices.length > 0 ? (
           <>
-            {services.map((service) => (
+            {displayServices.map((service) => (
               <TouchableOpacity
                 key={service.id}
                 style={[
@@ -211,7 +243,7 @@ export const ProfessionalProfileView = ({
       </View>
 
       {/* Portfolio Section */}
-      {portfolio.length > 0 && (
+      {displayPortfolio.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleContainer}>
@@ -223,9 +255,9 @@ export const ProfessionalProfileView = ({
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.portfolioScroll}>
-            {portfolio.map((item, index) => (
+            {displayPortfolio.map((item, index) => (
               <View key={index} style={[styles.portfolioItem, {backgroundColor: colors.card}]}>
-                <Image source={{uri: item.image}} style={styles.portfolioImage} />
+                <Image source={{uri: item.image_url || item.image}} style={styles.portfolioImage} />
               </View>
             ))}
           </ScrollView>

@@ -15,7 +15,7 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
 import {useRouter, useLocalSearchParams} from "expo-router";
-import {providerApi, serviceApi, reviewApi, postApi} from "@/lib/api";
+import {providerApi, serviceApi, reviewApi, postApi, profileCustomizationApi} from "@/lib/api";
 import {PlaceProfile} from "@/types/global";
 import {BookingFlow} from "@/components/booking/BookingFlow";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
@@ -62,6 +62,11 @@ export default function PlaceDetailScreen() {
   >("servicios");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("todos");
+
+  // Profile customization data
+  const [profileImages, setProfileImages] = useState<any[]>([]);
+  const [customServices, setCustomServices] = useState<any[]>([]);
+  const [availabilitySchedule, setAvailabilitySchedule] = useState<any[]>([]);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -173,6 +178,22 @@ export default function PlaceDetailScreen() {
           photos: review.photos || [],
         })),
       };
+
+      // Fetch profile customization data
+      try {
+        const [imagesResponse, servicesResponse, availabilityResponse] = await Promise.all([
+          profileCustomizationApi.getProfileImages(),
+          profileCustomizationApi.getCustomServices(),
+          profileCustomizationApi.getAvailabilitySchedule(),
+        ]);
+
+        setProfileImages(imagesResponse.data || []);
+        setCustomServices(servicesResponse.data || []);
+        setAvailabilitySchedule(availabilityResponse.data || []);
+      } catch (customizationError) {
+        console.log("Profile customization data not available:", customizationError);
+        // Don't fail the entire request if customization data is not available
+      }
 
       setPlace(transformedPlace);
     } catch (err: any) {
@@ -713,6 +734,10 @@ export default function PlaceDetailScreen() {
                 </View>
                 <TouchableOpacity
                   style={[styles.addImageButton, {backgroundColor: colors.primary}]}
+                  onPress={() => {
+                    // Navigate to profile customization or show image picker
+                    console.log("Add image functionality - implement as needed");
+                  }}
                   activeOpacity={0.8}>
                   <Ionicons name="camera" color="#ffffff" size={20} />
                   <Text style={styles.addImageButtonText}>Agregar Primera Imagen</Text>
@@ -732,6 +757,10 @@ export default function PlaceDetailScreen() {
                 </Text>
                 <TouchableOpacity
                   style={[styles.manageButton, {backgroundColor: colors.primary}]}
+                  onPress={() => {
+                    // Navigate to service management screen
+                    router.push("/profile/services");
+                  }}
                   activeOpacity={0.8}>
                   <Text style={styles.manageButtonText}>Gestionar Servicios</Text>
                   <Ionicons name="chevron-forward" color="#ffffff" size={16} />

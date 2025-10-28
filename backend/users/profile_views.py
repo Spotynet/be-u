@@ -1,7 +1,8 @@
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.contrib.contenttypes.models import ContentType
 from django.shortcuts import get_object_or_404
 from .models import ProfessionalProfile, PlaceProfile
@@ -14,11 +15,27 @@ import json
 
 
 def get_profile_instance(user):
-    """Get the profile instance based on user role"""
+    """Get the profile instance based on user role, create if doesn't exist"""
     if user.role == 'PROFESSIONAL':
-        return get_object_or_404(ProfessionalProfile, user=user)
+        profile, created = ProfessionalProfile.objects.get_or_create(
+            user=user,
+            defaults={
+                'name': user.first_name or 'Professional',
+                'last_name': user.last_name or 'User'
+            }
+        )
+        return profile
     elif user.role == 'PLACE':
-        return get_object_or_404(PlaceProfile, user=user)
+        profile, created = PlaceProfile.objects.get_or_create(
+            user=user,
+            defaults={
+                'name': user.first_name or 'Place',
+                'street': 'TBD',
+                'postal_code': '00000',
+                'owner': user
+            }
+        )
+        return profile
     else:
         return None
 
@@ -35,12 +52,13 @@ def get_content_type_and_id(profile):
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
 def profile_images_view(request):
     """Get or create profile images"""
     profile = get_profile_instance(request.user)
     if not profile:
         return Response(
-            {"error": "Profile customization only available for professionals and places"}, 
+            {"error": f"Profile customization only available for professionals and places. Current role: {request.user.role}"}, 
             status=status.HTTP_403_FORBIDDEN
         )
     
@@ -107,7 +125,7 @@ def custom_services_view(request):
     profile = get_profile_instance(request.user)
     if not profile:
         return Response(
-            {"error": "Profile customization only available for professionals and places"}, 
+            {"error": f"Profile customization only available for professionals and places. Current role: {request.user.role}"}, 
             status=status.HTTP_403_FORBIDDEN
         )
     
@@ -171,7 +189,7 @@ def availability_schedule_view(request):
     profile = get_profile_instance(request.user)
     if not profile:
         return Response(
-            {"error": "Profile customization only available for professionals and places"}, 
+            {"error": f"Profile customization only available for professionals and places. Current role: {request.user.role}"}, 
             status=status.HTTP_403_FORBIDDEN
         )
     
@@ -233,7 +251,7 @@ def profile_customization_view(request):
     profile = get_profile_instance(request.user)
     if not profile:
         return Response(
-            {"error": "Profile customization only available for professionals and places"}, 
+            {"error": f"Profile customization only available for professionals and places. Current role: {request.user.role}"}, 
             status=status.HTTP_403_FORBIDDEN
         )
     
@@ -266,6 +284,8 @@ def profile_customization_view(request):
         'services': services_data,
         'availability': schedules_data
     })
+
+
 
 
 

@@ -20,13 +20,23 @@ class AvailabilityScheduleSerializer(serializers.ModelSerializer):
 
 
 class ProfileImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+    
     class Meta:
         model = ProfileImage
-        fields = ['id', 'image', 'caption', 'is_primary', 'order', 'is_active']
+        fields = ['id', 'image', 'image_url', 'caption', 'is_primary', 'order', 'is_active']
         read_only_fields = ['id']
+    
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None
 
 
 class CustomServiceSerializer(serializers.ModelSerializer):
+    category = serializers.CharField(default='Otros', required=False)
+    is_active = serializers.BooleanField(default=True, required=False)
+    
     class Meta:
         model = CustomService
         fields = [
@@ -49,6 +59,8 @@ class ProfileCustomizationSerializer(serializers.Serializer):
     def update(self, instance, validated_data):
         # This will be handled in the view
         pass
+
+
 
 
 

@@ -18,7 +18,10 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
   const {colors} = useThemeVariant();
 
   const [email, setEmail] = useState(user.email);
+  const [phone, setPhone] = useState(user.phone || "");
   const [name, setName] = useState(profile?.name || "");
+  const [bio, setBio] = useState(profile?.bio || "");
+  const [description, setDescription] = useState(profile?.description || "");
   const [street, setStreet] = useState(profile?.street || "");
   const [numberExt, setNumberExt] = useState(profile?.number_ext || "");
   const [numberInt, setNumberInt] = useState(profile?.number_int || "");
@@ -28,7 +31,10 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
 
   useEffect(() => {
     setEmail(user.email);
+    setPhone(user.phone || "");
     setName(profile?.name || "");
+    setBio(profile?.bio || "");
+    setDescription(profile?.description || "");
     setStreet(profile?.street || "");
     setNumberExt(profile?.number_ext || "");
     setNumberInt(profile?.number_int || "");
@@ -37,7 +43,10 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
     setCountry(profile?.country || "");
   }, [
     user.email,
+    user.phone,
     profile?.name,
+    profile?.bio,
+    profile?.description,
     profile?.street,
     profile?.number_ext,
     profile?.number_int,
@@ -49,10 +58,13 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
   const handleSave = async () => {
     const userData = {
       email,
+      phone,
     };
 
     const profileData = {
       name,
+      bio,
+      description,
       street,
       number_ext: numberExt,
       number_int: numberInt,
@@ -94,6 +106,60 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
         </View>
 
         <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Biografía</Text>
+          <View
+            style={[
+              styles.inputContainer,
+              styles.textAreaContainer,
+              {backgroundColor: colors.card, borderColor: colors.border},
+            ]}>
+            <Ionicons
+              name="person-outline"
+              color={colors.mutedForeground}
+              size={18}
+              style={styles.textAreaIcon}
+            />
+            <TextInput
+              style={[styles.input, styles.textArea, {color: colors.foreground}]}
+              value={bio}
+              onChangeText={setBio}
+              placeholder="Cuéntanos sobre ti y tu experiencia..."
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+          </View>
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Descripción</Text>
+          <View
+            style={[
+              styles.inputContainer,
+              styles.textAreaContainer,
+              {backgroundColor: colors.card, borderColor: colors.border},
+            ]}>
+            <Ionicons
+              name="document-text-outline"
+              color={colors.mutedForeground}
+              size={18}
+              style={styles.textAreaIcon}
+            />
+            <TextInput
+              style={[styles.input, styles.textArea, {color: colors.foreground}]}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Describe tu negocio y servicios..."
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+          </View>
+        </View>
+
+        <View style={styles.formGroup}>
           <Text style={[styles.label, {color: colors.foreground}]}>Email del Negocio</Text>
           <View
             style={[
@@ -109,6 +175,25 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
               placeholderTextColor={colors.mutedForeground}
               keyboardType="email-address"
               autoCapitalize="none"
+            />
+          </View>
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Teléfono</Text>
+          <View
+            style={[
+              styles.inputContainer,
+              {backgroundColor: colors.card, borderColor: colors.border},
+            ]}>
+            <Ionicons name="call-outline" color={colors.mutedForeground} size={18} />
+            <TextInput
+              style={[styles.input, {color: colors.foreground}]}
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="+1234567890"
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="phone-pad"
             />
           </View>
         </View>
@@ -307,6 +392,17 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     fontSize: 15,
+  },
+  textAreaContainer: {
+    alignItems: "flex-start",
+    paddingVertical: 12,
+  },
+  textAreaIcon: {
+    marginTop: 4,
+  },
+  textArea: {
+    minHeight: 100,
+    paddingTop: 0,
   },
   saveButton: {
     flexDirection: "row",

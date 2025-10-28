@@ -6,6 +6,8 @@ import {
   ActivityIndicator,
   Image,
   Animated,
+  Alert,
+  Platform,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
@@ -15,7 +17,9 @@ import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useUserProfile} from "@/features/users/hooks/useUserProfile";
 import {ProfileTabs} from "@/components/profile";
 import {useRouter} from "expo-router";
-import {useState, useRef} from "react";
+import {useState, useRef, useEffect} from "react";
+import * as ImagePicker from "expo-image-picker";
+import {profileCustomizationApi} from "@/lib/api";
 
 export default function Perfil() {
   const colorScheme = useColorScheme();
@@ -31,6 +35,29 @@ export default function Perfil() {
     "imagenes" | "servicios" | "disponibilidad"
   >("imagenes");
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const [uploading, setUploading] = useState(false);
+  const [profileImages, setProfileImages] = useState<any[]>([]);
+  const [imagesLoading, setImagesLoading] = useState(false);
+
+  // Fetch profile images
+  const fetchProfileImages = async () => {
+    try {
+      setImagesLoading(true);
+      const response = await profileCustomizationApi.getProfileImages();
+      setProfileImages(response.data || []);
+    } catch (error) {
+      console.error("Error fetching profile images:", error);
+    } finally {
+      setImagesLoading(false);
+    }
+  };
+
+  // Load profile images when component mounts or when personalizar section opens
+  useEffect(() => {
+    if (isPersonalizarExpanded && activePersonalizarTab === "imagenes") {
+      fetchProfileImages();
+    }
+  }, [isPersonalizarExpanded, activePersonalizarTab]);
 
   const handleLogout = async () => {
     try {
@@ -45,6 +72,66 @@ export default function Perfil() {
     const first = firstName?.charAt(0) || "";
     const last = lastName?.charAt(0) || "";
     return `${first}${last}`.toUpperCase() || "U";
+  };
+
+  const requestPermissions = async () => {
+    const {status} = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permisos requeridos", "Necesitamos acceso a tu galería para subir imágenes.", [
+        {text: "OK"},
+      ]);
+      return false;
+    }
+    return true;
+  };
+
+  const pickImage = async () => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setUploading(true);
+      try {
+        const formData = new FormData();
+
+        if (Platform.OS === "web") {
+          // On web, convert URI to Blob/File object
+          const res = await fetch(result.assets[0].uri);
+          const blob = await res.blob();
+          const mimeType = blob.type || "image/jpeg";
+          const ext = (mimeType.split("/")[1] || "jpg").replace("jpeg", "jpg");
+          const file = new File([blob], `profile_image_${Date.now()}.${ext}`, {type: mimeType});
+          formData.append("image", file);
+        } else {
+          // On native, use the React Native file descriptor
+          const uriParts = result.assets[0].uri.split(".");
+          const fileType = uriParts[uriParts.length - 1] || "jpg";
+          const rnFile = {
+            uri: result.assets[0].uri,
+            type: `image/${fileType === "jpg" ? "jpeg" : fileType}`,
+            name: `profile_image_${Date.now()}.${fileType}`,
+          } as any;
+          formData.append("image", rnFile);
+        }
+
+        await profileCustomizationApi.uploadProfileImage(formData);
+        // Refresh profile images to show new image
+        await fetchProfileImages();
+        Alert.alert("Éxito", "Imagen subida correctamente");
+      } catch (error) {
+        console.error("Error uploading image:", error);
+        Alert.alert("Error", "No se pudo subir la imagen. Inténtalo de nuevo.");
+      } finally {
+        setUploading(false);
+      }
+    }
   };
 
   const displayName = user
@@ -165,6 +252,15 @@ export default function Perfil() {
           </View>
           <View style={styles.headerTextContainer}>
             <Text style={[styles.headerTitle, {color: colors.foreground}]}>{displayName}</Text>
+            <Text style={[styles.headerRole, {color: colors.mutedForeground}]}>
+              {user?.role === "PROFESSIONAL"
+                ? "Profesional"
+                : user?.role === "PLACE"
+                ? "Establecimiento"
+                : user?.role === "CLIENT"
+                ? "Cliente"
+                : "Usuario"}
+            </Text>
             {/* Personalizar Perfil Button */}
             <TouchableOpacity
               style={[
@@ -182,6 +278,26 @@ export default function Perfil() {
                 size={16}
               />
             </TouchableOpacity>
+
+            {/* Ver como cliente Button - Only show for PROFESSIONAL and PLACE roles */}
+            {(user?.role === "PROFESSIONAL" || user?.role === "PLACE") && (
+              <TouchableOpacity
+                style={[styles.previewButton, {borderColor: colors.primary, borderWidth: 1}]}
+                onPress={() => {
+                  // Navigate to public profile view based on role
+                  if (user?.role === "PROFESSIONAL" && profile?.id) {
+                    router.push(`/professional/${profile.id}`);
+                  } else if (user?.role === "PLACE" && profile?.id) {
+                    router.push(`/place/${profile.id}`);
+                  }
+                }}
+                activeOpacity={0.8}>
+                <Ionicons name="eye-outline" color={colors.primary} size={16} />
+                <Text style={[styles.previewButtonText, {color: colors.primary}]}>
+                  Ver como cliente
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
         <View style={styles.headerActions}>
@@ -301,25 +417,62 @@ export default function Perfil() {
             {activePersonalizarTab === "imagenes" && (
               <View style={styles.personalizarCard}>
                 <Text style={[styles.personalizarCardTitle, {color: colors.foreground}]}>
-                  Galería de Imágenes (0/10)
+                  Galería de Imágenes ({profileImages.length}/10)
                 </Text>
                 <Text style={[styles.personalizarCardDescription, {color: colors.mutedForeground}]}>
                   Agrega imágenes de tu trabajo para mostrar a los clientes
                 </Text>
-                <View style={styles.imageGalleryPlaceholder}>
-                  <Ionicons name="image-outline" color={colors.mutedForeground} size={48} />
-                  <Text style={[styles.placeholderText, {color: colors.mutedForeground}]}>
-                    No hay imágenes
-                  </Text>
-                  <Text style={[styles.placeholderSubtext, {color: colors.mutedForeground}]}>
-                    Agrega imágenes de tu trabajo para atraer más clientes
-                  </Text>
-                </View>
+
+                {imagesLoading ? (
+                  <View style={styles.imageGalleryPlaceholder}>
+                    <ActivityIndicator color={colors.primary} size="large" />
+                    <Text style={[styles.placeholderText, {color: colors.mutedForeground}]}>
+                      Cargando imágenes...
+                    </Text>
+                  </View>
+                ) : profileImages.length > 0 ? (
+                  <View style={styles.imageGallery}>
+                    {profileImages.map((image, index) => (
+                      <View key={image.id} style={styles.imageItem}>
+                        <Image source={{uri: image.image_url}} style={styles.galleryImage} />
+                        <TouchableOpacity
+                          style={styles.deleteImageButton}
+                          onPress={() => {
+                            // TODO: Implement delete functionality
+                            Alert.alert(
+                              "Eliminar imagen",
+                              "¿Estás seguro de que quieres eliminar esta imagen?"
+                            );
+                          }}>
+                          <Ionicons name="close-circle" color="#ff4444" size={20} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.imageGalleryPlaceholder}>
+                    <Ionicons name="image-outline" color={colors.mutedForeground} size={48} />
+                    <Text style={[styles.placeholderText, {color: colors.mutedForeground}]}>
+                      No hay imágenes
+                    </Text>
+                    <Text style={[styles.placeholderSubtext, {color: colors.mutedForeground}]}>
+                      Agrega imágenes de tu trabajo para atraer más clientes
+                    </Text>
+                  </View>
+                )}
                 <TouchableOpacity
                   style={[styles.addImageButton, {backgroundColor: colors.primary}]}
-                  activeOpacity={0.8}>
-                  <Ionicons name="camera" color="#ffffff" size={20} />
-                  <Text style={styles.addImageButtonText}>Agregar Primera Imagen</Text>
+                  onPress={pickImage}
+                  activeOpacity={0.8}
+                  disabled={uploading}>
+                  {uploading ? (
+                    <ActivityIndicator color="#ffffff" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="camera" color="#ffffff" size={20} />
+                      <Text style={styles.addImageButtonText}>Agregar Primera Imagen</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
             )}
@@ -334,6 +487,10 @@ export default function Perfil() {
                 </Text>
                 <TouchableOpacity
                   style={[styles.manageButton, {backgroundColor: colors.primary}]}
+                  onPress={() => {
+                    // Navigate to service management screen
+                    router.push("/profile/services");
+                  }}
                   activeOpacity={0.8}>
                   <Text style={styles.manageButtonText}>Gestionar Servicios</Text>
                   <Ionicons name="chevron-forward" color="#ffffff" size={16} />
@@ -407,6 +564,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: "700",
+  },
+  headerRole: {
+    fontSize: 14,
+    fontWeight: "400",
+    marginTop: 2,
   },
   headerActions: {
     flexDirection: "row",
@@ -488,6 +650,21 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: "center",
   },
+  previewButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 8,
+    gap: 6,
+    backgroundColor: "transparent",
+  },
+  previewButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
   personalizarSection: {
     marginHorizontal: 16,
     marginVertical: 16,
@@ -562,6 +739,31 @@ const styles = StyleSheet.create({
   placeholderSubtext: {
     fontSize: 14,
     textAlign: "center",
+  },
+  imageGallery: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 16,
+  },
+  imageItem: {
+    position: "relative",
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  galleryImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  deleteImageButton: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
   },
   addImageButton: {
     flexDirection: "row",

@@ -1,17 +1,19 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import User, ClientProfile, ProfessionalProfile, PlaceProfile
+from .profile_models import ProfileImage, CustomService, AvailabilitySchedule, TimeSlot
 
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'role', 'first_name', 'last_name', 'is_staff')
+    list_display = ('username', 'email', 'role', 'first_name', 'last_name', 'phone', 'is_staff')
     list_filter = ('role', 'is_staff', 'is_superuser', 'is_active', 'date_joined')
-    search_fields = ('username', 'first_name', 'last_name', 'email')
+    search_fields = ('username', 'first_name', 'last_name', 'email', 'phone')
     ordering = ('username',)
     
     fieldsets = UserAdmin.fieldsets + (
         ('Role Information', {'fields': ('role',)}),
+        ('Contact Information', {'fields': ('phone',)}),
     )
 
 
@@ -31,5 +33,68 @@ class ProfessionalProfileAdmin(admin.ModelAdmin):
 @admin.register(PlaceProfile)
 class PlaceProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'name', 'city', 'country', 'owner')
-    search_fields = ('user__username', 'name', 'city', 'country')
+    search_fields = ('user__username', 'name', 'city', 'country', 'bio', 'description')
     list_filter = ('city', 'country')
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('user', 'name', 'bio', 'description')
+        }),
+        ('Address', {
+            'fields': ('street', 'number_ext', 'number_int', 'postal_code', 'city', 'country')
+        }),
+        ('Ownership', {
+            'fields': ('owner',)
+        }),
+    )
+
+
+@admin.register(ProfileImage)
+class ProfileImageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'get_profile_type', 'caption', 'is_primary', 'is_active', 'order')
+    list_filter = ('is_primary', 'is_active', 'content_type')
+    search_fields = ('caption',)
+    ordering = ('order', 'created_at')
+    
+    def get_profile_type(self, obj):
+        """Get the type of profile this image belongs to"""
+        if obj.content_type:
+            return f"{obj.content_type.model} (ID: {obj.object_id})"
+        return "No profile"
+    get_profile_type.short_description = "Profile Type"
+
+
+@admin.register(CustomService)
+class CustomServiceAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'price', 'duration_minutes', 'category', 'is_active', 'get_profile_type')
+    list_filter = ('category', 'is_active', 'content_type')
+    search_fields = ('name', 'description', 'category')
+    ordering = ('name',)
+    
+    def get_profile_type(self, obj):
+        """Get the type of profile this service belongs to"""
+        if obj.content_type:
+            return f"{obj.content_type.model} (ID: {obj.object_id})"
+        return "No profile"
+    get_profile_type.short_description = "Profile Type"
+
+
+@admin.register(AvailabilitySchedule)
+class AvailabilityScheduleAdmin(admin.ModelAdmin):
+    list_display = ('id', 'day_of_week', 'is_available', 'get_profile_type')
+    list_filter = ('day_of_week', 'is_available', 'content_type')
+    ordering = ('day_of_week',)
+    
+    def get_profile_type(self, obj):
+        """Get the type of profile this schedule belongs to"""
+        if obj.content_type:
+            return f"{obj.content_type.model} (ID: {obj.object_id})"
+        return "No profile"
+    get_profile_type.short_description = "Profile Type"
+
+
+@admin.register(TimeSlot)
+class TimeSlotAdmin(admin.ModelAdmin):
+    list_display = ('id', 'schedule', 'start_time', 'end_time', 'is_active')
+    list_filter = ('is_active', 'schedule__day_of_week')
+    search_fields = ('start_time', 'end_time')
+    ordering = ('schedule__day_of_week', 'start_time')

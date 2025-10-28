@@ -22,6 +22,9 @@ class User(AbstractUser):
     
     # Make username optional since we're using email
     username = models.CharField(max_length=150, unique=True, blank=True, null=True)
+    
+    # Phone number for all users
+    phone = models.CharField(max_length=20, blank=True, null=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
@@ -63,6 +66,8 @@ class ProfessionalProfile(models.Model):
 class PlaceProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="place_profile")
     name = models.CharField(max_length=200)
+    bio = models.TextField(blank=True, null=True, help_text="Biography/About section for the place")
+    description = models.TextField(blank=True, null=True, help_text="Description of the place")
     street = models.CharField(max_length=200)
     number_ext = models.CharField(max_length=20, blank=True, null=True)
     number_int = models.CharField(max_length=20, blank=True, null=True)

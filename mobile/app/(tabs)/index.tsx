@@ -13,6 +13,7 @@ import {
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
+import {useCategory} from "@/contexts/CategoryContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
@@ -24,6 +25,13 @@ const {width: SCREEN_WIDTH} = Dimensions.get("window");
 export default function Home() {
   const colorScheme = useColorScheme();
   const {colors, setVariant} = useThemeVariant();
+  const {
+    selectedMainCategory,
+    setSelectedMainCategory,
+    selectedSubCategory,
+    setSelectedSubCategory,
+    subcategoriesByMainCategory,
+  } = useCategory();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -46,7 +54,7 @@ export default function Home() {
 
   // Toggle like function
   const toggleLike = (postId: number) => {
-    setLikedPosts(prev => {
+    setLikedPosts((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(postId)) {
         newSet.delete(postId);
@@ -58,16 +66,16 @@ export default function Home() {
   };
 
   // Mock categories and stories (keep UI)
-  const [selectedCategory, setSelectedCategory] = useState<"belleza" | "cuidado" | "mascotas">(
-    "belleza"
-  );
   const [isCategoryPickerExpanded, setIsCategoryPickerExpanded] = useState(false);
-  const [selectedSubCategory, setSelectedSubCategory] = useState("todos");
+
   const categories = [
     {id: "belleza", emoji: "💅", name: "Belleza"},
     {id: "cuidado", emoji: "❤️", name: "Cuidado"},
     {id: "mascotas", emoji: "🐾", name: "Mascotas"},
   ];
+
+  // Get current subcategories based on selected main category
+  const currentSubcategories = subcategoriesByMainCategory[selectedMainCategory];
   const stories = [
     {
       id: 1,
@@ -975,7 +983,11 @@ export default function Home() {
           styles.header,
           {backgroundColor: colors.background, borderBottomColor: colors.border},
         ]}>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Be-U</Text>
+        <Image
+          source={require("@/assets/images/be-u.png")}
+          style={styles.headerLogo}
+          resizeMode="contain"
+        />
         <View style={styles.headerActions}>
           <View style={styles.categorySelector}>
             {!isCategoryPickerExpanded && (
@@ -983,7 +995,7 @@ export default function Home() {
                 style={[styles.categoryButton, {backgroundColor: colors.card}]}
                 onPress={() => setIsCategoryPickerExpanded(true)}>
                 <Text style={[styles.categoryButtonText, {color: colors.foreground}]}>
-                  {categories.find((c) => c.id === selectedCategory)?.emoji}
+                  {categories.find((c) => c.id === selectedMainCategory)?.emoji}
                 </Text>
               </TouchableOpacity>
             )}
@@ -994,15 +1006,15 @@ export default function Home() {
                     key={category.id}
                     style={[
                       styles.expandedCategoryOption,
-                      selectedCategory === category.id && styles.selectedCategoryOption,
+                      selectedMainCategory === category.id && styles.selectedCategoryOption,
                     ]}
                     onPress={() => {
-                      setSelectedCategory(category.id as any);
+                      setSelectedMainCategory(category.id as any);
                       setVariant(category.id as any);
                       setIsCategoryPickerExpanded(false);
                     }}>
                     <Text style={styles.expandedCategoryEmoji}>{category.emoji}</Text>
-                    {selectedCategory === category.id && (
+                    {selectedMainCategory === category.id && (
                       <Text style={[styles.expandedCategoryText, {color: colors.primary}]}>
                         {category.name}
                       </Text>
@@ -1021,14 +1033,7 @@ export default function Home() {
       {/* Sub Category Bar (mock) */}
       <View style={styles.subCategoryContainer}>
         <SubCategoryBar
-          categories={[
-            {id: "todos", name: "Todos", icon: "apps"},
-            {id: "manicure", name: "Manicure & Pedicure", icon: "hand-left"},
-            {id: "maquillaje", name: "Make Up", icon: "brush"},
-            {id: "barberia", name: "Barbería", icon: "cut"},
-            {id: "facial", name: "Facial", icon: "flower"},
-            {id: "masaje", name: "Masaje", icon: "fitness"},
-          ]}
+          categories={currentSubcategories}
           selectedCategoryId={selectedSubCategory}
           onCategorySelect={setSelectedSubCategory}
           showLabels={true}
@@ -1122,7 +1127,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 12,
     borderBottomWidth: 1,
@@ -1132,10 +1136,26 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -1.5,
   },
+  headerTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  headerLogo: {
+    height: 50,
+    width: 50,
+    marginLeft: 16,
+  },
+  headerTitleText: {
+    fontSize: 24,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+  },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    paddingRight: 20,
   },
   categorySelector: {
     flexDirection: "row",

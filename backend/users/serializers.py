@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from .models import User, ClientProfile, ProfessionalProfile, PlaceProfile
+from .profile_models import ProfileImage, CustomService, AvailabilitySchedule, TimeSlot
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -16,7 +17,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'firstName', 'lastName', 'isActive',
+            'id', 'email', 'firstName', 'lastName', 'phone', 'isActive',
             'dateJoined', 'lastLogin', 'role', 'isStaff', 'isSuperuser'
         ]
         read_only_fields = ['id', 'dateJoined', 'lastLogin']
@@ -30,7 +31,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'email', 'password', 'firstName', 'lastName', 'username'
+            'email', 'password', 'firstName', 'lastName', 'username', 'phone'
         ]
     
     def create(self, validated_data):
@@ -45,6 +46,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             password=validated_data['password'],
             first_name=first_name,
             last_name=last_name,
+            phone=validated_data.get('phone', ''),
             role=User.Role.CLIENT  # Default role
         )
         return user
@@ -129,13 +131,173 @@ class PlaceProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlaceProfile
         fields = [
-            'id', 'user_id', 'email', 'name', 'street', 'number_ext', 'number_int',
+            'id', 'user_id', 'email', 'name', 'bio', 'description', 'street', 'number_ext', 'number_int',
             'postal_code', 'city', 'country', 'owner', 'services_count', 'address'
         ]
         read_only_fields = ['id', 'user_id', 'email']
     
     def get_services_count(self, obj):
         return obj.services_offered.filter(is_active=True).count()
+    
+    def get_address(self, obj):
+        parts = [obj.street]
+        if obj.number_ext:
+            parts.append(f"#{obj.number_ext}")
+        if obj.city:
+            parts.append(obj.city)
+        return ', '.join(parts)
+
+
+# Enhanced serializers for client viewing with related data
+class TimeSlotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TimeSlot
+        fields = ['id', 'start_time', 'end_time', 'is_active']
+
+
+class AvailabilityScheduleSerializer(serializers.ModelSerializer):
+    time_slots = TimeSlotSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = AvailabilitySchedule
+        fields = ['id', 'day_of_week', 'is_available', 'time_slots']
+
+
+class ProfileImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ProfileImage
+        fields = ['id', 'image', 'image_url', 'caption', 'is_primary', 'order', 'is_active']
+    
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None
+
+
+class CustomServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomService
+        fields = ['id', 'name', 'description', 'price', 'duration_minutes', 'category', 'is_active']
+
+
+class ProfessionalProfileDetailSerializer(serializers.ModelSerializer):
+    """Enhanced serializer for professional profiles with all related data"""
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    phone = serializers.CharField(source='user.phone', read_only=True)
+    images = serializers.SerializerMethodField()
+    services = serializers.SerializerMethodField()
+    availability = serializers.SerializerMethodField()
+    services_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ProfessionalProfile
+        fields = [
+            'id', 'user_id', 'email', 'phone', 'name', 'last_name', 'bio', 'city', 'rating',
+            'images', 'services', 'availability', 'services_count'
+        ]
+        read_only_fields = ['id', 'user_id', 'email', 'phone', 'rating']
+    
+    def get_images(self, obj):
+        images = ProfileImage.objects.filter(
+            content_type__model='professionalprofile',
+            object_id=obj.id,
+            is_active=True
+        ).order_by('order', 'created_at')
+        return ProfileImageSerializer(images, many=True, context=self.context).data
+    
+    def get_services(self, obj):
+        services = CustomService.objects.filter(
+            content_type__model='professionalprofile',
+            object_id=obj.id,
+            is_active=True
+        ).order_by('name')
+        return CustomServiceSerializer(services, many=True).data
+    
+    def get_availability(self, obj):
+        schedules = AvailabilitySchedule.objects.filter(
+            content_type__model='professionalprofile',
+            object_id=obj.id
+        ).order_by('day_of_week')
+        return AvailabilityScheduleSerializer(schedules, many=True).data
+    
+    def get_services_count(self, obj):
+        total = 0
+        # Custom services
+        total += CustomService.objects.filter(
+            content_type__model='professionalprofile',
+            object_id=obj.id,
+            is_active=True
+        ).count()
+        # Services offered independently by the professional
+        try:
+            total += obj.independent_services.filter(is_active=True).count()
+        except Exception:
+            pass
+        # Services assigned to the professional in places
+        try:
+            total += obj.assigned_services.filter(is_active=True).count()
+        except Exception:
+            pass
+        return total
+
+
+class PlaceProfileDetailSerializer(serializers.ModelSerializer):
+    """Enhanced serializer for place profiles with all related data"""
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    phone = serializers.CharField(source='user.phone', read_only=True)
+    images = serializers.SerializerMethodField()
+    services = serializers.SerializerMethodField()
+    availability = serializers.SerializerMethodField()
+    services_count = serializers.SerializerMethodField()
+    address = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = PlaceProfile
+        fields = [
+            'id', 'user_id', 'email', 'phone', 'name', 'bio', 'description', 'street', 'number_ext', 'number_int',
+            'postal_code', 'city', 'country', 'owner', 'images', 'services', 'availability', 
+            'services_count', 'address'
+        ]
+        read_only_fields = ['id', 'user_id', 'email', 'phone']
+    
+    def get_images(self, obj):
+        images = ProfileImage.objects.filter(
+            content_type__model='placeprofile',
+            object_id=obj.id,
+            is_active=True
+        ).order_by('order', 'created_at')
+        return ProfileImageSerializer(images, many=True, context=self.context).data
+    
+    def get_services(self, obj):
+        services = CustomService.objects.filter(
+            content_type__model='placeprofile',
+            object_id=obj.id,
+            is_active=True
+        ).order_by('name')
+        return CustomServiceSerializer(services, many=True).data
+    
+    def get_availability(self, obj):
+        schedules = AvailabilitySchedule.objects.filter(
+            content_type__model='placeprofile',
+            object_id=obj.id
+        ).order_by('day_of_week')
+        return AvailabilityScheduleSerializer(schedules, many=True).data
+    
+    def get_services_count(self, obj):
+        total = 0
+        # Custom services
+        total += CustomService.objects.filter(
+            content_type__model='placeprofile',
+            object_id=obj.id,
+            is_active=True
+        ).count()
+        # Services offered by the place
+        total += obj.services_offered.filter(is_active=True).count()
+        return total
     
     def get_address(self, obj):
         parts = [obj.street]

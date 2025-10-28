@@ -7,12 +7,16 @@ import {
   Image,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {User, PlaceProfile} from "@/types/global";
 import {useRouter} from "expo-router";
+import {useState, useEffect} from "react";
+import {profileCustomizationApi} from "@/lib/api";
 import {ProfileTabs} from "./ProfileTabs";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
@@ -37,9 +41,36 @@ export const PlaceProfileView = ({
   teamMembers = [],
 }: PlaceProfileViewProps) => {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const router = useRouter();
   const isDark = colorScheme === "dark";
+
+  const [customServices, setCustomServices] = useState<any[]>([]);
+  const [customImages, setCustomImages] = useState<any[]>([]);
+  const [loadingCustomization, setLoadingCustomization] = useState(false);
+
+  useEffect(() => {
+    loadCustomizationData();
+  }, []);
+
+  const loadCustomizationData = async () => {
+    try {
+      setLoadingCustomization(true);
+      const [servicesResponse, imagesResponse] = await Promise.all([
+        profileCustomizationApi.getCustomServices(),
+        profileCustomizationApi.getProfileImages(),
+      ]);
+      setCustomServices(servicesResponse.data || []);
+      setCustomImages(imagesResponse.data || []);
+    } catch (error) {
+      console.log("Customization data not available:", error);
+    } finally {
+      setLoadingCustomization(false);
+    }
+  };
+
+  // Use custom services if available, otherwise fall back to passed services
+  const displayServices = customServices.length > 0 ? customServices : services;
 
   const getInitials = (name: string) => {
     const words = name.split(" ");
@@ -162,9 +193,9 @@ export const PlaceProfileView = ({
           </TouchableOpacity>
         </View>
 
-        {services.length > 0 ? (
+        {displayServices.length > 0 ? (
           <>
-            {services.slice(0, 3).map((service) => (
+            {displayServices.slice(0, 3).map((service) => (
               <TouchableOpacity
                 key={service.id}
                 style={[

@@ -9,7 +9,8 @@ from rest_framework.exceptions import PermissionDenied
 from .models import User, ProfessionalProfile, PlaceProfile
 from .serializers import (
     UserSerializer, UserRegistrationSerializer, UserLoginSerializer,
-    ProfessionalProfileSerializer, PlaceProfileSerializer
+    ProfessionalProfileSerializer, PlaceProfileSerializer,
+    ProfessionalProfileDetailSerializer, PlaceProfileDetailSerializer
 )
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -200,6 +201,12 @@ class ProfessionalProfileViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProfessionalProfileSerializer
     permission_classes = [AllowAny]  # Public access for browsing
     
+    def get_serializer_class(self):
+        """Use detail serializer for retrieve action"""
+        if self.action == 'retrieve':
+            return ProfessionalProfileDetailSerializer
+        return ProfessionalProfileSerializer
+    
     def get_queryset(self):
         queryset = super().get_queryset()
         
@@ -230,6 +237,12 @@ class PlaceProfileViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PlaceProfileSerializer
     permission_classes = [AllowAny]  # Public access for browsing
     
+    def get_serializer_class(self):
+        """Use detail serializer for retrieve action"""
+        if self.action == 'retrieve':
+            return PlaceProfileDetailSerializer
+        return PlaceProfileSerializer
+    
     def get_queryset(self):
         queryset = super().get_queryset()
         
@@ -240,7 +253,8 @@ class PlaceProfileViewSet(viewsets.ReadOnlyModelViewSet):
                 models.Q(name__icontains=search) |
                 models.Q(city__icontains=search) |
                 models.Q(street__icontains=search) |
-                models.Q(country__icontains=search)
+                models.Q(country__icontains=search) |
+                models.Q(description__icontains=search)
             )
         
         # Filter by city

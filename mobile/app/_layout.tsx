@@ -3,6 +3,7 @@ import {SafeAreaProvider} from "react-native-safe-area-context";
 import {AuthProvider} from "@/features/auth";
 import {ThemeProvider} from "@/contexts/ThemeContext";
 import {ThemeVariantProvider} from "@/contexts/ThemeVariantContext";
+import {CategoryProvider} from "@/contexts/CategoryContext";
 import {useEffect} from "react";
 import {AppState} from "react-native";
 import {tokenRefreshScheduler} from "@/lib/api";
@@ -27,13 +28,15 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ThemeProvider>
           <ThemeVariantProvider>
-            <AuthProvider>
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                }}
-              />
-            </AuthProvider>
+            <CategoryProvider>
+              <AuthProvider>
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                  }}
+                />
+              </AuthProvider>
+            </CategoryProvider>
           </ThemeVariantProvider>
         </ThemeProvider>
       </SafeAreaProvider>

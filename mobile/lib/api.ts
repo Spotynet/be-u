@@ -22,8 +22,8 @@ export interface ApiError {
 
 // API Configuration - HARDCODED for testing
 
-//const API_BASE_URL = "http://127.0.0.1:8000/api";
-const API_BASE_URL = "https://stg.be-u.ai/api";
+const API_BASE_URL = "http://127.0.0.1:8000/api";
+//const API_BASE_URL = "https://stg.be-u.ai/api";
 
 console.log("🔧 HARDCODED API URL:", API_BASE_URL);
 const AUTH_TOKEN_KEY = "@auth_token";
@@ -227,16 +227,16 @@ export const authApi = {
 // Profile management API functions
 export const profileApi = {
   // Client Profile
-  getClientProfile: (userId: number) => api.get<any>(`/auth/profile/`),
-  updateClientProfile: (userId: number, data: any) => api.put<any>(`/auth/profile/`, data),
+  getClientProfile: (userId: number) => api.get<any>(`/users/${userId}/`),
+  updateClientProfile: (userId: number, data: any) => api.put<any>(`/users/${userId}/`, data),
 
   // Professional Profile
-  getProfessionalProfile: (userId: number) => api.get<any>(`/professionals/${userId}/`),
-  updateProfessionalProfile: (userId: number, data: any) => api.put<any>(`/auth/profile/`, data),
+  getProfessionalProfile: (userId: number) => api.get<any>(`/users/professionals/${userId}/`),
+  updateProfessionalProfile: (userId: number, data: any) => api.put<any>(`/users/${userId}/`, data),
 
   // Place Profile
-  getPlaceProfile: (userId: number) => api.get<any>(`/places/${userId}/`),
-  updatePlaceProfile: (userId: number, data: any) => api.put<any>(`/auth/profile/`, data),
+  getPlaceProfile: (userId: number) => api.get<any>(`/users/places/${userId}/`),
+  updatePlaceProfile: (userId: number, data: any) => api.put<any>(`/users/${userId}/`, data),
 };
 
 // Profile customization API functions
@@ -288,21 +288,21 @@ export const userApi = {
 export const providerApi = {
   // Get professional profiles for browsing
   getProfessionalProfiles: (params?: {search?: string; city?: string; page?: number}) =>
-    api.get<{results: any[]; count: number; next?: string; previous?: string}>("/professionals/", {
+    api.get<{results: any[]; count: number; next?: string; previous?: string}>("/users/professionals/", {
       params,
     }),
 
   // Get place profiles for browsing
   getPlaceProfiles: (params?: {search?: string; city?: string; page?: number}) =>
-    api.get<{results: any[]; count: number; next?: string; previous?: string}>("/places/", {
+    api.get<{results: any[]; count: number; next?: string; previous?: string}>("/users/places/", {
       params,
     }),
 
-  // Get specific professional profile
-  getProfessionalProfile: (id: number) => api.get<any>(`/professionals/${id}/`),
+  // Get specific professional profile with detailed info
+  getProfessionalProfile: (id: number) => api.get<any>(`/users/professionals/${id}/`),
 
-  // Get specific place profile
-  getPlaceProfile: (id: number) => api.get<any>(`/places/${id}/`),
+  // Get specific place profile with detailed info
+  getPlaceProfile: (id: number) => api.get<any>(`/users/places/${id}/`),
 };
 
 // Service management API functions
@@ -667,7 +667,7 @@ export const tokenUtils = {
 };
 
 // Token refresh scheduler
-let refreshInterval: NodeJS.Timeout | null = null;
+let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
 export const tokenRefreshScheduler = {
   start: async () => {

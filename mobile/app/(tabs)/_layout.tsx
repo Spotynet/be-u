@@ -1,14 +1,12 @@
 import {Tabs} from "expo-router";
 import React from "react";
+import {View, StyleSheet, Image} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 
 import {HapticTab} from "@/components/haptic-tab";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
 
   return (
@@ -46,9 +44,22 @@ export default function TabLayout() {
       <Tabs.Screen
         name="be-u"
         options={{
-          title: "Be-U",
+          title: "",
           tabBarIcon: ({color, focused}) => (
-            <Ionicons name={focused ? "sparkles" : "sparkles-outline"} color={color} size={24} />
+            <View
+              style={[
+                styles.centerButton,
+                {
+                  backgroundColor: colors.primary,
+                  shadowColor: colors.primary,
+                },
+              ]}>
+              <Image
+                source={require("@/assets/images/BE-U-white.png")}
+                style={styles.centerButtonIcon}
+                resizeMode="contain"
+              />
+            </View>
           ),
         }}
       />
@@ -77,3 +88,25 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  centerButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 30, // Elevates the button above other icons
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
+  },
+  centerButtonIcon: {
+    width: 32,
+    height: 32,
+  },
+});

@@ -95,7 +95,11 @@ export default function BeU() {
         {/* Header */}
         <View style={[styles.header, {backgroundColor: "#FF69B4"}]}>
           <View style={styles.aiAvatar}>
-            <Ionicons name="sparkles" color="#ffffff" size={24} />
+            <Image
+              source={require("@/assets/images/BE-U-white.png")}
+              style={styles.aiAvatarIcon}
+              resizeMode="contain"
+            />
           </View>
           <View style={styles.headerText}>
             <Text style={styles.aiName}>Rita</Text>
@@ -657,6 +661,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+  },
+  aiAvatarIcon: {
+    width: 24,
+    height: 24,
   },
   headerText: {
     flex: 1,

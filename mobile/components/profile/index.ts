@@ -1,6 +1,9 @@
 export {ClientProfileView} from "./ClientProfileView";
 export {ProfessionalProfileView} from "./ProfessionalProfileView";
 export {PlaceProfileView} from "./PlaceProfileView";
+export {ViewProfessionalProfile} from "./ViewProfessionalProfile";
+export {ViewPlaceProfile} from "./ViewPlaceProfile";
+export {EnhancedPlaceProfile} from "./EnhancedPlaceProfile";
 export {ProfileTabs} from "./ProfileTabs";
 export {EnhancedReservationsTab} from "./EnhancedReservationsTab";
 export {ReservationsTab} from "./ReservationsTab"; // Keep for backwards compatibility

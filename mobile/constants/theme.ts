@@ -99,8 +99,58 @@ export const Colors = {
 };
 
 export const ThemeVariants = {
+  todos: {
+    primary: "#8b5cf6", // Default purple for "All" category
+    primaryForeground: "#ffffff",
+    tint: "#8b5cf6",
+    // Light mode colors
+    light: {
+      background: "#ffffff",
+      foreground: "#1f2937",
+      card: "#ffffff",
+      cardForeground: "#1f2937",
+      border: "#e5e7eb",
+      muted: "#f9fafb",
+      mutedForeground: "#6b7280",
+    },
+    // Dark mode colors
+    dark: {
+      background: "#0f172a",
+      foreground: "#f8fafc",
+      card: "#1e293b",
+      cardForeground: "#f8fafc",
+      border: "#334155",
+      muted: "#1e293b",
+      mutedForeground: "#94a3b8",
+    },
+  },
   belleza: {
-    primary: "#8B5CF6", // Regular purple
+    primary: "#EC4899", // Pink for Beauty/Belleza
+    primaryForeground: "#ffffff",
+    tint: "#EC4899",
+    // Light mode colors
+    light: {
+      background: "#ffffff",
+      foreground: "#1f2937",
+      card: "#ffffff",
+      cardForeground: "#1f2937",
+      border: "#e5e7eb",
+      muted: "#f9fafb",
+      mutedForeground: "#6b7280",
+    },
+    // Dark mode colors
+    dark: {
+      background: "#0f172a",
+      foreground: "#f8fafc",
+      card: "#1e293b",
+      cardForeground: "#f8fafc",
+      border: "#334155",
+      muted: "#1e293b",
+      mutedForeground: "#94a3b8",
+    },
+  },
+  cuidado: {
+    primary: "#8B5CF6", // Purple for Care/Cuidado
     primaryForeground: "#ffffff",
     tint: "#8B5CF6",
     // Light mode colors
@@ -124,10 +174,10 @@ export const ThemeVariants = {
       mutedForeground: "#94a3b8",
     },
   },
-  cuidado: {
-    primary: "#C4B5FD", // Light purple
-    primaryForeground: "#1e1b4b",
-    tint: "#C4B5FD",
+  mascotas: {
+    primary: "#F97316", // Orange for Pets/Mascotas
+    primaryForeground: "#ffffff",
+    tint: "#F97316",
     // Light mode colors
     light: {
       background: "#ffffff",
@@ -149,10 +199,10 @@ export const ThemeVariants = {
       mutedForeground: "#94a3b8",
     },
   },
-  mascotas: {
-    primary: "#B026FF", // Neon purple
+  wellness: {
+    primary: "#8B5CF6", // Purple for Wellness (same as cuidado for consistency)
     primaryForeground: "#ffffff",
-    tint: "#B026FF",
+    tint: "#8B5CF6",
     // Light mode colors
     light: {
       background: "#ffffff",

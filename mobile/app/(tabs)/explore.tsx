@@ -13,6 +13,7 @@ import {
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
+import {useCategory} from "@/contexts/CategoryContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
@@ -26,15 +27,18 @@ const {width: SCREEN_WIDTH} = Dimensions.get("window");
 export default function Explore() {
   const colorScheme = useColorScheme();
   const {colors, setVariant} = useThemeVariant();
+  const {
+    selectedMainCategory,
+    setSelectedMainCategory,
+    selectedSubCategory,
+    setSelectedSubCategory,
+    subcategoriesByMainCategory,
+  } = useCategory();
   const router = useRouter();
 
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [isListExpanded, setIsListExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSubCategory, setSelectedSubCategory] = useState("todos");
-  const [selectedCategory, setSelectedCategory] = useState<"belleza" | "cuidado" | "mascotas">(
-    "belleza"
-  );
   const [isCategoryPickerExpanded, setIsCategoryPickerExpanded] = useState(false);
 
   const categories = [
@@ -348,7 +352,7 @@ export default function Explore() {
                 style={[styles.categoryButton, {backgroundColor: colors.card}]}
                 onPress={() => setIsCategoryPickerExpanded(true)}>
                 <Text style={[styles.categoryButtonText, {color: colors.foreground}]}>
-                  {categories.find((cat) => cat.id === selectedCategory)?.emoji}
+                  {categories.find((cat) => cat.id === selectedMainCategory)?.emoji}
                 </Text>
               </TouchableOpacity>
             )}
@@ -361,15 +365,15 @@ export default function Explore() {
                     key={category.id}
                     style={[
                       styles.expandedCategoryOption,
-                      selectedCategory === category.id && styles.selectedCategoryOption,
+                      selectedMainCategory === category.id && styles.selectedCategoryOption,
                     ]}
                     onPress={() => {
-                      setSelectedCategory(category.id as "belleza" | "cuidado" | "mascotas");
+                      setSelectedMainCategory(category.id as "belleza" | "cuidado" | "mascotas");
                       setVariant(category.id as any);
                       setIsCategoryPickerExpanded(false);
                     }}>
                     <Text style={styles.expandedCategoryEmoji}>{category.emoji}</Text>
-                    {selectedCategory === category.id && (
+                    {selectedMainCategory === category.id && (
                       <Text style={[styles.expandedCategoryText, {color: colors.primary}]}>
                         {category.name}
                       </Text>
@@ -388,14 +392,7 @@ export default function Explore() {
       {/* Sub Category Bar */}
       <View style={styles.subCategoryContainer}>
         <SubCategoryBar
-          categories={[
-            {id: "todos", name: "Todos", icon: "apps"},
-            {id: "manicure", name: "Manicure & Pedicure", icon: "hand-left"},
-            {id: "maquillaje", name: "Make Up", icon: "brush"},
-            {id: "barberia", name: "Barbería", icon: "cut"},
-            {id: "facial", name: "Facial", icon: "flower"},
-            {id: "masaje", name: "Masaje", icon: "fitness"},
-          ]}
+          categories={subcategoriesByMainCategory[selectedMainCategory]}
           selectedCategoryId={selectedSubCategory}
           onCategorySelect={setSelectedSubCategory}
           showLabels={true}

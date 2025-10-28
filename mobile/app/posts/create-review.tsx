@@ -7,6 +7,7 @@ import {
   TextInput,
   Alert,
   Platform,
+  Image,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
@@ -343,7 +344,11 @@ export default function CreateReviewScreen() {
             style={[styles.publishButtonLarge, {backgroundColor: colors.primary}]}
             onPress={handlePublish}
             activeOpacity={0.8}>
-            <Ionicons name="star" color="#ffffff" size={24} />
+            <Image
+              source={require("@/assets/images/BE-U-white.png")}
+              style={styles.publishButtonIcon}
+              resizeMode="contain"
+            />
             <Text style={styles.publishButtonLargeText}>Publicar Reseña</Text>
           </TouchableOpacity>
 
@@ -533,6 +538,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     gap: 12,
     marginTop: 8,
+  },
+  publishButtonIcon: {
+    width: 24,
+    height: 24,
   },
   publishButtonLargeText: {
     color: "#ffffff",

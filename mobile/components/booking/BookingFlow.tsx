@@ -1,500 +1,578 @@
-import React, {useState} from "react";
-import {View, Text, Modal, StyleSheet, TouchableOpacity, ScrollView, Platform} from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Dimensions,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
-import {DateTimePicker} from "./DateTimePicker";
-import {ProfessionalSelector} from "./ProfessionalSelector";
+import {useState, useEffect} from "react";
 import {useRouter} from "expo-router";
-import {ProfessionalProfile} from "@/types/global";
-import {serviceApi} from "@/lib/api";
-import {errorUtils} from "@/lib/api";
+import {providerApi, profileCustomizationApi} from "@/lib/api";
 
-// Force reload - BookingFlow component
+const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
 interface BookingFlowProps {
-  isVisible: boolean;
-  onClose: () => void;
-  service: {
-    id: number;
-    name: string;
-    duration: string;
-    price: number;
-    description: string;
-    professional?: string;
-  };
-  provider: {
-    id: number;
-    name: string;
-    last_name?: string;
-    type?: "professional" | "place";
-  };
-  selectedProfessional?: ProfessionalProfile;
-  availableProfessionals?: ProfessionalProfile[];
-  onConfirm?: (bookingData: any) => void;
+  placeId: number;
+  serviceId?: number;
+  onClose?: () => void;
 }
 
-export function BookingFlow({
-  isVisible,
-  onClose,
-  service,
-  provider,
-  selectedProfessional: initialProfessional,
-  availableProfessionals,
-  onConfirm,
-}: BookingFlowProps) {
-  const colorScheme = useColorScheme();
+export const BookingFlow = ({placeId, serviceId, onClose}: BookingFlowProps) => {
   const {colors} = useThemeVariant();
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedTime, setSelectedTime] = useState<string>("");
-  const [notes, setNotes] = useState("");
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [selectedProfessional, setSelectedProfessional] = useState<ProfessionalProfile | null>(
-    initialProfessional || null
-  );
 
-  // Dynamic steps based on whether we need professional selection
-  const steps = availableProfessionals
-    ? [
-        {id: 1, title: "Profesional", icon: "person-outline"},
-        {id: 2, title: "Fecha y Hora", icon: "calendar-outline"},
-        {id: 3, title: "Detalles", icon: "document-text-outline"},
-        {id: 4, title: "Confirmar", icon: "checkmark-circle-outline"},
-      ]
-    : [
-        {id: 1, title: "Fecha y Hora", icon: "calendar-outline"},
-        {id: 2, title: "Detalles", icon: "document-text-outline"},
-        {id: 3, title: "Confirmar", icon: "checkmark-circle-outline"},
-      ];
+  const [profile, setProfile] = useState<any>(null);
+  const [services, setServices] = useState<any[]>([]);
+  const [professionals, setProfessionals] = useState<any[]>([]);
+  const [selectedService, setSelectedService] = useState<any>(null);
+  const [selectedProfessional, setSelectedProfessional] = useState<any>(null);
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedTime, setSelectedTime] = useState<string>("10:00 am");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const maxSteps = steps.length;
+  useEffect(() => {
+    loadBookingData();
+  }, [placeId, serviceId]);
 
-  const handleNext = () => {
-    console.log("handleNext called", {currentStep, selectedDate, selectedTime});
-    if (currentStep < maxSteps) {
-      setCurrentStep(currentStep + 1);
+  const loadBookingData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const profileResponse = await providerApi.getPlaceProfile(placeId);
+      setProfile(profileResponse.data);
+
+      const servicesResponse = await profileCustomizationApi.getCustomServices();
+      setServices(servicesResponse.data || []);
+
+      // Mock professionals data - replace with actual API call
+      setProfessionals([
+        {id: 1, name: "Ana García", rating: 4.9, avatar: "AG"},
+        {id: 2, name: "Carlos López", rating: 4.8, avatar: "CL"},
+        {id: 3, name: "María Rodríguez", rating: 4.9, avatar: "MR"},
+        {id: 4, name: "Pedro Martínez", rating: 4.7, avatar: "PM"},
+        {id: 5, name: "Laura Sánchez", rating: 4.9, avatar: "LS"},
+      ]);
+
+      // Set selected service if provided
+      if (serviceId) {
+        const service = services.find((s) => s.id === serviceId);
+        setSelectedService(service);
+      }
+    } catch (err: any) {
+      console.error("Error loading booking data:", err);
+      setError("Error al cargar los datos de reserva");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handlePrevious = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n.charAt(0))
+      .join("")
+      .toUpperCase();
   };
 
-  const handleConfirm = async () => {
-    setIsConfirming(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    const bookingData = {
-      service,
-      provider,
-      professional: selectedProfessional,
-      date: selectedDate,
-      time: selectedTime,
-      notes,
-      status: "confirmed",
-    };
-
-    if (onConfirm) {
-      onConfirm(bookingData);
+  const handleContinue = () => {
+    if (!selectedService || !selectedProfessional || !selectedDate || !selectedTime) {
+      Alert.alert("Información incompleta", "Por favor selecciona todos los campos requeridos.");
+      return;
     }
-    setIsConfirming(false);
-    onClose();
 
-    // Navigate to confirmation page
-    const providerName = selectedProfessional
-      ? `${selectedProfessional.name} ${selectedProfessional.last_name || ""}`.trim()
-      : `${provider.name} ${provider.last_name || ""}`.trim();
-
-    router.push({
-      pathname: "/booking-confirmation",
-      params: {
-        serviceName: service.name,
-        providerName,
-        date: selectedDate.toLocaleDateString("es-MX"),
-        time: selectedTime,
-        price: service.price,
-      },
-    });
+    // Navigate to next step or complete booking
+    router.push(`/booking/confirm/${placeId}`);
   };
 
-  const renderStepIndicator = () => (
-    <View style={styles.stepIndicator}>
-      {steps.map((step) => (
-        <View key={step.id} style={styles.stepItem}>
-          <View
-            style={[
-              styles.stepCircle,
-              {
-                backgroundColor: currentStep >= step.id ? colors.primary : colors.muted,
-              },
-            ]}>
-            <Ionicons
-              name={step.icon as any}
-              color={currentStep >= step.id ? "#ffffff" : colors.mutedForeground}
-              size={16}
-            />
-          </View>
-          <Text
-            style={[
-              styles.stepTitle,
-              {
-                color: currentStep >= step.id ? colors.foreground : colors.mutedForeground,
-              },
-            ]}>
-            {step.title}
-          </Text>
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderStepContent = () => {
-    // If we have professionals to select from, step 1 is professional selection
-    if (availableProfessionals && currentStep === 1) {
-      return (
-        <ProfessionalSelector
-          professionals={availableProfessionals}
-          selectedProfessional={selectedProfessional}
-          onSelectProfessional={setSelectedProfessional}
-        />
-      );
-    }
-
-    // Calculate the actual step based on whether we have professional selection
-    const actualStep = availableProfessionals ? currentStep - 1 : currentStep;
-
-    switch (actualStep) {
-      case 1:
-        return (
-          <DateTimePicker
-            selectedDate={selectedDate}
-            onDateChange={(date) => {
-              console.log("Date selected:", date);
-              setSelectedDate(date);
-            }}
-            selectedTime={selectedTime}
-            onTimeChange={(time) => {
-              console.log("Time selected:", time);
-              setSelectedTime(time);
-            }}
-            availableSlots={[]} // Will be fetched based on service and provider
-            serviceDuration={service.duration}
-            serviceId={service.id}
-            providerId={selectedProfessional?.id || provider.id}
-            providerType={selectedProfessional ? "professional" : provider.type}
-          />
-        );
-      case 2:
-        return (
-          <View style={styles.detailsStep}>
-            <Text style={[styles.stepTitle, {color: colors.foreground}]}>
-              Información de la Reserva
-            </Text>
-
-            <View style={[styles.serviceCard, {backgroundColor: colors.card}]}>
-              <Text style={[styles.serviceName, {color: colors.foreground}]}>{service.name}</Text>
-              <Text style={[styles.serviceDescription, {color: colors.mutedForeground}]}>
-                {service.description}
-              </Text>
-              <View style={styles.serviceDetails}>
-                <View style={styles.serviceDetail}>
-                  <Ionicons name="time-outline" color={colors.primary} size={16} />
-                  <Text style={[styles.detailText, {color: colors.foreground}]}>
-                    {service.duration}
-                  </Text>
-                </View>
-                <View style={styles.serviceDetail}>
-                  <Ionicons name="cash-outline" color={colors.primary} size={16} />
-                  <Text style={[styles.detailText, {color: colors.foreground}]}>
-                    ${service.price} MXN
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={[styles.providerCard, {backgroundColor: colors.card}]}>
-              <Text style={[styles.providerName, {color: colors.foreground}]}>
-                {selectedProfessional
-                  ? `${selectedProfessional.name} ${selectedProfessional.last_name || ""}`.trim()
-                  : `${provider.name} ${provider.last_name || ""}`.trim()}
-              </Text>
-              <Text style={[styles.providerType, {color: colors.mutedForeground}]}>
-                {selectedProfessional
-                  ? "Profesional"
-                  : provider.type === "professional"
-                  ? "Profesional"
-                  : "Establecimiento"}
-              </Text>
-            </View>
-
-            <View style={[styles.dateTimeCard, {backgroundColor: colors.card}]}>
-              <Text style={[styles.dateTimeTitle, {color: colors.foreground}]}>
-                Fecha y Hora Seleccionada
-              </Text>
-              <Text style={[styles.dateTimeText, {color: colors.foreground}]}>
-                {selectedDate.toLocaleDateString("es-MX", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </Text>
-              <Text style={[styles.dateTimeText, {color: colors.foreground}]}>{selectedTime}</Text>
-            </View>
-          </View>
-        );
-      case 3:
-        return (
-          <View style={styles.confirmStep}>
-            <View style={[styles.confirmationCard, {backgroundColor: colors.card}]}>
-              <Text style={[styles.confirmTitle, {color: colors.foreground}]}>
-                ¡Confirmar Reserva!
-              </Text>
-              <Text style={[styles.confirmDescription, {color: colors.mutedForeground}]}>
-                Revisa los detalles de tu reserva antes de confirmar
-              </Text>
-            </View>
-          </View>
-        );
-      default:
-        return null;
-    }
+  const handleAddAnotherService = () => {
+    // Navigate to service selection
+    router.push(`/booking/services/${placeId}`);
   };
+
+  const handleSkipAdditionalServices = () => {
+    // Continue without additional services
+    handleContinue();
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, {color: colors.mutedForeground}]}>
+          Cargando datos de reserva...
+        </Text>
+      </View>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle" color={colors.mutedForeground} size={48} />
+        <Text style={[styles.errorText, {color: colors.foreground}]}>{error}</Text>
+        <TouchableOpacity
+          style={[styles.retryButton, {backgroundColor: colors.primary}]}
+          onPress={loadBookingData}>
+          <Text style={styles.retryButtonText}>Reintentar</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
-    <Modal visible={isVisible} animationType="slide" presentationStyle="pageSheet">
-      <View style={[styles.container, {backgroundColor: colors.background}]}>
-        {/* Header */}
-        <View style={[styles.header, {borderBottomColor: colors.border}]}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" color={colors.foreground} size={24} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, {color: colors.foreground}]}>
-            Reservar {service.name}
-          </Text>
-          <View style={{width: 40}} />
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={[styles.header, {backgroundColor: colors.background}]}>
+        <TouchableOpacity style={styles.backButton} onPress={onClose}>
+          <Ionicons name="chevron-back" color={colors.foreground} size={24} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, {color: colors.foreground}]}>
+          Reserva: Salones: Reservar 1
+        </Text>
+        <TouchableOpacity style={styles.favoriteButton}>
+          <Ionicons name="heart-outline" color={colors.foreground} size={24} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Hero Image */}
+        <View style={styles.heroImageContainer}>
+          <Image
+            source={{uri: "https://via.placeholder.com/400x200"}}
+            style={styles.heroImage}
+            resizeMode="cover"
+          />
         </View>
 
-        {/* Step Indicator */}
-        {renderStepIndicator()}
+        {/* Profile Summary */}
+        <View style={styles.profileSummary}>
+          <Text style={[styles.salonTitle, {color: colors.foreground}]}>Tu salón</Text>
+          <View style={styles.summaryRow}>
+            <View style={styles.ratingContainer}>
+              <Ionicons name="star" color="#fbbf24" size={16} />
+              <Text style={[styles.ratingText, {color: colors.foreground}]}>
+                {profile?.rating?.toFixed(1) || "4.9"}
+              </Text>
+            </View>
+            <Text style={[styles.distanceText, {color: colors.mutedForeground}]}>560m</Text>
+          </View>
+          <Text style={[styles.followersText, {color: colors.mutedForeground}]}>
+            {profile?.followers_count || 1690} Seguidores
+          </Text>
+        </View>
 
-        {/* Content */}
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {renderStepContent()}
-        </ScrollView>
-
-        {/* Footer */}
-        <View style={[styles.footer, {borderTopColor: colors.border}]}>
-          <View style={styles.footerButtons}>
-            {currentStep > 1 && (
-              <TouchableOpacity
-                style={[styles.button, styles.secondaryButton, {borderColor: colors.border}]}
-                onPress={handlePrevious}
-                activeOpacity={0.8}>
-                <Text style={[styles.buttonText, {color: colors.foreground}]}>Anterior</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={[
-                styles.button,
-                styles.primaryButton,
-                {
-                  backgroundColor: (() => {
-                    // Professional selection step validation
-                    if (availableProfessionals && currentStep === 1 && !selectedProfessional) {
-                      return colors.muted;
-                    }
-                    // Date/time selection step validation
-                    const dateTimeStep = availableProfessionals ? 2 : 1;
-                    if (currentStep === dateTimeStep && (!selectedDate || !selectedTime)) {
-                      return colors.muted;
-                    }
-                    return colors.primary;
-                  })(),
-                },
-                currentStep === maxSteps && isConfirming && styles.disabledButton,
-              ]}
-              onPress={currentStep === maxSteps ? handleConfirm : handleNext}
-              disabled={
-                (availableProfessionals && currentStep === 1 && !selectedProfessional) ||
-                (currentStep === (availableProfessionals ? 2 : 1) &&
-                  (!selectedDate || !selectedTime)) ||
-                (currentStep === maxSteps && isConfirming)
-              }
-              activeOpacity={0.8}>
-              {currentStep === maxSteps && isConfirming ? (
-                <Text style={styles.buttonText}>Confirmando...</Text>
-              ) : (
-                <Text style={styles.buttonText}>
-                  {currentStep === maxSteps ? "Confirmar Reserva" : "Siguiente"}
+        {/* Selected Services */}
+        {selectedService && (
+          <View style={styles.selectedServicesContainer}>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+              Servicios seleccionados
+            </Text>
+            <View style={[styles.serviceCard, {backgroundColor: colors.card}]}>
+              <Text style={[styles.serviceName, {color: colors.foreground}]}>
+                {selectedService.name}
+              </Text>
+              <View style={styles.serviceDetails}>
+                <Text style={[styles.serviceDuration, {color: colors.mutedForeground}]}>
+                  {selectedService.duration} min
                 </Text>
-              )}
-            </TouchableOpacity>
+                <Text style={[styles.servicePrice, {color: colors.primary}]}>
+                  $ {selectedService.price} MXN
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Professional Selection */}
+        <View style={styles.professionalsContainer}>
+          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+            Elige un profesional
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.professionalsScroll}>
+            {professionals.map((professional) => (
+              <TouchableOpacity
+                key={professional.id}
+                style={[
+                  styles.professionalCard,
+                  {
+                    backgroundColor:
+                      selectedProfessional?.id === professional.id
+                        ? colors.primary + "20"
+                        : colors.card,
+                    borderColor:
+                      selectedProfessional?.id === professional.id ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={() => setSelectedProfessional(professional)}>
+                <View style={styles.professionalAvatar}>
+                  <Text style={[styles.professionalAvatarText, {color: colors.foreground}]}>
+                    {professional.avatar}
+                  </Text>
+                  <View style={[styles.professionalRating, {backgroundColor: colors.primary}]}>
+                    <Text style={styles.professionalRatingText}>{professional.rating}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.professionalName, {color: colors.foreground}]}>
+                  {professional.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Calendar */}
+        <View style={styles.calendarContainer}>
+          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Calendario</Text>
+          <View style={[styles.calendarCard, {backgroundColor: colors.card}]}>
+            <Text style={[styles.monthTitle, {color: colors.foreground}]}>Julio</Text>
+            <View style={styles.calendarGrid}>
+              {["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"].map((day) => (
+                <Text key={day} style={[styles.dayHeader, {color: colors.mutedForeground}]}>
+                  {day}
+                </Text>
+              ))}
+              {Array.from({length: 31}, (_, i) => i + 1).map((day) => (
+                <TouchableOpacity
+                  key={day}
+                  style={[
+                    styles.dayButton,
+                    {
+                      backgroundColor:
+                        selectedDate === day.toString() ? colors.primary : "transparent",
+                    },
+                  ]}
+                  onPress={() => setSelectedDate(day.toString())}>
+                  <Text
+                    style={[
+                      styles.dayText,
+                      {
+                        color: selectedDate === day.toString() ? "#ffffff" : colors.foreground,
+                      },
+                    ]}>
+                    {day}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
-      </View>
-    </Modal>
+
+        {/* Time Selection */}
+        <View style={styles.timeContainer}>
+          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Hora</Text>
+          <View style={[styles.timeCard, {backgroundColor: colors.card}]}>
+            <Text style={[styles.timeText, {color: colors.foreground}]}>{selectedTime}</Text>
+            <Ionicons name="chevron-down" color={colors.mutedForeground} size={20} />
+          </View>
+        </View>
+
+        {/* Add Another Service */}
+        <View style={styles.addServiceContainer}>
+          <Text style={[styles.addServiceTitle, {color: colors.foreground}]}>
+            ¿Deseas agregar otro servicio?
+          </Text>
+          <TouchableOpacity
+            style={[styles.addServiceButton, {backgroundColor: colors.muted}]}
+            onPress={handleSkipAdditionalServices}>
+            <Text style={[styles.addServiceButtonText, {color: colors.foreground}]}>No</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Continue Button */}
+        <TouchableOpacity
+          style={[styles.continueButton, {backgroundColor: colors.primary}]}
+          onPress={handleContinue}>
+          <Text style={styles.continueButtonText}>Continuar</Text>
+        </TouchableOpacity>
+
+        {/* Bottom Spacing */}
+        <View style={{height: 40}} />
+      </ScrollView>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#ffffff",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 16,
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: "center",
+  },
+  retryButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: Platform.OS === "ios" ? 60 : 48,
-    paddingBottom: 16,
     paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
+    borderBottomColor: "#e5e5e5",
   },
-  closeButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "flex-start",
+  backButton: {
+    padding: 8,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "600",
   },
-  stepIndicator: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 20,
-    paddingHorizontal: 16,
+  favoriteButton: {
+    padding: 8,
   },
-  stepItem: {
-    alignItems: "center",
+  scrollView: {
     flex: 1,
   },
-  stepCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
+  heroImageContainer: {
+    height: 200,
+  },
+  heroImage: {
+    width: "100%",
+    height: "100%",
+  },
+  profileSummary: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  salonTitle: {
+    fontSize: 20,
+    fontWeight: "700",
     marginBottom: 8,
   },
-  stepTitle: {
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  detailsStep: {
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 16,
+    marginBottom: 4,
+  },
+  ratingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  ratingText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  distanceText: {
+    fontSize: 14,
+  },
+  followersText: {
+    fontSize: 14,
+  },
+  selectedServicesContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 12,
   },
   serviceCard: {
     padding: 16,
     borderRadius: 12,
-    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   serviceName: {
     fontSize: 16,
     fontWeight: "600",
-  },
-  serviceDescription: {
-    fontSize: 14,
-    lineHeight: 20,
+    marginBottom: 8,
   },
   serviceDetails: {
     flexDirection: "row",
-    gap: 16,
-  },
-  serviceDetail: {
-    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 6,
   },
-  detailText: {
+  serviceDuration: {
     fontSize: 14,
   },
-  providerCard: {
+  servicePrice: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  professionalsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  professionalsScroll: {
+    marginTop: 12,
+  },
+  professionalCard: {
+    alignItems: "center",
     padding: 16,
     borderRadius: 12,
-    gap: 4,
+    marginRight: 12,
+    borderWidth: 1,
+    minWidth: 100,
   },
-  providerName: {
-    fontSize: 16,
+  professionalAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#f0f0f0",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+    position: "relative",
+  },
+  professionalAvatarText: {
+    fontSize: 18,
     fontWeight: "600",
   },
-  providerType: {
-    fontSize: 14,
-  },
-  dateTimeCard: {
-    padding: 16,
+  professionalRating: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 24,
+    height: 24,
     borderRadius: 12,
-    gap: 8,
-  },
-  dateTimeTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  dateTimeText: {
-    fontSize: 14,
-  },
-  confirmStep: {
-    flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  confirmationCard: {
-    padding: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    gap: 12,
+  professionalRatingText: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "600",
   },
-  confirmTitle: {
-    fontSize: 24,
-    fontWeight: "700",
+  professionalName: {
+    fontSize: 12,
     textAlign: "center",
+    fontWeight: "500",
   },
-  confirmDescription: {
-    fontSize: 16,
-    textAlign: "center",
-    lineHeight: 22,
+  calendarContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
-  footer: {
+  calendarCard: {
     padding: 16,
-    borderTopWidth: 1,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  footerButtons: {
+  monthTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  calendarGrid: {
     flexDirection: "row",
-    gap: 12,
+    flexWrap: "wrap",
+    justifyContent: "space-between",
   },
-  button: {
-    flex: 1,
+  dayHeader: {
+    width: "14.28%",
+    textAlign: "center",
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  dayButton: {
+    width: "14.28%",
+    aspectRatio: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  dayText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  timeContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  timeCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  timeText: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  addServiceContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  addServiceTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  addServiceButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  addServiceButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  continueButton: {
+    marginHorizontal: 16,
+    marginVertical: 16,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
-    justifyContent: "center",
   },
-  primaryButton: {
-    backgroundColor: "#4ECDC4",
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    backgroundColor: "transparent",
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  buttonText: {
+  continueButtonText: {
     color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "700",
   },
 });

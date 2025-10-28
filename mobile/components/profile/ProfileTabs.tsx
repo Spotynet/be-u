@@ -1,4 +1,4 @@
-import {View, Text, TouchableOpacity, StyleSheet, Animated} from "react-native";
+import {View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
@@ -7,6 +7,8 @@ import {Ionicons} from "@expo/vector-icons";
 import {EnhancedReservationsTab} from "./EnhancedReservationsTab";
 import {ReviewsTab} from "./ReviewsTab";
 import {FavoritesTab} from "./FavoritesTab";
+
+const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
 type TabName = "reservations" | "reviews" | "favorites";
 
@@ -85,11 +87,11 @@ export function ProfileTabs({userRole}: ProfileTabsProps) {
                 {
                   translateX: slideAnim.interpolate({
                     inputRange: [0, 1, 2],
-                    outputRange: [0, "33.33%", "66.66%"],
+                    outputRange: [0, SCREEN_WIDTH / 3, (SCREEN_WIDTH / 3) * 2],
                   }),
                 },
               ],
-              width: `${100 / tabs.length}%`,
+              width: SCREEN_WIDTH / 3,
             },
           ]}
         />
