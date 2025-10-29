@@ -38,7 +38,15 @@ class ProfileImage(models.Model):
     
     class Meta:
         ordering = ['order', 'created_at']
-        unique_together = ['content_type', 'object_id', 'is_primary']
+        # Only enforce uniqueness for primary images (one per profile)
+        # Allow multiple non-primary images
+        constraints = [
+            models.UniqueConstraint(
+                fields=['content_type', 'object_id'],
+                condition=models.Q(is_primary=True),
+                name='unique_primary_image_per_profile'
+            )
+        ]
     
     def __str__(self):
         return f"Image for {self.profile}"

@@ -77,6 +77,14 @@ def profile_images_view(request):
         # Handle image upload
         serializer = ProfileImageSerializer(data=request.data)
         if serializer.is_valid():
+            # If this is being set as primary, unset any existing primary image
+            if serializer.validated_data.get('is_primary', False):
+                ProfileImage.objects.filter(
+                    content_type=content_type, 
+                    object_id=object_id,
+                    is_primary=True
+                ).update(is_primary=False)
+            
             # Set the generic foreign key
             serializer.save(content_type=content_type, object_id=object_id)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -105,6 +113,14 @@ def profile_image_detail_view(request, image_id):
     if request.method == 'PUT':
         serializer = ProfileImageSerializer(image, data=request.data, partial=True)
         if serializer.is_valid():
+            # If this is being set as primary, unset any existing primary image
+            if serializer.validated_data.get('is_primary', False):
+                ProfileImage.objects.filter(
+                    content_type=content_type, 
+                    object_id=object_id,
+                    is_primary=True
+                ).exclude(id=image_id).update(is_primary=False)
+            
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

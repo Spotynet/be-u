@@ -12,7 +12,7 @@ import {
 import {useRouter} from "expo-router";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "../../contexts/ThemeVariantContext";
-import {profileCustomizationApi} from "../../lib/api";
+import {profileCustomizationApi, serviceApi} from "../../lib/api";
 
 interface CustomService {
   id: number;
@@ -20,7 +20,10 @@ interface CustomService {
   description: string;
   price: number;
   duration_minutes: number;
-  image_url?: string;
+  category: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export default function ServiceManagementScreen() {
@@ -32,6 +35,7 @@ export default function ServiceManagementScreen() {
 
   const loadServices = async () => {
     try {
+      // Use CustomService system (where services are actually stored)
       const response = await profileCustomizationApi.getCustomServices();
       setServices(response.data || []);
     } catch (error) {
@@ -84,7 +88,7 @@ export default function ServiceManagementScreen() {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => router.push("/(tabs)/perfil")}>
             <Ionicons name="arrow-back" color={colors.foreground} size={24} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, {color: colors.foreground}]}>Mis Servicios</Text>
@@ -101,7 +105,7 @@ export default function ServiceManagementScreen() {
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.push("/(tabs)/perfil")}>
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>Mis Servicios</Text>

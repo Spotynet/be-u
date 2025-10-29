@@ -52,7 +52,7 @@ export default function MapScreen() {
     {
       id: 3,
       name: "Zen Studio",
-      category: "wellness",
+      category: "bienestar",
       avatar: "🧘‍♀️",
       rating: 4.9,
       distance: "1.2 km",
@@ -65,7 +65,7 @@ export default function MapScreen() {
     {
       id: 4,
       name: "Flow Yoga",
-      category: "wellness",
+      category: "bienestar",
       avatar: "🌸",
       rating: 4.7,
       distance: "1.5 km",

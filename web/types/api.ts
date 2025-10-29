@@ -12,8 +12,115 @@ export type {
   ResetPasswordData,
 } from "@/features/auth/types";
 
-// Service types
+// Public Profile types (matching backend PublicProfile model)
+export interface PublicProfile {
+  id: number;
+  user: number;
+  user_email: string;
+  user_first_name: string;
+  user_last_name: string;
+  user_phone: string;
+  user_country: string;
+  user_image?: string;
+  profile_type: "PROFESSIONAL" | "PLACE";
+  name: string;
+  description?: string;
+  category?: string;
+  sub_categories: string[];
+  images: string[];
+  linked_pros_place: number[];
+  has_calendar: boolean;
+  street?: string;
+  number_ext?: string;
+  number_int?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  last_name?: string;
+  bio?: string;
+  rating: number;
+  display_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Service types (matching backend Service model)
 export interface Service {
+  id: number;
+  name: string;
+  description?: string;
+  price: number;
+  duration: string; // DurationField format (HH:MM:SS)
+  category?: string;
+  sub_category?: string;
+  pro_user: number;
+  pro_name: string;
+  pro_user_email: string;
+  pro_user_first_name: string;
+  pro_user_last_name: string;
+  pro_user_role: string;
+  images: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Service creation/update types
+export interface CreateServiceData {
+  name: string;
+  description?: string;
+  price: number;
+  duration: string; // DurationField format (HH:MM:SS)
+  category?: string;
+  sub_category?: string;
+  images?: string[];
+}
+
+export interface UpdateServiceData extends Partial<CreateServiceData> {
+  is_active?: boolean;
+}
+
+// Public Profile creation/update types
+export interface CreatePublicProfileData {
+  profile_type: "PROFESSIONAL" | "PLACE";
+  name: string;
+  description?: string;
+  category?: string;
+  sub_categories?: string[];
+  images?: string[];
+  linked_pros_place?: number[];
+  has_calendar?: boolean;
+  street?: string;
+  number_ext?: string;
+  number_int?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  last_name?: string;
+  bio?: string;
+}
+
+export interface UpdatePublicProfileData {
+  profile_type?: "PROFESSIONAL" | "PLACE";
+  name?: string;
+  description?: string;
+  category?: string;
+  sub_categories?: string[];
+  images?: string[];
+  linked_pros_place?: number[];
+  has_calendar?: boolean;
+  street?: string;
+  number_ext?: string;
+  number_int?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  last_name?: string;
+  bio?: string;
+}
+
+// Legacy Service types (keeping for backward compatibility)
+export interface LegacyService {
   id: number;
   name: string;
   description: string;
@@ -54,21 +161,6 @@ export interface Review {
   createdAt: string;
   updatedAt: string;
   isVerified: boolean;
-}
-
-// Service creation/update types
-export interface CreateServiceData {
-  name: string;
-  description: string;
-  price: number;
-  duration: number;
-  category: string;
-  images?: File[];
-  tags?: string[];
-}
-
-export interface UpdateServiceData extends Partial<CreateServiceData> {
-  isActive?: boolean;
 }
 
 // Reservation creation/update types
@@ -127,7 +219,7 @@ export interface ReviewFilters {
 }
 
 // API Response types
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data: T;
   message?: string;
   status: number;
@@ -165,14 +257,28 @@ export const API_ENDPOINTS = {
     UPDATE: (id: number) => `/users/${id}/`,
     DELETE: (id: number) => `/users/${id}/`,
   },
+  PUBLIC_PROFILES: {
+    LIST: "/public-profiles/",
+    DETAIL: (id: number) => `/public-profiles/${id}/`,
+    CREATE: "/public-profiles/create-profile/",
+    UPDATE: (id: number) => `/public-profiles/${id}/`,
+    DELETE: (id: number) => `/public-profiles/${id}/`,
+    MY_PROFILE: "/public-profiles/my-profile/",
+    UPLOAD_IMAGE: (id: number) => `/public-profiles/${id}/upload-image/`,
+    REMOVE_IMAGE: (id: number) => `/public-profiles/${id}/remove-image/`,
+  },
   SERVICES: {
-    LIST: "/services/",
-    DETAIL: (id: number) => `/services/${id}/`,
-    CREATE: "/services/",
-    UPDATE: (id: number) => `/services/${id}/`,
-    DELETE: (id: number) => `/services/${id}/`,
-    UPLOAD_IMAGE: (id: number) => `/services/${id}/upload-image/`,
-    CATEGORIES: "/services/categories/",
+    LIST: "/unified-services/",
+    DETAIL: (id: number) => `/unified-services/${id}/`,
+    CREATE: "/unified-services/",
+    UPDATE: (id: number) => `/unified-services/${id}/`,
+    DELETE: (id: number) => `/unified-services/${id}/`,
+    MY_SERVICES: "/unified-services/my-services/",
+    UPLOAD_IMAGE: (id: number) => `/unified-services/${id}/upload-image/`,
+    REMOVE_IMAGE: (id: number) => `/unified-services/${id}/remove-image/`,
+    TOGGLE_ACTIVE: (id: number) => `/unified-services/${id}/toggle-active/`,
+    CATEGORIES: "/categories/",
+    TYPES: "/types/",
   },
   RESERVATIONS: {
     LIST: "/reservations/",

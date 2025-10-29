@@ -17,7 +17,7 @@ import {useCategory} from "@/contexts/CategoryContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
-import {ProfessionalProfile, PlaceProfile} from "@/types/global";
+import {ProfessionalProfile, PlaceProfile, PublicProfile} from "@/types/global";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 import {providerApi} from "@/lib/api";
 import {errorUtils} from "@/lib/api";
@@ -42,10 +42,23 @@ export default function Explore() {
   const [isCategoryPickerExpanded, setIsCategoryPickerExpanded] = useState(false);
 
   const categories = [
-    {id: "belleza", emoji: "💅", name: "Belleza"},
-    {id: "cuidado", emoji: "❤️", name: "Cuidado"},
-    {id: "mascotas", emoji: "🐾", name: "Mascotas"},
+    {id: "belleza", name: "Belleza"},
+    {id: "bienestar", name: "Bienestar"},
+    {id: "mascotas", name: "Mascotas"},
   ];
+
+  const getCategoryIcon = (id: string) => {
+    switch (id) {
+      case "belleza":
+        return require("@/assets/images/pink.png");
+      case "bienestar":
+        return require("@/assets/images/purple.png");
+      case "mascotas":
+        return require("@/assets/images/orange.png");
+      default:
+        return require("@/assets/images/pink.png");
+    }
+  };
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   // Real data states
@@ -106,18 +119,18 @@ export default function Explore() {
       console.log("🔍 Total professionals fetched:", allProfessionals.length);
       console.log("🔍 Total places fetched:", allPlaces.length);
 
-      // Transform professionals data
+      // Transform professionals data (from PublicProfile)
       const transformedProfessionals = allProfessionals.map((prof: any, index: number) => ({
-        id: `prof_${index}_${Date.now()}`, // Ensure completely unique ID
-        user_id: prof.user?.id || prof.id,
-        email: prof.user?.email || "",
-        name: prof.user?.first_name || prof.name || `Profesional ${index + 1}`,
-        last_name: prof.user?.last_name || prof.last_name || "",
-        bio: prof.bio || prof.user?.bio || `Profesional especializado en belleza ${index + 1}`,
-        city: prof.city || prof.user?.city || "Ciudad no especificada",
+        id: prof.id, // Use the actual PublicProfile ID
+        user_id: prof.user,
+        email: prof.user_email || "",
+        name: prof.name || `Profesional ${index + 1}`,
+        last_name: prof.last_name || "",
+        bio: prof.bio || prof.description || `Profesional especializado en belleza ${index + 1}`,
+        city: prof.city || "Ciudad no especificada",
         rating:
           typeof prof.rating === "number" ? prof.rating : Number(prof.rating) || 4.0 + index * 0.1,
-        services_count: prof.services_count || 0,
+        services_count: 0, // Will be updated when we implement service counting
         type: "professional",
         // Add mock coordinates for map display
         coordinates: {
@@ -126,22 +139,31 @@ export default function Explore() {
         },
         avatar: "💇‍♀️",
         distance: `${(0.5 + index * 0.3).toFixed(1)} km`,
+        // Add PublicProfile specific fields
+        profile_type: prof.profile_type,
+        category: prof.category,
+        sub_categories: prof.sub_categories || [],
+        images: prof.images || [],
+        has_calendar: prof.has_calendar || false,
       }));
 
-      // Transform places data
+      // Transform places data (from PublicProfile)
       const transformedPlaces = allPlaces.map((place: any, index: number) => ({
-        id: `place_${index}_${Date.now()}`, // Ensure completely unique ID
-        user_id: place.id,
-        email: "",
+        id: place.id, // Use the actual PublicProfile ID
+        user_id: place.user,
+        email: place.user_email || "",
         name: place.name || `Lugar ${index + 1}`,
         last_name: "", // Places don't have last names
-        street: place.street || place.address,
+        street: place.street || "",
         city: place.city || "Ciudad no especificada",
         country: place.country || "México",
-        services_count: place.services_count || 0,
-        address: place.street || place.address || "Dirección no disponible",
+        services_count: 0, // Will be updated when we implement service counting
+        address: place.street || "Dirección no disponible",
         bio: place.bio || place.description || `Descripción del lugar ${index + 1}`,
-        rating: place.rating || 4.0 + index * 0.1, // Mock rating for places
+        rating:
+          typeof place.rating === "number"
+            ? place.rating
+            : Number(place.rating) || 4.0 + index * 0.1,
         type: "place",
         // Add mock coordinates for map display
         coordinates: {
@@ -150,6 +172,15 @@ export default function Explore() {
         },
         avatar: "🏢",
         distance: `${(0.6 + index * 0.4).toFixed(1)} km`,
+        // Add PublicProfile specific fields
+        profile_type: place.profile_type,
+        category: place.category,
+        sub_categories: place.sub_categories || [],
+        images: place.images || [],
+        has_calendar: place.has_calendar || false,
+        postal_code: place.postal_code,
+        number_ext: place.number_ext,
+        number_int: place.number_int,
       }));
 
       console.log(
@@ -168,84 +199,11 @@ export default function Explore() {
         transformedProfessionals.length + transformedPlaces.length
       );
 
-      // Add mock data if API returns empty results
-      if (transformedProfessionals.length === 0) {
-        console.log("🔍 No professionals found, adding mock data");
-        const mockProfessionals = [
-          {
-            id: `mock_prof_0_${Date.now()}`,
-            user_id: 1,
-            email: "ana@example.com",
-            name: "Ana",
-            last_name: "López",
-            bio: "Estilista profesional con 10 años de experiencia",
-            city: "Ciudad de México",
-            rating: 4.9,
-            services_count: 5,
-            type: "professional",
-            coordinates: {top: "30%", left: "40%"},
-            avatar: "💇‍♀️",
-            distance: "0.5 km",
-          },
-          {
-            id: `mock_prof_1_${Date.now()}`,
-            user_id: 2,
-            email: "maria@example.com",
-            name: "María",
-            last_name: "García",
-            bio: "Especialista en uñas y cuidado personal",
-            city: "Ciudad de México",
-            rating: 4.7,
-            services_count: 3,
-            type: "professional",
-            coordinates: {top: "45%", left: "60%"},
-            avatar: "💅",
-            distance: "0.8 km",
-          },
-        ];
-        setProfessionals(mockProfessionals);
-      } else {
-        setProfessionals(transformedProfessionals);
-      }
+      // Always use real data from database
+      setProfessionals(transformedProfessionals);
 
-      if (transformedPlaces.length === 0) {
-        console.log("🔍 No places found, adding mock data");
-        const mockPlaces = [
-          {
-            id: `mock_place_0_${Date.now()}`,
-            user_id: 3,
-            email: "",
-            name: "Salón de Belleza Luna",
-            last_name: "",
-            bio: "Salón especializado en tratamientos faciales y corporales",
-            city: "Ciudad de México",
-            rating: 4.8,
-            services_count: 8,
-            type: "place",
-            coordinates: {top: "35%", left: "25%"},
-            avatar: "🏢",
-            distance: "1.2 km",
-          },
-          {
-            id: `mock_place_1_${Date.now()}`,
-            user_id: 4,
-            email: "",
-            name: "Centro de Estética Moderna",
-            last_name: "",
-            bio: "Centro de estética con tecnología de vanguardia",
-            city: "Ciudad de México",
-            rating: 4.6,
-            services_count: 12,
-            type: "place",
-            coordinates: {top: "50%", left: "70%"},
-            avatar: "🏢",
-            distance: "1.5 km",
-          },
-        ];
-        setPlaces(mockPlaces);
-      } else {
-        setPlaces(transformedPlaces);
-      }
+      // Always use real data from database
+      setPlaces(transformedPlaces);
 
       // Log the first few items to verify data structure
       console.log("🔍 First professional:", transformedProfessionals[0]);
@@ -351,9 +309,10 @@ export default function Explore() {
               <TouchableOpacity
                 style={[styles.categoryButton, {backgroundColor: colors.card}]}
                 onPress={() => setIsCategoryPickerExpanded(true)}>
-                <Text style={[styles.categoryButtonText, {color: colors.foreground}]}>
-                  {categories.find((cat) => cat.id === selectedMainCategory)?.emoji}
-                </Text>
+                <Image
+                  source={getCategoryIcon(selectedMainCategory)}
+                  style={{width: 28, height: 28, resizeMode: "contain"}}
+                />
               </TouchableOpacity>
             )}
 
@@ -368,11 +327,14 @@ export default function Explore() {
                       selectedMainCategory === category.id && styles.selectedCategoryOption,
                     ]}
                     onPress={() => {
-                      setSelectedMainCategory(category.id as "belleza" | "cuidado" | "mascotas");
+                      setSelectedMainCategory(category.id as "belleza" | "bienestar" | "mascotas");
                       setVariant(category.id as any);
                       setIsCategoryPickerExpanded(false);
                     }}>
-                    <Text style={styles.expandedCategoryEmoji}>{category.emoji}</Text>
+                    <Image
+                      source={getCategoryIcon(category.id)}
+                      style={{width: 24, height: 24, resizeMode: "contain"}}
+                    />
                     {selectedMainCategory === category.id && (
                       <Text style={[styles.expandedCategoryText, {color: colors.primary}]}>
                         {category.name}
@@ -512,8 +474,8 @@ export default function Explore() {
                         <View style={[styles.pinLabel, {backgroundColor: colors.primary}]}>
                           <Text style={styles.pinLabelText}>
                             {item.type === "professional"
-                              ? `${item.name} ${item.last_name}`
-                              : item.name}
+                              ? `${item.name || "Profesional"} ${item.last_name || ""}`
+                              : item.name || "Lugar"}
                           </Text>
                         </View>
                       )}
@@ -578,15 +540,17 @@ export default function Explore() {
                 <View style={[styles.itemAvatarVertical, {backgroundColor: colors.primary}]}>
                   <Text style={styles.itemAvatarTextVertical}>
                     {item.type === "professional"
-                      ? `${item.name[0]}${item.last_name[0]}`
-                      : item.name.substring(0, 2).toUpperCase()}
+                      ? `${(item.name || "P")[0]}${(item.last_name || "R")[0]}`
+                      : (item.name || "L").substring(0, 2).toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.itemInfoVertical}>
                   <Text
                     style={[styles.itemNameVertical, {color: colors.foreground}]}
                     numberOfLines={1}>
-                    {item.type === "professional" ? `${item.name} ${item.last_name}` : item.name}
+                    {item.type === "professional"
+                      ? `${item.name || "Profesional"} ${item.last_name || ""}`
+                      : item.name || "Lugar"}
                   </Text>
                   <View style={styles.itemMetaVertical}>
                     {typeof item.rating !== "undefined" && (
@@ -649,15 +613,19 @@ export default function Explore() {
                 <View style={[styles.detailAvatar, {backgroundColor: colors.primary}]}>
                   <Text style={styles.detailAvatarText}>
                     {selectedItemData.type === "professional"
-                      ? `${selectedItemData.name[0]}${selectedItemData.last_name[0]}`
-                      : selectedItemData.name.substring(0, 2).toUpperCase()}
+                      ? `${(selectedItemData.name || "P")[0]}${
+                          (selectedItemData.last_name || "R")[0]
+                        }`
+                      : (selectedItemData.name || "L").substring(0, 2).toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.detailInfo}>
                   <Text style={[styles.detailName, {color: colors.foreground}]}>
                     {selectedItemData.type === "professional"
-                      ? `${selectedItemData.name} ${selectedItemData.last_name}`
-                      : selectedItemData.name}
+                      ? `${selectedItemData.name || "Profesional"} ${
+                          selectedItemData.last_name || ""
+                        }`
+                      : selectedItemData.name || "Lugar"}
                   </Text>
                   <View style={styles.detailMeta}>
                     {selectedItemData.rating && (
@@ -723,13 +691,7 @@ export default function Explore() {
               <View style={styles.detailActions}>
                 <TouchableOpacity
                   style={[styles.detailActionPrimary, {backgroundColor: colors.primary}]}
-                  onPress={() =>
-                    router.push(
-                      selectedItemData.type === "professional"
-                        ? `/professional/${selectedItemData.id}`
-                        : `/place/${selectedItemData.id}`
-                    )
-                  }
+                  onPress={() => router.push(`/profile/${selectedItemData.id}`)}
                   activeOpacity={0.9}>
                   <Ionicons name="eye" color="#ffffff" size={18} />
                   <Text style={styles.detailActionPrimaryText}>Ver Detalles</Text>
@@ -800,9 +762,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   categoryButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",

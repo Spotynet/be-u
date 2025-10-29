@@ -86,7 +86,8 @@ export default function CreateServiceScreen() {
 
     try {
       await createService(formData);
-      router.back();
+      // Navigate to services page instead of going back
+      router.push("/services");
     } catch (err) {
       // Error already handled in hook
     }
@@ -414,32 +415,3 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

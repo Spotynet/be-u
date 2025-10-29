@@ -1,19 +1,20 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, ClientProfile, ProfessionalProfile, PlaceProfile
+from .models import User, ClientProfile, ProfessionalProfile, PlaceProfile, PublicProfile
 from .profile_models import ProfileImage, CustomService, AvailabilitySchedule, TimeSlot
 
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'role', 'first_name', 'last_name', 'phone', 'is_staff')
-    list_filter = ('role', 'is_staff', 'is_superuser', 'is_active', 'date_joined')
-    search_fields = ('username', 'first_name', 'last_name', 'email', 'phone')
+    list_display = ('username', 'email', 'role', 'first_name', 'last_name', 'phone', 'country', 'is_staff')
+    list_filter = ('role', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'country')
+    search_fields = ('username', 'first_name', 'last_name', 'email', 'phone', 'country')
     ordering = ('username',)
     
     fieldsets = UserAdmin.fieldsets + (
         ('Role Information', {'fields': ('role',)}),
-        ('Contact Information', {'fields': ('phone',)}),
+        ('Contact Information', {'fields': ('phone', 'country')}),
+        ('Profile Image', {'fields': ('image',)}),
     )
 
 
@@ -46,6 +47,34 @@ class PlaceProfileAdmin(admin.ModelAdmin):
             'fields': ('owner',)
         }),
     )
+
+
+@admin.register(PublicProfile)
+class PublicProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'profile_type', 'name', 'category', 'city', 'rating', 'has_calendar')
+    search_fields = ('user__email', 'name', 'description', 'category', 'city')
+    list_filter = ('profile_type', 'category', 'city', 'has_calendar')
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('user', 'profile_type', 'name', 'description', 'category', 'sub_categories')
+        }),
+        ('Images & Links', {
+            'fields': ('images', 'linked_pros_place', 'has_calendar')
+        }),
+        ('Professional Fields', {
+            'fields': ('last_name', 'bio', 'rating'),
+            'classes': ('collapse',)
+        }),
+        ('Place Fields', {
+            'fields': ('street', 'number_ext', 'number_int', 'postal_code', 'city', 'country'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(ProfileImage)

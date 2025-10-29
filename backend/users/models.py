@@ -25,6 +25,12 @@ class User(AbstractUser):
     
     # Phone number for all users
     phone = models.CharField(max_length=20, blank=True, null=True)
+    
+    # Country for all users
+    country = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Profile image for all users
+    image = models.ImageField(upload_to="users/images/", blank=True, null=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
@@ -78,3 +84,50 @@ class PlaceProfile(models.Model):
 
     def __str__(self):
         return f"Place: {self.name}"
+
+
+class PublicProfile(models.Model):
+    """Unified profile model for both professionals and places"""
+    PROFILE_TYPE_CHOICES = [
+        ('PROFESSIONAL', 'Professional'),
+        ('PLACE', 'Place'),
+    ]
+    
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="public_profile")
+    profile_type = models.CharField(max_length=20, choices=PROFILE_TYPE_CHOICES)
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    category = models.CharField(max_length=100, blank=True, null=True)
+    sub_categories = models.JSONField(default=list, blank=True, help_text="List of sub-categories")
+    images = models.JSONField(default=list, blank=True, help_text="List of image URLs/paths")
+    linked_pros_place = models.JSONField(default=list, blank=True, help_text="List of linked professional/place IDs")
+    has_calendar = models.BooleanField(default=False, help_text="Whether this profile has calendar functionality")
+    
+    # Place-specific fields
+    street = models.CharField(max_length=200, blank=True, null=True)
+    number_ext = models.CharField(max_length=20, blank=True, null=True)
+    number_int = models.CharField(max_length=20, blank=True, null=True)
+    postal_code = models.CharField(max_length=10, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Professional-specific fields
+    last_name = models.CharField(max_length=100, blank=True, null=True)
+    bio = models.TextField(blank=True, null=True)
+    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.profile_type}: {self.name}"
+    
+    @property
+    def display_name(self):
+        """Get display name based on profile type"""
+        if self.profile_type == 'PROFESSIONAL' and self.last_name:
+            return f"{self.name} {self.last_name}"
+        return self.name

@@ -1,5 +1,5 @@
 import {useState, useEffect} from "react";
-import {profileCustomizationApi, errorUtils} from "@/lib/api";
+import {profileCustomizationApi, serviceApi, errorUtils} from "@/lib/api";
 import {Alert} from "react-native";
 
 interface ProfileImage {
@@ -126,12 +126,23 @@ export const useProfileCustomization = () => {
     }
   };
 
-  // Service management
+  // Service management - Use new unified services system
   const createService = async (
     serviceData: Omit<CustomService, "id" | "created_at" | "updated_at">
   ) => {
     try {
-      const response = await profileCustomizationApi.createCustomService(serviceData);
+      // Convert CustomService data to Service data format
+      const servicePayload = {
+        name: serviceData.name,
+        description: serviceData.description,
+        price: serviceData.price,
+        duration: `${serviceData.duration_minutes || 60}:00:00`, // Convert minutes to HH:MM:SS
+        category: serviceData.category,
+        sub_category: serviceData.sub_category,
+        images: serviceData.images || [],
+      };
+
+      const response = await serviceApi.createService(servicePayload);
       setData((prev) => ({
         ...prev,
         services: [...prev.services, response.data],
@@ -211,18 +222,3 @@ export const useProfileCustomization = () => {
     updateAvailability,
   };
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

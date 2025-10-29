@@ -88,7 +88,7 @@ export default function ServicesScreen() {
         ]}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.push("/(tabs)/perfil")}
           activeOpacity={0.7}>
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>

@@ -174,6 +174,31 @@ export const ThemeVariants = {
       mutedForeground: "#94a3b8",
     },
   },
+  bienestar: {
+    primary: "#8B5CF6", // Purple for Bienestar (alias of cuidado)
+    primaryForeground: "#ffffff",
+    tint: "#8B5CF6",
+    // Light mode colors
+    light: {
+      background: "#ffffff",
+      foreground: "#1f2937",
+      card: "#ffffff",
+      cardForeground: "#1f2937",
+      border: "#e5e7eb",
+      muted: "#f9fafb",
+      mutedForeground: "#6b7280",
+    },
+    // Dark mode colors
+    dark: {
+      background: "#0f172a",
+      foreground: "#f8fafc",
+      card: "#1e293b",
+      cardForeground: "#f8fafc",
+      border: "#334155",
+      muted: "#1e293b",
+      mutedForeground: "#94a3b8",
+    },
+  },
   mascotas: {
     primary: "#F97316", // Orange for Pets/Mascotas
     primaryForeground: "#ffffff",

@@ -47,7 +47,38 @@ export interface PlaceProfile {
   owner?: number;
 }
 
-export type ServiceCategory = "belleza" | "wellness" | "mascotas";
+export interface PublicProfile {
+  id: number;
+  user: number;
+  user_email: string;
+  user_first_name: string;
+  user_last_name: string;
+  user_phone: string;
+  user_country: string;
+  user_image?: string;
+  profile_type: "PROFESSIONAL" | "PLACE";
+  name: string;
+  description?: string;
+  category?: string;
+  sub_categories: string[];
+  images: string[];
+  linked_pros_place: number[];
+  has_calendar: boolean;
+  street?: string;
+  number_ext?: string;
+  number_int?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  last_name?: string;
+  bio?: string;
+  rating: number;
+  display_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ServiceCategory = "belleza" | "bienestar" | "mascotas";
 export type ProviderType = "professional" | "place";
 export type ServiceInstanceType = "place_service" | "professional_service";
 

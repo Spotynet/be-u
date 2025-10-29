@@ -244,15 +244,70 @@ export const profileCustomizationApi = {
   // Get all profile customization data
   getProfileCustomization: () => api.get<any>(`/profile/customization/`),
 
-  // Profile Images
-  getProfileImages: () => api.get<any>(`/profile/images/`),
-  uploadProfileImage: (data: FormData) =>
-    api.post<any>(`/profile/images/`, data, {
+  // Profile Images (using PublicProfile endpoints)
+  getProfileImages: async () => {
+    try {
+      return await api.get<any>(`/public-profiles/my-profile/`);
+    } catch (error: any) {
+      // If profile doesn't exist (404), create one automatically
+      if (error.response?.status === 404) {
+        console.log("No PublicProfile found, creating one automatically...");
+
+        // Try to get user info to create a more personalized profile
+        let profileName = "My Profile";
+        let profileType = "PROFESSIONAL";
+
+        try {
+          const userResponse = await api.get<any>(`/auth/profile/`);
+          const user = userResponse.data;
+          if (user.first_name || user.last_name) {
+            profileName = `${user.first_name || ""} ${user.last_name || ""}`.trim();
+          }
+          if (user.role === "PLACE") {
+            profileType = "PLACE";
+          }
+        } catch (userError) {
+          console.log("Could not fetch user info, using defaults");
+        }
+
+        const createResponse = await api.post<any>(`/public-profiles/create-profile/`, {
+          profile_type: profileType,
+          name: profileName,
+          description: "",
+          category: "",
+          sub_categories: [],
+          images: [],
+          linked_pros_place: [],
+          has_calendar: false,
+        });
+        return createResponse;
+      }
+      throw error;
+    }
+  },
+  uploadProfileImage: async (data: FormData) => {
+    // First get or create the user's public profile
+    const profileResponse = await profileCustomizationApi.getProfileImages();
+    const profileId = profileResponse.data.id;
+    return api.post<any>(`/public-profiles/${profileId}/upload-image/`, data, {
       headers: {"Content-Type": "multipart/form-data"},
-    }),
-  updateProfileImage: (imageId: number, data: any) =>
-    api.put<any>(`/profile/images/${imageId}/`, data),
-  deleteProfileImage: (imageId: number) => api.delete<any>(`/profile/images/${imageId}/`),
+    });
+  },
+  updateProfileImage: async (imageId: number, data: any) => {
+    // For PublicProfile, we don't have individual image updates,
+    // we update the entire images array
+    const profileResponse = await profileCustomizationApi.getProfileImages();
+    const profileId = profileResponse.data.id;
+    return api.put<any>(`/public-profiles/${profileId}/`, data);
+  },
+  deleteProfileImage: async (imageIndex: number) => {
+    // Delete by image index in the images array
+    const profileResponse = await profileCustomizationApi.getProfileImages();
+    const profileId = profileResponse.data.id;
+    return api.delete<any>(`/public-profiles/${profileId}/remove-image/`, {
+      data: {image_index: imageIndex},
+    });
+  },
 
   // Custom Services
   getCustomServices: () => api.get<any>(`/profile/services/`),
@@ -284,25 +339,46 @@ export const userApi = {
     }),
 };
 
-// Provider profiles API (for browse/explore)
+// Provider profiles API (for browse/explore) - Updated to use PublicProfile
 export const providerApi = {
-  // Get professional profiles for browsing
+  // Get all public profiles for browsing (both professionals and places)
+  getPublicProfiles: (params?: {
+    search?: string;
+    city?: string;
+    page?: number;
+    profile_type?: string;
+  }) =>
+    api.get<{results: any[]; count: number; next?: string; previous?: string}>(
+      "/public-profiles/",
+      {
+        params,
+      }
+    ),
+
+  // Get professional profiles for browsing (filtered from public profiles)
   getProfessionalProfiles: (params?: {search?: string; city?: string; page?: number}) =>
-    api.get<{results: any[]; count: number; next?: string; previous?: string}>("/users/professionals/", {
-      params,
-    }),
+    api.get<{results: any[]; count: number; next?: string; previous?: string}>(
+      "/public-profiles/",
+      {
+        params: {...params, profile_type: "PROFESSIONAL"},
+      }
+    ),
 
-  // Get place profiles for browsing
+  // Get place profiles for browsing (filtered from public profiles)
   getPlaceProfiles: (params?: {search?: string; city?: string; page?: number}) =>
-    api.get<{results: any[]; count: number; next?: string; previous?: string}>("/users/places/", {
-      params,
-    }),
+    api.get<{results: any[]; count: number; next?: string; previous?: string}>(
+      "/public-profiles/",
+      {
+        params: {...params, profile_type: "PLACE"},
+      }
+    ),
 
-  // Get specific professional profile with detailed info
-  getProfessionalProfile: (id: number) => api.get<any>(`/users/professionals/${id}/`),
+  // Get specific public profile with detailed info
+  getPublicProfile: (id: number) => api.get<any>(`/public-profiles/${id}/`),
 
-  // Get specific place profile with detailed info
-  getPlaceProfile: (id: number) => api.get<any>(`/users/places/${id}/`),
+  // Legacy methods for backward compatibility
+  getProfessionalProfile: (id: number) => api.get<any>(`/public-profiles/${id}/`),
+  getPlaceProfile: (id: number) => api.get<any>(`/public-profiles/${id}/`),
 };
 
 // Service management API functions
@@ -475,6 +551,10 @@ export const reservationApi = {
 export const reviewApi = {
   // Aggregated read-only list
   listAll: (params?: any) => api.get<{results: any[]; count: number}>("/reviews/", {params}),
+
+  // Get reviews for a specific public profile
+  getReviews: (params?: {to_public_profile?: number; page?: number}) =>
+    api.get<{results: any[]; count: number}>("/reviews/", {params}),
 
   // Place reviews CRUD
   listPlaces: (params?: any) =>

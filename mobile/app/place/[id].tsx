@@ -487,8 +487,12 @@ export default function PlaceDetailScreen() {
             <SubCategoryBar
               categories={[
                 {id: "todos", name: "Todos", icon: "apps"},
-                {id: "manicure", name: "Manicure & Pedicure", icon: "hand-left"},
-                {id: "maquillaje", name: "Make Up", icon: "brush"},
+                {id: "cabello", name: "Cabello", icon: "cut"},
+                {id: "pestanas", name: "Pestañas", icon: "eye"},
+                {id: "cejas", name: "Cejas", icon: "eye-outline"},
+                {id: "maquillaje_peinado", name: "Maquillaje y Peinado", icon: "brush"},
+                {id: "manos_pies", name: "Manos y Pies", icon: "hand-left"},
+                {id: "faciales", name: "Faciales", icon: "flower"},
                 {id: "barberia", name: "Barbería", icon: "cut"},
               ]}
               selectedCategoryId={selectedCategory}

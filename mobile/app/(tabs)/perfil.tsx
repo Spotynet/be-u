@@ -38,15 +38,28 @@ export default function Perfil() {
   const [uploading, setUploading] = useState(false);
   const [profileImages, setProfileImages] = useState<any[]>([]);
   const [imagesLoading, setImagesLoading] = useState(false);
+  const [profileCreated, setProfileCreated] = useState(false);
+  const [publicProfileId, setPublicProfileId] = useState<number | null>(null);
 
   // Fetch profile images
   const fetchProfileImages = async () => {
     try {
       setImagesLoading(true);
       const response = await profileCustomizationApi.getProfileImages();
-      setProfileImages(response.data || []);
+      // The new endpoint returns a PublicProfile object with images array
+      setProfileImages(response.data?.images || []);
+
+      // If this was a newly created profile, show a message
+      if (response.data?.name && response.data?.images?.length === 0) {
+        console.log("New PublicProfile created automatically");
+        setProfileCreated(true);
+        // Hide the message after 3 seconds
+        setTimeout(() => setProfileCreated(false), 3000);
+      }
     } catch (error) {
       console.error("Error fetching profile images:", error);
+      // If there's still an error after auto-creation, set empty array
+      setProfileImages([]);
     } finally {
       setImagesLoading(false);
     }
@@ -58,6 +71,21 @@ export default function Perfil() {
       fetchProfileImages();
     }
   }, [isPersonalizarExpanded, activePersonalizarTab]);
+
+  // Ensure we have the PublicProfile id available for preview navigation
+  useEffect(() => {
+    const fetchPublicProfileId = async () => {
+      try {
+        const res = await profileCustomizationApi.getProfileImages();
+        if (res?.data?.id) {
+          setPublicProfileId(res.data.id as number);
+        }
+      } catch (e) {
+        console.log("No PublicProfile yet for preview", e);
+      }
+    };
+    fetchPublicProfileId();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -121,9 +149,9 @@ export default function Perfil() {
           formData.append("image", rnFile);
         }
 
-        await profileCustomizationApi.uploadProfileImage(formData);
-        // Refresh profile images to show new image
-        await fetchProfileImages();
+        const response = await profileCustomizationApi.uploadProfileImage(formData);
+        // Update images directly from response
+        setProfileImages(response.data?.images || []);
         Alert.alert("Éxito", "Imagen subida correctamente");
       } catch (error) {
         console.error("Error uploading image:", error);
@@ -284,11 +312,28 @@ export default function Perfil() {
               <TouchableOpacity
                 style={[styles.previewButton, {borderColor: colors.primary, borderWidth: 1}]}
                 onPress={() => {
-                  // Navigate to public profile view based on role
-                  if (user?.role === "PROFESSIONAL" && profile?.id) {
-                    router.push(`/professional/${profile.id}`);
-                  } else if (user?.role === "PLACE" && profile?.id) {
-                    router.push(`/place/${profile.id}`);
+                  // Navigate to unified public profile preview
+                  console.log("Preview public profile pressed");
+                  const publicId = publicProfileId;
+                  console.log("Public profile ID:", publicId);
+                  if (!publicId) {
+                    Alert.alert(
+                      "Perfil no disponible",
+                      "No pudimos encontrar tu perfil público aún. Intenta recargar el perfil o vuelve más tarde."
+                    );
+                    return;
+                  }
+
+                  const href = `/profile/${publicId}`;
+                  try {
+                    router.push(href as any);
+                  } catch (e) {
+                    console.warn("router.push string failed, trying object form", e);
+                    try {
+                      router.push({pathname: "/profile/[id]", params: {id: String(publicId)}});
+                    } catch (e2) {
+                      console.error("Navigation error to public profile", e2);
+                    }
                   }
                 }}
                 activeOpacity={0.8}>
@@ -423,6 +468,19 @@ export default function Perfil() {
                   Agrega imágenes de tu trabajo para mostrar a los clientes
                 </Text>
 
+                {profileCreated && (
+                  <View
+                    style={[
+                      styles.successMessage,
+                      {backgroundColor: colors.primary + "20", borderColor: colors.primary},
+                    ]}>
+                    <Ionicons name="checkmark-circle" color={colors.primary} size={20} />
+                    <Text style={[styles.successText, {color: colors.primary}]}>
+                      ¡Perfil creado automáticamente! Ya puedes subir imágenes.
+                    </Text>
+                  </View>
+                )}
+
                 {imagesLoading ? (
                   <View style={styles.imageGalleryPlaceholder}>
                     <ActivityIndicator color={colors.primary} size="large" />
@@ -432,16 +490,38 @@ export default function Perfil() {
                   </View>
                 ) : profileImages.length > 0 ? (
                   <View style={styles.imageGallery}>
-                    {profileImages.map((image, index) => (
-                      <View key={image.id} style={styles.imageItem}>
-                        <Image source={{uri: image.image_url}} style={styles.galleryImage} />
+                    {profileImages.map((imageUrl, index) => (
+                      <View key={index} style={styles.imageItem}>
+                        <Image source={{uri: imageUrl}} style={styles.galleryImage} />
                         <TouchableOpacity
                           style={styles.deleteImageButton}
                           onPress={() => {
-                            // TODO: Implement delete functionality
                             Alert.alert(
                               "Eliminar imagen",
-                              "¿Estás seguro de que quieres eliminar esta imagen?"
+                              "¿Estás seguro de que quieres eliminar esta imagen?",
+                              [
+                                {text: "Cancelar", style: "cancel"},
+                                {
+                                  text: "Eliminar",
+                                  style: "destructive",
+                                  onPress: async () => {
+                                    try {
+                                      setUploading(true);
+                                      await profileCustomizationApi.deleteProfileImage(index);
+                                      // Update images directly
+                                      const newImages = [...profileImages];
+                                      newImages.splice(index, 1);
+                                      setProfileImages(newImages);
+                                      Alert.alert("Éxito", "Imagen eliminada correctamente");
+                                    } catch (error) {
+                                      console.error("Error deleting image:", error);
+                                      Alert.alert("Error", "No se pudo eliminar la imagen");
+                                    } finally {
+                                      setUploading(false);
+                                    }
+                                  },
+                                },
+                              ]
                             );
                           }}>
                           <Ionicons name="close-circle" color="#ff4444" size={20} />
@@ -745,6 +825,20 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 12,
     marginBottom: 16,
+  },
+  successMessage: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+    gap: 8,
+  },
+  successText: {
+    fontSize: 14,
+    fontWeight: "500",
+    flex: 1,
   },
   imageItem: {
     position: "relative",

@@ -43,7 +43,7 @@ export default function Home() {
     switch (category) {
       case "belleza":
         return "#8B5CF6";
-      case "cuidado":
+      case "bienestar":
         return "#C4B5FD";
       case "mascotas":
         return "#B026FF";
@@ -69,10 +69,23 @@ export default function Home() {
   const [isCategoryPickerExpanded, setIsCategoryPickerExpanded] = useState(false);
 
   const categories = [
-    {id: "belleza", emoji: "💅", name: "Belleza"},
-    {id: "cuidado", emoji: "❤️", name: "Cuidado"},
-    {id: "mascotas", emoji: "🐾", name: "Mascotas"},
+    {id: "belleza", name: "Belleza"},
+    {id: "bienestar", name: "Bienestar"},
+    {id: "mascotas", name: "Mascotas"},
   ];
+
+  const getCategoryIcon = (id: string) => {
+    switch (id) {
+      case "belleza":
+        return require("@/assets/images/pink.png");
+      case "bienestar":
+        return require("@/assets/images/purple.png");
+      case "mascotas":
+        return require("@/assets/images/orange.png");
+      default:
+        return require("@/assets/images/pink.png");
+    }
+  };
 
   // Get current subcategories based on selected main category
   const currentSubcategories = subcategoriesByMainCategory[selectedMainCategory];
@@ -217,7 +230,7 @@ export default function Home() {
       duration: "5:12",
       stats: {likes: 2341, comments: 167, shares: 234, views: "78.5K"},
       timeAgo: "12h",
-      category: "wellness",
+      category: "bienestar",
       isPinned: false,
     },
     {
@@ -288,7 +301,7 @@ export default function Home() {
       duration: "15:24",
       stats: {likes: 1456, comments: 234, views: "34.8K"},
       timeAgo: "2d",
-      category: "wellness",
+      category: "bienestar",
     },
   ];
 
@@ -994,9 +1007,10 @@ export default function Home() {
               <TouchableOpacity
                 style={[styles.categoryButton, {backgroundColor: colors.card}]}
                 onPress={() => setIsCategoryPickerExpanded(true)}>
-                <Text style={[styles.categoryButtonText, {color: colors.foreground}]}>
-                  {categories.find((c) => c.id === selectedMainCategory)?.emoji}
-                </Text>
+                <Image
+                  source={getCategoryIcon(selectedMainCategory)}
+                  style={{width: 28, height: 28, resizeMode: "contain"}}
+                />
               </TouchableOpacity>
             )}
             {isCategoryPickerExpanded && (
@@ -1013,7 +1027,10 @@ export default function Home() {
                       setVariant(category.id as any);
                       setIsCategoryPickerExpanded(false);
                     }}>
-                    <Text style={styles.expandedCategoryEmoji}>{category.emoji}</Text>
+                    <Image
+                      source={getCategoryIcon(category.id)}
+                      style={{width: 24, height: 24, resizeMode: "contain"}}
+                    />
                     {selectedMainCategory === category.id && (
                       <Text style={[styles.expandedCategoryText, {color: colors.primary}]}>
                         {category.name}
@@ -1162,9 +1179,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   categoryButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",

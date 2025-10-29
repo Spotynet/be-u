@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
-from users.models import PlaceProfile, ProfessionalProfile
+from users.models import PlaceProfile, ProfessionalProfile, PublicProfile, User
 import uuid
 
 
@@ -24,6 +24,48 @@ class ServicesType(models.Model):
 
     def __str__(self):
         return self.name
+
+
+# ======================
+# UNIFIED SERVICE MODEL (as per diagram)
+# ======================
+class Service(models.Model):
+    """Unified service model that matches the diagram requirements"""
+    
+    # Core service info
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    duration = models.DurationField(help_text="Duration of the service")
+    
+    # Category and sub-category
+    category = models.CharField(max_length=100, blank=True, null=True)
+    sub_category = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Direct relationship to User (Pro ID as per diagram)
+    pro_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="services", 
+                                help_text="Professional/Place user who offers this service")
+    
+    # Images array (stored as JSON list of image URLs/paths)
+    images = models.JSONField(default=list, blank=True, help_text="List of image URLs/paths")
+    
+    # Additional metadata
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['name']
+    
+    def __str__(self):
+        return f"{self.name} by {self.pro_user.email}"
+    
+    @property
+    def pro_name(self):
+        """Get the professional/place name"""
+        if hasattr(self.pro_user, 'public_profile'):
+            return self.pro_user.public_profile.display_name
+        return self.pro_user.email
 
 
 class ServiceInPlace(models.Model):

@@ -156,18 +156,72 @@ export const userApi = {
   deleteUser: (id: number) => api.delete(`/users/${id}/`),
 };
 
+// Public Profile management API functions
+export const publicProfileApi = {
+  getPublicProfiles: (params?: {
+    page?: number;
+    search?: string;
+    profile_type?: string;
+    category?: string;
+    city?: string;
+  }) => api.get<PaginatedResponse<any>>("/public-profiles/", {params}),
+
+  getPublicProfile: (id: number) => api.get<any>(`/public-profiles/${id}/`),
+
+  getMyProfile: () => api.get<any>("/public-profiles/my-profile/"),
+
+  createPublicProfile: (data: any) => api.post<any>("/public-profiles/create-profile/", data),
+
+  updatePublicProfile: (id: number, data: any) => api.put<any>(`/public-profiles/${id}/`, data),
+
+  deletePublicProfile: (id: number) => api.delete(`/public-profiles/${id}/`),
+
+  uploadImage: (id: number, imageFile: File) => {
+    const formData = new FormData();
+    formData.append("image", imageFile);
+    return api.post(`/public-profiles/${id}/upload-image/`, formData, {
+      headers: {"Content-Type": "multipart/form-data"},
+    });
+  },
+
+  removeImage: (id: number, imageIndex: number) =>
+    api.delete(`/public-profiles/${id}/remove-image/`, {data: {image_index: imageIndex}}),
+};
+
 // Service management API functions
 export const serviceApi = {
-  getServices: (params?: {page?: number; search?: string; category?: string}) =>
-    api.get<PaginatedResponse<any>>("/services/", {params}),
+  getServices: (params?: {
+    page?: number;
+    search?: string;
+    category?: string;
+    sub_category?: string;
+    min_price?: number;
+    max_price?: number;
+    provider?: number;
+  }) => api.get<PaginatedResponse<any>>("/unified-services/", {params}),
 
-  getService: (id: number) => api.get<any>(`/services/${id}/`),
+  getService: (id: number) => api.get<any>(`/unified-services/${id}/`),
 
-  createService: (data: any) => api.post<any>("/services/", data),
+  getMyServices: () => api.get<any>("/unified-services/my-services/"),
 
-  updateService: (id: number, data: any) => api.put<any>(`/services/${id}/`, data),
+  createService: (data: any) => api.post<any>("/unified-services/", data),
 
-  deleteService: (id: number) => api.delete(`/services/${id}/`),
+  updateService: (id: number, data: any) => api.put<any>(`/unified-services/${id}/`, data),
+
+  deleteService: (id: number) => api.delete(`/unified-services/${id}/`),
+
+  toggleActive: (id: number) => api.patch<any>(`/unified-services/${id}/toggle-active/`),
+
+  uploadImage: (id: number, imageFile: File) => {
+    const formData = new FormData();
+    formData.append("image", imageFile);
+    return api.post(`/unified-services/${id}/upload-image/`, formData, {
+      headers: {"Content-Type": "multipart/form-data"},
+    });
+  },
+
+  removeImage: (id: number, imageIndex: number) =>
+    api.delete(`/unified-services/${id}/remove-image/`, {data: {image_index: imageIndex}}),
 };
 
 // Reservation management API functions
