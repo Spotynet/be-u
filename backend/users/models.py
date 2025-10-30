@@ -102,6 +102,9 @@ class PublicProfile(models.Model):
     images = models.JSONField(default=list, blank=True, help_text="List of image URLs/paths")
     linked_pros_place = models.JSONField(default=list, blank=True, help_text="List of linked professional/place IDs")
     has_calendar = models.BooleanField(default=False, help_text="Whether this profile has calendar functionality")
+    # Geolocation (only for PROFESSIONAL and PLACE)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     
     # Place-specific fields
     street = models.CharField(max_length=200, blank=True, null=True)

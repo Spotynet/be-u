@@ -10,6 +10,7 @@ import {
   RefreshControl,
 } from "react-native";
 import {useRouter} from "expo-router";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "../../contexts/ThemeVariantContext";
 import {profileCustomizationApi, serviceApi} from "../../lib/api";
@@ -29,6 +30,7 @@ interface CustomService {
 export default function ServiceManagementScreen() {
   const router = useRouter();
   const {colors} = useThemeVariant();
+  const insets = useSafeAreaInsets();
   const [services, setServices] = useState<CustomService[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -87,7 +89,7 @@ export default function ServiceManagementScreen() {
   if (loading) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View style={styles.header}>
+        <View style={[styles.header, {paddingTop: insets.top + 44, paddingBottom: 12}]}>
           <TouchableOpacity onPress={() => router.push("/(tabs)/perfil")}>
             <Ionicons name="arrow-back" color={colors.foreground} size={24} />
           </TouchableOpacity>
@@ -104,7 +106,7 @@ export default function ServiceManagementScreen() {
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, {paddingTop: insets.top + 44, paddingBottom: 12}]}>
         <TouchableOpacity onPress={() => router.push("/(tabs)/perfil")}>
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>

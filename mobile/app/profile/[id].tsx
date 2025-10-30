@@ -15,6 +15,7 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
 import {useRouter, useLocalSearchParams} from "expo-router";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {providerApi, postApi, reviewApi, serviceApi, profileCustomizationApi} from "@/lib/api";
 import {BookingFlow} from "@/components/booking/BookingFlow";
 import {errorUtils} from "@/lib/api";
@@ -25,6 +26,7 @@ export default function ProfileDetailScreen() {
   const {colors} = useThemeVariant();
   const router = useRouter();
   const {id} = useLocalSearchParams<{id: string}>();
+  const insets = useSafeAreaInsets();
 
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
@@ -232,7 +234,11 @@ export default function ProfileDetailScreen() {
       <View
         style={[
           styles.header,
-          {backgroundColor: colors.background, borderBottomColor: colors.border},
+          {
+            backgroundColor: colors.background,
+            borderBottomColor: colors.border,
+            paddingTop: insets.top + 40,
+          },
         ]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />

@@ -22,8 +22,8 @@ export interface ApiError {
 
 // API Configuration - HARDCODED for testing
 
-//const API_BASE_URL = "http://127.0.0.1:8000/api";
-const API_BASE_URL = "https://stg.be-u.ai/api";
+const API_BASE_URL = "http://127.0.0.1:8000/api";
+//const API_BASE_URL = "https://stg.be-u.ai/api";
 
 console.log("🔧 HARDCODED API URL:", API_BASE_URL);
 const AUTH_TOKEN_KEY = "@auth_token";
@@ -319,6 +319,13 @@ export const profileCustomizationApi = {
   // Availability Schedule
   getAvailabilitySchedule: () => api.get<any>(`/profile/availability/`),
   updateAvailabilitySchedule: (data: any) => api.post<any>(`/profile/availability/`, data),
+
+  // PublicProfile update (including coordinates)
+  updatePublicProfile: async (data: any) => {
+    const profileResponse = await profileCustomizationApi.getProfileImages();
+    const profileId = profileResponse.data.id;
+    return api.put<any>(`/public-profiles/${profileId}/`, data);
+  },
 };
 
 // User management API functions
@@ -641,6 +648,12 @@ export const postApi = {
     options: string[];
     expires_at?: string;
   }) => api.post<any>("/posts/poll/", data),
+
+  // Create before/after (transformation) post
+  createBeforeAfterPost: (formData: FormData) =>
+    api.post<any>("/posts/transformation/", formData, {
+      headers: {"Content-Type": "multipart/form-data"},
+    }),
 
   // Vote in poll
   voteInPoll: (postId: number, optionId: number) =>

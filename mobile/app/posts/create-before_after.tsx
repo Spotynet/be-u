@@ -15,6 +15,7 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
 import {useState} from "react";
 import * as ImagePicker from "expo-image-picker";
+import {postApi, tokenUtils, errorUtils} from "@/lib/api";
 
 export default function CreateBeforeAfterScreen() {
   const colorScheme = useColorScheme();
@@ -56,7 +57,7 @@ export default function CreateBeforeAfterScreen() {
     }
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     if (!beforePhoto || !afterPhoto) {
       Alert.alert("Error", "Agrega las fotos de Antes y Después");
       return;
@@ -66,13 +67,41 @@ export default function CreateBeforeAfterScreen() {
       Alert.alert("Error", "Agrega una descripción del proceso");
       return;
     }
+    try {
+      const token = await tokenUtils.getToken();
+      if (!token) {
+        Alert.alert("Inicia sesión", "Necesitas iniciar sesión para publicar.");
+        router.push("/login");
+        return;
+      }
 
-    Alert.alert("¡Publicado!", "Tu transformación ha sido publicada exitosamente", [
-      {
-        text: "Ver Publicación",
-        onPress: () => router.push("/(tabs)/"),
-      },
-    ]);
+      const form = new FormData();
+
+      const buildFile = async (uri: string, name: string) => {
+        if (Platform.OS === "web") {
+          const res = await fetch(uri);
+          const blob = await res.blob();
+          return new File([blob], name, {type: blob.type || "image/jpeg"});
+        }
+        const ext = uri.split(".").pop() || "jpg";
+        return {uri, name, type: `image/${ext === "jpg" ? "jpeg" : ext}`} as any;
+      };
+
+      form.append("before", await buildFile(beforePhoto, `before_${Date.now()}.jpg`));
+      form.append("after", await buildFile(afterPhoto, `after_${Date.now()}.jpg`));
+      form.append("caption", description);
+      if (treatment) form.append("treatment", treatment);
+      if (duration) form.append("duration", duration);
+      if (products) form.append("products", products);
+
+      await postApi.createBeforeAfterPost(form);
+
+      Alert.alert("¡Publicado!", "Tu transformación ha sido publicada exitosamente", [
+        {text: "Ver Publicación", onPress: () => router.push("/(tabs)/")},
+      ]);
+    } catch (e: any) {
+      Alert.alert("Error", errorUtils.getErrorMessage?.(e) || e?.message || "No se pudo publicar");
+    }
   };
 
   const renderPhotoCard = (type: "before" | "after", photo: string | null) => {

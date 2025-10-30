@@ -17,6 +17,7 @@ import {useCategory} from "@/contexts/CategoryContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {ProfessionalProfile, PlaceProfile, PublicProfile} from "@/types/global";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 import {providerApi} from "@/lib/api";
@@ -27,6 +28,7 @@ const {width: SCREEN_WIDTH} = Dimensions.get("window");
 export default function Explore() {
   const colorScheme = useColorScheme();
   const {colors, setVariant} = useThemeVariant();
+  const insets = useSafeAreaInsets();
   const {
     selectedMainCategory,
     setSelectedMainCategory,
@@ -295,7 +297,7 @@ export default function Explore() {
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, {paddingTop: insets.top + 44}]}>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, {color: colors.foreground}]}>Explorar</Text>
           <Text style={[styles.headerSubtitle, {color: colors.mutedForeground}]}>

@@ -51,7 +51,7 @@ class PlaceProfileAdmin(admin.ModelAdmin):
 
 @admin.register(PublicProfile)
 class PublicProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'profile_type', 'name', 'category', 'city', 'rating', 'has_calendar')
+    list_display = ('user', 'profile_type', 'name', 'category', 'city', 'rating', 'has_calendar', 'latitude', 'longitude')
     search_fields = ('user__email', 'name', 'description', 'category', 'city')
     list_filter = ('profile_type', 'category', 'city', 'has_calendar')
     fieldsets = (

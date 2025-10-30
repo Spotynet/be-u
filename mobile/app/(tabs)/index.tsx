@@ -9,6 +9,8 @@ import {
   Animated,
   ActivityIndicator,
   RefreshControl,
+  TextInput,
+  Alert,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
@@ -17,7 +19,8 @@ import {useCategory} from "@/contexts/CategoryContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
-import {postApi} from "@/lib/api";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
+import {postApi, tokenUtils} from "@/lib/api";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
@@ -25,6 +28,7 @@ const {width: SCREEN_WIDTH} = Dimensions.get("window");
 export default function Home() {
   const colorScheme = useColorScheme();
   const {colors, setVariant} = useThemeVariant();
+  const insets = useSafeAreaInsets();
   const {
     selectedMainCategory,
     setSelectedMainCategory,
@@ -36,6 +40,12 @@ export default function Home() {
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
+  const [liking, setLiking] = useState<Set<number>>(new Set());
+  const [openCommentFor, setOpenCommentFor] = useState<number | null>(null);
+  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
+  const [commenting, setCommenting] = useState<Set<number>>(new Set());
+  const [commentsByPost, setCommentsByPost] = useState<Record<number, any[]>>({});
+  const [loadingComments, setLoadingComments] = useState<Set<number>>(new Set());
   const router = useRouter();
 
   // Helper function to get category color
@@ -63,6 +73,70 @@ export default function Home() {
       }
       return newSet;
     });
+  };
+
+  const likeDbPost = async (postId: number) => {
+    const token = await tokenUtils.getToken();
+    if (!token) {
+      Alert.alert("Inicia sesión", "Necesitas iniciar sesión para dar me gusta.");
+      router.push("/login");
+      return;
+    }
+    if (liking.has(postId)) return;
+    setLiking(new Set(liking).add(postId));
+    try {
+      await postApi.likePost(postId);
+      toggleLike(postId);
+    } catch (e: any) {
+      console.error("like error", e?.message || e);
+      Alert.alert("Error", "No se pudo actualizar tu me gusta");
+    } finally {
+      const s = new Set(liking);
+      s.delete(postId);
+      setLiking(s);
+    }
+  };
+
+  const submitComment = async (postId: number) => {
+    const token = await tokenUtils.getToken();
+    if (!token) {
+      Alert.alert("Inicia sesión", "Necesitas iniciar sesión para comentar.");
+      router.push("/login");
+      return;
+    }
+    const text = (commentDrafts[postId] || "").trim();
+    if (!text) return;
+    if (commenting.has(postId)) return;
+    setCommenting(new Set(commenting).add(postId));
+    try {
+      await postApi.createComment(postId, text);
+      setCommentDrafts((d) => ({...d, [postId]: ""}));
+      setOpenCommentFor(null);
+      await loadComments(postId); // refresh comments for this post
+      fetchPosts();
+    } catch (e: any) {
+      console.error("comment error", e?.message || e);
+      Alert.alert("Error", "No se pudo publicar tu comentario");
+    } finally {
+      const s = new Set(commenting);
+      s.delete(postId);
+      setCommenting(s);
+    }
+  };
+
+  const loadComments = async (postId: number) => {
+    if (loadingComments.has(postId)) return;
+    setLoadingComments(new Set(loadingComments).add(postId));
+    try {
+      const res = await postApi.getComments(postId, {page: 1});
+      setCommentsByPost((m) => ({...m, [postId]: res.data.results || res.data || []}));
+    } catch (e) {
+      // silent fail
+    } finally {
+      const s = new Set(loadingComments);
+      s.delete(postId);
+      setLoadingComments(s);
+    }
   };
 
   // Mock categories and stories (keep UI)
@@ -329,19 +403,79 @@ export default function Home() {
           <Text style={[styles.postDescription, {color: colors.foreground}]}>{post.content}</Text>
         ) : null}
         <View style={styles.postActions}>
-          <View style={styles.postAction}>
-            <Ionicons name="heart-outline" color={colors.mutedForeground} size={22} />
+          <TouchableOpacity
+            style={styles.postAction}
+            onPress={() => likeDbPost(post.id)}
+            disabled={liking.has(post.id)}>
+            <Ionicons
+              name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
+              color={likedPosts.has(post.id) ? "#FF69B4" : colors.mutedForeground}
+              size={22}
+            />
             <Text style={[styles.postActionText, {color: colors.foreground}]}>
-              {post.likes_count}
+              {(post.likes_count || 0) + (likedPosts.has(post.id) ? 1 : 0)}
             </Text>
-          </View>
-          <View style={styles.postAction}>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.postAction}
+            onPress={() => {
+              const open = openCommentFor === post.id ? null : post.id;
+              setOpenCommentFor(open);
+              if (open) {
+                loadComments(post.id);
+              }
+            }}>
             <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={22} />
             <Text style={[styles.postActionText, {color: colors.foreground}]}>
-              {post.comments_count}
+              {post.comments_count || 0}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
+        {openCommentFor === post.id && (
+          <View style={{flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 8}}>
+            <TextInput
+              placeholder="Escribe un comentario"
+              placeholderTextColor={colors.mutedForeground}
+              style={{
+                flex: 1,
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                color: colors.foreground,
+              }}
+              value={commentDrafts[post.id] || ""}
+              onChangeText={(t) => setCommentDrafts((d) => ({...d, [post.id]: t}))}
+            />
+            <TouchableOpacity
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                borderRadius: 12,
+                backgroundColor: colors.primary,
+              }}
+              onPress={() => submitComment(post.id)}
+              disabled={commenting.has(post.id)}>
+              <Text style={{color: "#fff", fontWeight: "700"}}>Enviar</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {Array.isArray(commentsByPost[post.id]) && commentsByPost[post.id].length > 0 && (
+          <View style={{paddingTop: 8, gap: 6}}>
+            {commentsByPost[post.id].slice(0, 3).map((c: any) => (
+              <View key={c.id} style={{flexDirection: "row", gap: 8, alignItems: "flex-start"}}>
+                <Ionicons name="chatbubble-ellipses" size={14} color={colors.mutedForeground} />
+                <Text style={{flex: 1, color: colors.foreground}}>
+                  <Text style={{fontWeight: "700"}}>
+                    {c.author_details?.firstName || c.author_details?.username || "Usuario"}:
+                  </Text>
+                  {c.content || c.text}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
     );
   };
@@ -994,7 +1128,11 @@ export default function Home() {
       <View
         style={[
           styles.header,
-          {backgroundColor: colors.background, borderBottomColor: colors.border},
+          {
+            backgroundColor: colors.background,
+            borderBottomColor: colors.border,
+            paddingTop: insets.top + 44,
+          },
         ]}>
         <Image
           source={require("@/assets/images/be-u.png")}

@@ -22,6 +22,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
             'images', 'linked_pros_place', 'has_calendar',
             'street', 'number_ext', 'number_int', 'postal_code', 'city', 'country',
             'last_name', 'bio', 'rating', 'display_name',
+            'latitude', 'longitude',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'user', 'rating', 'created_at', 'updated_at']
@@ -61,7 +62,7 @@ class PublicProfileCreateSerializer(serializers.ModelSerializer):
             'profile_type', 'name', 'description', 'category', 'sub_categories',
             'images', 'linked_pros_place', 'has_calendar',
             'street', 'number_ext', 'number_int', 'postal_code', 'city', 'country',
-            'last_name', 'bio'
+            'last_name', 'bio', 'latitude', 'longitude'
         ]
     
     def create(self, validated_data):
@@ -82,7 +83,7 @@ class PublicProfileUpdateSerializer(serializers.ModelSerializer):
             'name', 'description', 'category', 'sub_categories',
             'images', 'linked_pros_place', 'has_calendar',
             'street', 'number_ext', 'number_int', 'postal_code', 'city', 'country',
-            'last_name', 'bio'
+            'last_name', 'bio', 'latitude', 'longitude'
         ]
 
 
@@ -96,5 +97,6 @@ class PublicProfileListSerializer(serializers.ModelSerializer):
         model = PublicProfile
         fields = [
             'id', 'user_email', 'profile_type', 'name', 'display_name',
-            'category', 'city', 'rating', 'has_calendar', 'created_at'
+            'category', 'city', 'rating', 'has_calendar', 'created_at',
+            'latitude', 'longitude'
         ]

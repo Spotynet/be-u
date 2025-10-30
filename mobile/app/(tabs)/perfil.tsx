@@ -17,14 +17,17 @@ import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useUserProfile} from "@/features/users/hooks/useUserProfile";
 import {ProfileTabs} from "@/components/profile";
 import {useRouter} from "expo-router";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {useState, useRef, useEffect} from "react";
 import * as ImagePicker from "expo-image-picker";
 import {profileCustomizationApi} from "@/lib/api";
+import AddressAutocomplete from "@/components/address/AddressAutocomplete";
 
 export default function Perfil() {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {user, isAuthenticated, logout: authLogout} = useAuth();
   const {profile, stats, services, portfolio, teamMembers, isLoading, error, refreshProfile} =
     useUserProfile();
@@ -40,6 +43,14 @@ export default function Perfil() {
   const [imagesLoading, setImagesLoading] = useState(false);
   const [profileCreated, setProfileCreated] = useState(false);
   const [publicProfileId, setPublicProfileId] = useState<number | null>(null);
+  const [addressValues, setAddressValues] = useState<{
+    address: string;
+    city?: string;
+    country?: string;
+    postal_code?: string;
+    latitude?: number;
+    longitude?: number;
+  }>({address: ""});
 
   // Fetch profile images
   const fetchProfileImages = async () => {
@@ -266,7 +277,11 @@ export default function Perfil() {
       <View
         style={[
           styles.header,
-          {backgroundColor: colors.background, borderBottomColor: colors.border},
+          {
+            backgroundColor: colors.background,
+            borderBottomColor: colors.border,
+            paddingTop: insets.top + 44,
+          },
         ]}>
         <View style={styles.headerProfile}>
           <View style={[styles.headerAvatar, {backgroundColor: colors.primary}]}>
@@ -588,8 +603,62 @@ export default function Perfil() {
                 </Text>
                 <TouchableOpacity
                   style={[styles.manageButton, {backgroundColor: colors.primary}]}
+                  onPress={() => router.push("/availability")}
                   activeOpacity={0.8}>
                   <Text style={styles.manageButtonText}>Configurar Horarios</Text>
+                  <Ionicons name="chevron-forward" color="#ffffff" size={16} />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {(user?.role === "PROFESSIONAL" || user?.role === "PLACE") && (
+              <View style={styles.personalizarCard}>
+                <Text style={[styles.personalizarCardTitle, {color: colors.foreground}]}>
+                  Dirección y Ubicación
+                </Text>
+                <Text style={[styles.personalizarCardDescription, {color: colors.mutedForeground}]}>
+                  Actualiza tu dirección y guarda tus coordenadas
+                </Text>
+                <AddressAutocomplete
+                  value={addressValues.address}
+                  onChangeText={(t) => setAddressValues((s) => ({...s, address: t}))}
+                  onSelected={(p) =>
+                    setAddressValues({
+                      address: p.address,
+                      city: p.city,
+                      country: p.country,
+                      postal_code: p.postal_code,
+                      latitude: p.latitude,
+                      longitude: p.longitude,
+                    })
+                  }
+                />
+                <TouchableOpacity
+                  style={[styles.manageButton, {backgroundColor: colors.primary, marginTop: 12}]}
+                  onPress={async () => {
+                    try {
+                      if (!addressValues.latitude || !addressValues.longitude) {
+                        Alert.alert(
+                          "Falta ubicación",
+                          "Selecciona una dirección válida del listado"
+                        );
+                        return;
+                      }
+                      await profileCustomizationApi.updatePublicProfile({
+                        street: addressValues.address,
+                        city: addressValues.city,
+                        country: addressValues.country,
+                        postal_code: addressValues.postal_code,
+                        latitude: addressValues.latitude,
+                        longitude: addressValues.longitude,
+                      });
+                      Alert.alert("Guardado", "Ubicación actualizada");
+                    } catch (e) {
+                      Alert.alert("Error", "No se pudo guardar la ubicación");
+                    }
+                  }}
+                  activeOpacity={0.8}>
+                  <Text style={styles.manageButtonText}>Guardar ubicación</Text>
                   <Ionicons name="chevron-forward" color="#ffffff" size={16} />
                 </TouchableOpacity>
               </View>
