@@ -31,6 +31,12 @@ class ServicesTypeViewSet(viewsets.ModelViewSet):
     queryset = ServicesType.objects.all()
     serializer_class = ServicesTypeSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        """Allow anyone to list/retrieve service types; require auth for modifications"""
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -50,6 +56,12 @@ class ServiceInPlaceViewSet(viewsets.ModelViewSet):
     queryset = ServiceInPlace.objects.select_related('place', 'service', 'professional').all()
     serializer_class = ServiceInPlaceSerializer
     permission_classes = [IsAuthenticated, IsServiceOwner]
+
+    def get_permissions(self):
+        """Allow anyone to list/retrieve place services; require auth for modifications"""
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsAuthenticated(), IsServiceOwner()]
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -64,8 +76,8 @@ class ServiceInPlaceViewSet(viewsets.ModelViewSet):
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active == 'true')
         
-        # For PLACE users, only show their own services
-        if user.role == 'PLACE':
+        # For PLACE users, only show their own services (only if authenticated)
+        if user.is_authenticated and user.role == 'PLACE':
             try:
                 place = user.place_profile
                 queryset = queryset.filter(place=place)
@@ -101,6 +113,12 @@ class ProfessionalServiceViewSet(viewsets.ModelViewSet):
     queryset = ProfessionalService.objects.select_related('professional', 'service').all()
     serializer_class = ProfessionalServiceSerializer
     permission_classes = [IsAuthenticated, IsServiceOwner]
+
+    def get_permissions(self):
+        """Allow anyone to list/retrieve professional services; require auth for modifications"""
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsAuthenticated(), IsServiceOwner()]
     
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -115,8 +133,8 @@ class ProfessionalServiceViewSet(viewsets.ModelViewSet):
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active == 'true')
         
-        # For PROFESSIONAL users, only show their own services
-        if user.role == 'PROFESSIONAL':
+        # For PROFESSIONAL users, only show their own services (only if authenticated)
+        if user.is_authenticated and user.role == 'PROFESSIONAL':
             try:
                 professional = user.professional_profile
                 queryset = queryset.filter(professional=professional)

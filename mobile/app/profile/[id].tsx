@@ -16,7 +16,7 @@ import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
 import {useRouter, useLocalSearchParams} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
-import {providerApi, postApi, reviewApi, serviceApi, profileCustomizationApi} from "@/lib/api";
+import {providerApi, postApi, reviewApi, serviceApi} from "@/lib/api";
 import {BookingFlow} from "@/components/booking/BookingFlow";
 import {errorUtils} from "@/lib/api";
 
@@ -48,17 +48,47 @@ export default function ProfileDetailScreen() {
       const profileData = profileResponse.data;
       setProfile(profileData);
 
-      // Fetch related data
-      const [postsResponse, reviewsResponse, servicesResponse] = await Promise.all([
-        postApi.getPosts({user: profileData.user}),
-        reviewApi.getReviews({to_public_profile: Number(id)}),
-        // Fetch services from the CustomService system (where they're actually stored)
-        profileCustomizationApi.getCustomServices(),
+      // Fetch related data (using public APIs that don't require authentication)
+      const [postsResponse, reviewsResponse] = await Promise.all([
+        postApi.getPosts({user: profileData.user}).catch(() => ({data: {results: []}})),
+        reviewApi.getReviews({to_public_profile: Number(id)}).catch(() => ({data: {results: []}})),
       ]);
+
+      // Fetch services from the public profile data (accessible to everyone)
+      // If not available in public profile, try the service API (now public for list/retrieve)
+      let servicesData: any[] = [];
+      
+      // First, check if services are already in the public profile data
+      if (profileData.services && Array.isArray(profileData.services)) {
+        servicesData = profileData.services;
+      } else {
+        // Fallback: try to get from service API based on profile type
+        try {
+          if (profileData.profile_type === "PLACE") {
+            // For places, get place services
+            const servicesResponse = await serviceApi.getPlaceServices({
+              place: profileData.user,
+              is_active: true,
+            });
+            servicesData = servicesResponse.data.results || [];
+          } else {
+            // For professionals, get professional services
+            const servicesResponse = await serviceApi.getProfessionalServices({
+              professional: profileData.user,
+              is_active: true,
+            });
+            servicesData = servicesResponse.data.results || [];
+          }
+        } catch (serviceError) {
+          console.log("Services not available from API:", serviceError);
+          // If both fail, just use empty array - page will still work
+          servicesData = [];
+        }
+      }
 
       setPosts(postsResponse.data.results || []);
       setReviews(reviewsResponse.data.results || []);
-      setServices(servicesResponse.data || []); // CustomService returns data directly, not in results
+      setServices(servicesData);
 
       // Animate content
       Animated.timing(fadeAnim, {
@@ -240,7 +270,16 @@ export default function ProfileDetailScreen() {
             paddingTop: insets.top + 40,
           },
         ]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              // Fallback to explore page if no history
+              router.push("/(tabs)/explore");
+            }
+          }}
+          style={styles.backButton}>
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>
@@ -445,6 +484,10 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 18,

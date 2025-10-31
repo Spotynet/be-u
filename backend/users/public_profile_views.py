@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Q
 from .models import PublicProfile, User
 from .public_profile_serializers import (
@@ -16,7 +16,15 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
     """ViewSet for managing public profiles"""
     
     queryset = PublicProfile.objects.select_related('user').all()
+    # Default to authenticated for safety; relax for read-only via get_permissions
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        """Allow anyone to list/retrieve public profiles; require auth otherwise."""
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        # Default behavior for create/update/destroy and custom actions
+        return [IsAuthenticated()]
     
     def get_serializer_class(self):
         """Return appropriate serializer based on action"""
