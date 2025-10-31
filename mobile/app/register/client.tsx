@@ -24,6 +24,7 @@ export default function RegisterClient() {
     firstName: "",
     lastName: "",
     username: "",
+    role: "CLIENT" as "CLIENT",
   });
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +37,7 @@ export default function RegisterClient() {
       setLoading(true);
       const {data} = await authApi.register(values);
       await tokenUtils.setTokens(data.access, data.refresh);
-      router.replace("/(tabs)/index");
+      router.replace("/(tabs)/perfil");
     } catch (err) {
       Alert.alert("Error", errorUtils.getErrorMessage(err));
     } finally {

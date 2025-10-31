@@ -182,6 +182,51 @@ def create_review_post(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def create_transformation_post(request):
+    """Create a Before/After (transformation) post with two images.
+
+    Expected multipart/form-data fields:
+    - before: file (required)
+    - after: file (required)
+    - caption: string (optional)
+    - treatment, duration, products: optional metadata (currently stored in content)
+    """
+    if not request.user or not request.user.is_authenticated:
+        return Response({'detail': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    before_file = request.FILES.get('before')
+    after_file = request.FILES.get('after')
+
+    if not before_file or not after_file:
+        return Response({'error': 'Both before and after images are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Build content from caption/metadata
+    caption = request.data.get('caption', '')
+    treatment = request.data.get('treatment')
+    duration = request.data.get('duration')
+    products = request.data.get('products')
+    extra_parts = []
+    if treatment:
+        extra_parts.append(f"Tratamiento: {treatment}")
+    if duration:
+        extra_parts.append(f"Duración: {duration}")
+    if products:
+        extra_parts.append(f"Productos: {products}")
+    full_content = caption
+    if extra_parts:
+        full_content = (caption + "\n\n" + " | ".join(extra_parts)).strip()
+
+    # Create post
+    post = Post.objects.create(author=request.user, post_type='before_after', content=full_content)
+
+    # Attach media in order
+    PostMedia.objects.create(post=post, media_file=before_file, media_type='image', order=0, caption='before')
+    PostMedia.objects.create(post=post, media_file=after_file, media_type='image', order=1, caption='after')
+
+    return Response(PostSerializer(post, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+@api_view(['POST'])
 def vote_in_poll(request, post_id):
     try:
         post = Post.objects.get(id=post_id, post_type='poll')

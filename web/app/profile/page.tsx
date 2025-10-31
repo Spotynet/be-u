@@ -220,20 +220,59 @@ export default function ProfilePage() {
                     <h2 className="text-xl font-semibold">Profile Preview</h2>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="font-medium">{publicProfile.display_name}</h3>
-                        <p className="text-sm text-gray-600">{publicProfile.profile_type}</p>
+                    {/* Two-row header */}
+                    <div className="space-y-3">
+                      {/* Row 1: avatar – name/role – settings */}
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-pink-500 text-white flex items-center justify-center font-semibold">
+                          {(publicProfile.display_name || "U").charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-lg font-semibold truncate">
+                            {publicProfile.display_name}
+                          </div>
+                          <div className="text-xs text-gray-600 truncate">
+                            {publicProfile.profile_type === "PLACE" ? "Salón" : "Profesional"}
+                          </div>
+                        </div>
+                        <button className="p-2 rounded-full hover:bg-gray-100 text-gray-600" aria-label="Settings">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                            <path d="M10.325 4.317a1 1 0 0 1 1.35-.436l.105.06 1.2.693a2 2 0 0 0 1.518.18l1.3-.372a1 1 0 0 1 1.24.69l.03.111.373 1.3a2 2 0 0 0 .88 1.152l1.2.694a1 1 0 0 1 .332 1.38l-.064.1-.693 1.2a2 2 0 0 0-.18 1.52l.372 1.299a1 1 0 0 1-.69 1.241l-.111.03-1.3.373a2 2 0 0 0-1.152.88l-.694 1.2a1 1 0 0 1-1.38.332l-.1-.064-1.2-.693a2 2 0 0 0-1.52-.18l-1.299.372a1 1 0 0 1-1.241-.69l-.03-.111-.373-1.3a2 2 0 0 0-.88-1.152l-1.2-.694a1 1 0 0 1-.332-1.38l.064-.1.693-1.2a2 2 0 0 0 .18-1.52l-.372-1.299a1 1 0 0 1 .69-1.241l.111-.03 1.3-.373a2 2 0 0 0 1.152-.88l.694-1.2ZM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
+                          </svg>
+                        </button>
                       </div>
+
+                      {/* Row 2: actions */}
+                      <div className="flex items-center gap-3">
+                        <button className="inline-flex items-center gap-2 bg-pink-500 text-white text-sm font-semibold px-4 py-2 rounded-full hover:bg-pink-600">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 7.125L16.875 4.5" />
+                          </svg>
+                          Personalizar Perfil
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                            <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                        <button className="inline-flex items-center gap-2 border text-sm font-semibold px-4 py-2 rounded-full hover:bg-gray-50">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5L19.5 6.75m0 0L15.75 3m3.75 3.75H8.25a4.5 4.5 0 00-4.5 4.5v6" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75L4.5 10.5m0 0L8.25 14.25M4.5 10.5h11.25a4.5 4.5 0 014.5 4.5v2.25" />
+                          </svg>
+                          Ver como cliente
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Details */}
+                    <div className="mt-6 space-y-3">
                       {publicProfile.description && (
                         <p className="text-gray-700">{publicProfile.description}</p>
                       )}
                       {publicProfile.category && (
                         <div>
                           <span className="text-sm font-medium">Category:</span>
-                          <span className="ml-2 text-sm text-gray-600">
-                            {publicProfile.category}
-                          </span>
+                          <span className="ml-2 text-sm text-gray-600">{publicProfile.category}</span>
                         </div>
                       )}
                       {publicProfile.city && (
@@ -244,9 +283,7 @@ export default function ProfilePage() {
                       )}
                       <div>
                         <span className="text-sm font-medium">Rating:</span>
-                        <span className="ml-2 text-sm text-gray-600">
-                          {publicProfile.rating}/5.0
-                        </span>
+                        <span className="ml-2 text-sm text-gray-600">{publicProfile.rating}/5.0</span>
                       </div>
                     </div>
                   </CardContent>

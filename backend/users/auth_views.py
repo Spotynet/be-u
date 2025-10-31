@@ -7,7 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import User
+from .models import User, ClientProfile, ProfessionalProfile, PlaceProfile, PublicProfile
 from .serializers import UserSerializer
 import json
 import logging
@@ -66,6 +66,7 @@ def register_view(request):
         first_name = data.get('firstName', '')
         last_name = data.get('lastName', '')
         username = data.get('username', '')
+        role = data.get('role', None)
         
         logger.info(f"Extracted fields:")
         logger.info(f"  - email: {email}")
@@ -110,6 +111,73 @@ def register_view(request):
             first_name=first_name,
             last_name=last_name
         )
+        # Assign role if provided and valid
+        try:
+            if role and role in [choice[0] for choice in User.Role.choices]:
+                user.role = role
+                user.save(update_fields=['role'])
+        except Exception as e:
+            logger.warning(f"Invalid role provided during registration: {role} ({e})")
+
+        # Auto-create role-specific profiles
+        try:
+            if user.role == User.Role.CLIENT:
+                ClientProfile.objects.get_or_create(user=user, defaults={'phone': data.get('phone')})
+            elif user.role == User.Role.PROFESSIONAL:
+                prof_profile, _ = ProfessionalProfile.objects.get_or_create(
+                    user=user,
+                    defaults={
+                        'name': first_name or username or email.split('@')[0],
+                        'last_name': last_name or '',
+                        'bio': data.get('bio', ''),
+                        'city': data.get('city', ''),
+                    }
+                )
+                PublicProfile.objects.get_or_create(
+                    user=user,
+                    defaults={
+                        'profile_type': 'PROFESSIONAL',
+                        'name': prof_profile.name,
+                        'last_name': prof_profile.last_name,
+                        'bio': prof_profile.bio,
+                        'city': prof_profile.city,
+                    }
+                )
+            elif user.role == User.Role.PLACE:
+                place_name = data.get('placeName') or first_name or username or email.split('@')[0]
+                street = data.get('address') or 'Dirección no disponible'
+                postal_code = data.get('postal_code') or '00000'
+                city = data.get('city') or ''
+                country = data.get('country') or ''
+                place_profile, _ = PlaceProfile.objects.get_or_create(
+                    user=user,
+                    defaults={
+                        'name': place_name,
+                        'street': street,
+                        'postal_code': postal_code,
+                        'city': city,
+                        'country': country,
+                        'number_ext': data.get('number_ext') or '',
+                        'number_int': data.get('number_int') or '',
+                        'owner': user,
+                    }
+                )
+                PublicProfile.objects.get_or_create(
+                    user=user,
+                    defaults={
+                        'profile_type': 'PLACE',
+                        'name': place_profile.name,
+                        'description': place_profile.description or '',
+                        'street': place_profile.street,
+                        'postal_code': place_profile.postal_code,
+                        'city': place_profile.city,
+                        'country': place_profile.country,
+                        'latitude': data.get('latitude'),
+                        'longitude': data.get('longitude'),
+                    }
+                )
+        except Exception as e:
+            logger.error(f"Error auto-creating profile for user {user.id}: {e}")
         
         logger.info(f"User created successfully with ID: {user.id}")
         logger.info(f"User details: {user}")

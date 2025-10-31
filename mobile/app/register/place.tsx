@@ -34,6 +34,7 @@ export default function RegisterPlace() {
     country: "México",
     latitude: undefined as number | undefined,
     longitude: undefined as number | undefined,
+    role: "PLACE" as "PLACE",
   });
   const [loading, setLoading] = useState(false);
 
@@ -62,7 +63,7 @@ export default function RegisterPlace() {
         });
       }
 
-      router.replace("/(tabs)/index");
+      router.replace("/(tabs)/perfil");
     } catch (err) {
       Alert.alert("Error", errorUtils.getErrorMessage(err));
     } finally {

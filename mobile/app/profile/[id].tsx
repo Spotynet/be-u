@@ -357,20 +357,43 @@ export default function ProfileDetailScreen() {
 
           {/* Profile Info */}
           <View style={styles.profileInfo}>
-            <Text style={[styles.profileName, {color: colors.foreground}]}>
-              {profile.name || "Sin nombre"}
-            </Text>
-            <Text style={[styles.profileSubtitle, {color: colors.foreground}]}>
-              {profile.profile_type === "PROFESSIONAL" ? "Profesional" : "Tu salón"}
-            </Text>
-            <Text style={[styles.profileDistance, {color: colors.mutedForeground}]}>
-              {profile.city || "Ciudad no especificada"}
-            </Text>
-            <View style={styles.followersContainer}>
-              <Ionicons name="checkmark-circle" color="#4CAF50" size={16} />
-              <Text style={[styles.followersText, {color: colors.mutedForeground}]}>
-                1690 Seguidores
-              </Text>
+            {/* Row 1: avatar - name/role - settings */}
+            <View style={styles.profileRowTop}>
+              <View style={[styles.profileAvatar, {backgroundColor: colors.primary}]}>
+                <Text style={styles.profileAvatarText}>
+                  {(profile.name || "U").charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.profileNameRole}>
+                <Text style={[styles.profileName, {color: colors.foreground}]} numberOfLines={1}>
+                  {profile.name || "Sin nombre"}
+                </Text>
+                <Text style={[styles.profileRole, {color: colors.mutedForeground}]} numberOfLines={1}>
+                  {profile.profile_type === "PROFESSIONAL" ? "Profesional" : "Salón"}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.settingsButton}>
+                <Ionicons name="settings-outline" size={20} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Row 2: actions */}
+            <View style={styles.profileRowActions}>
+              <TouchableOpacity
+                style={[styles.primaryAction, {backgroundColor: colors.primary}]}
+                activeOpacity={0.9}
+              >
+                <Ionicons name="color-wand" size={16} color="#ffffff" />
+                <Text style={styles.primaryActionText}>Personalizar Perfil</Text>
+                <Ionicons name="chevron-down" size={14} color="#ffffff" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={[styles.secondaryAction, {borderColor: colors.border}]}
+                activeOpacity={0.9}
+              >
+                <Ionicons name="eye-outline" size={16} color={colors.foreground} />
+                <Text style={[styles.secondaryActionText, {color: colors.foreground}]}>Ver como cliente</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -562,19 +585,71 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     padding: 20,
+    alignItems: "stretch",
+  },
+  profileRowTop: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
+  },
+  profileAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  profileAvatarText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  profileNameRole: {
+    flex: 1,
   },
   profileName: {
     fontSize: 24,
     fontWeight: "700",
-    textAlign: "center",
-    marginBottom: 4,
+    marginBottom: 0,
   },
-  profileSubtitle: {
-    fontSize: 16,
+  profileRole: {
+    fontSize: 14,
     fontWeight: "500",
-    textAlign: "center",
-    marginBottom: 8,
+  },
+  settingsButton: {
+    padding: 8,
+    borderRadius: 20,
+  },
+  profileRowActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  primaryAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    flexShrink: 1,
+  },
+  primaryActionText: {
+    color: "#ffffff",
+    fontWeight: "700",
+  },
+  secondaryAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    flexShrink: 1,
+  },
+  secondaryActionText: {
+    fontWeight: "600",
   },
   profileDistance: {
     fontSize: 14,

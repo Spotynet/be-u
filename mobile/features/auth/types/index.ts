@@ -11,6 +11,7 @@ export interface RegisterCredentials {
   firstName: string;
   lastName: string;
   username: string;
+  role?: "CLIENT" | "PROFESSIONAL" | "PLACE";
 }
 
 export interface AuthContextType {

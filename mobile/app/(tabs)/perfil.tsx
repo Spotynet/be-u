@@ -283,8 +283,10 @@ export default function Perfil() {
             paddingTop: insets.top + 44,
           },
         ]}>
-        <View style={styles.headerProfile}>
-          <View style={[styles.headerAvatar, {backgroundColor: colors.primary}]}>
+        {/* Row 1: avatar, name/role, settings */}
+        <View style={styles.headerTopRow}>
+          <View style={styles.headerProfile}>
+            <View style={[styles.headerAvatar, {backgroundColor: colors.primary}]}> 
             {profile?.photo ? (
               <Image source={{uri: profile.photo}} style={styles.headerAvatarImage} />
             ) : (
@@ -292,8 +294,8 @@ export default function Perfil() {
                 {getInitials(user?.first_name, user?.last_name)}
               </Text>
             )}
-          </View>
-          <View style={styles.headerTextContainer}>
+            </View>
+            <View style={styles.headerTextContainer}>
             <Text style={[styles.headerTitle, {color: colors.foreground}]}>{displayName}</Text>
             <Text style={[styles.headerRole, {color: colors.mutedForeground}]}>
               {user?.role === "PROFESSIONAL"
@@ -304,29 +306,41 @@ export default function Perfil() {
                 ? "Cliente"
                 : "Usuario"}
             </Text>
-            {/* Personalizar Perfil Button */}
-            <TouchableOpacity
-              style={[
-                styles.personalizarButton,
-                {backgroundColor: colors.primary},
-                isPersonalizarExpanded && styles.personalizarButtonActive,
-              ]}
-              onPress={() => setIsPersonalizarExpanded(!isPersonalizarExpanded)}
-              activeOpacity={0.8}>
-              <Ionicons name="settings" color="#ffffff" size={16} />
-              <Text style={styles.personalizarButtonText}>Personalizar Perfil</Text>
-              <Ionicons
-                name={isPersonalizarExpanded ? "chevron-up" : "chevron-down"}
-                color="#ffffff"
-                size={16}
-              />
-            </TouchableOpacity>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.smallHeaderButton}
+            onPress={() => router.push("/settings")}
+            activeOpacity={0.7}>
+            <Ionicons name="settings-outline" color={colors.foreground} size={20} />
+          </TouchableOpacity>
+        </View>
 
-            {/* Ver como cliente Button - Only show for PROFESSIONAL and PLACE roles */}
-            {(user?.role === "PROFESSIONAL" || user?.role === "PLACE") && (
+        {/* Row 2: action buttons */}
+        <View style={styles.headerActionRow}>
+              {/* Personalizar Perfil Button */}
               <TouchableOpacity
-                style={[styles.previewButton, {borderColor: colors.primary, borderWidth: 1}]}
-                onPress={() => {
+                style={[
+                  styles.personalizarButton,
+                  {backgroundColor: colors.primary},
+                  isPersonalizarExpanded && styles.personalizarButtonActive,
+                ]}
+                onPress={() => setIsPersonalizarExpanded(!isPersonalizarExpanded)}
+                activeOpacity={0.8}>
+                <Ionicons name="settings" color="#ffffff" size={16} />
+                <Text style={styles.personalizarButtonText}>Personalizar Perfil</Text>
+                <Ionicons
+                  name={isPersonalizarExpanded ? "chevron-up" : "chevron-down"}
+                  color="#ffffff"
+                  size={16}
+                />
+              </TouchableOpacity>
+
+              {/* Ver como cliente Button - Only show for PROFESSIONAL and PLACE roles */}
+              {(user?.role === "PROFESSIONAL" || user?.role === "PLACE") && (
+                <TouchableOpacity
+                  style={[styles.previewButton, {borderColor: colors.primary, borderWidth: 1}]}
+                  onPress={() => {
                   // Navigate to unified public profile preview
                   console.log("Preview public profile pressed");
                   const publicId = publicProfileId;
@@ -353,21 +367,12 @@ export default function Perfil() {
                 }}
                 activeOpacity={0.8}>
                 <Ionicons name="eye-outline" color={colors.primary} size={16} />
-                <Text style={[styles.previewButtonText, {color: colors.primary}]}>
-                  Ver como cliente
-                </Text>
+                <Text style={[styles.previewButtonText, {color: colors.primary}]}>Ver como cliente</Text>
               </TouchableOpacity>
-            )}
-          </View>
+              )}
         </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => router.push("/settings")}
-            activeOpacity={0.7}>
-            <Ionicons name="settings-outline" color={colors.foreground} size={24} />
-          </TouchableOpacity>
-        </View>
+        {/* Row 3: (reserved for future/status line) */}
+        <View style={styles.headerActions} />
       </View>
 
       {/* Personalizar Perfil Section - Only show when expanded */}
@@ -680,13 +685,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: "column",
+    justifyContent: "flex-start",
+    alignItems: "stretch",
     paddingHorizontal: 16,
     paddingTop: 60,
     paddingBottom: 16,
     borderBottomWidth: 1,
+  },
+  headerTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   headerProfile: {
     flexDirection: "row",
@@ -722,6 +732,10 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     gap: 12,
+  },
+  smallHeaderButton: {
+    padding: 6,
+    marginLeft: 8,
   },
   headerButton: {
     padding: 8,
@@ -779,22 +793,28 @@ const styles = StyleSheet.create({
   headerTextContainer: {
     flex: 1,
   },
+  headerActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 8,
+  },
   personalizarButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
     gap: 6,
+    flexShrink: 1,
   },
   personalizarButtonActive: {
     backgroundColor: "#6d28d9", // Slightly darker purple when active
   },
   personalizarButtonText: {
     color: "#ffffff",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     flex: 1,
     textAlign: "center",
@@ -803,15 +823,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
     gap: 6,
     backgroundColor: "transparent",
   },
   previewButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
   },
   personalizarSection: {

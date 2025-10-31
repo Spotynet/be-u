@@ -37,6 +37,7 @@ export default function RegisterPro() {
     country: "",
     latitude: undefined as number | undefined,
     longitude: undefined as number | undefined,
+    role: "PROFESSIONAL" as "PROFESSIONAL",
   });
   const [mainCategory, setMainCategory] = useState<"belleza" | "bienestar" | "mascotas">("belleza");
   const [selectedSubs, setSelectedSubs] = useState<string[]>([]);
@@ -74,7 +75,7 @@ export default function RegisterPro() {
         });
       }
 
-      router.replace("/(tabs)/index");
+      router.replace("/(tabs)/perfil");
     } catch (err) {
       Alert.alert("Error", errorUtils.getErrorMessage(err));
     } finally {
