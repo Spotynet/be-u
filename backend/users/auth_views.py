@@ -74,6 +74,9 @@ def register_view(request):
         logger.info(f"  - first_name: {first_name}")
         logger.info(f"  - last_name: {last_name}")
         logger.info(f"  - username: {username}")
+        logger.info(f"  - role: {role}")
+        logger.info(f"  - category: {data.get('category', 'NOT PROVIDED')}")
+        logger.info(f"  - subcategory: {data.get('subcategory', 'NOT PROVIDED')}")
         
         if not email or not password or not username:
             logger.warning("Missing required fields")
@@ -112,10 +115,25 @@ def register_view(request):
             last_name=last_name
         )
         # Assign role if provided and valid
+        # Accept both lowercase and uppercase, convert to uppercase for database
         try:
-            if role and role in [choice[0] for choice in User.Role.choices]:
-                user.role = role
-                user.save(update_fields=['role'])
+            if role:
+                # Normalize role to uppercase for validation
+                role_upper = role.upper()
+                # Map lowercase to uppercase if needed
+                role_mapping = {
+                    'client': 'CLIENT',
+                    'professional': 'PROFESSIONAL',
+                    'place': 'PLACE'
+                }
+                normalized_role = role_mapping.get(role.lower(), role_upper)
+                
+                if normalized_role in [choice[0] for choice in User.Role.choices]:
+                    user.role = normalized_role
+                    user.save(update_fields=['role'])
+                    logger.info(f"Role assigned: {normalized_role} (from input: {role})")
+                else:
+                    logger.warning(f"Invalid role provided: {role} (normalized: {normalized_role})")
         except Exception as e:
             logger.warning(f"Invalid role provided during registration: {role} ({e})")
 
@@ -124,16 +142,27 @@ def register_view(request):
             if user.role == User.Role.CLIENT:
                 ClientProfile.objects.get_or_create(user=user, defaults={'phone': data.get('phone')})
             elif user.role == User.Role.PROFESSIONAL:
-                prof_profile, _ = ProfessionalProfile.objects.get_or_create(
+                # Get category and subcategory from registration data
+                category = data.get('category', '')
+                subcategory = data.get('subcategory', '')
+                sub_categories = [subcategory] if subcategory else []
+                
+                # Create or update ProfessionalProfile with category/subcategory
+                prof_profile, _ = ProfessionalProfile.objects.update_or_create(
                     user=user,
                     defaults={
                         'name': first_name or username or email.split('@')[0],
                         'last_name': last_name or '',
                         'bio': data.get('bio', ''),
                         'city': data.get('city', ''),
+                        'category': category,
+                        'sub_categories': sub_categories,
                     }
                 )
-                PublicProfile.objects.get_or_create(
+                logger.info(f"ProfessionalProfile {'created' if _ else 'updated'}: category={category}, subcategory={subcategory}")
+                
+                # Use update_or_create to ensure category/subcategory are saved even if profile exists
+                public_profile, created = PublicProfile.objects.update_or_create(
                     user=user,
                     defaults={
                         'profile_type': 'PROFESSIONAL',
@@ -141,15 +170,25 @@ def register_view(request):
                         'last_name': prof_profile.last_name,
                         'bio': prof_profile.bio,
                         'city': prof_profile.city,
+                        'category': category,
+                        'sub_categories': sub_categories,
                     }
                 )
+                logger.info(f"PublicProfile {'created' if created else 'updated'} for professional: category={category}, subcategory={subcategory}")
             elif user.role == User.Role.PLACE:
+                # Get category and subcategory from registration data
+                category = data.get('category', '')
+                subcategory = data.get('subcategory', '')
+                sub_categories = [subcategory] if subcategory else []
+                
                 place_name = data.get('placeName') or first_name or username or email.split('@')[0]
                 street = data.get('address') or 'Dirección no disponible'
                 postal_code = data.get('postal_code') or '00000'
                 city = data.get('city') or ''
                 country = data.get('country') or ''
-                place_profile, _ = PlaceProfile.objects.get_or_create(
+                
+                # Create or update PlaceProfile with category/subcategory
+                place_profile, _ = PlaceProfile.objects.update_or_create(
                     user=user,
                     defaults={
                         'name': place_name,
@@ -160,9 +199,14 @@ def register_view(request):
                         'number_ext': data.get('number_ext') or '',
                         'number_int': data.get('number_int') or '',
                         'owner': user,
+                        'category': category,
+                        'sub_categories': sub_categories,
                     }
                 )
-                PublicProfile.objects.get_or_create(
+                logger.info(f"PlaceProfile {'created' if _ else 'updated'}: category={category}, subcategory={subcategory}")
+                
+                # Use update_or_create to ensure category/subcategory are saved even if profile exists
+                public_profile, created = PublicProfile.objects.update_or_create(
                     user=user,
                     defaults={
                         'profile_type': 'PLACE',
@@ -174,8 +218,11 @@ def register_view(request):
                         'country': place_profile.country,
                         'latitude': data.get('latitude'),
                         'longitude': data.get('longitude'),
+                        'category': category,
+                        'sub_categories': sub_categories,
                     }
                 )
+                logger.info(f"PublicProfile {'created' if created else 'updated'} for place: category={category}, subcategory={subcategory}")
         except Exception as e:
             logger.error(f"Error auto-creating profile for user {user.id}: {e}")
         

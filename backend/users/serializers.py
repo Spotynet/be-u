@@ -104,7 +104,7 @@ class ProfessionalProfileSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ProfessionalProfile
-        fields = ['id', 'user_id', 'email', 'name', 'last_name', 'bio', 'city', 'rating', 'services_count']
+        fields = ['id', 'user_id', 'email', 'name', 'last_name', 'bio', 'city', 'rating', 'category', 'sub_categories', 'services_count']
         read_only_fields = ['id', 'user_id', 'email', 'rating']
     
     def get_services_count(self, obj):
@@ -132,7 +132,7 @@ class PlaceProfileSerializer(serializers.ModelSerializer):
         model = PlaceProfile
         fields = [
             'id', 'user_id', 'email', 'name', 'bio', 'description', 'street', 'number_ext', 'number_int',
-            'postal_code', 'city', 'country', 'owner', 'services_count', 'address'
+            'postal_code', 'city', 'country', 'owner', 'category', 'sub_categories', 'services_count', 'address'
         ]
         read_only_fields = ['id', 'user_id', 'email']
     
@@ -196,7 +196,7 @@ class ProfessionalProfileDetailSerializer(serializers.ModelSerializer):
         model = ProfessionalProfile
         fields = [
             'id', 'user_id', 'email', 'phone', 'name', 'last_name', 'bio', 'city', 'rating',
-            'images', 'services', 'availability', 'services_count'
+            'category', 'sub_categories', 'images', 'services', 'availability', 'services_count'
         ]
         read_only_fields = ['id', 'user_id', 'email', 'phone', 'rating']
     
@@ -259,7 +259,7 @@ class PlaceProfileDetailSerializer(serializers.ModelSerializer):
         model = PlaceProfile
         fields = [
             'id', 'user_id', 'email', 'phone', 'name', 'bio', 'description', 'street', 'number_ext', 'number_int',
-            'postal_code', 'city', 'country', 'owner', 'images', 'services', 'availability', 
+            'postal_code', 'city', 'country', 'owner', 'category', 'sub_categories', 'images', 'services', 'availability', 
             'services_count', 'address'
         ]
         read_only_fields = ['id', 'user_id', 'email', 'phone']

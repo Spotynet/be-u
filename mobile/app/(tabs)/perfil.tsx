@@ -22,6 +22,7 @@ import {useState, useRef, useEffect} from "react";
 import * as ImagePicker from "expo-image-picker";
 import {profileCustomizationApi} from "@/lib/api";
 import AddressAutocomplete from "@/components/address/AddressAutocomplete";
+import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from "@/constants/categories";
 
 export default function Perfil() {
   const colorScheme = useColorScheme();
@@ -43,6 +44,7 @@ export default function Perfil() {
   const [imagesLoading, setImagesLoading] = useState(false);
   const [profileCreated, setProfileCreated] = useState(false);
   const [publicProfileId, setPublicProfileId] = useState<number | null>(null);
+  const [publicProfile, setPublicProfile] = useState<any>(null);
   const [addressValues, setAddressValues] = useState<{
     address: string;
     city?: string;
@@ -52,13 +54,21 @@ export default function Perfil() {
     longitude?: number;
   }>({address: ""});
 
-  // Fetch profile images
+  // Fetch profile images and PublicProfile data
   const fetchProfileImages = async () => {
     try {
       setImagesLoading(true);
       const response = await profileCustomizationApi.getProfileImages();
       // The new endpoint returns a PublicProfile object with images array
       setProfileImages(response.data?.images || []);
+      
+      // Also update PublicProfile data for category/subcategory display
+      if (response.data?.id) {
+        setPublicProfileId(response.data.id as number);
+        setPublicProfile(response.data);
+        console.log("📋 Updated PublicProfile - Category:", response.data.category);
+        console.log("📋 Updated PublicProfile - Sub categories:", response.data.sub_categories);
+      }
 
       // If this was a newly created profile, show a message
       if (response.data?.name && response.data?.images?.length === 0) {
@@ -83,20 +93,30 @@ export default function Perfil() {
     }
   }, [isPersonalizarExpanded, activePersonalizarTab]);
 
-  // Ensure we have the PublicProfile id available for preview navigation
+  // Ensure we have the PublicProfile id available for preview navigation and category display
   useEffect(() => {
     const fetchPublicProfileId = async () => {
+      if (!isAuthenticated || !user) return;
+      
       try {
         const res = await profileCustomizationApi.getProfileImages();
+        console.log("📋 PublicProfile data received:", JSON.stringify(res?.data, null, 2));
         if (res?.data?.id) {
           setPublicProfileId(res.data.id as number);
+          setPublicProfile(res.data); // Store full PublicProfile data
+          console.log("📋 Category:", res.data.category);
+          console.log("📋 Sub categories:", res.data.sub_categories);
+          console.log("📋 Profile type:", res.data.profile_type);
+        } else {
+          console.log("📋 No PublicProfile ID found in response");
         }
       } catch (e) {
-        console.log("No PublicProfile yet for preview", e);
+        console.log("📋 No PublicProfile yet for preview", e);
+        setPublicProfile(null);
       }
     };
     fetchPublicProfileId();
-  }, []);
+  }, [isAuthenticated, user?.id]);
 
   const handleLogout = async () => {
     try {
@@ -176,6 +196,12 @@ export default function Perfil() {
   const displayName = user
     ? `${user.first_name || user.firstName || "Usuario"} ${user.last_name || user.lastName || ""}`
     : "Usuario";
+
+  // Get avatar color based on subcategory, fallback to primary color
+  const avatarColor =
+    publicProfile?.category && publicProfile?.sub_categories?.length > 0
+      ? getAvatarColorFromSubcategory(publicProfile.category, publicProfile.sub_categories)
+      : colors.primary;
 
   // Show login prompt if not authenticated
   if (!isAuthenticated || !user) {
@@ -286,7 +312,7 @@ export default function Perfil() {
         {/* Row 1: avatar, name/role, settings */}
         <View style={styles.headerTopRow}>
           <View style={styles.headerProfile}>
-            <View style={[styles.headerAvatar, {backgroundColor: colors.primary}]}> 
+            <View style={[styles.headerAvatar, {backgroundColor: avatarColor}]}> 
             {profile?.photo ? (
               <Image source={{uri: profile.photo}} style={styles.headerAvatarImage} />
             ) : (
@@ -306,6 +332,46 @@ export default function Perfil() {
                 ? "Cliente"
                 : "Usuario"}
             </Text>
+            {/* Category and Subcategory - Only show for PROFESSIONAL and PLACE */}
+            {(user?.role === "PROFESSIONAL" || user?.role === "PLACE") && (
+              <View style={styles.headerCategoryContainer}>
+                {publicProfile?.category ? (
+                  <Text style={[styles.headerCategory, {color: colors.mutedForeground}]}>
+                    {MAIN_CATEGORIES.find((c) => c.id === publicProfile.category)?.name || publicProfile.category}
+                  </Text>
+                ) : (
+                  <Text style={[styles.headerCategory, {color: colors.mutedForeground, fontStyle: "italic"}]}>
+                    Sin categoría
+                  </Text>
+                )}
+                {publicProfile?.sub_categories && publicProfile.sub_categories.length > 0 ? (
+                  <View style={styles.headerSubcategoryContainer}>
+                    {publicProfile.sub_categories.map((subId: string, idx: number) => {
+                      const subCategory = getSubCategoryById(publicProfile.category || "", subId);
+                      return subCategory ? (
+                        <Text
+                          key={idx}
+                          style={[styles.headerSubcategory, {color: colors.mutedForeground}]}>
+                          {idx > 0 ? " • " : ""}
+                          {subCategory.name}
+                        </Text>
+                      ) : null;
+                    })}
+                  </View>
+                ) : publicProfile && (
+                  <Text style={[styles.headerSubcategory, {color: colors.mutedForeground, fontStyle: "italic"}]}>
+                    Sin subcategoría
+                  </Text>
+                )}
+                {/* Debug info - remove in production */}
+                {__DEV__ && (
+                  <Text style={{fontSize: 10, color: "red"}}>
+                    Debug: cat={publicProfile?.category || "none"}, 
+                    subs={publicProfile?.sub_categories?.length || 0}
+                  </Text>
+                )}
+              </View>
+            )}
             </View>
           </View>
           <TouchableOpacity
@@ -728,6 +794,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "400",
     marginTop: 2,
+  },
+  headerCategoryContainer: {
+    marginTop: 4,
+    gap: 2,
+  },
+  headerCategory: {
+    fontSize: 12,
+    fontWeight: "500",
+    textTransform: "capitalize",
+  },
+  headerSubcategoryContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  headerSubcategory: {
+    fontSize: 11,
+    fontWeight: "400",
   },
   headerActions: {
     flexDirection: "row",

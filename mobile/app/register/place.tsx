@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import React, {useMemo, useState} from "react";
 import {
   View,
   Text,
@@ -15,11 +15,14 @@ import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {authApi, errorUtils, profileCustomizationApi, tokenUtils} from "@/lib/api";
 import AddressAutocomplete from "@/components/address/AddressAutocomplete";
+import {useCategory} from "@/contexts/CategoryContext";
+import {Dropdown} from "@/components/ui/Dropdown";
 
 export default function RegisterPlace() {
   const router = useRouter();
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
+  const {subcategoriesByMainCategory} = useCategory();
   const [values, setValues] = useState({
     email: "",
     password: "",
@@ -34,15 +37,36 @@ export default function RegisterPlace() {
     country: "México",
     latitude: undefined as number | undefined,
     longitude: undefined as number | undefined,
-    role: "PLACE" as "PLACE",
+    role: "place" as "place",
+    category: "" as string,
+    subcategory: "" as string,
   });
+  const [mainCategory, setMainCategory] = useState<"belleza" | "bienestar" | "mascotas">("belleza");
   const [loading, setLoading] = useState(false);
 
+  const subs = useMemo(
+    () => subcategoriesByMainCategory[mainCategory].filter((s) => s.id !== "todos"),
+    [mainCategory, subcategoriesByMainCategory]
+  );
+
   const set = (k: keyof typeof values) => (t: string) => setValues((s) => ({...s, [k]: t}));
+
+  const handleMainCategoryChange = (category: string) => {
+    setMainCategory(category as "belleza" | "bienestar" | "mascotas");
+    setValues((s) => ({...s, category: category, subcategory: ""}));
+  };
+
+  const handleSubcategoryChange = (subcategory: string) => {
+    setValues((s) => ({...s, subcategory: subcategory}));
+  };
 
   const onSubmit = async () => {
     if (!values.email || !values.password || !values.placeName) {
       Alert.alert("Campos requeridos", "Ingresa al menos email, contraseña y nombre del lugar");
+      return;
+    }
+    if (!values.category || !values.subcategory) {
+      Alert.alert("Campos requeridos", "Selecciona una categoría y subcategoría");
       return;
     }
     try {
@@ -52,16 +76,21 @@ export default function RegisterPlace() {
 
       // Ensure PublicProfile exists (auto-creates if missing)
       await profileCustomizationApi.getProfileImages();
+      // Always update with category/subcategory and address if provided
+      const updateData: any = {
+        category: values.category || '',
+        sub_categories: values.subcategory ? [values.subcategory] : [],
+      };
       if (values.address && values.latitude && values.longitude) {
-        await profileCustomizationApi.updatePublicProfile({
-          street: values.address,
-          city: values.city,
-          country: values.country,
-          postal_code: values.postal_code,
-          latitude: values.latitude,
-          longitude: values.longitude,
-        });
+        updateData.street = values.address;
+        updateData.city = values.city;
+        updateData.country = values.country;
+        updateData.postal_code = values.postal_code;
+        updateData.latitude = values.latitude;
+        updateData.longitude = values.longitude;
       }
+      // Always update to ensure category/subcategory are saved
+      await profileCustomizationApi.updatePublicProfile(updateData);
 
       router.replace("/(tabs)/perfil");
     } catch (err) {
@@ -177,6 +206,30 @@ export default function RegisterPlace() {
           onChangeText={set("country")}
         />
 
+        <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Categoría Principal</Text>
+        <Dropdown
+          options={[
+            {value: "belleza", label: "Belleza"},
+            {value: "bienestar", label: "Bienestar"},
+            {value: "mascotas", label: "Mascotas"},
+          ]}
+          selectedValue={values.category}
+          onValueChange={handleMainCategoryChange}
+          placeholder="Selecciona una categoría"
+        />
+
+        {values.category && (
+          <>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Subcategoría</Text>
+            <Dropdown
+              options={subs.map((s) => ({value: s.id, label: s.name}))}
+              selectedValue={values.subcategory}
+              onValueChange={handleSubcategoryChange}
+              placeholder="Selecciona una subcategoría"
+            />
+          </>
+        )}
+
         <TouchableOpacity
           style={[styles.submit, {backgroundColor: colors.primary}]}
           onPress={onSubmit}
@@ -221,6 +274,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginBottom: 10,
   },
+  sectionTitle: {fontSize: 14, fontWeight: "700", marginTop: 4, marginBottom: 6},
   submit: {marginTop: 4, borderRadius: 12, alignItems: "center", paddingVertical: 14},
   submitText: {color: "#fff", fontSize: 15, fontWeight: "700"},
 });

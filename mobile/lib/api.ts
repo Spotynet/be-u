@@ -22,8 +22,8 @@ export interface ApiError {
 
 // API Configuration - HARDCODED for testing
 
-//const API_BASE_URL = "http://127.0.0.1:8000/api";
-const API_BASE_URL = "https://stg.be-u.ai/api";
+const API_BASE_URL = "http://127.0.0.1:8000/api";
+//const API_BASE_URL = "https://stg.be-u.ai/api";
 
 console.log("🔧 HARDCODED API URL:", API_BASE_URL);
 const AUTH_TOKEN_KEY = "@auth_token";
@@ -208,7 +208,18 @@ export const authApi = {
     firstName: string;
     lastName: string;
     username: string;
-    role?: 'CLIENT' | 'PROFESSIONAL' | 'PLACE';
+    role?: 'client' | 'professional' | 'place';
+    category?: string;
+    subcategory?: string;
+    phone?: string;
+    city?: string;
+    bio?: string;
+    address?: string;
+    postal_code?: string;
+    country?: string;
+    latitude?: number;
+    longitude?: number;
+    placeName?: string;
   }) =>
     api.post<{message: string; user: any; access: string; refresh: string}>(
       "/auth/register/",

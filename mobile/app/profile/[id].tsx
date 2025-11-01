@@ -19,6 +19,7 @@ import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {providerApi, postApi, reviewApi, serviceApi} from "@/lib/api";
 import {BookingFlow} from "@/components/booking/BookingFlow";
 import {errorUtils} from "@/lib/api";
+import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from "@/constants/categories";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -89,6 +90,10 @@ export default function ProfileDetailScreen() {
       setPosts(postsResponse.data.results || []);
       setReviews(reviewsResponse.data.results || []);
       setServices(servicesData);
+
+      console.log("📋 Public Profile data:", JSON.stringify(profileData, null, 2));
+      console.log("📋 Category:", profileData.category);
+      console.log("📋 Sub categories:", profileData.sub_categories);
 
       // Animate content
       Animated.timing(fadeAnim, {
@@ -359,7 +364,16 @@ export default function ProfileDetailScreen() {
           <View style={styles.profileInfo}>
             {/* Row 1: avatar - name/role - settings */}
             <View style={styles.profileRowTop}>
-              <View style={[styles.profileAvatar, {backgroundColor: colors.primary}]}>
+              <View
+                style={[
+                  styles.profileAvatar,
+                  {
+                    backgroundColor: getAvatarColorFromSubcategory(
+                      profile.category,
+                      profile.sub_categories
+                    ),
+                  },
+                ]}>
                 <Text style={styles.profileAvatarText}>
                   {(profile.name || "U").charAt(0).toUpperCase()}
                 </Text>
@@ -371,6 +385,31 @@ export default function ProfileDetailScreen() {
                 <Text style={[styles.profileRole, {color: colors.mutedForeground}]} numberOfLines={1}>
                   {profile.profile_type === "PROFESSIONAL" ? "Profesional" : "Salón"}
                 </Text>
+                {/* Category and Subcategory */}
+                {(profile.category || (profile.sub_categories && profile.sub_categories.length > 0)) && (
+                  <View style={styles.profileCategoryContainer}>
+                    {profile.category && (
+                      <Text style={[styles.profileCategory, {color: colors.mutedForeground}]}>
+                        {MAIN_CATEGORIES.find((c) => c.id === profile.category)?.name || profile.category}
+                      </Text>
+                    )}
+                    {profile.sub_categories && profile.sub_categories.length > 0 && (
+                      <View style={styles.profileSubcategoryContainer}>
+                        {profile.sub_categories.map((subId: string, idx: number) => {
+                          const subCategory = getSubCategoryById(profile.category || "", subId);
+                          return subCategory ? (
+                            <Text
+                              key={idx}
+                              style={[styles.profileSubcategory, {color: colors.mutedForeground}]}>
+                              {idx > 0 ? " • " : ""}
+                              {subCategory.name}
+                            </Text>
+                          ) : null;
+                        })}
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
               <TouchableOpacity style={styles.settingsButton}>
                 <Ionicons name="settings-outline" size={20} color={colors.foreground} />
@@ -616,6 +655,24 @@ const styles = StyleSheet.create({
   profileRole: {
     fontSize: 14,
     fontWeight: "500",
+    marginBottom: 4,
+  },
+  profileCategoryContainer: {
+    marginTop: 4,
+    gap: 2,
+  },
+  profileCategory: {
+    fontSize: 12,
+    fontWeight: "500",
+    textTransform: "capitalize",
+  },
+  profileSubcategoryContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  profileSubcategory: {
+    fontSize: 11,
+    fontWeight: "400",
   },
   settingsButton: {
     padding: 8,

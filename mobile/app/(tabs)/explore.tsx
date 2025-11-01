@@ -22,6 +22,7 @@ import {ProfessionalProfile, PlaceProfile, PublicProfile} from "@/types/global";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 import {providerApi} from "@/lib/api";
 import {errorUtils} from "@/lib/api";
+import {getAvatarColorFromSubcategory} from "@/constants/categories";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -539,7 +540,16 @@ export default function Explore() {
                   setSelectedItem(item.id);
                 }}
                 activeOpacity={0.95}>
-                <View style={[styles.itemAvatarVertical, {backgroundColor: colors.primary}]}>
+                <View
+                  style={[
+                    styles.itemAvatarVertical,
+                    {
+                      backgroundColor: getAvatarColorFromSubcategory(
+                        item.category,
+                        item.sub_categories
+                      ),
+                    },
+                  ]}>
                   <Text style={styles.itemAvatarTextVertical}>
                     {item.type === "professional"
                       ? `${(item.name || "P")[0]}${(item.last_name || "R")[0]}`
@@ -612,7 +622,16 @@ export default function Explore() {
             <View style={[styles.detailCard, {backgroundColor: colors.card}]}>
               {/* Header */}
               <View style={styles.detailHeader}>
-                <View style={[styles.detailAvatar, {backgroundColor: colors.primary}]}>
+                <View
+                  style={[
+                    styles.detailAvatar,
+                    {
+                      backgroundColor: getAvatarColorFromSubcategory(
+                        selectedItemData.category,
+                        selectedItemData.sub_categories
+                      ),
+                    },
+                  ]}>
                   <Text style={styles.detailAvatarText}>
                     {selectedItemData.type === "professional"
                       ? `${(selectedItemData.name || "P")[0]}${

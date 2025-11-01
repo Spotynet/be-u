@@ -32,6 +32,8 @@ export interface ProfessionalProfile {
   bio?: string;
   city?: string;
   rating: number;
+  category?: string;
+  sub_categories?: string[];
 }
 
 export interface PlaceProfile {
@@ -45,6 +47,8 @@ export interface PlaceProfile {
   city?: string;
   country?: string;
   owner?: number;
+  category?: string;
+  sub_categories?: string[];
 }
 
 export interface PublicProfile {
@@ -385,6 +389,8 @@ export interface ProfessionalProfile {
   city?: string;
   rating: number;
   services_count: number;
+  category?: string;
+  sub_categories?: string[];
 }
 
 export interface PlaceProfile {
@@ -402,4 +408,6 @@ export interface PlaceProfile {
   services_count: number;
   address: string;
   professionals?: ProfessionalProfile[];
+  category?: string;
+  sub_categories?: string[];
 }

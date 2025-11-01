@@ -64,6 +64,8 @@ class ProfessionalProfile(models.Model):
     bio = models.TextField(blank=True, null=True)
     city = models.CharField(max_length=100, blank=True, null=True)
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.0)  # promedio de reseñas
+    category = models.CharField(max_length=100, blank=True, null=True, help_text="Main category (belleza, bienestar, mascotas)")
+    sub_categories = models.JSONField(default=list, blank=True, help_text="List of sub-categories")
 
     def __str__(self):
         return f"Professional: {self.name} {self.last_name}"
@@ -81,6 +83,8 @@ class PlaceProfile(models.Model):
     city = models.CharField(max_length=100, blank=True, null=True)
     country = models.CharField(max_length=100, blank=True, null=True)
     owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="owned_places")
+    category = models.CharField(max_length=100, blank=True, null=True, help_text="Main category (belleza, bienestar, mascotas)")
+    sub_categories = models.JSONField(default=list, blank=True, help_text="List of sub-categories")
 
     def __str__(self):
         return f"Place: {self.name}"

@@ -20,6 +20,7 @@ import {PlaceProfile} from "@/types/global";
 import {BookingFlow} from "@/components/booking/BookingFlow";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 import {errorUtils} from "@/lib/api";
+import {getSubCategoryById, MAIN_CATEGORIES} from "@/constants/categories";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -147,6 +148,8 @@ export default function PlaceDetailScreen() {
         country: placeData.country || "México",
         services_count: placeData.services_count || 0,
         address: placeData.street || placeData.address || "Dirección no disponible",
+        category: placeData.category,
+        sub_categories: placeData.sub_categories || [],
         type: "place",
         coordinates: {
           top: "50%",
@@ -362,6 +365,41 @@ export default function PlaceDetailScreen() {
                   </Text>
                 </View>
               </View>
+              {/* Category and Subcategory */}
+              {(place.category || (place.sub_categories && place.sub_categories.length > 0)) && (
+                <View style={styles.categoryContainer}>
+                  {place.category && (
+                    <View style={[styles.categoryBadge, {backgroundColor: colors.primary + "15"}]}>
+                      <Ionicons name="pricetag" color={colors.primary} size={12} />
+                      <Text style={[styles.categoryText, {color: colors.primary}]}>
+                        {MAIN_CATEGORIES.find((c) => c.id === place.category)?.name || place.category}
+                      </Text>
+                    </View>
+                  )}
+                  {place.sub_categories && place.sub_categories.length > 0 && (
+                    <View style={styles.subcategoryContainer}>
+                      {place.sub_categories.map((subId, idx) => {
+                        const subCategory = getSubCategoryById(place.category || "", subId);
+                        return subCategory ? (
+                          <View
+                            key={idx}
+                            style={[
+                              styles.subcategoryBadge,
+                              {
+                                backgroundColor: subCategory.color ? subCategory.color + "20" : colors.muted + "40",
+                                borderColor: subCategory.color || colors.border,
+                              },
+                            ]}>
+                            <Text style={[styles.subcategoryText, {color: subCategory.color || colors.foreground}]}>
+                              {subCategory.name}
+                            </Text>
+                          </View>
+                        ) : null;
+                      })}
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
             <View style={[styles.ratingBadge, {backgroundColor: "#EF4444"}]}>
               <Ionicons name="star" color="#ffffff" size={16} />
@@ -998,6 +1036,40 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 14,
     fontWeight: "500",
+  },
+  categoryContainer: {
+    marginTop: 12,
+    gap: 8,
+  },
+  categoryBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  categoryText: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "capitalize",
+  },
+  subcategoryContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 4,
+  },
+  subcategoryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  subcategoryText: {
+    fontSize: 11,
+    fontWeight: "600",
   },
   followButton: {
     width: 44,

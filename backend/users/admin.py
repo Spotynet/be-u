@@ -26,19 +26,30 @@ class ClientProfileAdmin(admin.ModelAdmin):
 
 @admin.register(ProfessionalProfile)
 class ProfessionalProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'name', 'last_name', 'city', 'rating')
-    search_fields = ('user__username', 'name', 'last_name', 'city')
-    list_filter = ('city',)
+    list_display = ('user', 'name', 'last_name', 'category', 'city', 'rating')
+    search_fields = ('user__username', 'name', 'last_name', 'city', 'category')
+    list_filter = ('category', 'city')
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('user', 'name', 'last_name', 'bio', 'city', 'rating')
+        }),
+        ('Categories', {
+            'fields': ('category', 'sub_categories')
+        }),
+    )
 
 
 @admin.register(PlaceProfile)
 class PlaceProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'name', 'city', 'country', 'owner')
-    search_fields = ('user__username', 'name', 'city', 'country', 'bio', 'description')
-    list_filter = ('city', 'country')
+    list_display = ('user', 'name', 'category', 'city', 'country', 'owner')
+    search_fields = ('user__username', 'name', 'city', 'country', 'bio', 'description', 'category')
+    list_filter = ('category', 'city', 'country')
     fieldsets = (
         ('Basic Information', {
             'fields': ('user', 'name', 'bio', 'description')
+        }),
+        ('Categories', {
+            'fields': ('category', 'sub_categories')
         }),
         ('Address', {
             'fields': ('street', 'number_ext', 'number_int', 'postal_code', 'city', 'country')

@@ -24,7 +24,7 @@ export default function RegisterClient() {
     firstName: "",
     lastName: "",
     username: "",
-    role: "CLIENT" as "CLIENT",
+    role: "client" as "client",
   });
   const [loading, setLoading] = useState(false);
 

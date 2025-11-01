@@ -18,6 +18,7 @@ import {useRouter} from "expo-router";
 import {useState, useEffect} from "react";
 import {profileCustomizationApi} from "@/lib/api";
 import {ProfileTabs} from "./ProfileTabs";
+import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from "@/constants/categories";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -84,6 +85,12 @@ export const ProfessionalProfileView = ({
         user?.last_name || user?.lastName || ""
       }`;
 
+  // Get avatar color based on subcategory
+  const avatarColor = getAvatarColorFromSubcategory(
+    profile?.category,
+    profile?.sub_categories
+  );
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Professional Header with Background */}
@@ -100,7 +107,7 @@ export const ProfessionalProfileView = ({
                     style={[
                       styles.avatar,
                       styles.avatarPlaceholder,
-                      {backgroundColor: colors.primary},
+                      {backgroundColor: avatarColor},
                     ]}>
                     <Text style={styles.avatarText}>
                       {getInitials(user?.first_name, user?.last_name)}
@@ -108,7 +115,7 @@ export const ProfessionalProfileView = ({
                   </View>
                 )}
                 {/* Professional status ring */}
-                <View style={[styles.statusRing, {borderColor: colors.primary}]} />
+                <View style={[styles.statusRing, {borderColor: avatarColor}]} />
               </View>
               {/* Verified Badge */}
               <View style={[styles.verifiedBadge, {backgroundColor: "#3b82f6"}]}>
@@ -154,6 +161,41 @@ export const ProfessionalProfileView = ({
               <Text style={[styles.location, {color: isDark ? "#cbd5e1" : "#64748b"}]}>
                 {profile.city}
               </Text>
+            </View>
+          )}
+          {/* Category and Subcategory */}
+          {(profile?.category || (profile?.sub_categories && profile.sub_categories.length > 0)) && (
+            <View style={styles.categoryContainer}>
+              {profile.category && (
+                <View style={[styles.categoryBadge, {backgroundColor: colors.primary + "15"}]}>
+                  <Ionicons name="pricetag" color={colors.primary} size={12} />
+                  <Text style={[styles.categoryText, {color: colors.primary}]}>
+                    {MAIN_CATEGORIES.find((c) => c.id === profile.category)?.name || profile.category}
+                  </Text>
+                </View>
+              )}
+              {profile.sub_categories && profile.sub_categories.length > 0 && (
+                <View style={styles.subcategoryContainer}>
+                  {profile.sub_categories.map((subId, idx) => {
+                    const subCategory = getSubCategoryById(profile.category || "", subId);
+                    return subCategory ? (
+                      <View
+                        key={idx}
+                        style={[
+                          styles.subcategoryBadge,
+                          {
+                            backgroundColor: subCategory.color ? subCategory.color + "20" : colors.muted + "40",
+                            borderColor: subCategory.color || colors.border,
+                          },
+                        ]}>
+                        <Text style={[styles.subcategoryText, {color: subCategory.color || colors.foreground}]}>
+                          {subCategory.name}
+                        </Text>
+                      </View>
+                    ) : null;
+                  })}
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -418,6 +460,40 @@ const styles = StyleSheet.create({
   location: {
     fontSize: 14,
     fontWeight: "500",
+  },
+  categoryContainer: {
+    marginTop: 12,
+    gap: 8,
+  },
+  categoryBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  categoryText: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "capitalize",
+  },
+  subcategoryContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 4,
+  },
+  subcategoryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  subcategoryText: {
+    fontSize: 11,
+    fontWeight: "600",
   },
   section: {
     paddingHorizontal: 16,

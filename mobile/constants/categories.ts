@@ -297,3 +297,24 @@ export const CATEGORY_EMOJIS: Record<string, string> = {
 export const getCategoryEmoji = (categoryId: string): string => {
   return CATEGORY_EMOJIS[categoryId] || "📋";
 };
+
+/**
+ * Get avatar background color based on subcategory
+ * Returns the subcategory color if available, otherwise defaults to a neutral color
+ */
+export const getAvatarColorFromSubcategory = (
+  categoryId?: string,
+  subCategoryIds?: string[]
+): string => {
+  // If no subcategories, return default color
+  if (!subCategoryIds || subCategoryIds.length === 0 || !categoryId) {
+    return "#8B5CF6"; // Default purple color
+  }
+
+  // Get the first subcategory (primary subcategory)
+  const firstSubCategoryId = subCategoryIds[0];
+  const subCategory = getSubCategoryById(categoryId, firstSubCategoryId);
+
+  // Return the subcategory color if found, otherwise default
+  return subCategory?.color || "#8B5CF6";
+};

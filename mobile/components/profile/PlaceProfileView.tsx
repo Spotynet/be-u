@@ -18,6 +18,7 @@ import {useRouter} from "expo-router";
 import {useState, useEffect} from "react";
 import {profileCustomizationApi} from "@/lib/api";
 import {ProfileTabs} from "./ProfileTabs";
+import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from "@/constants/categories";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -91,6 +92,12 @@ export const PlaceProfileView = ({
       }`
     : "Sin dirección";
 
+  // Get avatar color based on subcategory
+  const avatarColor = getAvatarColorFromSubcategory(
+    profile?.category,
+    profile?.sub_categories
+  );
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Place Header with Corporate Background */}
@@ -103,12 +110,12 @@ export const PlaceProfileView = ({
                 {profile?.logo ? (
                   <Image source={{uri: profile.logo}} style={styles.logo} />
                 ) : (
-                  <View style={[styles.logo, {backgroundColor: colors.primary}]}>
+                  <View style={[styles.logo, {backgroundColor: avatarColor}]}>
                     <Text style={styles.logoText}>{getInitials(placeName)}</Text>
                   </View>
                 )}
                 {/* Business status ring */}
-                <View style={[styles.statusRing, {borderColor: colors.primary}]} />
+                <View style={[styles.statusRing, {borderColor: avatarColor}]} />
               </View>
               {/* Business Badge */}
               <View style={[styles.businessBadge, {backgroundColor: "#10b981"}]}>
@@ -136,6 +143,41 @@ export const PlaceProfileView = ({
               ({stats.reviews || 0} reseñas)
             </Text>
           </View>
+          {/* Category and Subcategory */}
+          {(profile?.category || (profile?.sub_categories && profile.sub_categories.length > 0)) && (
+            <View style={styles.categoryContainer}>
+              {profile.category && (
+                <View style={[styles.categoryBadge, {backgroundColor: colors.primary + "15"}]}>
+                  <Ionicons name="pricetag" color={colors.primary} size={12} />
+                  <Text style={[styles.categoryText, {color: colors.primary}]}>
+                    {MAIN_CATEGORIES.find((c) => c.id === profile.category)?.name || profile.category}
+                  </Text>
+                </View>
+              )}
+              {profile.sub_categories && profile.sub_categories.length > 0 && (
+                <View style={styles.subcategoryContainer}>
+                  {profile.sub_categories.map((subId, idx) => {
+                    const subCategory = getSubCategoryById(profile.category || "", subId);
+                    return subCategory ? (
+                      <View
+                        key={idx}
+                        style={[
+                          styles.subcategoryBadge,
+                          {
+                            backgroundColor: subCategory.color ? subCategory.color + "20" : colors.muted + "40",
+                            borderColor: subCategory.color || colors.border,
+                          },
+                        ]}>
+                        <Text style={[styles.subcategoryText, {color: subCategory.color || colors.foreground}]}>
+                          {subCategory.name}
+                        </Text>
+                      </View>
+                    ) : null;
+                  })}
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </View>
 
@@ -470,6 +512,40 @@ const styles = StyleSheet.create({
   reviewsCount: {
     fontSize: 13,
     fontWeight: "500",
+  },
+  categoryContainer: {
+    marginTop: 12,
+    gap: 8,
+  },
+  categoryBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  categoryText: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "capitalize",
+  },
+  subcategoryContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 4,
+  },
+  subcategoryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  subcategoryText: {
+    fontSize: 11,
+    fontWeight: "600",
   },
   locationCard: {
     marginHorizontal: 16,

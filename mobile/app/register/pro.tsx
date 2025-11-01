@@ -16,6 +16,7 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {authApi, errorUtils, profileCustomizationApi, tokenUtils} from "@/lib/api";
 import AddressAutocomplete from "@/components/address/AddressAutocomplete";
 import {useCategory} from "@/contexts/CategoryContext";
+import {Dropdown} from "@/components/ui/Dropdown";
 
 export default function RegisterPro() {
   const router = useRouter();
@@ -37,23 +38,39 @@ export default function RegisterPro() {
     country: "",
     latitude: undefined as number | undefined,
     longitude: undefined as number | undefined,
-    role: "PROFESSIONAL" as "PROFESSIONAL",
+    role: "professional" as "professional",
+    category: "" as string,
+    subcategory: "" as string,
   });
   const [mainCategory, setMainCategory] = useState<"belleza" | "bienestar" | "mascotas">("belleza");
-  const [selectedSubs, setSelectedSubs] = useState<string[]>([]);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
   const subs = useMemo(
     () => subcategoriesByMainCategory[mainCategory].filter((s) => s.id !== "todos"),
     [mainCategory, subcategoriesByMainCategory]
   );
-  const toggleSub = (id: string) =>
-    setSelectedSubs((arr) => (arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]));
   const set = (k: keyof typeof values) => (t: string) => setValues((s) => ({...s, [k]: t}));
+
+  const handleMainCategoryChange = (category: string) => {
+    const cat = category as "belleza" | "bienestar" | "mascotas";
+    setMainCategory(cat);
+    setValues((s) => ({...s, category: category, subcategory: ""}));
+    setSelectedSubcategory(""); // Reset subcategory when main category changes
+  };
+
+  const handleSubcategoryChange = (subcategory: string) => {
+    setSelectedSubcategory(subcategory);
+    setValues((s) => ({...s, subcategory: subcategory}));
+  };
 
   const onSubmit = async () => {
     if (!values.email || !values.password || !values.firstName) {
       Alert.alert("Campos requeridos", "Ingresa al menos email, contraseña y nombre");
+      return;
+    }
+    if (!values.category || !values.subcategory) {
+      Alert.alert("Campos requeridos", "Selecciona una categoría y subcategoría");
       return;
     }
     try {
@@ -63,17 +80,21 @@ export default function RegisterPro() {
 
       // Ensure PublicProfile exists (auto-creates if missing)
       await profileCustomizationApi.getProfileImages();
-      // Save address + coordinates if provided
+      // Always update with category/subcategory and address if provided
+      const updateData: any = {
+        category: values.category || '',
+        sub_categories: values.subcategory ? [values.subcategory] : [],
+      };
       if (values.address && values.latitude && values.longitude) {
-        await profileCustomizationApi.updatePublicProfile({
-          street: values.address,
-          city: values.city,
-          country: values.country,
-          postal_code: values.postal_code,
-          latitude: values.latitude,
-          longitude: values.longitude,
-        });
+        updateData.street = values.address;
+        updateData.city = values.city;
+        updateData.country = values.country;
+        updateData.postal_code = values.postal_code;
+        updateData.latitude = values.latitude;
+        updateData.longitude = values.longitude;
       }
+      // Always update to ensure category/subcategory are saved
+      await profileCustomizationApi.updatePublicProfile(updateData);
 
       router.replace("/(tabs)/perfil");
     } catch (err) {
@@ -178,43 +199,29 @@ export default function RegisterPro() {
           onChangeText={set("bio")}
         />
 
-        <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Categoría</Text>
-        <View style={styles.row}>
-          {(["belleza", "bienestar", "mascotas"] as const).map((c) => (
-            <TouchableOpacity
-              key={c}
-              style={[
-                styles.badge,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: mainCategory === c ? colors.muted : colors.card,
-                },
-              ]}
-              onPress={() => setMainCategory(c)}>
-              <Text style={{color: colors.foreground}}>{c}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Categoría Principal</Text>
+        <Dropdown
+          options={[
+            {value: "belleza", label: "Belleza"},
+            {value: "bienestar", label: "Bienestar"},
+            {value: "mascotas", label: "Mascotas"},
+          ]}
+          selectedValue={values.category}
+          onValueChange={handleMainCategoryChange}
+          placeholder="Selecciona una categoría"
+        />
 
-        <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Subcategorías</Text>
-        <View style={styles.wrap}>
-          {subs.map((s) => (
-            <TouchableOpacity
-              key={s.id}
-              style={[
-                styles.chip,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: selectedSubs.includes(s.id)
-                    ? s.color || colors.muted
-                    : colors.card,
-                },
-              ]}
-              onPress={() => toggleSub(s.id)}>
-              <Text style={{color: colors.foreground}}>{s.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {values.category && (
+          <>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Subcategoría</Text>
+            <Dropdown
+              options={subs.map((s) => ({value: s.id, label: s.name}))}
+              selectedValue={values.subcategory}
+              onValueChange={handleSubcategoryChange}
+              placeholder="Selecciona una subcategoría"
+            />
+          </>
+        )}
 
         <TouchableOpacity
           style={[styles.submit, {backgroundColor: colors.primary}]}
@@ -252,10 +259,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitle: {fontSize: 14, fontWeight: "700", marginTop: 4, marginBottom: 6},
-  row: {flexDirection: "row", gap: 8, marginBottom: 10},
-  badge: {borderWidth: 1, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8},
-  wrap: {flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12},
-  chip: {borderWidth: 1, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 8},
   submit: {marginTop: 4, borderRadius: 12, alignItems: "center", paddingVertical: 14},
   submitText: {color: "#fff", fontSize: 15, fontWeight: "700"},
 });
