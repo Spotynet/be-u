@@ -47,11 +47,20 @@ export const usePosts = (authorId?: number) => {
 
   const likePost = async (postId: number) => {
     try {
-      await postApi.likePost(postId);
+      const response = await postApi.likePost(postId);
+      const isLiked = response.data?.liked ?? true;
       // Update local state
       setPosts((prev) =>
         prev.map((post) =>
-          post.id === postId ? {...post, is_liked: true, likes_count: post.likes_count + 1} : post
+          post.id === postId
+            ? {
+                ...post,
+                user_has_liked: isLiked,
+                likes_count: isLiked
+                  ? (post.likes_count || 0) + 1
+                  : Math.max(0, (post.likes_count || 0) - 1),
+              }
+            : post
         )
       );
     } catch (err) {
@@ -61,20 +70,8 @@ export const usePosts = (authorId?: number) => {
   };
 
   const unlikePost = async (postId: number) => {
-    try {
-      await postApi.unlikePost(postId);
-      // Update local state
-      setPosts((prev) =>
-        prev.map((post) =>
-          post.id === postId
-            ? {...post, is_liked: false, likes_count: Math.max(0, post.likes_count - 1)}
-            : post
-        )
-      );
-    } catch (err) {
-      const message = errorUtils.getErrorMessage(err);
-      Alert.alert("Error", message);
-    }
+    // Note: The API endpoint toggles, so we can use likePost
+    return likePost(postId);
   };
 
   const deletePost = async (postId: number) => {

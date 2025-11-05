@@ -10,6 +10,7 @@ urlpatterns = [
     path('photo/', views.create_photo_post, name='create-photo-post'),
     path('video/', views.create_video_post, name='create-video-post'),
     path('carousel/', views.create_carousel_post, name='create-carousel-post'),
+    path('mosaic/', views.create_mosaic_post, name='create-mosaic-post'),
     path('transformation/', views.create_transformation_post, name='create-transformation-post'),
     path('poll/', views.create_poll_post, name='create-poll-post'),
     path('review/', views.create_review_post, name='create-review-post'),

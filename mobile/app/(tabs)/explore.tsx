@@ -14,7 +14,7 @@ import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useCategory} from "@/contexts/CategoryContext";
-import {Ionicons} from "@expo/vector-icons";
+import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
 import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
@@ -42,7 +42,6 @@ export default function Explore() {
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [isListExpanded, setIsListExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isCategoryPickerExpanded, setIsCategoryPickerExpanded] = useState(false);
 
   const categories = [
     {id: "belleza", name: "Belleza"},
@@ -50,16 +49,18 @@ export default function Explore() {
     {id: "mascotas", name: "Mascotas"},
   ];
 
-  const getCategoryIcon = (id: string) => {
+  const getCategoryIcon = (id: string, color: string, size: number = 24) => {
     switch (id) {
       case "belleza":
-        return require("@/assets/images/pink.png");
+        return <MaterialCommunityIcons name="spa-outline" size={size} color={color} />;
       case "bienestar":
-        return require("@/assets/images/purple.png");
+        return <MaterialCommunityIcons name="meditation" size={size} color={color} />;
       case "mascotas":
-        return require("@/assets/images/orange.png");
+        return <MaterialCommunityIcons name="paw" size={size} color={color} />;
+      case "todos":
+        return <Ionicons name="apps" size={size} color={color} />;
       default:
-        return require("@/assets/images/pink.png");
+        return <Ionicons name="apps" size={size} color={color} />;
     }
   };
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -307,46 +308,32 @@ export default function Explore() {
         </View>
         <View style={styles.headerActions}>
           <View style={styles.categorySelector}>
-            {/* Collapsed State - Single Button */}
-            {!isCategoryPickerExpanded && (
-              <TouchableOpacity
-                style={[styles.categoryButton, {backgroundColor: colors.card}]}
-                onPress={() => setIsCategoryPickerExpanded(true)}>
-                <Image
-                  source={getCategoryIcon(selectedMainCategory)}
-                  style={{width: 28, height: 28, resizeMode: "contain"}}
-                />
-              </TouchableOpacity>
-            )}
-
-            {/* Expanded State - Horizontal Options */}
-            {isCategoryPickerExpanded && (
-              <View style={[styles.expandedCategoryOptions, {backgroundColor: colors.card}]}>
-                {categories.map((category) => (
-                  <TouchableOpacity
-                    key={category.id}
-                    style={[
-                      styles.expandedCategoryOption,
-                      selectedMainCategory === category.id && styles.selectedCategoryOption,
-                    ]}
-                    onPress={() => {
-                      setSelectedMainCategory(category.id as "belleza" | "bienestar" | "mascotas");
-                      setVariant(category.id as any);
-                      setIsCategoryPickerExpanded(false);
-                    }}>
-                    <Image
-                      source={getCategoryIcon(category.id)}
-                      style={{width: 24, height: 24, resizeMode: "contain"}}
-                    />
-                    {selectedMainCategory === category.id && (
-                      <Text style={[styles.expandedCategoryText, {color: colors.primary}]}>
-                        {category.name}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
+            {/* Always Expanded - Horizontal Options */}
+            <View style={[styles.expandedCategoryOptions, {backgroundColor: colors.card}]}>
+              {categories.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.expandedCategoryOption,
+                    selectedMainCategory === category.id && styles.selectedCategoryOption,
+                  ]}
+                  onPress={() => {
+                    setSelectedMainCategory(category.id as "belleza" | "bienestar" | "mascotas");
+                    setVariant(category.id as any);
+                  }}>
+                  {getCategoryIcon(
+                    category.id,
+                    selectedMainCategory === category.id ? colors.primary : colors.mutedForeground,
+                    24
+                  )}
+                  {selectedMainCategory === category.id && (
+                    <Text style={[styles.expandedCategoryText, {color: colors.primary}]}>
+                      {category.name}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
           <TouchableOpacity style={[styles.locationButton, {backgroundColor: colors.primary}]}>
             <Ionicons name="navigate" color="#ffffff" size={20} />

@@ -35,13 +35,13 @@ export const MAIN_CATEGORIES: Category[] = [
   {
     id: "belleza",
     name: "Belleza",
-    icon: "heart",
+    icon: "spa-outline",
     description: "Servicios de belleza y cuidado personal",
   },
   {
     id: "bienestar",
     name: "Bienestar",
-    icon: "fitness",
+    icon: "meditation",
     description: "Servicios de bienestar, salud y ejercicio",
   },
   {
@@ -237,7 +237,8 @@ export const SUB_CATEGORIES: Record<string, SubCategory[]> = {
  * Get all sub-categories for a specific main category
  */
 export const getSubCategories = (categoryId: string): SubCategory[] => {
-  return SUB_CATEGORIES[categoryId] || [];
+  const normalizedCategoryId = categoryId?.toLowerCase();
+  return SUB_CATEGORIES[normalizedCategoryId] || [];
 };
 
 /**
@@ -254,8 +255,13 @@ export const getSubCategoryById = (
   categoryId: string,
   subCategoryId: string
 ): SubCategory | undefined => {
-  const subCategories = SUB_CATEGORIES[categoryId] || [];
-  return subCategories.find((sub) => sub.id === subCategoryId);
+  // Normalize category ID to lowercase for lookup
+  const normalizedCategoryId = categoryId?.toLowerCase();
+  const subCategories = SUB_CATEGORIES[normalizedCategoryId] || [];
+  // Case-insensitive matching for subcategory ID
+  return subCategories.find(
+    (sub) => sub.id.toLowerCase() === subCategoryId?.toLowerCase()
+  );
 };
 
 /**
@@ -308,12 +314,31 @@ export const getAvatarColorFromSubcategory = (
 ): string => {
   // If no subcategories, return default color
   if (!subCategoryIds || subCategoryIds.length === 0 || !categoryId) {
+    if (__DEV__) {
+      console.log('getAvatarColorFromSubcategory: No subcategories or category', {
+        categoryId,
+        subCategoryIds,
+      });
+    }
     return "#8B5CF6"; // Default purple color
   }
 
+  // Normalize category ID to lowercase for lookup
+  const normalizedCategoryId = categoryId.toLowerCase();
+  
   // Get the first subcategory (primary subcategory)
   const firstSubCategoryId = subCategoryIds[0];
-  const subCategory = getSubCategoryById(categoryId, firstSubCategoryId);
+  const subCategory = getSubCategoryById(normalizedCategoryId, firstSubCategoryId);
+
+  if (__DEV__) {
+    console.log('getAvatarColorFromSubcategory: Lookup result', {
+      categoryId,
+      normalizedCategoryId,
+      firstSubCategoryId,
+      found: !!subCategory,
+      color: subCategory?.color,
+    });
+  }
 
   // Return the subcategory color if found, otherwise default
   return subCategory?.color || "#8B5CF6";

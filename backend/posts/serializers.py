@@ -48,12 +48,15 @@ class PostSerializer(serializers.ModelSerializer):
     comments_count = serializers.SerializerMethodField()
     user_has_liked = serializers.SerializerMethodField()
     poll_options = PollOptionSerializer(many=True, read_only=True)
+    author_category = serializers.SerializerMethodField()
+    author_sub_categories = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
         fields = [
-            'id', 'author', 'post_type', 'content', 'created_at', 'updated_at',
-            'media', 'likes_count', 'comments_count', 'user_has_liked', 'poll_options'
+            'id', 'author', 'post_type', 'content', 'created_at', 'updated_at', 'expires_at',
+            'media', 'likes_count', 'comments_count', 'user_has_liked', 'poll_options',
+            'author_category', 'author_sub_categories'
         ]
         read_only_fields = ['id', 'author', 'created_at', 'updated_at']
 
@@ -69,6 +72,43 @@ class PostSerializer(serializers.ModelSerializer):
             return obj.likes.filter(user=request.user).exists()
         return False
 
+    def get_author_category(self, obj):
+        """Get the author's category from their PublicProfile"""
+        try:
+            # Try to access public_profile directly
+            # If it doesn't exist, Django will raise PublicProfile.DoesNotExist
+            profile = obj.author.public_profile
+            return profile.category if profile else None
+        except Exception:
+            # Profile doesn't exist or other error
+            return None
+
+    def get_author_sub_categories(self, obj):
+        """Get the author's subcategories from their PublicProfile"""
+        try:
+            # Try to access public_profile directly
+            profile = obj.author.public_profile
+            if not profile:
+                return []
+            
+            sub_cats = profile.sub_categories
+            # Ensure it's a list and handle None
+            if sub_cats is None:
+                return []
+            if isinstance(sub_cats, list):
+                return sub_cats
+            # If it's stored as a string, try to parse it
+            if isinstance(sub_cats, str):
+                import json
+                try:
+                    return json.loads(sub_cats)
+                except:
+                    return [sub_cats] if sub_cats else []
+            return []
+        except Exception:
+            # Profile doesn't exist or other error
+            return []
+
 class PostCreateSerializer(serializers.ModelSerializer):
     media = serializers.ListField(
         child=serializers.FileField(),
@@ -78,7 +118,7 @@ class PostCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Post
-        fields = ['post_type', 'content', 'media']
+        fields = ['post_type', 'content', 'media', 'expires_at']
 
     def create(self, validated_data):
         media_files = validated_data.pop('media', [])

@@ -62,11 +62,6 @@ export default function CreateBeforeAfterScreen() {
       Alert.alert("Error", "Agrega las fotos de Antes y Después");
       return;
     }
-
-    if (!description.trim()) {
-      Alert.alert("Error", "Agrega una descripción del proceso");
-      return;
-    }
     try {
       const token = await tokenUtils.getToken();
       if (!token) {
@@ -83,12 +78,21 @@ export default function CreateBeforeAfterScreen() {
           const blob = await res.blob();
           return new File([blob], name, {type: blob.type || "image/jpeg"});
         }
+        // React Native FormData format
         const ext = uri.split(".").pop() || "jpg";
-        return {uri, name, type: `image/${ext === "jpg" ? "jpeg" : ext}`} as any;
+        const filename = `${name}.${ext}`;
+        return {
+          uri,
+          name: filename,
+          type: `image/${ext === "jpg" ? "jpeg" : ext}`,
+        } as any;
       };
 
-      form.append("before", await buildFile(beforePhoto, `before_${Date.now()}.jpg`));
-      form.append("after", await buildFile(afterPhoto, `after_${Date.now()}.jpg`));
+      const beforeFile = await buildFile(beforePhoto, `before_${Date.now()}`);
+      const afterFile = await buildFile(afterPhoto, `after_${Date.now()}`);
+
+      form.append("before", beforeFile as any);
+      form.append("after", afterFile as any);
       form.append("caption", description);
       if (treatment) form.append("treatment", treatment);
       if (duration) form.append("duration", duration);
@@ -96,9 +100,8 @@ export default function CreateBeforeAfterScreen() {
 
       await postApi.createBeforeAfterPost(form);
 
-      Alert.alert("¡Publicado!", "Tu transformación ha sido publicada exitosamente", [
-        {text: "Ver Publicación", onPress: () => router.push("/(tabs)/")},
-      ]);
+      // Navigate back to home/feed upon success
+      router.replace("/");
     } catch (e: any) {
       Alert.alert("Error", errorUtils.getErrorMessage?.(e) || e?.message || "No se pudo publicar");
     }

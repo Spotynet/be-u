@@ -363,13 +363,6 @@ export default function Perfil() {
                     Sin subcategoría
                   </Text>
                 )}
-                {/* Debug info - remove in production */}
-                {__DEV__ && (
-                  <Text style={{fontSize: 10, color: "red"}}>
-                    Debug: cat={publicProfile?.category || "none"}, 
-                    subs={publicProfile?.sub_categories?.length || 0}
-                  </Text>
-                )}
               </View>
             )}
             </View>

@@ -33,6 +33,7 @@ class Post(models.Model):
     content = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
 
     # Generic foreign key for flexible content association
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)

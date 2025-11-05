@@ -6,6 +6,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q
 from django.contrib.contenttypes.models import ContentType
+from django.utils import timezone
+from datetime import timedelta
 from .models import Post, PostMedia, PostLike, PostComment, PollOption, PollVote
 from .serializers import (
     PostSerializer, PostCreateSerializer, CommentCreateSerializer,
@@ -27,7 +29,19 @@ class PostViewSet(viewsets.ModelViewSet):
         return [AllowAny()]
 
     def get_queryset(self):
-        queryset = Post.objects.select_related('author').prefetch_related('media', 'likes', 'comments')
+        queryset = Post.objects.select_related('author', 'author__public_profile').prefetch_related('media', 'likes', 'comments')
+
+        # Filter out expired video posts (stories-like behavior)
+        # Show videos that either:
+        # 1. Are not expired (expires_at > now) OR
+        # 2. Don't have an expiration date (expires_at is null) OR
+        # 3. Are not video type posts
+        now = timezone.now()
+        queryset = queryset.filter(
+            Q(post_type='video', expires_at__gt=now) | 
+            Q(post_type='video', expires_at__isnull=True) | 
+            ~Q(post_type='video')
+        )
 
         # Filter by author
         author = self.request.query_params.get('author', None)
@@ -130,13 +144,43 @@ def create_photo_post(request):
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser])
 def create_video_post(request):
-    serializer = PostCreateSerializer(data=request.data, context={'request': request})
+    if not request.user or not request.user.is_authenticated:
+        return Response({'detail': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    # Check if media file is provided
+    if 'media' not in request.FILES and len(request.FILES) == 0:
+        return Response({'error': 'No media file provided'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Video posts don't accept content/description
+    # Use request.data directly (it includes files when using MultiPartParser)
+    # Don't use .copy() as it might lose file references
+    data = {}
+    for key, value in request.data.items():
+        if key != 'content':  # Skip content field
+            data[key] = value
+    
+    # Add media files from request.FILES
+    if 'media' in request.FILES:
+        # Get all files with 'media' key
+        media_list = request.FILES.getlist('media')
+        if media_list:
+            data['media'] = media_list
+    
+    serializer = PostCreateSerializer(data=data, context={'request': request})
 
     if serializer.is_valid():
-        post = serializer.save(post_type='video')
+        # Set expiration to 24 hours from now for video posts
+        expires_at = timezone.now() + timedelta(hours=24)
+        post = serializer.save(post_type='video', expires_at=expires_at, content=None)
         return Response(PostSerializer(post, context={'request': request}).data)
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    # Return detailed error information for debugging
+    return Response({
+        'errors': serializer.errors, 
+        'received_data_keys': list(data.keys()),
+        'files_keys': list(request.FILES.keys()),
+        'has_media_in_files': 'media' in request.FILES,
+    }, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser])
@@ -145,6 +189,17 @@ def create_carousel_post(request):
 
     if serializer.is_valid():
         post = serializer.save(post_type='carousel')
+        return Response(PostSerializer(post, context={'request': request}).data)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def create_mosaic_post(request):
+    serializer = PostCreateSerializer(data=request.data, context={'request': request})
+
+    if serializer.is_valid():
+        post = serializer.save(post_type='mosaic')
         return Response(PostSerializer(post, context={'request': request}).data)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

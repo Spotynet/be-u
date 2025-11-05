@@ -11,8 +11,8 @@ export const postFormats: PostFormat[] = [
   {
     id: "video",
     icon: "videocam",
-    title: "Video + Descripción",
-    description: "Comparte tu trabajo en video",
+    title: "Video",
+    description: "Stories-like, expira en 24h",
     roles: ["PROFESSIONAL", "PLACE"],
     color: "#FF6B6B",
   },
@@ -57,6 +57,10 @@ export const postFormats: PostFormat[] = [
     color: "#64B5F6",
   },
 ];
+
+
+
+
 
 
 

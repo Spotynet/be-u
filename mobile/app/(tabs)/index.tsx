@@ -16,12 +16,13 @@ import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useCategory} from "@/contexts/CategoryContext";
-import {Ionicons} from "@expo/vector-icons";
+import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
 import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {postApi, tokenUtils} from "@/lib/api";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
+import {getAvatarColorFromSubcategory} from "@/constants/categories";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -85,8 +86,35 @@ export default function Home() {
     if (liking.has(postId)) return;
     setLiking(new Set(liking).add(postId));
     try {
-      await postApi.likePost(postId);
-      toggleLike(postId);
+      const response = await postApi.likePost(postId);
+      const isLiked = response.data?.liked ?? true; // Default to true if not specified
+      
+      // Update local likedPosts state
+      setLikedPosts((prev) => {
+        const newSet = new Set(prev);
+        if (isLiked) {
+          newSet.add(postId);
+        } else {
+          newSet.delete(postId);
+        }
+        return newSet;
+      });
+      
+      // Update the post in the posts array
+      setPosts((prevPosts) =>
+        prevPosts.map((post: any) => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              user_has_liked: isLiked,
+              likes_count: isLiked
+                ? (post.likes_count || 0) + 1
+                : Math.max(0, (post.likes_count || 0) - 1),
+            };
+          }
+          return post;
+        })
+      );
     } catch (e: any) {
       console.error("like error", e?.message || e);
       Alert.alert("Error", "No se pudo actualizar tu me gusta");
@@ -140,7 +168,6 @@ export default function Home() {
   };
 
   // Mock categories and stories (keep UI)
-  const [isCategoryPickerExpanded, setIsCategoryPickerExpanded] = useState(false);
 
   const categories = [
     {id: "belleza", name: "Belleza"},
@@ -148,61 +175,73 @@ export default function Home() {
     {id: "mascotas", name: "Mascotas"},
   ];
 
-  const getCategoryIcon = (id: string) => {
+  const getCategoryIcon = (id: string, color: string, size: number = 24) => {
     switch (id) {
       case "belleza":
-        return require("@/assets/images/pink.png");
+        return <MaterialCommunityIcons name="spa-outline" size={size} color={color} />;
       case "bienestar":
-        return require("@/assets/images/purple.png");
+        return <MaterialCommunityIcons name="meditation" size={size} color={color} />;
       case "mascotas":
-        return require("@/assets/images/orange.png");
+        return <MaterialCommunityIcons name="paw" size={size} color={color} />;
+      case "todos":
+        return <Ionicons name="apps" size={size} color={color} />;
       default:
-        return require("@/assets/images/pink.png");
+        return <Ionicons name="apps" size={size} color={color} />;
     }
   };
 
   // Get current subcategories based on selected main category
   const currentSubcategories = subcategoriesByMainCategory[selectedMainCategory];
-  const stories = [
-    {
-      id: 1,
-      user: "Be-U Spa",
-      avatar: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&h=100&fit=crop",
-      preview: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=200&h=300&fit=crop",
-      type: "featured",
-      badge: "✨",
-    },
-    {
-      id: 2,
-      user: "Ana López",
-      avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop",
-      preview: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=200&h=300&fit=crop",
-      type: "user",
-      badge: "💇‍♀️",
-    },
-    {
-      id: 3,
-      user: "Zen Studio",
-      avatar: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=100&h=100&fit=crop",
-      preview: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=200&h=300&fit=crop",
-      type: "business",
-      badge: "🧘",
-    },
-    {
-      id: 4,
-      user: "María G.",
-      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-      preview: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=200&h=300&fit=crop",
-      type: "user",
-      badge: "💅",
-    },
-  ];
+  
+  // Filter posts by active category and subcategory
+  const filteredPosts = posts.filter((post: any) => {
+    // First, filter by main category
+    if (post.author_category !== selectedMainCategory) {
+      return false;
+    }
+    
+    // If "todos" subcategory is selected, show all posts in the main category
+    if (selectedSubCategory === 'todos') {
+      return true;
+    }
+    
+    // Otherwise, filter by subcategory - check if author has the selected subcategory
+    const authorSubCategories = post.author_sub_categories || [];
+    return authorSubCategories.includes(selectedSubCategory);
+  });
+  
+  // Get video posts (stories) filtered by active category and subcategory
+  const videoPosts = posts.filter((post: any) => {
+    // First, filter by main category and post type
+    if (post.post_type !== 'video' || post.author_category !== selectedMainCategory) {
+      return false;
+    }
+    
+    // If "todos" subcategory is selected, show all video posts in the main category
+    if (selectedSubCategory === 'todos') {
+      return true;
+    }
+    
+    // Otherwise, filter by subcategory
+    const authorSubCategories = post.author_sub_categories || [];
+    return authorSubCategories.includes(selectedSubCategory);
+  });
 
   const fetchPosts = async () => {
     try {
       setLoading(true);
       const res = await postApi.getPosts();
-      setPosts(res.data.results || []);
+      const postsData = res.data.results || [];
+      setPosts(postsData);
+      
+      // Initialize likedPosts from user_has_liked field
+      const likedPostIds = new Set<number>();
+      postsData.forEach((post: any) => {
+        if (post.user_has_liked) {
+          likedPostIds.add(post.id);
+        }
+      });
+      setLikedPosts(likedPostIds);
     } catch (err) {
       console.error("Error fetching posts:", err);
     } finally {
@@ -218,7 +257,17 @@ export default function Home() {
     try {
       setRefreshing(true);
       const res = await postApi.getPosts();
-      setPosts(res.data.results || []);
+      const postsData = res.data.results || [];
+      setPosts(postsData);
+      
+      // Initialize likedPosts from user_has_liked field
+      const likedPostIds = new Set<number>();
+      postsData.forEach((post: any) => {
+        if (post.user_has_liked) {
+          likedPostIds.add(post.id);
+        }
+      });
+      setLikedPosts(likedPostIds);
     } finally {
       setRefreshing(false);
     }
@@ -383,8 +432,42 @@ export default function Home() {
     const firstMedia = (post.media || [])[0];
     const imageUrl = firstMedia?.media_url || firstMedia?.media_file;
     const authorName = post.author?.first_name || post.author?.username || "";
+    const allMedia = post.media || [];
+    const mediaUrls = allMedia.map((m: any) => m.media_url || m.media_file).filter(Boolean);
+    const isMosaic = post.post_type === 'mosaic';
+    const isBeforeAfter = post.post_type === 'before_after';
+    
+    // For before/after posts, get the two images (order 0 = before, order 1 = after)
+    const beforeImage = allMedia.find((m: any) => m.order === 0 || m.caption === 'before');
+    const afterImage = allMedia.find((m: any) => m.order === 1 || m.caption === 'after');
+    const beforeUrl = beforeImage?.media_url || beforeImage?.media_file;
+    const afterUrl = afterImage?.media_url || afterImage?.media_file;
+    
+    // Get border color from author's first subcategory
+    // Debug: Log the data to see what we're getting
+    if (__DEV__) {
+      console.log('Post border color debug:', {
+        postId: post.id,
+        author_category: post.author_category,
+        author_sub_categories: post.author_sub_categories,
+      });
+    }
+    const borderColor = getAvatarColorFromSubcategory(
+      post.author_category,
+      post.author_sub_categories
+    );
+    
     return (
-      <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card}]}>
+      <View 
+        key={post.id} 
+        style={[
+          styles.postCard, 
+          {
+            backgroundColor: colors.card,
+            borderWidth: 2,
+            borderColor: borderColor,
+          }
+        ]}>
         <View style={styles.postHeader}>
           <View style={styles.postUserInfo}>
             <Text style={[styles.postUserNameText, {color: colors.foreground}]} numberOfLines={1}>
@@ -398,7 +481,44 @@ export default function Home() {
             <Ionicons name="ellipsis-horizontal" color={colors.mutedForeground} size={20} />
           </TouchableOpacity>
         </View>
-        {imageUrl ? <Image source={{uri: imageUrl}} style={styles.snapshotImage} /> : null}
+        
+        {/* Before/After Transformation */}
+        {isBeforeAfter && beforeUrl && afterUrl ? (
+          <View style={styles.transformationContainer}>
+            <View style={styles.transformationImage}>
+              <Image source={{uri: beforeUrl}} style={styles.transformationImg} />
+              <View style={[styles.transformationLabel, {backgroundColor: colors.muted}]}>
+                <Text style={styles.transformationLabelText}>Antes</Text>
+              </View>
+            </View>
+            <View style={[styles.transformationDivider, {backgroundColor: colors.primary}]}>
+              <Ionicons name="arrow-forward" color="#ffffff" size={16} />
+            </View>
+            <View style={styles.transformationImage}>
+              <Image source={{uri: afterUrl}} style={styles.transformationImg} />
+              <View style={[styles.transformationLabel, {backgroundColor: colors.primary}]}>
+                <Text style={styles.transformationLabelText}>Después</Text>
+              </View>
+            </View>
+          </View>
+        ) : isMosaic && mediaUrls.length > 0 ? (
+          /* Mosaic Grid */
+          <View style={styles.gridContainer}>
+            {mediaUrls.slice(0, 4).map((url: string, index: number) => (
+              <TouchableOpacity key={index} style={styles.gridItem} activeOpacity={0.9}>
+                <Image source={{uri: url}} style={styles.gridImage} />
+                {index === 3 && mediaUrls.length > 4 && (
+                  <View style={styles.gridOverlay}>
+                    <Text style={styles.gridOverlayText}>+{mediaUrls.length - 4}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : imageUrl ? (
+          <Image source={{uri: imageUrl}} style={styles.snapshotImage} />
+        ) : null}
+        
         {post.content ? (
           <Text style={[styles.postDescription, {color: colors.foreground}]}>{post.content}</Text>
         ) : null}
@@ -408,12 +528,12 @@ export default function Home() {
             onPress={() => likeDbPost(post.id)}
             disabled={liking.has(post.id)}>
             <Ionicons
-              name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-              color={likedPosts.has(post.id) ? "#FF69B4" : colors.mutedForeground}
+              name={post.user_has_liked || likedPosts.has(post.id) ? "heart" : "heart-outline"}
+              color={post.user_has_liked || likedPosts.has(post.id) ? "#FF69B4" : colors.mutedForeground}
               size={22}
             />
             <Text style={[styles.postActionText, {color: colors.foreground}]}>
-              {(post.likes_count || 0) + (likedPosts.has(post.id) ? 1 : 0)}
+              {post.likes_count || 0}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -468,7 +588,7 @@ export default function Home() {
                 <Ionicons name="chatbubble-ellipses" size={14} color={colors.mutedForeground} />
                 <Text style={{flex: 1, color: colors.foreground}}>
                   <Text style={{fontWeight: "700"}}>
-                    {c.author_details?.firstName || c.author_details?.username || "Usuario"}:
+                    {c.author?.first_name || c.author?.username || "Usuario"}:
                   </Text>
                   {c.content || c.text}
                 </Text>
@@ -1141,43 +1261,32 @@ export default function Home() {
         />
         <View style={styles.headerActions}>
           <View style={styles.categorySelector}>
-            {!isCategoryPickerExpanded && (
-              <TouchableOpacity
-                style={[styles.categoryButton, {backgroundColor: colors.card}]}
-                onPress={() => setIsCategoryPickerExpanded(true)}>
-                <Image
-                  source={getCategoryIcon(selectedMainCategory)}
-                  style={{width: 28, height: 28, resizeMode: "contain"}}
-                />
-              </TouchableOpacity>
-            )}
-            {isCategoryPickerExpanded && (
-              <View style={[styles.expandedCategoryOptions, {backgroundColor: colors.card}]}>
-                {categories.map((category) => (
-                  <TouchableOpacity
-                    key={category.id}
-                    style={[
-                      styles.expandedCategoryOption,
-                      selectedMainCategory === category.id && styles.selectedCategoryOption,
-                    ]}
-                    onPress={() => {
-                      setSelectedMainCategory(category.id as any);
-                      setVariant(category.id as any);
-                      setIsCategoryPickerExpanded(false);
-                    }}>
-                    <Image
-                      source={getCategoryIcon(category.id)}
-                      style={{width: 24, height: 24, resizeMode: "contain"}}
-                    />
-                    {selectedMainCategory === category.id && (
-                      <Text style={[styles.expandedCategoryText, {color: colors.primary}]}>
-                        {category.name}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
+            {/* Always Expanded - Horizontal Options */}
+            <View style={[styles.expandedCategoryOptions, {backgroundColor: colors.card}]}>
+              {categories.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.expandedCategoryOption,
+                    selectedMainCategory === category.id && styles.selectedCategoryOption,
+                  ]}
+                  onPress={() => {
+                    setSelectedMainCategory(category.id as any);
+                    setVariant(category.id as any);
+                  }}>
+                  {getCategoryIcon(
+                    category.id,
+                    selectedMainCategory === category.id ? colors.primary : colors.mutedForeground,
+                    24
+                  )}
+                  {selectedMainCategory === category.id && (
+                    <Text style={[styles.expandedCategoryText, {color: colors.primary}]}>
+                      {category.name}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
           <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/create-post")}>
             <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
@@ -1200,74 +1309,84 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={styles.feedContent}>
-        {/* Stories (mock) */}
-        <View style={styles.storiesSection}>
-          <Text style={[styles.storiesTitle, {color: colors.foreground}]}>Historias</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.storiesContainer}>
-            {[
-              {
-                id: 1,
-                user: "Be-U Spa",
-                avatar:
-                  "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&h=100&fit=crop",
-                preview:
-                  "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=200&h=300&fit=crop",
-                badge: "✨",
-              },
-              {
-                id: 2,
-                user: "Ana López",
-                avatar:
-                  "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop",
-                preview:
-                  "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=200&h=300&fit=crop",
-                badge: "💇‍♀️",
-              },
-              {
-                id: 3,
-                user: "Zen Studio",
-                avatar:
-                  "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=100&h=100&fit=crop",
-                preview:
-                  "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=200&h=300&fit=crop",
-                badge: "🧘",
-              },
-              {
-                id: 4,
-                user: "María G.",
-                avatar:
-                  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-                preview:
-                  "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=200&h=300&fit=crop",
-                badge: "💅",
-              },
-            ].map((story) => (
-              <TouchableOpacity key={story.id} style={styles.storyCard} activeOpacity={0.9}>
-                <Image source={{uri: story.preview}} style={styles.storyPreview} />
-                <View style={styles.storyOverlay}>
-                  <View style={styles.storyBadge}>
-                    <Text style={styles.storyBadgeText}>{story.badge}</Text>
-                  </View>
-                  <View style={styles.storyUser}>
-                    <Image source={{uri: story.avatar}} style={styles.storyAvatar} />
-                    <Text style={styles.storyUserName} numberOfLines={1}>
-                      {story.user}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        {/* Stories (Video Posts) */}
+        {videoPosts.length > 0 ? (
+          <View style={styles.storiesSection}>
+            <Text style={[styles.storiesTitle, {color: colors.foreground}]}>Historias</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.storiesContainer}>
+              {videoPosts.map((post: any) => {
+                const firstMedia = (post.media || [])[0];
+                const videoUrl = firstMedia?.media_url || firstMedia?.media_file;
+                const authorName = post.author?.first_name || post.author?.username || "Usuario";
+                // Get subcategory badge emoji from category
+                const firstSubCategory = post.author_sub_categories?.[0];
+                const badgeEmoji = firstSubCategory ? "📹" : "✨";
+                
+                return (
+                  <TouchableOpacity 
+                    key={post.id} 
+                    style={styles.storyCard} 
+                    activeOpacity={0.9}
+                    onPress={() => {
+                      // Navigate to video post or play video
+                      // You can add navigation logic here if needed
+                    }}>
+                    {videoUrl ? (
+                      <View style={[styles.storyPreview, {backgroundColor: colors.muted, justifyContent: 'center', alignItems: 'center', position: 'relative'}]}>
+                        {/* Video play button overlay */}
+                        <Ionicons name="play-circle" size={48} color="#ffffff" style={{opacity: 0.9}} />
+                      </View>
+                    ) : (
+                      <View style={[styles.storyPreview, {backgroundColor: colors.muted}]} />
+                    )}
+                    <View style={styles.storyOverlay}>
+                      <View style={styles.storyBadge}>
+                        <Text style={styles.storyBadgeText}>{badgeEmoji}</Text>
+                      </View>
+                      <View style={styles.storyUser}>
+                        <View style={[styles.storyAvatar, {backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center'}]}>
+                          <Text style={{color: '#ffffff', fontSize: 14, fontWeight: '700'}}>
+                            {authorName.charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                        <Text style={styles.storyUserName} numberOfLines={1}>
+                          {authorName}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
         {loading ? (
           <View style={{padding: 24, alignItems: "center"}}>
             <ActivityIndicator size="small" color={colors.primary} />
           </View>
         ) : (
-          <View style={styles.postsSection}>{posts.map((p) => renderDbPost(p))}</View>
+          <View style={styles.postsSection}>
+            {filteredPosts.filter((p: any) => p.post_type !== 'video').length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="images-outline" size={64} color={colors.mutedForeground} />
+                <Text style={[styles.emptyStateTitle, {color: colors.foreground}]}>
+                  No hay publicaciones
+                </Text>
+                <Text style={[styles.emptyStateText, {color: colors.mutedForeground}]}>
+                  {selectedMainCategory === 'belleza' && 'No hay publicaciones en la categoría Belleza todavía.'}
+                  {selectedMainCategory === 'bienestar' && 'No hay publicaciones en la categoría Bienestar todavía.'}
+                  {selectedMainCategory === 'mascotas' && 'No hay publicaciones en la categoría Mascotas todavía.'}
+                </Text>
+              </View>
+            ) : (
+              filteredPosts
+                .filter((p: any) => p.post_type !== 'video') // Exclude video posts from main feed
+                .map((p) => renderDbPost(p))
+            )}
+          </View>
         )}
       </ScrollView>
     </View>
@@ -1453,6 +1572,23 @@ const styles = StyleSheet.create({
   postsSection: {
     gap: 16,
     paddingHorizontal: 20,
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 15,
+    textAlign: "center",
+    lineHeight: 22,
   },
   postCard: {
     borderRadius: 20,

@@ -22,8 +22,8 @@ export interface ApiError {
 
 // API Configuration - HARDCODED for testing
 
-const API_BASE_URL = "http://127.0.0.1:8000/api";
-//const API_BASE_URL = "https://stg.be-u.ai/api";
+//const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = "https://stg.be-u.ai/api";
 
 console.log("🔧 HARDCODED API URL:", API_BASE_URL);
 const AUTH_TOKEN_KEY = "@auth_token";
@@ -51,12 +51,18 @@ apiClient.interceptors.request.use(
       console.log("🔓 API Request: No auth token found");
     }
 
+    // Remove Content-Type header for FormData - let axios/browser set it automatically with boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
     console.log("🔓 API Request:", {
       url: config.url,
       method: config.method,
       baseURL: config.baseURL,
       fullURL: `${config.baseURL}${config.url}`,
       hasAuth: !!config.headers.Authorization,
+      isFormData: config.data instanceof FormData,
     });
 
     return config;
@@ -642,14 +648,18 @@ export const postApi = {
   },
 
   // Create video post
-  createVideoPost: (data: {caption?: string; video: any; thumbnail?: any}) =>
-    api.post<any>("/posts/video/", data, {
-      headers: {"Content-Type": "multipart/form-data"},
-    }),
+  createVideoPost: (formData: FormData) =>
+    api.post<any>("/posts/video/", formData),
 
   // Create carousel post
   createCarouselPost: (data: {caption?: string; images: any[]}) =>
     api.post<any>("/posts/carousel/", data, {
+      headers: {"Content-Type": "multipart/form-data"},
+    }),
+
+  // Create mosaic post
+  createMosaicPost: (formData: FormData) =>
+    api.post<any>("/posts/mosaic/", formData, {
       headers: {"Content-Type": "multipart/form-data"},
     }),
 
@@ -663,9 +673,7 @@ export const postApi = {
 
   // Create before/after (transformation) post
   createBeforeAfterPost: (formData: FormData) =>
-    api.post<any>("/posts/transformation/", formData, {
-      headers: {"Content-Type": "multipart/form-data"},
-    }),
+    api.post<any>("/posts/transformation/", formData),
 
   // Vote in poll
   voteInPoll: (postId: number, optionId: number) =>
