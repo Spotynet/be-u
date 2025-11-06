@@ -6,20 +6,20 @@ import {
   ActivityIndicator,
   ScrollView,
 } from "react-native";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect} from "react";
 import {useAuth} from "@/features/auth";
 import {useAvailability} from "@/features/services";
 import {AvailabilityEditor} from "@/components/calendar";
 import {WeeklySchedule} from "@/types/global";
-import {useRouter} from "expo-router";
+import {useNavigation} from "@/hooks/useNavigation";
 
 export default function AvailabilityScreen() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
-  const router = useRouter();
+  const {colors} = useThemeVariant();
+  const insets = useSafeAreaInsets();
+  const {goBack} = useNavigation();
   const {user, isAuthenticated} = useAuth();
 
   const isProvider = user?.role === "PROFESSIONAL" || user?.role === "PLACE";
@@ -45,14 +45,16 @@ export default function AvailabilityScreen() {
     if (isAuthenticated && isProvider && providerId) {
       fetchAvailability();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, isProvider, providerId]);
 
   useEffect(() => {
-    if (availability.length > 0) {
+    if (!isLoading && availability.length > 0) {
       const weeklySchedule = availabilityToSchedule(availability);
       setSchedule(weeklySchedule);
-    } else {
-      // Default schedule (Monday-Friday, 9AM-6PM)
+      setHasChanges(false);
+    } else if (!isLoading && availability.length === 0 && providerId) {
+      // Default schedule (Monday-Friday, 9AM-6PM) - only set if we've already fetched
       setSchedule({
         0: {enabled: true, start_time: "09:00", end_time: "18:00"},
         1: {enabled: true, start_time: "09:00", end_time: "18:00"},
@@ -63,7 +65,7 @@ export default function AvailabilityScreen() {
         6: {enabled: false, start_time: "09:00", end_time: "18:00"},
       });
     }
-  }, [availability]);
+  }, [availability, isLoading, providerId]);
 
   const handleScheduleChange = (newSchedule: WeeklySchedule) => {
     setSchedule(newSchedule);
@@ -74,6 +76,8 @@ export default function AvailabilityScreen() {
     try {
       await updateAvailability(schedule);
       setHasChanges(false);
+      // Refresh availability after save
+      await fetchAvailability();
     } catch (err) {
       // Error already handled in hook
     }
@@ -86,9 +90,15 @@ export default function AvailabilityScreen() {
         <View
           style={[
             styles.header,
-            {backgroundColor: colors.background, borderBottomColor: colors.border},
+            {
+              backgroundColor: colors.background,
+              borderBottomColor: colors.border,
+              paddingTop: Math.max(insets.top + 16, 20),
+            },
           ]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => goBack("/(tabs)/perfil")}>
             <Ionicons name="arrow-back" color={colors.foreground} size={24} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, {color: colors.foreground}]}>Disponibilidad</Text>
@@ -111,11 +121,15 @@ export default function AvailabilityScreen() {
       <View
         style={[
           styles.header,
-          {backgroundColor: colors.background, borderBottomColor: colors.border},
+          {
+            backgroundColor: colors.background,
+            borderBottomColor: colors.border,
+            paddingTop: insets.top + 16,
+          },
         ]}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => goBack("/(tabs)/perfil")}
           activeOpacity={0.7}>
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>
@@ -126,21 +140,38 @@ export default function AvailabilityScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={[styles.infoCard, {backgroundColor: colors.primary + "10"}]}>
-          <Ionicons name="information-circle" size={24} color={colors.primary} />
-          <Text style={[styles.infoText, {color: colors.primary}]}>
-            Configura tu horario semanal. Los clientes solo podrán reservar en los horarios que
-            marques como disponibles.
+      {isLoading && Object.keys(schedule).length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, {color: colors.mutedForeground}]}>
+            Cargando disponibilidad...
           </Text>
         </View>
+      ) : (
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <View style={[styles.infoCard, {backgroundColor: colors.primary + "10"}]}>
+            <Ionicons name="information-circle" size={24} color={colors.primary} />
+            <Text style={[styles.infoText, {color: colors.primary}]}>
+              Configura tu horario semanal. Los clientes solo podrán reservar en los horarios que
+              marques como disponibles.
+            </Text>
+          </View>
 
-        <AvailabilityEditor schedule={schedule} onChange={handleScheduleChange} />
-      </ScrollView>
+          <AvailabilityEditor schedule={schedule} onChange={handleScheduleChange} />
+        </ScrollView>
+      )}
 
       {/* Save Button */}
       {hasChanges && (
-        <View style={[styles.saveContainer, {backgroundColor: colors.background}]}>
+        <View
+          style={[
+            styles.saveContainer,
+            {
+              backgroundColor: colors.background,
+              borderTopColor: colors.border,
+              paddingBottom: insets.bottom + 16,
+            },
+          ]}>
           <TouchableOpacity
             style={[styles.saveButton, {backgroundColor: colors.primary}]}
             onPress={handleSave}
@@ -170,7 +201,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 60,
     paddingBottom: 16,
     borderBottomWidth: 1,
   },
@@ -186,6 +216,16 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: "500",
   },
   infoCard: {
     flexDirection: "row",
@@ -218,8 +258,8 @@ const styles = StyleSheet.create({
   },
   saveContainer: {
     padding: 16,
+    paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: "rgba(0,0,0,0.1)",
   },
   saveButton: {
     flexDirection: "row",

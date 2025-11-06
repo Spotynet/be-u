@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import {useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
@@ -101,9 +103,18 @@ export default function RegisterPlace() {
   };
 
   return (
-    <View
-      style={[styles.container, {backgroundColor: colors.background, paddingTop: insets.top + 24}]}>
-      <View style={[styles.header, {borderBottomColor: colors.border}]}>
+    <KeyboardAvoidingView
+      style={[styles.container, {backgroundColor: colors.background}]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
+      <View
+        style={[
+          styles.header,
+          {
+            borderBottomColor: colors.border,
+            paddingTop: Math.max(insets.top + 16, 20),
+          },
+        ]}>
         <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
@@ -111,7 +122,10 @@ export default function RegisterPlace() {
         <View style={styles.headerBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={{padding: 16}} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, {padding: 16}]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
         <TextInput
           placeholder="Nombre del lugar"
           placeholderTextColor={colors.mutedForeground}
@@ -241,7 +255,7 @@ export default function RegisterPlace() {
           )}
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -257,6 +271,7 @@ const styles = StyleSheet.create({
   },
   headerBtn: {width: 32, height: 32, alignItems: "center", justifyContent: "center"},
   headerTitle: {fontSize: 18, fontWeight: "700"},
+  scrollContent: {paddingBottom: 40},
   input: {
     borderWidth: 1,
     borderRadius: 10,

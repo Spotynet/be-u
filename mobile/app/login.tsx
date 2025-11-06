@@ -7,7 +7,10 @@ import {
   TextInput,
   ActivityIndicator,
   Animated,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
@@ -19,6 +22,7 @@ import {useAuth} from "@/features/auth";
 export default function Login() {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const {login, isLoading} = useAuth();
 
@@ -156,9 +160,19 @@ export default function Login() {
   };
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.background}]}>
+    <KeyboardAvoidingView
+      style={[styles.container, {backgroundColor: colors.background}]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
       {/* Header */}
-      <View style={[styles.header, {backgroundColor: colors.primary}]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.primary,
+            paddingTop: Math.max(insets.top + 16, 20),
+          },
+        ]}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" color="#ffffff" size={24} />
         </TouchableOpacity>
@@ -166,7 +180,11 @@ export default function Login() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
         {/* Animated Logo */}
         <View style={styles.logoContainer}>
           <Animated.View
@@ -310,7 +328,7 @@ export default function Login() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -322,11 +340,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 60,
     paddingBottom: 16,
   },
   backButton: {
     padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "flex-start",
   },
   headerTitle: {
     fontSize: 18,
@@ -339,7 +360,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 24,
+    paddingBottom: 40,
   },
   logoContainer: {
     alignItems: "center",

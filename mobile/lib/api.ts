@@ -22,8 +22,8 @@ export interface ApiError {
 
 // API Configuration - HARDCODED for testing
 
-//const API_BASE_URL = "http://127.0.0.1:8000/api";
-const API_BASE_URL = "https://stg.be-u.ai/api";
+const API_BASE_URL = "http://127.0.0.1:8000/api";
+//const API_BASE_URL = "https://stg.be-u.ai/api";
 
 console.log("🔧 HARDCODED API URL:", API_BASE_URL);
 const AUTH_TOKEN_KEY = "@auth_token";
@@ -649,18 +649,46 @@ export const postApi = {
 
   // Create video post
   createVideoPost: (formData: FormData) =>
-    api.post<any>("/posts/video/", formData),
+    api.post<any>("/posts/video/", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      transformRequest: (data, headers) => {
+        // Remove Content-Type to let browser/axios set it automatically with boundary
+        delete headers["Content-Type"];
+        return data;
+      },
+    }),
 
   // Create carousel post
-  createCarouselPost: (data: {caption?: string; images: any[]}) =>
-    api.post<any>("/posts/carousel/", data, {
-      headers: {"Content-Type": "multipart/form-data"},
+  createCarouselPost: (formData: FormData, config?: any) =>
+    api.post<any>("/posts/carousel/", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      transformRequest: (data, headers) => {
+        delete headers["Content-Type"];
+        return data;
+      },
+      ...config,
     }),
 
   // Create mosaic post
   createMosaicPost: (formData: FormData) =>
     api.post<any>("/posts/mosaic/", formData, {
       headers: {"Content-Type": "multipart/form-data"},
+    }),
+
+  // Create pet adoption post
+  createPetAdoptionPost: (formData: FormData) =>
+    api.post<any>("/posts/pet_adoption/", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      transformRequest: (data, headers) => {
+        delete headers["Content-Type"];
+        return data;
+      },
     }),
 
   // Create poll post

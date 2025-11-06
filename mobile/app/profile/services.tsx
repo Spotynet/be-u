@@ -14,6 +14,9 @@ import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "../../contexts/ThemeVariantContext";
 import {profileCustomizationApi, serviceApi} from "../../lib/api";
+import {useNavigation} from "../../hooks/useNavigation";
+import {useAuth} from "../../features/auth/hooks/useAuth";
+import {BackButton} from "../../components/ui/BackButton";
 
 interface CustomService {
   id: number;
@@ -29,11 +32,49 @@ interface CustomService {
 
 export default function ServiceManagementScreen() {
   const router = useRouter();
+  const {goBack} = useNavigation();
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
+  const {user, isAuthenticated} = useAuth();
   const [services, setServices] = useState<CustomService[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Check if user is a provider (PROFESSIONAL or PLACE)
+  const isProvider = user?.role === "PROFESSIONAL" || user?.role === "PLACE";
+
+  // Redirect if not authenticated or not a provider
+  if (!isAuthenticated || !isProvider) {
+    return (
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: colors.background,
+              borderBottomColor: colors.border,
+              paddingTop: Math.max(insets.top + 16, 20),
+            },
+          ]}>
+          <BackButton fallbackRoute="/(tabs)/perfil" style={styles.backButton} />
+          <View style={styles.headerContent}>
+            <Text style={[styles.headerTitle, {color: colors.foreground}]}>
+              Servicios
+            </Text>
+          </View>
+        </View>
+        <View style={styles.centeredContainer}>
+          <Ionicons name="lock-closed" size={80} color={colors.mutedForeground} />
+          <Text style={[styles.errorTitle, {color: colors.foreground}]}>
+            Acceso Restringido
+          </Text>
+          <Text style={[styles.errorText, {color: colors.mutedForeground}]}>
+            Solo profesionales y lugares pueden gestionar servicios
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   const loadServices = async () => {
     try {
@@ -90,7 +131,7 @@ export default function ServiceManagementScreen() {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
         <View style={[styles.header, {paddingTop: insets.top + 44, paddingBottom: 12}]}>
-          <TouchableOpacity onPress={() => router.push("/(tabs)/perfil")}>
+          <TouchableOpacity onPress={() => goBack("/(tabs)/perfil")}>
             <Ionicons name="arrow-back" color={colors.foreground} size={24} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, {color: colors.foreground}]}>Mis Servicios</Text>
@@ -106,12 +147,27 @@ export default function ServiceManagementScreen() {
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* Header */}
-      <View style={[styles.header, {paddingTop: insets.top + 44, paddingBottom: 12}]}>
-        <TouchableOpacity onPress={() => router.push("/(tabs)/perfil")}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: Math.max(insets.top + 16, 20),
+            paddingBottom: 12,
+            borderBottomColor: colors.border,
+            borderBottomWidth: 1,
+          },
+        ]}>
+        <TouchableOpacity
+          onPress={() => goBack("/(tabs)/perfil")}
+          style={styles.backButton}
+          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>Mis Servicios</Text>
-        <TouchableOpacity onPress={handleAddService}>
+        <TouchableOpacity
+          onPress={handleAddService}
+          style={styles.addButton}
+          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
           <Ionicons name="add" color={colors.primary} size={24} />
         </TouchableOpacity>
       </View>
@@ -206,6 +262,38 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
+    flex: 1,
+    textAlign: "center",
+  },
+  headerContent: {
+    flex: 1,
+  },
+  backButton: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "flex-start",
+  },
+  addButton: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "flex-end",
+  },
+  centeredContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    gap: 16,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  errorText: {
+    fontSize: 15,
+    textAlign: "center",
   },
   content: {
     flex: 1,

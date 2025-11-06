@@ -7,21 +7,27 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useState} from "react";
 import {useAuth} from "@/features/auth";
 import {useReservationFlow} from "@/features/reservations";
 import {CalendarView, TimeSlotPicker} from "@/components/calendar";
 import {useRouter, useLocalSearchParams} from "expo-router";
+import {useNavigation} from "@/hooks/useNavigation";
 
 export default function BookingScreen() {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const {goBack} = useNavigation();
   const {user, isAuthenticated} = useAuth();
   const params = useLocalSearchParams<{
     serviceId?: string;
@@ -106,13 +112,24 @@ export default function BookingScreen() {
   }
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.background}]}>
+    <KeyboardAvoidingView
+      style={[styles.container, {backgroundColor: colors.background}]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
       {/* Header */}
-      <View style={[styles.header, {backgroundColor: colors.primary}]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.primary,
+            paddingTop: Math.max(insets.top + 16, 20),
+          },
+        ]}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.7}>
+          onPress={() => goBack("/(tabs)/explore")}
+          activeOpacity={0.7}
+          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
           <Ionicons name="arrow-back" color="#ffffff" size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Nueva Reserva</Text>
@@ -207,7 +224,11 @@ export default function BookingScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
         {/* Step 1: Date Selection */}
         {!state.date ? (
           <View style={styles.stepContent}>
@@ -367,7 +388,7 @@ export default function BookingScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -380,7 +401,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 60,
     paddingBottom: 16,
   },
   backButton: {
@@ -461,6 +481,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
   },
   stepContent: {
     padding: 16,

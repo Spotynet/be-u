@@ -10,10 +10,12 @@ import {
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useUserProfile, useProfileUpdate} from "@/features/users";
 import {useRouter, Redirect} from "expo-router";
+import {useNavigation} from "@/hooks/useNavigation";
 import {
   ClientSettingsForm,
   ProfessionalSettingsForm,
@@ -23,7 +25,9 @@ import {
 export default function Settings() {
   const colorScheme = useColorScheme();
   const {colors, colorMode, setColorMode} = useThemeVariant();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const {goBack} = useNavigation();
   const {user, isAuthenticated, logout} = useAuth();
   const {profile, isLoading: profileLoading, refreshProfile} = useUserProfile();
   const {updateProfile, isLoading: updating} = useProfileUpdate(user?.id || 0, user?.role || "");
@@ -110,11 +114,15 @@ export default function Settings() {
         <View
           style={[
             styles.header,
-            {backgroundColor: colors.background, borderBottomColor: colors.border},
+            {
+              backgroundColor: colors.background,
+              borderBottomColor: colors.border,
+              paddingTop: Math.max(insets.top + 16, 20),
+            },
           ]}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => goBack("/(tabs)/perfil")}
             activeOpacity={0.7}>
             <Ionicons name="arrow-back" color={colors.foreground} size={24} />
           </TouchableOpacity>
@@ -190,9 +198,13 @@ export default function Settings() {
       {/* Header */}
       <View
         style={[
-          styles.header,
-          {backgroundColor: colors.background, borderBottomColor: colors.border},
-        ]}>
+        styles.header,
+        {
+          backgroundColor: colors.background,
+          borderBottomColor: colors.border,
+          paddingTop: Math.max(insets.top + 16, 20),
+        },
+      ]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
@@ -340,7 +352,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 60,
     paddingBottom: 16,
     borderBottomWidth: 1,
   },

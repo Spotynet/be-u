@@ -26,6 +26,7 @@ class Post(models.Model):
         ('mosaic', 'Mosaic'),
         ('poll', 'Poll'),
         ('review', 'Review'),
+        ('pet_adoption', 'Pet Adoption'),
     ]
 
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='posts')

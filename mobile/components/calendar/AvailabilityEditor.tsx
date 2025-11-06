@@ -1,7 +1,6 @@
 import React, {useState} from "react";
 import {View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform} from "react-native";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {WeeklySchedule, DayOfWeek} from "@/types/global";
 import {Ionicons} from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -22,8 +21,7 @@ const DAYS = [
 ];
 
 export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps) => {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const [showTimePicker, setShowTimePicker] = useState<{
     day: number;
     type: "start" | "end";

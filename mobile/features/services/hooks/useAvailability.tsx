@@ -158,10 +158,21 @@ export const useAvailability = (providerId?: number, providerType?: ProviderType
     const schedule: WeeklySchedule = {};
 
     availabilities.forEach((avail) => {
+      // Ensure time format is HH:MM (strip seconds if present)
+      const formatTime = (timeStr: string) => {
+        if (!timeStr) return "09:00";
+        // If time is in HH:MM:SS format, extract HH:MM
+        const parts = timeStr.split(":");
+        if (parts.length >= 2) {
+          return `${parts[0].padStart(2, "0")}:${parts[1]}`;
+        }
+        return timeStr;
+      };
+
       schedule[avail.day_of_week] = {
         enabled: avail.is_active,
-        start_time: avail.start_time,
-        end_time: avail.end_time,
+        start_time: formatTime(avail.start_time),
+        end_time: formatTime(avail.end_time),
       };
     });
 

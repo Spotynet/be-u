@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import {useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
@@ -78,36 +80,75 @@ export default function RegisterPro() {
       const {data} = await authApi.register(values);
       await tokenUtils.setTokens(data.access, data.refresh);
 
-      // Ensure PublicProfile exists (auto-creates if missing)
-      await profileCustomizationApi.getProfileImages();
-      // Always update with category/subcategory and address if provided
-      const updateData: any = {
-        category: values.category || '',
-        sub_categories: values.subcategory ? [values.subcategory] : [],
-      };
-      if (values.address && values.latitude && values.longitude) {
-        updateData.street = values.address;
-        updateData.city = values.city;
-        updateData.country = values.country;
-        updateData.postal_code = values.postal_code;
-        updateData.latitude = values.latitude;
-        updateData.longitude = values.longitude;
+      // Try to update profile, but don't fail registration if it fails
+      try {
+        // Ensure PublicProfile exists (auto-creates if missing)
+        await profileCustomizationApi.getProfileImages();
+        // Always update with category/subcategory and address if provided
+        const updateData: any = {
+          category: values.category || '',
+          sub_categories: values.subcategory ? [values.subcategory] : [],
+        };
+        if (values.address && values.latitude && values.longitude) {
+          updateData.street = values.address;
+          updateData.city = values.city;
+          updateData.country = values.country;
+          updateData.postal_code = values.postal_code;
+          updateData.latitude = values.latitude;
+          updateData.longitude = values.longitude;
+        }
+        // Always update to ensure category/subcategory are saved
+        await profileCustomizationApi.updatePublicProfile(updateData);
+      } catch (updateError) {
+        // Log the error but continue with registration
+        console.warn("Profile update failed, but registration was successful:", updateError);
+        // User is already created, so we can continue
       }
-      // Always update to ensure category/subcategory are saved
-      await profileCustomizationApi.updatePublicProfile(updateData);
 
       router.replace("/(tabs)/perfil");
-    } catch (err) {
-      Alert.alert("Error", errorUtils.getErrorMessage(err));
+    } catch (err: any) {
+      // Check if it's a 400 error but user was created (email already exists, etc.)
+      if (err?.response?.status === 400 && err?.response?.data) {
+        const errorData = err.response.data;
+        // If the error contains user data, registration might have succeeded
+        if (errorData.user || errorData.access) {
+          // Registration succeeded but there was a validation error
+          // Try to continue with login
+          try {
+            if (errorData.access) {
+              await tokenUtils.setTokens(errorData.access, errorData.refresh || '');
+              router.replace("/(tabs)/perfil");
+              return;
+            }
+          } catch (loginError) {
+            // If login fails, show error
+            Alert.alert("Error", errorUtils.getErrorMessage(err));
+          }
+        } else {
+          // Show the actual error message
+          Alert.alert("Error", errorUtils.getErrorMessage(err));
+        }
+      } else {
+        Alert.alert("Error", errorUtils.getErrorMessage(err));
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View
-      style={[styles.container, {backgroundColor: colors.background, paddingTop: insets.top + 24}]}>
-      <View style={[styles.header, {borderBottomColor: colors.border}]}>
+    <KeyboardAvoidingView
+      style={[styles.container, {backgroundColor: colors.background}]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
+      <View
+        style={[
+          styles.header,
+          {
+            borderBottomColor: colors.border,
+            paddingTop: Math.max(insets.top + 16, 20),
+          },
+        ]}>
         <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
@@ -115,7 +156,10 @@ export default function RegisterPro() {
         <View style={styles.headerBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={{padding: 16}} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, {padding: 16}]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
         <TextInput
           placeholder="Nombre"
           placeholderTextColor={colors.mutedForeground}
@@ -234,7 +278,7 @@ export default function RegisterPro() {
           )}
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -250,6 +294,7 @@ const styles = StyleSheet.create({
   },
   headerBtn: {width: 32, height: 32, alignItems: "center", justifyContent: "center"},
   headerTitle: {fontSize: 18, fontWeight: "700"},
+  scrollContent: {paddingBottom: 40},
   input: {
     borderWidth: 1,
     borderRadius: 10,

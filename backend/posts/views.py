@@ -205,6 +205,20 @@ def create_mosaic_post(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+def create_pet_adoption_post(request):
+    if not request.user or not request.user.is_authenticated:
+        return Response({'detail': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    serializer = PostCreateSerializer(data=request.data, context={'request': request})
+
+    if serializer.is_valid():
+        post = serializer.save(post_type='pet_adoption')
+        return Response(PostSerializer(post, context={'request': request}).data)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
 def create_poll_post(request):
     data = request.data.copy()
     data['post_type'] = 'poll'

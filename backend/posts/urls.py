@@ -14,6 +14,7 @@ urlpatterns = [
     path('transformation/', views.create_transformation_post, name='create-transformation-post'),
     path('poll/', views.create_poll_post, name='create-poll-post'),
     path('review/', views.create_review_post, name='create-review-post'),
+    path('pet_adoption/', views.create_pet_adoption_post, name='create-pet-adoption-post'),
     path('<int:post_id>/vote/', views.vote_in_poll, name='vote-in-poll'),
     # Router URLs come last
     path('', include(router.urls)),

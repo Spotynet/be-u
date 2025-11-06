@@ -15,6 +15,7 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
 import {useRouter, useLocalSearchParams} from "expo-router";
+import {useNavigation} from "@/hooks/useNavigation";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {providerApi, postApi, reviewApi, serviceApi} from "@/lib/api";
 import {BookingFlow} from "@/components/booking/BookingFlow";
@@ -26,6 +27,7 @@ const {width: SCREEN_WIDTH} = Dimensions.get("window");
 export default function ProfileDetailScreen() {
   const {colors} = useThemeVariant();
   const router = useRouter();
+  const {goBack} = useNavigation();
   const {id} = useLocalSearchParams<{id: string}>();
   const insets = useSafeAreaInsets();
 
@@ -272,19 +274,15 @@ export default function ProfileDetailScreen() {
           {
             backgroundColor: colors.background,
             borderBottomColor: colors.border,
-            paddingTop: insets.top + 40,
+            paddingTop: Math.max(insets.top + 16, 20),
           },
         ]}>
         <TouchableOpacity
           onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              // Fallback to explore page if no history
-              router.push("/(tabs)/explore");
-            }
+            goBack("/(tabs)/explore");
           }}
-          style={styles.backButton}>
+          style={styles.backButton}
+          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>
@@ -300,7 +298,10 @@ export default function ProfileDetailScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={true}
+        contentContainerStyle={styles.scrollContent}>
         <Animated.View style={[styles.profileSection, {opacity: fadeAnim}]}>
           {/* Hero Section with Image Slider */}
           <View style={styles.heroSection}>
@@ -416,61 +417,50 @@ export default function ProfileDetailScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Row 2: actions */}
-            <View style={styles.profileRowActions}>
-              <TouchableOpacity
-                style={[styles.primaryAction, {backgroundColor: colors.primary}]}
-                activeOpacity={0.9}
-              >
-                <Ionicons name="color-wand" size={16} color="#ffffff" />
-                <Text style={styles.primaryActionText}>Personalizar Perfil</Text>
-                <Ionicons name="chevron-down" size={14} color="#ffffff" />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={[styles.secondaryAction, {borderColor: colors.border}]}
-                activeOpacity={0.9}
-              >
-                <Ionicons name="eye-outline" size={16} color={colors.foreground} />
-                <Text style={[styles.secondaryActionText, {color: colors.foreground}]}>Ver como cliente</Text>
-              </TouchableOpacity>
-            </View>
           </View>
 
           {/* Tab Navigation */}
-          <View style={[styles.tabsContainer, {backgroundColor: colors.muted + "20"}]}>
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                activeTab === "services" && [
-                  styles.activeTab,
-                  {backgroundColor: colors.background},
-                ],
-              ]}
-              onPress={() => setActiveTab("services")}>
-              <Text
+          <View style={styles.tabsWrapper}>
+            <View style={[styles.tabsContainer, {backgroundColor: colors.muted + "20"}]}>
+              <TouchableOpacity
                 style={[
-                  styles.tabText,
-                  {color: colors.mutedForeground},
-                  activeTab === "services" && [styles.activeTabText, {color: colors.foreground}],
-                ]}>
-                Servicios
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                activeTab === "reviews" && [styles.activeTab, {backgroundColor: colors.background}],
-              ]}
-              onPress={() => setActiveTab("reviews")}>
-              <Text
+                  styles.tab,
+                  activeTab === "services" && [
+                    styles.activeTab,
+                    {backgroundColor: colors.background},
+                  ],
+                ]}
+                onPress={() => setActiveTab("services")}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    {color: colors.mutedForeground},
+                    activeTab === "services" && [
+                      styles.activeTabText,
+                      {color: colors.foreground},
+                    ],
+                  ]}
+                  numberOfLines={1}>
+                  Servicios
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[
-                  styles.tabText,
-                  {color: colors.mutedForeground},
-                  activeTab === "reviews" && [styles.activeTabText, {color: colors.foreground}],
-                ]}>
-                Opiniones
-              </Text>
-            </TouchableOpacity>
+                  styles.tab,
+                  activeTab === "reviews" && [styles.activeTab, {backgroundColor: colors.background}],
+                ]}
+                onPress={() => setActiveTab("reviews")}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    {color: colors.mutedForeground},
+                    activeTab === "reviews" && [styles.activeTabText, {color: colors.foreground}],
+                  ]}
+                  numberOfLines={1}>
+                  Opiniones
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Tab Content */}
@@ -478,6 +468,48 @@ export default function ProfileDetailScreen() {
             {activeTab === "services" && renderServices()}
             {activeTab === "reviews" && renderReviews()}
           </View>
+
+          {/* Posts Section - Grid */}
+          {posts.length > 0 && (
+            <View style={styles.postsSection}>
+              <Text style={[styles.postsSectionTitle, {color: colors.foreground}]}>
+                Publicaciones
+              </Text>
+              <View style={styles.postsGrid}>
+                {posts.map((post, index) => (
+                  <TouchableOpacity
+                    key={post.id || index}
+                    style={[styles.postCard, {backgroundColor: colors.card, borderColor: colors.border}]}
+                    activeOpacity={0.9}>
+                    {post.image_url ? (
+                      <Image
+                        source={{uri: post.image_url}}
+                        style={styles.postImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.postImagePlaceholder,
+                          {backgroundColor: colors.muted + "20"},
+                        ]}>
+                        <Ionicons name="image-outline" size={30} color={colors.mutedForeground} />
+                      </View>
+                    )}
+                    {post.caption && (
+                      <View style={styles.postCaptionContainer}>
+                        <Text
+                          style={[styles.postCaption, {color: colors.mutedForeground}]}
+                          numberOfLines={2}>
+                          {post.caption}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
 
           {/* Information Section */}
           <View style={styles.infoSection}>
@@ -567,8 +599,64 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  profileSection: {
+  scrollContent: {
     paddingBottom: 100,
+  },
+  profileSection: {
+    paddingBottom: 0,
+  },
+  postsSection: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 32,
+    marginTop: 16,
+  },
+  postsSectionTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    marginBottom: 20,
+    letterSpacing: -0.5,
+  },
+  postsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  postCard: {
+    width: (SCREEN_WIDTH - 50) / 3, // 3 columns: 20px padding each side + 20px total gaps (10px between items)
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  postImage: {
+    width: "100%",
+    height: "100%",
+  },
+  postImagePlaceholder: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  postCaptionContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  postCaption: {
+    fontSize: 10,
+    color: "#ffffff",
+    lineHeight: 14,
   },
   heroSection: {
     position: "relative",
@@ -624,13 +712,14 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     padding: 20,
+    paddingTop: 24,
     alignItems: "stretch",
   },
   profileRowTop: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 12,
+    alignItems: "flex-start",
+    gap: 14,
+    marginBottom: 16,
   },
   profileAvatar: {
     width: 40,
@@ -648,27 +737,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   profileName: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "700",
-    marginBottom: 0,
+    marginBottom: 4,
+    letterSpacing: -0.5,
   },
   profileRole: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "500",
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: 0.2,
   },
   profileCategoryContainer: {
-    marginTop: 4,
-    gap: 2,
+    marginTop: 6,
+    gap: 4,
   },
   profileCategory: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "500",
     textTransform: "capitalize",
+    letterSpacing: 0.1,
   },
   profileSubcategoryContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: 4,
   },
   profileSubcategory: {
     fontSize: 11,
@@ -721,36 +814,45 @@ const styles = StyleSheet.create({
   followersText: {
     fontSize: 14,
   },
+  tabsWrapper: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    marginTop: 8,
+  },
   tabsContainer: {
     flexDirection: "row",
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 4,
+    gap: 4,
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     alignItems: "center",
-    borderRadius: 6,
+    justifyContent: "center",
+    borderRadius: 8,
+    minHeight: 48,
   },
   activeTab: {
     shadowColor: "#000",
-    shadowOffset: {width: 0, height: 1},
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   tabText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "500",
+    textAlign: "center",
   },
   activeTabText: {
-    fontWeight: "600",
+    fontWeight: "700",
   },
   tabContent: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
+    paddingHorizontal: 20,
+    marginBottom: 32,
+    minHeight: 100,
   },
   servicesContainer: {
     gap: 16,
@@ -865,8 +967,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   infoSection: {
-    paddingHorizontal: 16,
-    gap: 20,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 24,
+    gap: 24,
   },
   infoItem: {
     gap: 8,

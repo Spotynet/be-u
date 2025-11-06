@@ -49,6 +49,22 @@ export const postFormats: PostFormat[] = [
     color: "#FF8A65",
   },
   {
+    id: "carousel",
+    icon: "layers",
+    title: "Carrusel",
+    description: "Máx. 5 fotos, desliza para ver",
+    roles: ["PROFESSIONAL", "PLACE"],
+    color: "#9B59B6",
+  },
+  {
+    id: "pet_adoption",
+    icon: "paw",
+    title: "Adoptar Mascotas",
+    description: "Publica mascotas para adopción",
+    roles: ["CLIENT", "PROFESSIONAL", "PLACE"],
+    color: "#FF6B9D",
+  },
+  {
     id: "poll",
     icon: "bar-chart",
     title: "Encuesta",

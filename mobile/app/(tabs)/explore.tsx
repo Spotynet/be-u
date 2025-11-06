@@ -509,11 +509,13 @@ export default function Explore() {
           )}
 
           <ScrollView
-            showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator={true}
             contentContainerStyle={[
               styles.itemsListVertical,
               isListExpanded && styles.itemsListExpanded,
-            ]}>
+              {paddingBottom: 20},
+            ]}
+            nestedScrollEnabled={true}>
             {filteredItems.map((item: any) => (
               <TouchableOpacity
                 key={item.id}

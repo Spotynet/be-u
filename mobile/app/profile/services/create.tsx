@@ -8,15 +8,21 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import {useRouter} from "expo-router";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "../../../contexts/ThemeVariantContext";
 import {profileCustomizationApi} from "../../../lib/api";
+import {useNavigation} from "../../../hooks/useNavigation";
 
 export default function CreateServiceScreen() {
   const router = useRouter();
+  const {goBack} = useNavigation();
   const {colors} = useThemeVariant();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -58,7 +64,7 @@ export default function CreateServiceScreen() {
       });
 
       Alert.alert("Éxito", "Servicio creado correctamente", [
-        {text: "OK", onPress: () => router.back()},
+        {text: "OK", onPress: () => goBack("/profile/services")},
       ]);
     } catch (error) {
       console.error("Error creating service:", error);
@@ -69,14 +75,32 @@ export default function CreateServiceScreen() {
   };
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.background}]}>
+    <KeyboardAvoidingView
+      style={[styles.container, {backgroundColor: colors.background}]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.background,
+            borderBottomColor: colors.border,
+            paddingTop: Math.max(insets.top + 16, 20),
+          },
+        ]}>
+        <TouchableOpacity
+          onPress={() => goBack("/profile/services")}
+          style={styles.backButton}
+          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>Nuevo Servicio</Text>
-        <TouchableOpacity onPress={handleSave} disabled={loading}>
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={loading}
+          style={styles.saveButtonContainer}
+          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
           {loading ? (
             <ActivityIndicator size="small" color={colors.primary} />
           ) : (
@@ -85,7 +109,11 @@ export default function CreateServiceScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
         {/* Service Name */}
         <View style={styles.inputGroup}>
           <Text style={[styles.label, {color: colors.foreground}]}>Nombre del Servicio</Text>
@@ -153,7 +181,7 @@ export default function CreateServiceScreen() {
 
         <View style={{height: 40}} />
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -165,14 +193,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e5e5",
+  },
+  backButton: {
+    padding: 4,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "flex-start",
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
+    flex: 1,
+    textAlign: "center",
+  },
+  saveButtonContainer: {
+    padding: 4,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "flex-end",
   },
   saveButton: {
     fontSize: 16,
@@ -180,7 +223,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   inputGroup: {
     marginTop: 24,

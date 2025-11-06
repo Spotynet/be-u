@@ -26,6 +26,53 @@ import {getAvatarColorFromSubcategory} from "@/constants/categories";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
+// Carousel Component with indicators
+const CarouselView = ({images, colors, screenWidth}: {images: string[]; colors: any; screenWidth: number}) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  const handleScroll = (event: any) => {
+    const contentOffsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(contentOffsetX / screenWidth);
+    setCurrentIndex(index);
+  };
+
+  return (
+    <View style={styles.carouselContainer}>
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        style={styles.carouselScrollView}
+        contentContainerStyle={styles.carouselContent}
+        onMomentumScrollEnd={handleScroll}>
+        {images.map((imageUrl: string, index: number) => (
+          <View key={index} style={styles.carouselSlide}>
+            <Image source={{uri: imageUrl}} style={styles.carouselImage} resizeMode="cover" />
+          </View>
+        ))}
+      </ScrollView>
+      {images.length > 1 && (
+        <View style={styles.carouselIndicators}>
+          {images.map((_, index: number) => (
+            <View
+              key={index}
+              style={[
+                styles.carouselDot,
+                {
+                  backgroundColor: index === currentIndex ? colors.primary : colors.mutedForeground + "50",
+                  width: index === currentIndex ? 24 : 8,
+                },
+              ]}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+};
+
 export default function Home() {
   const colorScheme = useColorScheme();
   const {colors, setVariant} = useThemeVariant();
@@ -436,12 +483,21 @@ export default function Home() {
     const mediaUrls = allMedia.map((m: any) => m.media_url || m.media_file).filter(Boolean);
     const isMosaic = post.post_type === 'mosaic';
     const isBeforeAfter = post.post_type === 'before_after';
+    const isCarousel = post.post_type === 'carousel';
     
     // For before/after posts, get the two images (order 0 = before, order 1 = after)
     const beforeImage = allMedia.find((m: any) => m.order === 0 || m.caption === 'before');
     const afterImage = allMedia.find((m: any) => m.order === 1 || m.caption === 'after');
     const beforeUrl = beforeImage?.media_url || beforeImage?.media_file;
     const afterUrl = afterImage?.media_url || afterImage?.media_file;
+    
+    // For carousel posts, get all images ordered by order field
+    const carouselImages = isCarousel 
+      ? allMedia
+          .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+          .map((m: any) => m.media_url || m.media_file)
+          .filter(Boolean)
+      : [];
     
     // Get border color from author's first subcategory
     // Debug: Log the data to see what we're getting
@@ -482,12 +538,21 @@ export default function Home() {
           </TouchableOpacity>
         </View>
         
+        {/* Carousel */}
+        {isCarousel && carouselImages.length > 0 && (
+          <CarouselView
+            images={carouselImages}
+            colors={colors}
+            screenWidth={SCREEN_WIDTH - 32}
+          />
+        )}
+        
         {/* Before/After Transformation */}
-        {isBeforeAfter && beforeUrl && afterUrl ? (
+        {!isCarousel && isBeforeAfter && beforeUrl && afterUrl && (
           <View style={styles.transformationContainer}>
             <View style={styles.transformationImage}>
               <Image source={{uri: beforeUrl}} style={styles.transformationImg} />
-              <View style={[styles.transformationLabel, {backgroundColor: colors.muted}]}>
+              <View style={[styles.transformationLabel, {backgroundColor: "rgba(0, 0, 0, 0.7)"}]}>
                 <Text style={styles.transformationLabelText}>Antes</Text>
               </View>
             </View>
@@ -501,8 +566,10 @@ export default function Home() {
               </View>
             </View>
           </View>
-        ) : isMosaic && mediaUrls.length > 0 ? (
-          /* Mosaic Grid */
+        )}
+        
+        {/* Mosaic Grid */}
+        {!isCarousel && !isBeforeAfter && isMosaic && mediaUrls.length > 0 && (
           <View style={styles.gridContainer}>
             {mediaUrls.slice(0, 4).map((url: string, index: number) => (
               <TouchableOpacity key={index} style={styles.gridItem} activeOpacity={0.9}>
@@ -515,9 +582,12 @@ export default function Home() {
               </TouchableOpacity>
             ))}
           </View>
-        ) : imageUrl ? (
+        )}
+        
+        {/* Single Image or Pet Adoption */}
+        {!isCarousel && !isBeforeAfter && !isMosaic && imageUrl && (
           <Image source={{uri: imageUrl}} style={styles.snapshotImage} />
-        ) : null}
+        )}
         
         {post.content ? (
           <Text style={[styles.postDescription, {color: colors.foreground}]}>{post.content}</Text>
@@ -631,8 +701,8 @@ export default function Home() {
       <View style={styles.transformationContainer}>
         <View style={styles.transformationImage}>
           <Image source={{uri: post.beforeImage}} style={styles.transformationImg} />
-          <View style={[styles.transformationLabel, {backgroundColor: colors.muted}]}>
-            <Text style={[styles.transformationLabelText, {color: colors.foreground}]}>Antes</Text>
+          <View style={[styles.transformationLabel, {backgroundColor: "rgba(0, 0, 0, 0.7)"}]}>
+            <Text style={styles.transformationLabelText}>Antes</Text>
           </View>
         </View>
         <View style={[styles.transformationDivider, {backgroundColor: colors.primary}]}>
@@ -1812,15 +1882,36 @@ const styles = StyleSheet.create({
   },
 
   // Carousel
-  carousel: {
+  carouselContainer: {
+    position: "relative",
     marginBottom: 12,
   },
+  carouselScrollView: {
+    height: 400,
+  },
+  carouselContent: {
+    paddingHorizontal: 0,
+  },
+  carouselSlide: {
+    width: SCREEN_WIDTH - 32,
+    height: 400,
+  },
   carouselImage: {
-    width: SCREEN_WIDTH - 72,
-    height: 300,
+    width: "100%",
+    height: "100%",
     borderRadius: 16,
-    marginRight: 8,
-    resizeMode: "cover",
+  },
+  carouselIndicators: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  carouselDot: {
+    height: 8,
+    borderRadius: 4,
   },
 
   // Reel (Vertical Video)

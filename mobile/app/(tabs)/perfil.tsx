@@ -8,6 +8,7 @@ import {
   Animated,
   Alert,
   Platform,
+  ScrollView,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
@@ -35,9 +36,14 @@ export default function Perfil() {
 
   // State for personalizar perfil expansion
   const [isPersonalizarExpanded, setIsPersonalizarExpanded] = useState(false);
-  const [activePersonalizarTab, setActivePersonalizarTab] = useState<
-    "imagenes" | "servicios" | "disponibilidad"
-  >("imagenes");
+  
+  // Reset expansion state if user is not a provider
+  useEffect(() => {
+    const isProvider = user?.role === "PROFESSIONAL" || user?.role === "PLACE";
+    if (!isProvider) {
+      setIsPersonalizarExpanded(false);
+    }
+  }, [user?.role]);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const [uploading, setUploading] = useState(false);
   const [profileImages, setProfileImages] = useState<any[]>([]);
@@ -86,12 +92,7 @@ export default function Perfil() {
     }
   };
 
-  // Load profile images when component mounts or when personalizar section opens
-  useEffect(() => {
-    if (isPersonalizarExpanded && activePersonalizarTab === "imagenes") {
-      fetchProfileImages();
-    }
-  }, [isPersonalizarExpanded, activePersonalizarTab]);
+  // Removed image loading effect since we're navigating to separate pages
 
   // Ensure we have the PublicProfile id available for preview navigation and category display
   useEffect(() => {
@@ -299,16 +300,20 @@ export default function Perfil() {
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.background,
-            borderBottomColor: colors.border,
-            paddingTop: insets.top + 44,
-          },
-        ]}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: colors.background,
+              borderBottomColor: colors.border,
+              paddingTop: Math.max(insets.top + 8, 16),
+            },
+          ]}>
         {/* Row 1: avatar, name/role, settings */}
         <View style={styles.headerTopRow}>
           <View style={styles.headerProfile}>
@@ -377,23 +382,27 @@ export default function Perfil() {
 
         {/* Row 2: action buttons */}
         <View style={styles.headerActionRow}>
-              {/* Personalizar Perfil Button */}
-              <TouchableOpacity
-                style={[
-                  styles.personalizarButton,
-                  {backgroundColor: colors.primary},
-                  isPersonalizarExpanded && styles.personalizarButtonActive,
-                ]}
-                onPress={() => setIsPersonalizarExpanded(!isPersonalizarExpanded)}
-                activeOpacity={0.8}>
-                <Ionicons name="settings" color="#ffffff" size={16} />
-                <Text style={styles.personalizarButtonText}>Personalizar Perfil</Text>
-                <Ionicons
-                  name={isPersonalizarExpanded ? "chevron-up" : "chevron-down"}
-                  color="#ffffff"
-                  size={16}
-                />
-              </TouchableOpacity>
+              {/* Personalizar Perfil Button - Only show for PROFESSIONAL and PLACE */}
+              {(user?.role === "PROFESSIONAL" || user?.role === "PLACE") && (
+                <View style={styles.personalizarButtonContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.personalizarButton,
+                      {backgroundColor: colors.primary},
+                      isPersonalizarExpanded && styles.personalizarButtonActive,
+                    ]}
+                    onPress={() => setIsPersonalizarExpanded(!isPersonalizarExpanded)}
+                    activeOpacity={0.8}>
+                    <Ionicons name="settings" color="#ffffff" size={16} />
+                    <Text style={styles.personalizarButtonText}>Personalizar Perfil</Text>
+                    <Ionicons
+                      name={isPersonalizarExpanded ? "chevron-up" : "chevron-down"}
+                      color="#ffffff"
+                      size={14}
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {/* Ver como cliente Button - Only show for PROFESSIONAL and PLACE roles */}
               {(user?.role === "PROFESSIONAL" || user?.role === "PLACE") && (
@@ -425,7 +434,7 @@ export default function Perfil() {
                   }
                 }}
                 activeOpacity={0.8}>
-                <Ionicons name="eye-outline" color={colors.primary} size={16} />
+                <Ionicons name="eye-outline" color={colors.primary} size={14} />
                 <Text style={[styles.previewButtonText, {color: colors.primary}]}>Ver como cliente</Text>
               </TouchableOpacity>
               )}
@@ -434,307 +443,184 @@ export default function Perfil() {
         <View style={styles.headerActions} />
       </View>
 
-      {/* Personalizar Perfil Section - Only show when expanded */}
-      {isPersonalizarExpanded && (
+      {/* Personalizar Perfil Section - Only show when expanded and user is PROFESSIONAL or PLACE */}
+      {isPersonalizarExpanded && (user?.role === "PROFESSIONAL" || user?.role === "PLACE") && (
         <View style={[styles.personalizarSection, {backgroundColor: colors.card}]}>
-          <Text style={[styles.personalizarTitle, {color: colors.foreground}]}>
-            Personalizar Perfil
-          </Text>
-
-          {/* Personalizar Sub-tabs */}
-          <View style={[styles.personalizarTabs, {backgroundColor: colors.background}]}>
-            <TouchableOpacity
-              style={[
-                styles.personalizarTab,
-                activePersonalizarTab === "imagenes" && [
-                  styles.personalizarTabActive,
-                  {borderBottomColor: colors.primary},
-                ],
-              ]}
-              onPress={() => setActivePersonalizarTab("imagenes")}>
-              <Ionicons
-                name="images"
-                color={
-                  activePersonalizarTab === "imagenes" ? colors.primary : colors.mutedForeground
-                }
-                size={20}
-              />
-              <Text
-                style={[
-                  styles.personalizarTabText,
-                  {
-                    color:
-                      activePersonalizarTab === "imagenes"
-                        ? colors.primary
-                        : colors.mutedForeground,
-                  },
-                ]}>
-                Imágenes
+          {/* Modern Header with Icon */}
+          <View style={styles.personalizarHeader}>
+            <View style={[styles.personalizarIconContainer, {backgroundColor: colors.primary + "15"}]}>
+              <Ionicons name="brush" color={colors.primary} size={24} />
+            </View>
+            <View style={styles.personalizarHeaderText}>
+              <Text style={[styles.personalizarTitle, {color: colors.foreground}]}>
+                Personalizar Perfil
               </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.personalizarTab,
-                activePersonalizarTab === "servicios" && [
-                  styles.personalizarTabActive,
-                  {borderBottomColor: colors.primary},
-                ],
-              ]}
-              onPress={() => setActivePersonalizarTab("servicios")}>
-              <Ionicons
-                name="briefcase"
-                color={
-                  activePersonalizarTab === "servicios" ? colors.primary : colors.mutedForeground
-                }
-                size={20}
-              />
-              <Text
-                style={[
-                  styles.personalizarTabText,
-                  {
-                    color:
-                      activePersonalizarTab === "servicios"
-                        ? colors.primary
-                        : colors.mutedForeground,
-                  },
-                ]}>
-                Servicios
+              <Text style={[styles.personalizarSubtitle, {color: colors.mutedForeground}]}>
+                Personaliza tu presencia en la plataforma
               </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.personalizarTab,
-                activePersonalizarTab === "disponibilidad" && [
-                  styles.personalizarTabActive,
-                  {borderBottomColor: colors.primary},
-                ],
-              ]}
-              onPress={() => setActivePersonalizarTab("disponibilidad")}>
-              <Ionicons
-                name="calendar"
-                color={
-                  activePersonalizarTab === "disponibilidad"
-                    ? colors.primary
-                    : colors.mutedForeground
-                }
-                size={20}
-              />
-              <Text
-                style={[
-                  styles.personalizarTabText,
-                  {
-                    color:
-                      activePersonalizarTab === "disponibilidad"
-                        ? colors.primary
-                        : colors.mutedForeground,
-                  },
-                ]}>
-                Disponibilidad
-              </Text>
-            </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Personalizar Content */}
-          <View style={styles.personalizarContent}>
-            {activePersonalizarTab === "imagenes" && (
-              <View style={styles.personalizarCard}>
-                <Text style={[styles.personalizarCardTitle, {color: colors.foreground}]}>
-                  Galería de Imágenes ({profileImages.length}/10)
-                </Text>
-                <Text style={[styles.personalizarCardDescription, {color: colors.mutedForeground}]}>
-                  Agrega imágenes de tu trabajo para mostrar a los clientes
-                </Text>
-
-                {profileCreated && (
-                  <View
-                    style={[
-                      styles.successMessage,
-                      {backgroundColor: colors.primary + "20", borderColor: colors.primary},
-                    ]}>
-                    <Ionicons name="checkmark-circle" color={colors.primary} size={20} />
-                    <Text style={[styles.successText, {color: colors.primary}]}>
-                      ¡Perfil creado automáticamente! Ya puedes subir imágenes.
-                    </Text>
-                  </View>
-                )}
-
-                {imagesLoading ? (
-                  <View style={styles.imageGalleryPlaceholder}>
-                    <ActivityIndicator color={colors.primary} size="large" />
-                    <Text style={[styles.placeholderText, {color: colors.mutedForeground}]}>
-                      Cargando imágenes...
-                    </Text>
-                  </View>
-                ) : profileImages.length > 0 ? (
-                  <View style={styles.imageGallery}>
-                    {profileImages.map((imageUrl, index) => (
-                      <View key={index} style={styles.imageItem}>
-                        <Image source={{uri: imageUrl}} style={styles.galleryImage} />
-                        <TouchableOpacity
-                          style={styles.deleteImageButton}
-                          onPress={() => {
-                            Alert.alert(
-                              "Eliminar imagen",
-                              "¿Estás seguro de que quieres eliminar esta imagen?",
-                              [
-                                {text: "Cancelar", style: "cancel"},
-                                {
-                                  text: "Eliminar",
-                                  style: "destructive",
-                                  onPress: async () => {
-                                    try {
-                                      setUploading(true);
-                                      await profileCustomizationApi.deleteProfileImage(index);
-                                      // Update images directly
-                                      const newImages = [...profileImages];
-                                      newImages.splice(index, 1);
-                                      setProfileImages(newImages);
-                                      Alert.alert("Éxito", "Imagen eliminada correctamente");
-                                    } catch (error) {
-                                      console.error("Error deleting image:", error);
-                                      Alert.alert("Error", "No se pudo eliminar la imagen");
-                                    } finally {
-                                      setUploading(false);
-                                    }
-                                  },
-                                },
-                              ]
-                            );
-                          }}>
-                          <Ionicons name="close-circle" color="#ff4444" size={20} />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <View style={styles.imageGalleryPlaceholder}>
-                    <Ionicons name="image-outline" color={colors.mutedForeground} size={48} />
-                    <Text style={[styles.placeholderText, {color: colors.mutedForeground}]}>
-                      No hay imágenes
-                    </Text>
-                    <Text style={[styles.placeholderSubtext, {color: colors.mutedForeground}]}>
-                      Agrega imágenes de tu trabajo para atraer más clientes
-                    </Text>
-                  </View>
-                )}
-                <TouchableOpacity
-                  style={[styles.addImageButton, {backgroundColor: colors.primary}]}
-                  onPress={pickImage}
-                  activeOpacity={0.8}
-                  disabled={uploading}>
-                  {uploading ? (
-                    <ActivityIndicator color="#ffffff" size="small" />
-                  ) : (
-                    <>
-                      <Ionicons name="camera" color="#ffffff" size={20} />
-                      <Text style={styles.addImageButtonText}>Agregar Primera Imagen</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+          {/* Vertical Tab Cards Design */}
+          <View style={styles.personalizarTabsVertical}>
+            <TouchableOpacity
+              style={[
+                styles.personalizarTabCard,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => {
+                // Navigate to images management page
+                router.push("/profile/images");
+              }}
+              activeOpacity={0.8}>
+              <View
+                style={[
+                  styles.personalizarTabIconWrapper,
+                  {
+                    backgroundColor: colors.muted,
+                  },
+                ]}>
+                <Ionicons
+                  name="images"
+                  color={colors.mutedForeground}
+                  size={24}
+                />
               </View>
-            )}
-
-            {activePersonalizarTab === "servicios" && (
-              <View style={styles.personalizarCard}>
-                <Text style={[styles.personalizarCardTitle, {color: colors.foreground}]}>
-                  Mis Servicios
+              <View style={styles.personalizarTabCardContent}>
+                <Text
+                  style={[
+                    styles.personalizarTabCardTitle,
+                    {
+                      color: colors.foreground,
+                      fontWeight: "600",
+                    },
+                  ]}>
+                  Imágenes
                 </Text>
-                <Text style={[styles.personalizarCardDescription, {color: colors.mutedForeground}]}>
-                  Gestiona los servicios que ofreces
+                <Text
+                  style={[
+                    styles.personalizarTabCardDescription,
+                    {color: colors.mutedForeground},
+                  ]}>
+                  Gestiona tu galería de fotos
                 </Text>
-                <TouchableOpacity
-                  style={[styles.manageButton, {backgroundColor: colors.primary}]}
-                  onPress={() => {
-                    // Navigate to service management screen
-                    router.push("/profile/services");
-                  }}
-                  activeOpacity={0.8}>
-                  <Text style={styles.manageButtonText}>Gestionar Servicios</Text>
-                  <Ionicons name="chevron-forward" color="#ffffff" size={16} />
-                </TouchableOpacity>
               </View>
-            )}
+              <Ionicons
+                name="chevron-forward"
+                color={colors.mutedForeground}
+                size={20}
+              />
+            </TouchableOpacity>
 
-            {activePersonalizarTab === "disponibilidad" && (
-              <View style={styles.personalizarCard}>
-                <Text style={[styles.personalizarCardTitle, {color: colors.foreground}]}>
+            <TouchableOpacity
+              style={[
+                styles.personalizarTabCard,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => router.push("/profile/services")}
+              activeOpacity={0.8}>
+              <View
+                style={[
+                  styles.personalizarTabIconWrapper,
+                  {
+                    backgroundColor: colors.muted,
+                  },
+                ]}>
+                <Ionicons
+                  name="briefcase"
+                  color={colors.mutedForeground}
+                  size={24}
+                />
+              </View>
+              <View style={styles.personalizarTabCardContent}>
+                <Text
+                  style={[
+                    styles.personalizarTabCardTitle,
+                    {
+                      color: colors.foreground,
+                      fontWeight: "600",
+                    },
+                  ]}>
+                  Servicios
+                </Text>
+                <Text
+                  style={[
+                    styles.personalizarTabCardDescription,
+                    {color: colors.mutedForeground},
+                  ]}>
+                  Administra tus servicios
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                color={colors.mutedForeground}
+                size={20}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.personalizarTabCard,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => router.push("/availability")}
+              activeOpacity={0.8}>
+              <View
+                style={[
+                  styles.personalizarTabIconWrapper,
+                  {
+                    backgroundColor: colors.muted,
+                  },
+                ]}>
+                <Ionicons
+                  name="calendar"
+                  color={colors.mutedForeground}
+                  size={24}
+                />
+              </View>
+              <View style={styles.personalizarTabCardContent}>
+                <Text
+                  style={[
+                    styles.personalizarTabCardTitle,
+                    {
+                      color: colors.foreground,
+                      fontWeight: "600",
+                    },
+                  ]}>
                   Disponibilidad
                 </Text>
-                <Text style={[styles.personalizarCardDescription, {color: colors.mutedForeground}]}>
-                  Configura tus horarios de trabajo
+                <Text
+                  style={[
+                    styles.personalizarTabCardDescription,
+                    {color: colors.mutedForeground},
+                  ]}>
+                  Configura tus horarios
                 </Text>
-                <TouchableOpacity
-                  style={[styles.manageButton, {backgroundColor: colors.primary}]}
-                  onPress={() => router.push("/availability")}
-                  activeOpacity={0.8}>
-                  <Text style={styles.manageButtonText}>Configurar Horarios</Text>
-                  <Ionicons name="chevron-forward" color="#ffffff" size={16} />
-                </TouchableOpacity>
               </View>
-            )}
-
-            {(user?.role === "PROFESSIONAL" || user?.role === "PLACE") && (
-              <View style={styles.personalizarCard}>
-                <Text style={[styles.personalizarCardTitle, {color: colors.foreground}]}>
-                  Dirección y Ubicación
-                </Text>
-                <Text style={[styles.personalizarCardDescription, {color: colors.mutedForeground}]}>
-                  Actualiza tu dirección y guarda tus coordenadas
-                </Text>
-                <AddressAutocomplete
-                  value={addressValues.address}
-                  onChangeText={(t) => setAddressValues((s) => ({...s, address: t}))}
-                  onSelected={(p) =>
-                    setAddressValues({
-                      address: p.address,
-                      city: p.city,
-                      country: p.country,
-                      postal_code: p.postal_code,
-                      latitude: p.latitude,
-                      longitude: p.longitude,
-                    })
-                  }
-                />
-                <TouchableOpacity
-                  style={[styles.manageButton, {backgroundColor: colors.primary, marginTop: 12}]}
-                  onPress={async () => {
-                    try {
-                      if (!addressValues.latitude || !addressValues.longitude) {
-                        Alert.alert(
-                          "Falta ubicación",
-                          "Selecciona una dirección válida del listado"
-                        );
-                        return;
-                      }
-                      await profileCustomizationApi.updatePublicProfile({
-                        street: addressValues.address,
-                        city: addressValues.city,
-                        country: addressValues.country,
-                        postal_code: addressValues.postal_code,
-                        latitude: addressValues.latitude,
-                        longitude: addressValues.longitude,
-                      });
-                      Alert.alert("Guardado", "Ubicación actualizada");
-                    } catch (e) {
-                      Alert.alert("Error", "No se pudo guardar la ubicación");
-                    }
-                  }}
-                  activeOpacity={0.8}>
-                  <Text style={styles.manageButtonText}>Guardar ubicación</Text>
-                  <Ionicons name="chevron-forward" color="#ffffff" size={16} />
-                </TouchableOpacity>
-              </View>
-            )}
+              <Ionicons
+                name="chevron-forward"
+                color={colors.mutedForeground}
+                size={20}
+              />
+            </TouchableOpacity>
           </View>
         </View>
       )}
 
-      {/* Profile Tabs */}
-      <View style={styles.tabsContainer}>
-        <ProfileTabs userRole={user.role as "CLIENT" | "PROFESSIONAL" | "PLACE"} />
-      </View>
+        {/* Profile Tabs */}
+        <View style={styles.tabsContainer}>
+          <ProfileTabs userRole={user.role as "CLIENT" | "PROFESSIONAL" | "PLACE"} />
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -742,6 +628,13 @@ export default function Perfil() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   header: {
     flexDirection: "column",
@@ -873,103 +766,178 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    marginTop: 8,
+    marginTop: 12,
+    flexWrap: "wrap",
+    width: "100%",
+  },
+  personalizarButtonContainer: {
+    position: "relative",
+    alignSelf: "flex-start",
   },
   personalizarButton: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
     gap: 6,
-    flexShrink: 1,
+    minHeight: 36,
+    width: "auto",
   },
   personalizarButtonActive: {
     backgroundColor: "#6d28d9", // Slightly darker purple when active
   },
   personalizarButtonText: {
     color: "#ffffff",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
-    flex: 1,
-    textAlign: "center",
+    marginHorizontal: 2,
+    flexShrink: 1,
   },
   previewButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 6,
-    borderRadius: 16,
-    gap: 6,
+    borderRadius: 12,
+    gap: 4,
     backgroundColor: "transparent",
   },
   previewButtonText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "600",
   },
   personalizarSection: {
     marginHorizontal: 16,
     marginVertical: 16,
-    padding: 20,
-    borderRadius: 16,
+    padding: 24,
+    borderRadius: 20,
     shadowColor: "#000",
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  personalizarTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  personalizarTabs: {
-    flexDirection: "row",
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 20,
-  },
-  personalizarTab: {
-    flex: 1,
+  personalizarHeader: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 24,
+    gap: 12,
+  },
+  personalizarIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    gap: 6,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
+    alignItems: "center",
   },
-  personalizarTabActive: {
-    borderBottomWidth: 2,
+  personalizarHeaderText: {
+    flex: 1,
   },
-  personalizarTabText: {
-    fontSize: 14,
-    fontWeight: "600",
+  personalizarTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: 4,
+    letterSpacing: -0.5,
+  },
+  personalizarSubtitle: {
+    fontSize: 13,
+    fontWeight: "500",
+    lineHeight: 18,
+  },
+  personalizarTabsVertical: {
+    gap: 12,
+    marginBottom: 24,
+  },
+  personalizarTabCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 2,
+    gap: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  personalizarTabCardActive: {
+    ...Platform.select({
+      ios: {
+        shadowColor: "#8b5cf6",
+        shadowOffset: {width: 0, height: 4},
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  personalizarTabIconWrapper: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  personalizarTabCardContent: {
+    flex: 1,
+    gap: 4,
+  },
+  personalizarTabCardTitle: {
+    fontSize: 16,
+    marginBottom: 2,
+  },
+  personalizarTabCardDescription: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   personalizarContent: {
     minHeight: 200,
+    marginTop: 8,
   },
   personalizarCard: {
-    padding: 20,
-    borderRadius: 12,
-    backgroundColor: "rgba(139, 92, 246, 0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.1)",
+    padding: 24,
+    borderRadius: 16,
+    backgroundColor: "rgba(139, 92, 246, 0.03)",
+    borderWidth: 1.5,
+    borderColor: "rgba(139, 92, 246, 0.15)",
+    marginTop: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#8b5cf6",
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   personalizarCardTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 8,
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 10,
+    marginTop: 4,
+    letterSpacing: -0.3,
   },
   personalizarCardDescription: {
     fontSize: 14,
-    marginBottom: 16,
-    lineHeight: 20,
+    marginBottom: 24,
+    lineHeight: 22,
+    color: "#6b7280",
+    fontWeight: "400",
   },
   imageGalleryPlaceholder: {
     alignItems: "center",
@@ -1027,28 +995,52 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 14,
     gap: 8,
     marginTop: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#8b5cf6",
+        shadowOffset: {width: 0, height: 4},
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   addImageButtonText: {
     color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: -0.2,
   },
   manageButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#8b5cf6",
+        shadowOffset: {width: 0, height: 4},
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   manageButtonText: {
     color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: -0.2,
   },
 });

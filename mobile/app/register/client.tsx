@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from "react-native";
 import {useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
@@ -48,9 +51,18 @@ export default function RegisterClient() {
   const set = (k: keyof typeof values) => (t: string) => setValues((s) => ({...s, [k]: t}));
 
   return (
-    <View
-      style={[styles.container, {backgroundColor: colors.background, paddingTop: insets.top + 24}]}>
-      <View style={[styles.header, {borderBottomColor: colors.border}]}>
+    <KeyboardAvoidingView
+      style={[styles.container, {backgroundColor: colors.background}]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
+      <View
+        style={[
+          styles.header,
+          {
+            borderBottomColor: colors.border,
+            paddingTop: Math.max(insets.top + 16, 20),
+          },
+        ]}>
         <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
@@ -58,7 +70,12 @@ export default function RegisterClient() {
         <View style={styles.headerBtn} />
       </View>
 
-      <View style={styles.form}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
+        <View style={styles.form}>
         <TextInput
           placeholder="Nombre"
           placeholderTextColor={colors.mutedForeground}
@@ -110,7 +127,8 @@ export default function RegisterClient() {
           )}
         </TouchableOpacity>
       </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -126,6 +144,8 @@ const styles = StyleSheet.create({
   },
   headerBtn: {width: 32, height: 32, alignItems: "center", justifyContent: "center"},
   headerTitle: {fontSize: 18, fontWeight: "700"},
+  scrollView: {flex: 1},
+  scrollContent: {paddingBottom: 40},
   form: {padding: 16, gap: 10},
   input: {
     borderWidth: 1,

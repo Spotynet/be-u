@@ -15,6 +15,8 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
 import {useRouter, useLocalSearchParams} from "expo-router";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
+import {useNavigation} from "@/hooks/useNavigation";
 import {providerApi, serviceApi, reviewApi, postApi, profileCustomizationApi} from "@/lib/api";
 import {PlaceProfile} from "@/types/global";
 import {BookingFlow} from "@/components/booking/BookingFlow";
@@ -28,6 +30,8 @@ export default function PlaceDetailScreen() {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
   const router = useRouter();
+  const {goBack} = useNavigation();
+  const insets = useSafeAreaInsets();
   const {id} = useLocalSearchParams<{id: string}>();
 
   // Extract numeric ID from the string (e.g., "place_0_1761200070463" -> "1761200070463")
@@ -37,8 +41,17 @@ export default function PlaceDetailScreen() {
   if (!numericId || isNaN(Number(numericId))) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View style={[styles.header, {backgroundColor: colors.background}]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: colors.background,
+              paddingTop: Math.max(insets.top + 16, 20),
+            },
+          ]}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => goBack("/(tabs)/explore")}>
             <Ionicons name="arrow-back" color={colors.foreground} size={24} />
           </TouchableOpacity>
         </View>
@@ -255,8 +268,17 @@ export default function PlaceDetailScreen() {
   if (isLoading) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View style={[styles.header, {backgroundColor: colors.background}]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: colors.background,
+              paddingTop: Math.max(insets.top + 16, 20),
+            },
+          ]}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => goBack("/(tabs)/explore")}>
             <Ionicons name="arrow-back" color={colors.foreground} size={24} />
           </TouchableOpacity>
         </View>
@@ -273,8 +295,17 @@ export default function PlaceDetailScreen() {
   if (error || !place) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View style={[styles.header, {backgroundColor: colors.background}]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: colors.background,
+              paddingTop: Math.max(insets.top + 16, 20),
+            },
+          ]}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => goBack("/(tabs)/explore")}>
             <Ionicons name="arrow-back" color={colors.foreground} size={24} />
           </TouchableOpacity>
         </View>
@@ -297,7 +328,14 @@ export default function PlaceDetailScreen() {
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* Header */}
-      <View style={[styles.header, {backgroundColor: "transparent"}]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: "transparent",
+            paddingTop: Math.max(insets.top + 16, 20),
+          },
+        ]}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <View style={styles.backButtonBg}>
             <Ionicons name="arrow-back" color="#ffffff" size={24} />
