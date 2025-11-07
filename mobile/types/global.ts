@@ -49,6 +49,8 @@ export interface PlaceProfile {
   owner?: number;
   category?: string;
   sub_categories?: string[];
+  rating?: number;
+  services_count?: number;
 }
 
 export interface PublicProfile {

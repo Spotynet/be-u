@@ -50,13 +50,18 @@ class PostSerializer(serializers.ModelSerializer):
     poll_options = PollOptionSerializer(many=True, read_only=True)
     author_category = serializers.SerializerMethodField()
     author_sub_categories = serializers.SerializerMethodField()
+    author_display_name = serializers.SerializerMethodField()
+    author_rating = serializers.SerializerMethodField()
+    author_profile_id = serializers.SerializerMethodField()
+    author_profile_type = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
         fields = [
             'id', 'author', 'post_type', 'content', 'created_at', 'updated_at', 'expires_at',
             'media', 'likes_count', 'comments_count', 'user_has_liked', 'poll_options',
-            'author_category', 'author_sub_categories'
+            'author_category', 'author_sub_categories', 'author_display_name',
+            'author_rating', 'author_profile_id', 'author_profile_type'
         ]
         read_only_fields = ['id', 'author', 'created_at', 'updated_at']
 
@@ -108,6 +113,39 @@ class PostSerializer(serializers.ModelSerializer):
         except Exception:
             # Profile doesn't exist or other error
             return []
+
+    def _get_public_profile(self, obj):
+        try:
+            return obj.author.public_profile
+        except Exception:
+            return None
+
+    def get_author_display_name(self, obj):
+        profile = self._get_public_profile(obj)
+        if profile:
+            try:
+                return profile.display_name
+            except Exception:
+                return profile.name
+        return obj.author.username or obj.author.get_full_name() or obj.author.email
+
+    def get_author_rating(self, obj):
+        profile = self._get_public_profile(obj)
+        if profile and profile.rating is not None:
+            return float(profile.rating)
+        return None
+
+    def get_author_profile_id(self, obj):
+        profile = self._get_public_profile(obj)
+        if profile:
+            return profile.id
+        return None
+
+    def get_author_profile_type(self, obj):
+        profile = self._get_public_profile(obj)
+        if profile:
+            return profile.profile_type
+        return None
 
 class PostCreateSerializer(serializers.ModelSerializer):
     media = serializers.ListField(

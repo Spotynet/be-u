@@ -478,7 +478,12 @@ export default function Home() {
   const renderDbPost = (post: any) => {
     const firstMedia = (post.media || [])[0];
     const imageUrl = firstMedia?.media_url || firstMedia?.media_file;
-    const authorName = post.author?.first_name || post.author?.username || "";
+    const authorName =
+      post.author_display_name ||
+      post.author?.public_profile?.display_name ||
+      post.author?.first_name ||
+      post.author?.username ||
+      "";
     const allMedia = post.media || [];
     const mediaUrls = allMedia.map((m: any) => m.media_url || m.media_file).filter(Boolean);
     const isMosaic = post.post_type === 'mosaic';
@@ -512,6 +517,37 @@ export default function Home() {
       post.author_category,
       post.author_sub_categories
     );
+    const authorRating =
+      post.author_rating !== null && post.author_rating !== undefined
+        ? Number(post.author_rating)
+        : null;
+    const authorProfileId = post.author_profile_id;
+    const authorProfileType = post.author_profile_type;
+
+    const handleReservePress = () => {
+      if (!authorProfileId) {
+        Alert.alert(
+          "Reservas",
+          "Información del proveedor no está disponible por el momento."
+        );
+        return;
+      }
+
+      const destination =
+        authorProfileType === "PLACE"
+          ? `/place/${authorProfileId}`
+          : `/professional/${authorProfileId}`;
+
+      try {
+        router.push(destination as any);
+      } catch (error) {
+        console.warn("Error navigating to provider profile", error);
+        Alert.alert(
+          "Reservas",
+          "No pudimos abrir el perfil del proveedor. Intenta de nuevo más tarde."
+        );
+      }
+    };
     
     return (
       <View 
@@ -529,13 +565,21 @@ export default function Home() {
             <Text style={[styles.postUserNameText, {color: colors.foreground}]} numberOfLines={1}>
               {authorName}
             </Text>
-            <Text style={[styles.postTime, {color: colors.mutedForeground}]}>
-              #{post.post_type}
-            </Text>
+            <Text style={[styles.postTime, {color: colors.mutedForeground}]}>#{post.post_type}</Text>
           </View>
-          <TouchableOpacity style={styles.postMoreButton}>
-            <Ionicons name="ellipsis-horizontal" color={colors.mutedForeground} size={20} />
-          </TouchableOpacity>
+          <View style={styles.postHeaderRight}>
+            {authorRating !== null && !Number.isNaN(authorRating) ? (
+              <View style={[styles.ratingBadge, {backgroundColor: `${colors.primary}15`}]}>
+                <Ionicons name="star" color={colors.primary} size={14} />
+                <Text style={[styles.ratingText, {color: colors.primary}]}>
+                  {authorRating.toFixed(1)}
+                </Text>
+              </View>
+            ) : null}
+            <TouchableOpacity style={styles.postMoreButton}>
+              <Ionicons name="ellipsis-horizontal" color={colors.mutedForeground} size={20} />
+            </TouchableOpacity>
+          </View>
         </View>
         
         {/* Carousel */}
@@ -619,6 +663,13 @@ export default function Home() {
             <Text style={[styles.postActionText, {color: colors.foreground}]}>
               {post.comments_count || 0}
             </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.postActionCta, {backgroundColor: colors.primary}]}
+            activeOpacity={0.9}
+            onPress={handleReservePress}>
+            <Ionicons name="calendar-outline" color="#ffffff" size={16} />
+            <Text style={styles.postActionCtaText}>Reservar</Text>
           </TouchableOpacity>
         </View>
         {openCommentFor === post.id && (
@@ -1675,6 +1726,7 @@ const styles = StyleSheet.create({
   postHeader: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
   postAvatar: {
@@ -1685,6 +1737,11 @@ const styles = StyleSheet.create({
   },
   postUserInfo: {
     flex: 1,
+  },
+  postHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   postUserName: {
     flexDirection: "row",
@@ -1701,6 +1758,18 @@ const styles = StyleSheet.create({
   },
   postMoreButton: {
     padding: 4,
+  },
+  ratingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  ratingText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   postTitle: {
     fontSize: 18,
@@ -2193,6 +2262,20 @@ const styles = StyleSheet.create({
   },
   postActionText: {
     fontSize: 14,
+    fontWeight: "700",
+  },
+  postActionCta: {
+    marginLeft: "auto",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  postActionCtaText: {
+    color: "#ffffff",
+    fontSize: 13,
     fontWeight: "700",
   },
   postActionBookmark: {

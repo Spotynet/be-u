@@ -1,15 +1,19 @@
 import React, {useMemo} from "react";
 import {View, Text, TouchableOpacity, ScrollView, StyleSheet} from "react-native";
-import {Ionicons} from "@expo/vector-icons";
+import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
+
+export type IconFamily = "Ionicons" | "MaterialCommunityIcons";
 
 export interface SubCategory {
   id: string;
   name: string;
   icon: string;
   description?: string;
+  color?: string;
+  iconFamily?: IconFamily;
 }
 
 export interface SubCategoryBarProps {
@@ -39,28 +43,53 @@ export const SubCategoryBar = ({
   const renderCategoryItem = useMemo(() => {
     return (category: SubCategory) => {
       const isSelected = selectedCategoryId === category.id;
+      const highlightColor = category.color || colors.primary;
+      const {iconName, family} = (() => {
+        if (!category.icon) {
+          return {
+            iconName: undefined as string | undefined,
+            family: "Ionicons" as IconFamily,
+          };
+        }
+
+        if (category.icon.includes(":")) {
+          const [familyRaw, parsedIconName] = category.icon.split(":", 2);
+          const family = (familyRaw?.trim().toLowerCase() === "materialcommunityicons"
+            ? "MaterialCommunityIcons"
+            : "Ionicons") as IconFamily;
+          return {iconName: parsedIconName, family};
+        }
+
+        return {
+          iconName: category.icon,
+          family: category.iconFamily || ("Ionicons" as IconFamily),
+        };
+      })();
+      const IconComponent = family === "MaterialCommunityIcons" ? MaterialCommunityIcons : Ionicons;
 
       return (
         <TouchableOpacity
           key={category.id}
           style={[
             styles.categoryItem,
-            isSelected && [styles.categoryItemSelected, {borderBottomColor: colors.primary}],
+            isSelected && [styles.categoryItemSelected, {borderBottomColor: highlightColor}],
           ]}
           onPress={() => handleCategoryPress(category.id)}
           activeOpacity={0.7}>
           <View style={styles.categoryContent}>
-            <Ionicons
-              name={category.icon as any}
-              size={20}
-              color={isSelected ? colors.primary : colors.mutedForeground}
-            />
+            {iconName ? (
+              <IconComponent
+                name={iconName as any}
+                size={20}
+                color={isSelected ? highlightColor : colors.mutedForeground}
+              />
+            ) : null}
             {showLabels && (
               <Text
                 style={[
                   styles.categoryLabel,
                   {
-                    color: isSelected ? colors.primary : colors.mutedForeground,
+                    color: isSelected ? highlightColor : colors.mutedForeground,
                   },
                 ]}
                 numberOfLines={1}>

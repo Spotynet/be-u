@@ -572,31 +572,67 @@ export const reservationApi = {
     api.get<Record<string, any[]>>("/reservations/calendar/", {params}),
 };
 
+const REVIEW_ENDPOINT = "/reviews/reviews/";
+
+const postReviewFormData = (formData: FormData) =>
+  api.post(REVIEW_ENDPOINT, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+    transformRequest: (data, headers) => {
+      delete headers["Content-Type"];
+      return data;
+    },
+  });
+
+const getReviewsRequest = (params?: Record<string, any>) =>
+  api.get<{results: any[]; count: number}>(REVIEW_ENDPOINT, {params});
+
+const patchReview = (id: number, data: any) => api.patch(`${REVIEW_ENDPOINT}${id}/`, data);
+const deleteReviewRequest = (id: number) => api.delete(`${REVIEW_ENDPOINT}${id}/`);
+
+const normalizePublicProfileParam = (
+  params?: {public_profile?: number; place?: number; professional?: number; page?: number}
+) => {
+  if (!params) return undefined;
+  const {public_profile, place, professional, ...rest} = params;
+  return {
+    ...rest,
+    public_profile: public_profile ?? place ?? professional,
+  };
+};
+
 // Review management API functions
 export const reviewApi = {
-  // Aggregated read-only list
-  listAll: (params?: any) => api.get<{results: any[]; count: number}>("/reviews/", {params}),
+  getReviews: (params: {public_profile?: number; from_user?: number; page?: number}) =>
+    getReviewsRequest(params),
 
-  // Get reviews for a specific public profile
-  getReviews: (params?: {to_public_profile?: number; page?: number}) =>
-    api.get<{results: any[]; count: number}>("/reviews/", {params}),
+  createReview: (formData: FormData) => postReviewFormData(formData),
 
-  // Place reviews CRUD
-  listPlaces: (params?: any) =>
-    api.get<{results: any[]; count: number}>("/reviews/places/", {params}),
-  getPlace: (id: number) => api.get<any>(`/reviews/places/${id}/`),
-  createPlace: (data: any) => api.post<any>("/reviews/places/", data),
-  updatePlace: (id: number, data: any) => api.patch<any>(`/reviews/places/${id}/`, data),
-  deletePlace: (id: number) => api.delete(`/reviews/places/${id}/`),
+  updateReview: (id: number, data: any) => patchReview(id, data),
 
-  // Professional reviews CRUD
-  listProfessionals: (params?: any) =>
-    api.get<{results: any[]; count: number}>("/reviews/professionals/", {params}),
-  getProfessional: (id: number) => api.get<any>(`/reviews/professionals/${id}/`),
-  createProfessional: (data: any) => api.post<any>("/reviews/professionals/", data),
-  updateProfessional: (id: number, data: any) =>
-    api.patch<any>(`/reviews/professionals/${id}/`, data),
-  deleteProfessional: (id: number) => api.delete(`/reviews/professionals/${id}/`),
+  deleteReview: (id: number) => deleteReviewRequest(id),
+
+  listAll: (params?: {from_user?: number; client?: number; page?: number}) =>
+    getReviewsRequest({
+      ...params,
+      from_user: params?.from_user ?? params?.client,
+    }),
+
+  listPlaces: (params?: {public_profile?: number; place?: number; page?: number}) =>
+    getReviewsRequest(normalizePublicProfileParam(params)),
+
+  listProfessionals: (params?: {public_profile?: number; professional?: number; page?: number}) =>
+    getReviewsRequest(normalizePublicProfileParam(params)),
+
+  createPlace: (formData: FormData) => postReviewFormData(formData),
+  createProfessional: (formData: FormData) => postReviewFormData(formData),
+
+  updatePlace: (id: number, data: any) => patchReview(id, data),
+  updateProfessional: (id: number, data: any) => patchReview(id, data),
+
+  deletePlace: (id: number) => deleteReviewRequest(id),
+  deleteProfessional: (id: number) => deleteReviewRequest(id),
 };
 
 // Favorites management API functions

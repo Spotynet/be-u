@@ -8,6 +8,10 @@ import {
   ActivityIndicator,
   Dimensions,
   Animated,
+  Modal,
+  TextInput,
+  Alert,
+  Platform,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
@@ -22,6 +26,8 @@ import {ProfessionalProfile} from "@/types/global";
 import {BookingFlow} from "@/components/booking/BookingFlow";
 import {errorUtils} from "@/lib/api";
 import {getSubCategoryById, MAIN_CATEGORIES} from "@/constants/categories";
+import {useAuth} from "@/features/auth";
+import {MediaUploader} from "@/components/posts/MediaUploader";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -84,6 +90,17 @@ export default function ProfessionalDetailScreen() {
 
   // Posts data - will be fetched from API in real implementation
   const [professionalPosts, setProfessionalPosts] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewsCount, setReviewsCount] = useState(0);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewMessage, setReviewMessage] = useState("");
+  const [reviewPhotos, setReviewPhotos] = useState<string[]>([]);
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const {user, isAuthenticated} = useAuth();
+  const canSubmitReview = isAuthenticated && user?.role === "CLIENT";
 
   useEffect(() => {
     const fetchProfessionalPosts = async () => {
@@ -107,6 +124,10 @@ export default function ProfessionalDetailScreen() {
   }, [numericId]);
 
   useEffect(() => {
+    loadReviews();
+  }, [numericId]);
+
+  useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 300,
@@ -127,12 +148,6 @@ export default function ProfessionalDetailScreen() {
       const servicesResponse = await serviceApi.getProfessionalServices({
         professional: Number(numericId),
         is_active: true,
-      });
-
-      // Fetch professional reviews
-      const reviewsResponse = await reviewApi.listProfessionals({
-        professional: Number(numericId),
-        page_size: 10,
       });
 
       // Transform API response to match expected format for UI
@@ -163,16 +178,6 @@ export default function ProfessionalDetailScreen() {
           price: service.price,
           description: service.description || "Servicio profesional",
         })),
-        reviews: reviewsResponse.data.results.map((review: any) => ({
-          id: review.id,
-          providerId: review.provider_id,
-          providerType: review.provider_type,
-          author: review.client_name || review.user_name || "Cliente",
-          rating: review.rating,
-          date: review.created_at,
-          comment: review.comment,
-          photos: review.photos || [],
-        })),
       };
 
       // Fetch profile customization data
@@ -198,6 +203,142 @@ export default function ProfessionalDetailScreen() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const loadReviews = async () => {
+    try {
+      setLoadingReviews(true);
+      const response = await reviewApi.getReviews({public_profile: Number(numericId)});
+      const data = response.data;
+      const resultList = Array.isArray(data) ? data : data.results || [];
+      const total = data.count ?? resultList.length ?? 0;
+      setReviews(resultList);
+      setReviewsCount(total);
+    } catch (err) {
+      console.error("Error fetching reviews:", err);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  const resetReviewForm = () => {
+    setReviewRating(0);
+    setReviewMessage("");
+    setReviewPhotos([]);
+  };
+
+  const refreshProfessionalRating = async () => {
+    try {
+      const response = await providerApi.getProfessionalProfile(Number(numericId));
+      const latestRating = response.data?.rating ?? professional?.rating;
+      setProfessional((prev) =>
+        prev ? {...prev, rating: latestRating ?? prev.rating} : prev
+      );
+    } catch (err) {
+      console.error("Error refreshing rating:", err);
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!canSubmitReview) {
+      Alert.alert("Inicia sesión", "Necesitas ser cliente para dejar una reseña.");
+      return;
+    }
+
+    if (reviewRating === 0) {
+      Alert.alert("Calificación requerida", "Selecciona una calificación para tu reseña.");
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+
+      const formData = new FormData();
+      formData.append("to_public_profile", String(numericId));
+      formData.append("rating", String(reviewRating));
+      if (reviewMessage.trim()) {
+        formData.append("message", reviewMessage.trim());
+      }
+
+      if (reviewPhotos.length > 0) {
+        if (Platform.OS === "web") {
+          await Promise.all(
+            reviewPhotos.map(async (uri, index) => {
+              const res = await fetch(uri);
+              const blob = await res.blob();
+              const mimeType = blob.type || "image/jpeg";
+              const ext = (mimeType.split("/")[1] || "jpg").replace("jpeg", "jpg");
+              const file = new File([blob], `review_${Date.now()}_${index}.${ext}`, {
+                type: mimeType,
+              });
+              formData.append("images", file);
+            })
+          );
+        } else {
+          reviewPhotos.forEach((uri, index) => {
+            const extension = uri.split(".").pop() || "jpg";
+            const file = {
+              uri,
+              type: `image/${extension === "jpg" ? "jpeg" : extension}`,
+              name: `review_${Date.now()}_${index}.${extension}`,
+            } as any;
+            formData.append("images", file);
+          });
+        }
+      }
+
+      await reviewApi.createReview(formData);
+
+      Alert.alert("¡Gracias!", "Tu reseña se publicó exitosamente.");
+      setReviewModalVisible(false);
+      resetReviewForm();
+      await loadReviews();
+      await refreshProfessionalRating();
+    } catch (err: any) {
+      console.error("Error creating review:", err);
+      Alert.alert(
+        "Error",
+        errorUtils.getErrorMessage?.(err) || "No se pudo publicar tu reseña. Intenta de nuevo."
+      );
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const renderRatingStars = (rating: number) => (
+    <View style={styles.reviewRating}>
+      {[...Array(5)].map((_, index) => (
+        <Ionicons
+          key={index}
+          name={index < rating ? "star" : "star-outline"}
+          color="#FFD700"
+          size={16}
+        />
+      ))}
+    </View>
+  );
+
+  const renderSelectableStars = () => (
+    <View style={styles.selectableStarsRow}>
+      {[1, 2, 3, 4, 5].map((value) => (
+        <TouchableOpacity key={value} onPress={() => setReviewRating(value)} activeOpacity={0.7}>
+          <Ionicons
+            name={value <= reviewRating ? "star" : "star-outline"}
+            size={28}
+            color={value <= reviewRating ? colors.primary : colors.mutedForeground}
+          />
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  const handleOpenReviewModal = () => {
+    if (!canSubmitReview) {
+      Alert.alert("Solo clientes", "Debes iniciar sesión como cliente para reseñar.");
+      return;
+    }
+    resetReviewForm();
+    setReviewModalVisible(true);
   };
 
   // Portfolio images - would come from API in real implementation
@@ -633,48 +774,87 @@ export default function ProfessionalDetailScreen() {
           )}
 
           {activeTab === "opiniones" && (
-            <View style={[styles.reviewsSection, {backgroundColor: colors.card}]}>
-              {professional.reviews && professional.reviews.length > 0 ? (
-                professional.reviews.map((review: any) => (
-                  <View
-                    key={review.id}
-                    style={[styles.reviewCard, {borderBottomColor: colors.border}]}>
-                    <View style={styles.reviewHeader}>
-                      <View style={styles.reviewAuthor}>
-                        <View style={[styles.reviewAvatar, {backgroundColor: colors.primary}]}>
-                          <Text style={styles.reviewAvatarText}>
-                            {review.author[0].toUpperCase()}
-                          </Text>
-                        </View>
-                        <View style={styles.reviewAuthorInfo}>
-                          <Text style={[styles.reviewAuthorName, {color: colors.foreground}]}>
-                            {review.author}
-                          </Text>
-                          <View style={styles.reviewRating}>
-                            {[...Array(5)].map((_, i) => (
-                              <Ionicons
-                                key={i}
-                                name={i < review.rating ? "star" : "star-outline"}
-                                color="#FFD700"
-                                size={14}
-                              />
-                            ))}
+            <View style={[styles.reviewsSection, {backgroundColor: colors.card}]}> 
+              <View style={styles.reviewsHeader}>
+                <Text style={[styles.reviewsTitle, {color: colors.foreground}]}> 
+                  Reseñas ({reviewsCount})
+                </Text>
+                {canSubmitReview && (
+                  <TouchableOpacity
+                    style={[styles.addReviewButton, {backgroundColor: colors.primary}]}
+                    onPress={handleOpenReviewModal}
+                    activeOpacity={0.85}>
+                    <Ionicons name="create" size={16} color="#ffffff" />
+                    <Text style={styles.addReviewButtonText}>Escribir reseña</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {loadingReviews ? (
+                <View style={styles.loadingReviews}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : reviews.length > 0 ? (
+                reviews.map((review: any) => {
+                  const createdAt = review.created_at ? new Date(review.created_at) : null;
+                  const imageUrls = Array.isArray(review.images)
+                    ? review.images.map((img: any) => (typeof img === "string" ? img : img.url))
+                    : [];
+
+                  return (
+                    <View
+                      key={review.id}
+                      style={[styles.reviewCard, {borderBottomColor: colors.border}]}> 
+                      <View style={styles.reviewHeader}>
+                        <View style={styles.reviewAuthor}>
+                          <View style={[styles.reviewAvatar, {backgroundColor: colors.primary}]}> 
+                            <Text style={styles.reviewAvatarText}>
+                              {(review.reviewer_name || "C")
+                                .toString()
+                                .charAt(0)
+                                .toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={styles.reviewAuthorInfo}>
+                            <Text style={[styles.reviewAuthorName, {color: colors.foreground}]}> 
+                              {review.reviewer_name || "Cliente"}
+                            </Text>
+                            {renderRatingStars(review.rating || 0)}
                           </View>
                         </View>
+                        {createdAt && (
+                          <Text style={[styles.reviewDate, {color: colors.mutedForeground}]}> 
+                            {createdAt.toLocaleDateString("es-MX")}
+                          </Text>
+                        )}
                       </View>
-                      <Text style={[styles.reviewDate, {color: colors.mutedForeground}]}>
-                        {new Date(review.date).toLocaleDateString("es-MX")}
-                      </Text>
+                      {review.message ? (
+                        <Text style={[styles.reviewComment, {color: colors.foreground}]}> 
+                          {review.message}
+                        </Text>
+                      ) : null}
+
+                      {imageUrls.length > 0 && (
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.reviewImagesRow}>
+                          {imageUrls.map((uri: string, index: number) => (
+                            <Image
+                              key={`${review.id}-img-${index}`}
+                              source={{uri}}
+                              style={styles.reviewImageThumb}
+                            />
+                          ))}
+                        </ScrollView>
+                      )}
                     </View>
-                    <Text style={[styles.reviewComment, {color: colors.foreground}]}>
-                      {review.comment}
-                    </Text>
-                  </View>
-                ))
+                  );
+                })
               ) : (
                 <View style={styles.emptyState}>
                   <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={48} />
-                  <Text style={[styles.emptyText, {color: colors.mutedForeground}]}>
+                  <Text style={[styles.emptyText, {color: colors.mutedForeground}]}> 
                     No hay reseñas disponibles
                   </Text>
                 </View>
@@ -781,6 +961,64 @@ export default function ProfessionalDetailScreen() {
           service={selectedService}
         />
       )}
+
+      <Modal
+        visible={reviewModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setReviewModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.reviewModalContainer, {backgroundColor: colors.card}]}> 
+            <View style={styles.reviewModalHeader}>
+              <Text style={[styles.reviewModalTitle, {color: colors.foreground}]}> 
+                Escribir reseña
+              </Text>
+              <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
+                <Ionicons name="close" size={22} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.reviewModalSubtitle, {color: colors.mutedForeground}]}> 
+              ¿Cómo fue tu experiencia?
+            </Text>
+
+            {renderSelectableStars()}
+
+            <TextInput
+              style={[styles.reviewInput, {borderColor: colors.border, color: colors.foreground}]}
+              placeholder="Comparte detalles que puedan ayudar a otros clientes"
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+              numberOfLines={4}
+              value={reviewMessage}
+              onChangeText={setReviewMessage}
+              textAlignVertical="top"
+            />
+
+            <MediaUploader
+              mediaType="photo"
+              maxFiles={4}
+              selectedMedia={reviewPhotos}
+              onMediaSelected={setReviewPhotos}
+            />
+
+            <TouchableOpacity
+              style={[styles.submitReviewButton, {backgroundColor: colors.primary}]}
+              onPress={handleSubmitReview}
+              disabled={submittingReview}
+              activeOpacity={0.85}>
+              {submittingReview ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <>
+                  <Ionicons name="send" size={16} color="#ffffff" />
+                  <Text style={styles.submitReviewButtonText}>Enviar reseña</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1165,6 +1403,29 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 16,
   },
+  reviewsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  reviewsTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  addReviewButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  addReviewButtonText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "600",
+  },
   reviewCard: {
     paddingVertical: 16,
     borderBottomWidth: 1,
@@ -1212,6 +1473,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  reviewImagesRow: {
+    flexDirection: "row",
+    gap: 12,
+    paddingTop: 12,
+  },
+  reviewImageThumb: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+  },
+  loadingReviews: {
+    paddingVertical: 24,
+    alignItems: "center",
+  },
   emptyState: {
     alignItems: "center",
     paddingVertical: 32,
@@ -1222,6 +1497,55 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 40,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  reviewModalContainer: {
+    borderRadius: 20,
+    padding: 20,
+    gap: 16,
+  },
+  reviewModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  reviewModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  reviewModalSubtitle: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  reviewInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    minHeight: 120,
+    fontSize: 15,
+  },
+  selectableStarsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  submitReviewButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  submitReviewButtonText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "700",
   },
   // Posts Section
   postsSection: {

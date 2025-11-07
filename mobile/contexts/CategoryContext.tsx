@@ -8,6 +8,7 @@ export type SubCategory = {
   icon: string;
   emoji?: string; // For main categories
   color?: string;
+  iconFamily?: "Ionicons" | "MaterialCommunityIcons";
 };
 
 interface CategoryContextType {
@@ -30,9 +31,27 @@ export const CategoryProvider = ({children}: CategoryProviderProps) => {
   const [selectedSubCategory, setSelectedSubCategory] = useState("todos");
 
   const mainCategories: SubCategory[] = [
-    {id: "belleza", emoji: "💄", name: "Belleza", icon: "heart"},
-    {id: "bienestar", emoji: "🧘", name: "Bienestar", icon: "fitness"},
-    {id: "mascotas", emoji: "🐾", name: "Mascotas", icon: "paw"},
+    {
+      id: "belleza",
+      emoji: "💄",
+      name: "Belleza",
+      icon: "MaterialCommunityIcons:spa-outline",
+      iconFamily: "MaterialCommunityIcons",
+    },
+    {
+      id: "bienestar",
+      emoji: "🧘",
+      name: "Bienestar",
+      icon: "MaterialCommunityIcons:meditation",
+      iconFamily: "MaterialCommunityIcons",
+    },
+    {
+      id: "mascotas",
+      emoji: "🐾",
+      name: "Mascotas",
+      icon: "MaterialCommunityIcons:paw",
+      iconFamily: "MaterialCommunityIcons",
+    },
   ];
 
   const subcategoriesByMainCategory = {

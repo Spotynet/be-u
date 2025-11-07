@@ -1,4 +1,8 @@
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models import Avg
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
 from users.models import ClientProfile, ProfessionalProfile, PlaceProfile, User, PublicProfile
 from services.models import ServicesType, Service
 
@@ -49,11 +53,11 @@ class Review(models.Model):
                                          help_text="Public profile being reviewed")
     
     # Review content
-    rating = models.PositiveIntegerField(help_text="Rating from 1-5 stars")
+    rating = models.PositiveSmallIntegerField(
+        help_text="Rating from 1-5 stars",
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
     message = models.TextField(blank=True, null=True, help_text="Review message/comment")
-    
-    # Images array (stored as JSON list of image URLs/paths)
-    images = models.JSONField(default=list, blank=True, help_text="List of image URLs/paths")
     
     # Optional service reference
     service = models.ForeignKey(Service, on_delete=models.SET_NULL, null=True, blank=True,
@@ -64,8 +68,6 @@ class Review(models.Model):
     
     class Meta:
         ordering = ['-created_at']
-        # Prevent duplicate reviews from same user to same profile
-        unique_together = ['from_user', 'to_public_profile']
     
     def __str__(self):
         return f"Review by {self.from_user.email} for {self.to_public_profile.display_name}"
@@ -79,3 +81,40 @@ class Review(models.Model):
     def reviewed_name(self):
         """Get reviewed profile's display name"""
         return self.to_public_profile.display_name
+
+
+class ReviewImage(models.Model):
+    """Images associated with a review"""
+
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name="images")
+    image = models.ImageField(upload_to="reviews/photos/")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Image for review {self.review_id}"
+
+
+def _update_profile_rating(public_profile: PublicProfile):
+    """Recalculate and persist the average rating for a public profile."""
+
+    if not public_profile:
+        return
+
+    aggregates = public_profile.reviews_received.aggregate(avg_rating=Avg("rating"))
+    average = aggregates.get("avg_rating") or 0
+    # Clamp to allowed decimal field precision (two decimals)
+    public_profile.rating = round(float(average), 2)
+    public_profile.save(update_fields=["rating"])
+
+
+@receiver(post_save, sender=Review)
+def review_saved(sender, instance: Review, **kwargs):
+    _update_profile_rating(instance.to_public_profile)
+
+
+@receiver(post_delete, sender=Review)
+def review_deleted(sender, instance: Review, **kwargs):
+    _update_profile_rating(instance.to_public_profile)

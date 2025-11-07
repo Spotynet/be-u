@@ -67,12 +67,15 @@ export const useUserProfile = () => {
           try {
             const [reservationsRes, reviewsRes] = await Promise.all([
               reservationApi.getReservations({user: user.id}),
-              reviewApi.listAll({user: user.id}),
+              reviewApi.listAll({from_user: user.id}),
             ]);
 
             stats = {
               reservations: reservationsRes.data.count || reservationsRes.data.results?.length || 0,
-              reviews: reviewsRes.data.count || reviewsRes.data.results?.length || 0,
+              reviews:
+                reviewsRes.data.count ||
+                reviewsRes.data.results?.length ||
+                (Array.isArray(reviewsRes.data) ? reviewsRes.data.length : 0),
               favorites: 0, // TODO: Implement favorites
             };
           } catch (err) {
@@ -99,11 +102,12 @@ export const useUserProfile = () => {
             ]);
 
             services = servicesRes.data.results || [];
-            const reviewsData = reviewsRes.data.results || [];
+            const reviewsData =
+              reviewsRes.data.results || (Array.isArray(reviewsRes.data) ? reviewsRes.data : []);
 
             stats = {
               services: services.length,
-              reviews: reviewsData.length,
+              reviews: reviewsRes.data.count || reviewsData.length,
             };
           } catch (err) {
             console.log("Error fetching professional data:", err);
@@ -128,11 +132,12 @@ export const useUserProfile = () => {
             ]);
 
             services = servicesRes.data.results || [];
-            const reviewsData = reviewsRes.data.results || [];
+            const reviewsData =
+              reviewsRes.data.results || (Array.isArray(reviewsRes.data) ? reviewsRes.data : []);
 
             stats = {
               services: services.length,
-              reviews: reviewsData.length,
+              reviews: reviewsRes.data.count || reviewsData.length,
               teamMembers: 0, // TODO: Implement team members
             };
           } catch (err) {
