@@ -1,5 +1,9 @@
 from rest_framework import serializers
-from .profile_models import ProfileImage, CustomService, AvailabilitySchedule, TimeSlot
+from .profile_models import (
+    ProfileImage, CustomService, AvailabilitySchedule, TimeSlot,
+    PlaceProfessionalLink, LinkedAvailabilitySchedule, LinkedTimeSlot
+)
+from .models import ProfessionalProfile, PlaceProfile, User
 from django.contrib.contenttypes.models import ContentType
 
 
@@ -60,6 +64,42 @@ class ProfileCustomizationSerializer(serializers.Serializer):
         # This will be handled in the view
         pass
 
+
+class LinkedTimeSlotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LinkedTimeSlot
+        fields = ['id', 'start_time', 'end_time', 'is_active']
+        read_only_fields = ['id']
+
+
+class LinkedAvailabilityScheduleSerializer(serializers.ModelSerializer):
+    time_slots = LinkedTimeSlotSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = LinkedAvailabilitySchedule
+        fields = ['id', 'day_of_week', 'is_available', 'time_slots']
+        read_only_fields = ['id']
+
+
+class PlaceProfessionalLinkSerializer(serializers.ModelSerializer):
+    place_id = serializers.IntegerField(source='place.id', read_only=True)
+    place_name = serializers.CharField(source='place.name', read_only=True)
+    professional_id = serializers.IntegerField(source='professional.id', read_only=True)
+    professional_name = serializers.SerializerMethodField()
+    professional_email = serializers.EmailField(source='professional.user.email', read_only=True)
+    invited_by_email = serializers.EmailField(source='invited_by.email', read_only=True)
+    
+    class Meta:
+        model = PlaceProfessionalLink
+        fields = [
+            'id', 'status', 'notes', 'created_at', 'updated_at',
+            'place_id', 'place_name', 'professional_id', 'professional_name', 'professional_email',
+            'invited_by_email'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'place_id', 'place_name', 'professional_id', 'professional_name', 'professional_email', 'invited_by_email']
+    
+    def get_professional_name(self, obj):
+        return f"{obj.professional.name} {obj.professional.last_name}".strip()
 
 
 

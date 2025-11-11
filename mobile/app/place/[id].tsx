@@ -1042,7 +1042,8 @@ export default function PlaceDetailScreen() {
                 </Text>
                 <TouchableOpacity
                   style={[styles.manageButton, {backgroundColor: colors.primary}]}
-                  activeOpacity={0.8}>
+                  activeOpacity={0.8}
+                  onPress={() => router.push("/place/manage-links")}>
                   <Text style={styles.manageButtonText}>Gestionar Profesionales</Text>
                   <Ionicons name="chevron-forward" color="#ffffff" size={16} />
                 </TouchableOpacity>
@@ -1061,7 +1062,8 @@ export default function PlaceDetailScreen() {
                 </Text>
                 <TouchableOpacity
                   style={[styles.manageButton, {backgroundColor: colors.primary}]}
-                  activeOpacity={0.8}>
+                  activeOpacity={0.8}
+                  onPress={() => router.push("/place/manage-links")}>
                   <Text style={styles.manageButtonText}>Configurar Horarios</Text>
                   <Ionicons name="chevron-forward" color="#ffffff" size={16} />
                 </TouchableOpacity>

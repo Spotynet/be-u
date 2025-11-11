@@ -127,6 +127,67 @@ class TimeSlot(models.Model):
 
 
 
+class PlaceProfessionalLink(models.Model):
+    """Association between a Place and a Professional with invite workflow"""
+    
+    class Status(models.TextChoices):
+        INVITED = "INVITED", "Invited"
+        ACCEPTED = "ACCEPTED", "Accepted"
+        REJECTED = "REJECTED", "Rejected"
+        REMOVED = "REMOVED", "Removed"
+    
+    place = models.ForeignKey(PlaceProfile, on_delete=models.CASCADE, related_name="links")
+    professional = models.ForeignKey(ProfessionalProfile, on_delete=models.CASCADE, related_name="place_links")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.INVITED)
+    invited_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True)
+    notes = models.CharField(max_length=255, blank=True, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ("place", "professional")
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.place.name} ↔ {self.professional.name} ({self.status})"
+
+
+class LinkedAvailabilitySchedule(models.Model):
+    """Availability schedule per professional linked to a specific place"""
+    
+    link = models.ForeignKey(PlaceProfessionalLink, on_delete=models.CASCADE, related_name="schedules")
+    day_of_week = models.IntegerField(choices=AvailabilitySchedule.DayOfWeek.choices)
+    is_available = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['link', 'day_of_week']
+        ordering = ['day_of_week']
+    
+    def __str__(self):
+        return f"{self.link} - {self.get_day_of_week_display()}"
+
+
+class LinkedTimeSlot(models.Model):
+    """Time slot for a linked professional's schedule in a place"""
+    
+    schedule = models.ForeignKey(LinkedAvailabilitySchedule, on_delete=models.CASCADE, related_name="time_slots")
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    is_active = models.BooleanField(default=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['start_time']
+    
+    def __str__(self):
+        return f"{self.schedule.get_day_of_week_display()}: {self.start_time}-{self.end_time}"
+
 
 
 

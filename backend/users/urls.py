@@ -2,12 +2,14 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views, auth_views, profile_views
 from .public_profile_views import PublicProfileViewSet
+from .link_views import PlaceProfessionalLinkViewSet
 
 router = DefaultRouter()
 router.register(r'users', views.UserViewSet)
 router.register(r'professionals', views.ProfessionalProfileViewSet, basename='professional')
 router.register(r'places', views.PlaceProfileViewSet, basename='place')
 router.register(r'public-profiles', PublicProfileViewSet, basename='public-profile')
+router.register(r'links', PlaceProfessionalLinkViewSet, basename='place-pro-link')
 
 urlpatterns = [
     path('', include(router.urls)),

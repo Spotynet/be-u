@@ -208,6 +208,12 @@ def availability_schedule_view(request):
             {"error": f"Profile customization only available for professionals and places. Current role: {request.user.role}"}, 
             status=status.HTTP_403_FORBIDDEN
         )
+    # Per requirement 2b: places should not use the old availability endpoint
+    if request.user.role == 'PLACE':
+        return Response(
+            {"error": "Place schedules must be managed per linked professional via /api/users/links/{id}/schedule"},
+            status=status.HTTP_403_FORBIDDEN
+        )
     
     content_type, object_id = get_content_type_and_id(profile)
     

@@ -7,6 +7,8 @@ from django.contrib.auth import authenticate
 from django.db import models
 from rest_framework.exceptions import PermissionDenied
 from .models import User, ProfessionalProfile, PlaceProfile
+from .profile_models import PlaceProfessionalLink
+from .profile_serializers import PlaceProfessionalLinkSerializer
 from .serializers import (
     UserSerializer, UserRegistrationSerializer, UserLoginSerializer,
     ProfessionalProfileSerializer, PlaceProfileSerializer,
@@ -266,3 +268,51 @@ class PlaceProfileViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = queryset.order_by('name')
         
         return queryset
+    
+    @action(detail=True, methods=['get', 'post'], url_path='links', permission_classes=[IsAuthenticated])
+    def links(self, request, pk=None):
+        """List or create links for a specific place.
+        GET: list links (default ACCEPTED unless ?status provided)
+        POST: invite a professional { professional_id, notes? } (place owner only)
+        """
+        place = self.get_object()
+        user = request.user
+        
+        # GET: list links
+        if request.method == 'GET':
+            status_param = request.query_params.get('status') or PlaceProfessionalLink.Status.ACCEPTED
+            # Allow place owner to view; professionals can view their own accepted links for this place
+            if user.is_staff or (user.role == User.Role.PLACE and (place.user_id == user.id or (place.owner_id and place.owner_id == user.id))):
+                links = PlaceProfessionalLink.objects.select_related('professional__user').filter(place=place)
+                if status_param:
+                    links = links.filter(status=status_param)
+                return Response(PlaceProfessionalLinkSerializer(links, many=True).data)
+            elif user.role == User.Role.PROFESSIONAL and hasattr(user, 'professional_profile'):
+                links = PlaceProfessionalLink.objects.filter(place=place, professional=user.professional_profile, status=PlaceProfessionalLink.Status.ACCEPTED)
+                return Response(PlaceProfessionalLinkSerializer(links, many=True).data)
+            return Response({'detail': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # POST: create invite, only place owner
+        if user.role != User.Role.PLACE or not (place.user_id == user.id or (place.owner_id and place.owner_id == user.id)):
+            return Response({'detail': 'Not authorized to invite for this place'}, status=status.HTTP_403_FORBIDDEN)
+        
+        professional_id = request.data.get('professional_id')
+        if not professional_id:
+            return Response({'detail': 'professional_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        notes = request.data.get('notes', '')
+        
+        try:
+            prof = ProfessionalProfile.objects.get(id=professional_id)
+        except ProfessionalProfile.DoesNotExist:
+            return Response({'detail': 'Professional not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        link, created = PlaceProfessionalLink.objects.get_or_create(
+            place=place, professional=prof,
+            defaults={'status': PlaceProfessionalLink.Status.INVITED, 'invited_by': user, 'notes': notes}
+        )
+        if not created:
+            link.status = PlaceProfessionalLink.Status.INVITED
+            link.invited_by = user
+            link.notes = notes
+            link.save(update_fields=['status', 'invited_by', 'notes', 'updated_at'])
+        return Response(PlaceProfessionalLinkSerializer(link).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)

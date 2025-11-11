@@ -813,6 +813,69 @@ export const notificationApi = {
   deleteNotification: (id: number) => api.delete(`/notifications/notifications/${id}/`),
 };
 
+// Place–Professional Links API
+export type LinkedTimeSlot = {
+  id?: number;
+  start_time: string; // "HH:MM"
+  end_time: string;   // "HH:MM"
+  is_active?: boolean;
+};
+
+export type LinkedAvailabilitySchedule = {
+  id?: number;
+  day_of_week: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  is_available: boolean;
+  time_slots?: LinkedTimeSlot[];
+};
+
+export type PlaceProfessionalLink = {
+  id: number;
+  status: "INVITED" | "ACCEPTED" | "REJECTED" | "REMOVED";
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  place_id: number;
+  place_name: string;
+  professional_id: number;
+  professional_name: string;
+  professional_email: string;
+  invited_by_email?: string;
+};
+
+export const linkApi = {
+  // List links for a place (default ACCEPTED)
+  listPlaceLinks: (placeId: number, status: "INVITED" | "ACCEPTED" | "REJECTED" | "REMOVED" | undefined = "ACCEPTED") =>
+    api.get<PlaceProfessionalLink[]>(`/users/places/${placeId}/links/`, {
+      params: status ? {status} : undefined,
+    }),
+  // List links for current user (professional) or all for place with optional place_id
+  listMyLinks: (params?: {status?: "INVITED" | "ACCEPTED" | "REJECTED" | "REMOVED"; place_id?: number}) =>
+    api.get<PlaceProfessionalLink[]>('/users/links/', {params}),
+
+  // Invite professional to a place (place owner only)
+  inviteProfessionalToPlace: (placeId: number, professionalId: number, notes?: string) =>
+    api.post<PlaceProfessionalLink>(`/users/places/${placeId}/links/`, {
+      professional_id: professionalId,
+      notes,
+    }),
+
+  // Accept an invite (professional only)
+  acceptInvite: (linkId: number) => api.post<PlaceProfessionalLink>(`/users/links/${linkId}/accept/`),
+
+  // Reject an invite (professional only)
+  rejectInvite: (linkId: number) => api.post<PlaceProfessionalLink>(`/users/links/${linkId}/reject/`),
+
+  // Remove a link (place owner only, soft delete)
+  removeLink: (linkId: number) => api.delete(`/users/links/${linkId}/`),
+
+  // Get per-link schedule
+  getLinkSchedule: (linkId: number) => api.get<LinkedAvailabilitySchedule[]>(`/users/links/${linkId}/schedule/`),
+
+  // Set per-link schedule (bulk replace)
+  setLinkSchedule: (linkId: number, schedule: LinkedAvailabilitySchedule[]) =>
+    api.post<LinkedAvailabilitySchedule[]>(`/users/links/${linkId}/schedule/`, schedule),
+};
+
 // Token management utilities
 export const tokenUtils = {
   setTokens: async (accessToken: string, refreshToken: string): Promise<void> => {
