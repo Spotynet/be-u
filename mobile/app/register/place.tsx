@@ -76,23 +76,28 @@ export default function RegisterPlace() {
       const {data} = await authApi.register(values);
       await tokenUtils.setTokens(data.access, data.refresh);
 
-      // Ensure PublicProfile exists (auto-creates if missing)
-      await profileCustomizationApi.getProfileImages();
-      // Always update with category/subcategory and address if provided
-      const updateData: any = {
-        category: values.category || '',
-        sub_categories: values.subcategory ? [values.subcategory] : [],
-      };
-      if (values.address && values.latitude && values.longitude) {
-        updateData.street = values.address;
-        updateData.city = values.city;
-        updateData.country = values.country;
-        updateData.postal_code = values.postal_code;
-        updateData.latitude = values.latitude;
-        updateData.longitude = values.longitude;
+      // Ensure PublicProfile exists (auto-creates if missing) and update it.
+      // If update fails, don't block successful registration and navigation.
+      try {
+        await profileCustomizationApi.getProfileImages();
+        // Always update with category/subcategory and address if provided
+        const updateData: any = {
+          category: values.category || '',
+          sub_categories: values.subcategory ? [values.subcategory] : [],
+        };
+        if (values.address && values.latitude && values.longitude) {
+          updateData.street = values.address;
+          updateData.city = values.city;
+          updateData.country = values.country;
+          updateData.postal_code = values.postal_code;
+          updateData.latitude = values.latitude;
+          updateData.longitude = values.longitude;
+        }
+        // Always update to ensure category/subcategory are saved
+        await profileCustomizationApi.updatePublicProfile(updateData);
+      } catch (profileErr) {
+        console.warn("PublicProfile update skipped due to error:", profileErr);
       }
-      // Always update to ensure category/subcategory are saved
-      await profileCustomizationApi.updatePublicProfile(updateData);
 
       router.replace("/(tabs)/perfil");
     } catch (err) {

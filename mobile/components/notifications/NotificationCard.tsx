@@ -1,7 +1,6 @@
 import React from "react";
 import {View, Text, TouchableOpacity, StyleSheet, Alert} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
-import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Notification} from "@/features/notifications";
@@ -11,6 +10,8 @@ interface NotificationCardProps {
   onPress?: (notification: Notification) => void;
   onMarkAsRead?: (notificationId: number) => void;
   onDelete?: (notificationId: number) => void;
+  onAcceptInvite?: (notification: Notification, linkId: number) => void;
+  onDeclineInvite?: (notification: Notification, linkId: number) => void;
 }
 
 export const NotificationCard = ({
@@ -18,6 +19,8 @@ export const NotificationCard = ({
   onPress,
   onMarkAsRead,
   onDelete,
+  onAcceptInvite,
+  onDeclineInvite,
 }: NotificationCardProps) => {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
@@ -29,7 +32,7 @@ export const NotificationCard = ({
       case "review":
         return "star";
       case "system":
-        return "information-circle";
+        return "cog";
       case "message":
         return "chatbubble";
       default:
@@ -44,7 +47,7 @@ export const NotificationCard = ({
       case "review":
         return "#f59e0b"; // amber
       case "system":
-        return "#6b7280"; // gray
+        return "#8b5cf6"; // purple default
       case "message":
         return "#10b981"; // emerald
       default:
@@ -91,6 +94,17 @@ export const NotificationCard = ({
       ]
     );
   };
+
+  const linkId =
+    notification.metadata?.link_id ??
+    notification.metadata?.linkId ??
+    notification.metadata?.linkID;
+  const inviteStatus = notification.metadata?.status;
+  const canRespondInvite =
+    notification.type === "sistema" &&
+    linkId &&
+    inviteStatus === "INVITED" &&
+    (typeof onAcceptInvite === "function" || typeof onDeclineInvite === "function");
 
   return (
     <TouchableOpacity
@@ -171,6 +185,40 @@ export const NotificationCard = ({
                 {notification.metadata.rating}/5
               </Text>
             </View>
+          )}
+        </View>
+      )}
+
+      {canRespondInvite && (
+        <View style={styles.inviteActions}>
+          {typeof onDeclineInvite === "function" && (
+            <TouchableOpacity
+              style={[
+                styles.inviteButton,
+                {
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => onDeclineInvite(notification, linkId)}>
+              <Text style={[styles.inviteButtonText, {color: colors.mutedForeground}]}>
+                Rechazar
+              </Text>
+            </TouchableOpacity>
+          )}
+          {typeof onAcceptInvite === "function" && (
+            <TouchableOpacity
+              style={[
+                styles.inviteButton,
+                {
+                  backgroundColor: colors.primary,
+                },
+              ]}
+              onPress={() => onAcceptInvite(notification, linkId)}>
+              <Text style={[styles.inviteButtonText, {color: colors.primaryForeground}]}>
+                Aceptar
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
       )}
@@ -263,5 +311,21 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 12,
     fontWeight: "600",
+  },
+  inviteActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+    marginTop: 8,
+  },
+  inviteButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    minWidth: 100,
+    alignItems: "center",
+  },
+  inviteButtonText: {
+    fontWeight: "700",
   },
 });

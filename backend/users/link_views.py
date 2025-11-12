@@ -15,6 +15,7 @@ from .profile_serializers import (
     LinkedAvailabilityScheduleSerializer,
     LinkedTimeSlotSerializer,
 )
+from notifications.signals import create_system_notification
 
 
 class PlaceProfessionalLinkViewSet(viewsets.ModelViewSet):
@@ -79,6 +80,42 @@ class PlaceProfessionalLinkViewSet(viewsets.ModelViewSet):
             link.invited_by = user
             link.notes = notes
             link.save(update_fields=['status', 'invited_by', 'notes', 'updated_at'])
+
+        # Create notifications for both parties
+        try:
+            # To invited professional
+            create_system_notification(
+                professional.user,
+                title="Invitación a establecimiento",
+                message=f"{place.name} te invitó a vincularte como profesional.",
+                metadata={
+                    'link_id': link.id,
+                    'status': link.status,
+                    'place_id': place.id,
+                    'place_name': getattr(place, 'name', ''),
+                    'professional_id': professional.id,
+                    'professional_name': getattr(professional, 'name', ''),
+                    'invited_by_email': user.email,
+                },
+            )
+            # Confirmation to place
+            create_system_notification(
+                place.user,
+                title="Invitación enviada",
+                message=f"Se envió una invitación a {getattr(professional, 'name', '')}.",
+                metadata={
+                    'link_id': link.id,
+                    'status': link.status,
+                    'place_id': place.id,
+                    'place_name': getattr(place, 'name', ''),
+                    'professional_id': professional.id,
+                    'professional_name': getattr(professional, 'name', ''),
+                    'invited_by_email': user.email,
+                },
+            )
+        except Exception:
+            # Notifications should not break the flow
+            pass
         
         return Response(self.get_serializer(link).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
     
@@ -97,12 +134,60 @@ class PlaceProfessionalLinkViewSet(viewsets.ModelViewSet):
         """Professional accepts an invite."""
         link: PlaceProfessionalLink = self.get_object()
         user = request.user
-        if user.role != User.Role.PROFESSIONAL or not hasattr(user, 'professional_profile') or user.professional_profile_id != link.professional_id:
+        if user.role != User.Role.PROFESSIONAL:
+            return Response({'detail': 'Only the invited professional can accept'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Ensure the professional profile exists for this user
+        profile_id = getattr(user, 'professional_profile_id', None)
+        if profile_id is None:
+            defaults = {
+                'name': user.first_name or user.username or user.email.split('@')[0],
+                'last_name': user.last_name or '',
+                'bio': '',
+                'city': '',
+                'category': '',
+                'sub_categories': [],
+            }
+            professional_profile, _created = ProfessionalProfile.objects.get_or_create(user=user, defaults=defaults)
+            profile_id = professional_profile.id
+
+        if profile_id != link.professional_id:
             return Response({'detail': 'Only the invited professional can accept'}, status=status.HTTP_403_FORBIDDEN)
         if link.status != PlaceProfessionalLink.Status.INVITED:
             return Response({'detail': f'Cannot accept link in status {link.status}'}, status=status.HTTP_400_BAD_REQUEST)
         link.status = PlaceProfessionalLink.Status.ACCEPTED
         link.save(update_fields=['status', 'updated_at'])
+
+        # Notify both parties
+        try:
+            create_system_notification(
+                link.place.user,
+                title="Invitación aceptada",
+                message=f"{getattr(link.professional, 'name', '')} aceptó tu invitación.",
+                metadata={
+                    'link_id': link.id,
+                    'status': link.status,
+                    'place_id': link.place.id,
+                    'place_name': getattr(link.place, 'name', ''),
+                    'professional_id': link.professional.id,
+                    'professional_name': getattr(link.professional, 'name', ''),
+                },
+            )
+            create_system_notification(
+                link.professional.user,
+                title="Vinculación confirmada",
+                message=f"Ahora estás vinculado con {getattr(link.place, 'name', '')}.",
+                metadata={
+                    'link_id': link.id,
+                    'status': link.status,
+                    'place_id': link.place.id,
+                    'place_name': getattr(link.place, 'name', ''),
+                    'professional_id': link.professional.id,
+                    'professional_name': getattr(link.professional, 'name', ''),
+                },
+            )
+        except Exception:
+            pass
         return Response(self.get_serializer(link).data)
     
     @action(detail=True, methods=['post'])
@@ -110,12 +195,59 @@ class PlaceProfessionalLinkViewSet(viewsets.ModelViewSet):
         """Professional rejects an invite."""
         link: PlaceProfessionalLink = self.get_object()
         user = request.user
-        if user.role != User.Role.PROFESSIONAL or not hasattr(user, 'professional_profile') or user.professional_profile_id != link.professional_id:
+        if user.role != User.Role.PROFESSIONAL:
+            return Response({'detail': 'Only the invited professional can reject'}, status=status.HTTP_403_FORBIDDEN)
+
+        profile_id = getattr(user, 'professional_profile_id', None)
+        if profile_id is None:
+            defaults = {
+                'name': user.first_name or user.username or user.email.split('@')[0],
+                'last_name': user.last_name or '',
+                'bio': '',
+                'city': '',
+                'category': '',
+                'sub_categories': [],
+            }
+            professional_profile, _created = ProfessionalProfile.objects.get_or_create(user=user, defaults=defaults)
+            profile_id = professional_profile.id
+
+        if profile_id != link.professional_id:
             return Response({'detail': 'Only the invited professional can reject'}, status=status.HTTP_403_FORBIDDEN)
         if link.status != PlaceProfessionalLink.Status.INVITED:
             return Response({'detail': f'Cannot reject link in status {link.status}'}, status=status.HTTP_400_BAD_REQUEST)
         link.status = PlaceProfessionalLink.Status.REJECTED
         link.save(update_fields=['status', 'updated_at'])
+
+        # Notify both parties
+        try:
+            create_system_notification(
+                link.place.user,
+                title="Invitación rechazada",
+                message=f"{getattr(link.professional, 'name', '')} rechazó tu invitación.",
+                metadata={
+                    'link_id': link.id,
+                    'status': link.status,
+                    'place_id': link.place.id,
+                    'place_name': getattr(link.place, 'name', ''),
+                    'professional_id': link.professional.id,
+                    'professional_name': getattr(link.professional, 'name', ''),
+                },
+            )
+            create_system_notification(
+                link.professional.user,
+                title="Invitación rechazada",
+                message=f"Has rechazado la invitación de {getattr(link.place, 'name', '')}.",
+                metadata={
+                    'link_id': link.id,
+                    'status': link.status,
+                    'place_id': link.place.id,
+                    'place_name': getattr(link.place, 'name', ''),
+                    'professional_id': link.professional.id,
+                    'professional_name': getattr(link.professional, 'name', ''),
+                },
+            )
+        except Exception:
+            pass
         return Response(self.get_serializer(link).data)
     
     @action(detail=True, methods=['get', 'post'], url_path='schedule')
@@ -125,8 +257,21 @@ class PlaceProfessionalLinkViewSet(viewsets.ModelViewSet):
         user = request.user
         
         # Permissions: place owner can write; place/pro (accepted) can read
+        profile_id = getattr(user, 'professional_profile_id', None)
+        if profile_id is None and user.role == User.Role.PROFESSIONAL:
+            defaults = {
+                'name': user.first_name or user.username or user.email.split('@')[0],
+                'last_name': user.last_name or '',
+                'bio': '',
+                'city': '',
+                'category': '',
+                'sub_categories': [],
+            }
+            professional_profile, _created = ProfessionalProfile.objects.get_or_create(user=user, defaults=defaults)
+            profile_id = professional_profile.id
+
         can_write = user.role == User.Role.PLACE and (link.place.user_id == user.id or (link.place.owner_id and link.place.owner_id == user.id))
-        can_read = can_write or (user.role == User.Role.PROFESSIONAL and hasattr(user, 'professional_profile') and user.professional_profile_id == link.professional_id)
+        can_read = can_write or (user.role == User.Role.PROFESSIONAL and profile_id == link.professional_id)
         
         if request.method == 'GET':
             if not can_read:

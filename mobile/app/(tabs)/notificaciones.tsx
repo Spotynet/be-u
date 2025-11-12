@@ -14,8 +14,9 @@ import {Ionicons} from "@expo/vector-icons";
 import {useState} from "react";
 import {useRouter} from "expo-router";
 import {NotificationCard} from "@/components/notifications";
-import {useNotifications, NotificationType} from "@/features/notifications";
+import {useNotifications, NotificationType, Notification as NotificationTypeModel} from "@/features/notifications";
 import {useAuth} from "@/features/auth";
+import {linkApi} from "@/lib/api";
 
 export default function Notificaciones() {
   const colorScheme = useColorScheme();
@@ -80,8 +81,47 @@ export default function Notificaciones() {
     );
   };
 
+  const isProfessional = user?.role === "PROFESSIONAL";
+
   const filteredNotifications =
     activeFilter === "all" ? notifications : notifications.filter((n) => n.type === activeFilter);
+
+  const handleInviteAction = async (
+    notification: NotificationTypeModel,
+    action: "accept" | "reject",
+    linkId: number
+  ) => {
+    try {
+      if (!Number.isFinite(linkId)) {
+        Alert.alert("Invitación inválida", "No pudimos identificar esta invitación.");
+        return;
+      }
+
+      if (action === "accept") {
+        await linkApi.acceptInvite(linkId);
+        Alert.alert("Invitación aceptada", "Ahora estás vinculado con el establecimiento.");
+      } else {
+        await linkApi.rejectInvite(linkId);
+        Alert.alert("Invitación rechazada", "Has rechazado la invitación.");
+      }
+
+      await markAsRead(notification.id);
+
+      // Optimistically update local metadata so buttons disappear immediately
+      notification.metadata = {
+        ...notification.metadata,
+        status: action === "accept" ? "ACCEPTED" : "REJECTED",
+      };
+
+      await refreshNotifications();
+    } catch (err: any) {
+      console.error("Error handling invite action:", err);
+      Alert.alert(
+        "Error",
+        err?.message || "No se pudo procesar la invitación. Inténtalo de nuevo más tarde."
+      );
+    }
+  };
 
   // Show login prompt if not authenticated
   if (!isAuthenticated || !user) {
@@ -265,15 +305,48 @@ export default function Notificaciones() {
       ) : (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.notificationsList}>
-            {filteredNotifications.map((notification) => (
-              <NotificationCard
-                key={notification.id}
-                notification={notification}
-                onPress={handleNotificationPress}
-                onMarkAsRead={markAsRead}
-                onDelete={deleteNotification}
-              />
-            ))}
+            {filteredNotifications.map((notification) => {
+              const linkId =
+                notification.metadata?.link_id ??
+                notification.metadata?.linkId ??
+                notification.metadata?.linkID;
+              const canRespondInvite =
+                isProfessional &&
+                notification.type === "sistema" &&
+                notification.metadata?.status === "INVITED" &&
+                notification.status === "unread" &&
+                linkId;
+
+              return (
+                <NotificationCard
+                  key={notification.id}
+                  notification={notification}
+                  onPress={handleNotificationPress}
+                  onMarkAsRead={markAsRead}
+                  onDelete={deleteNotification}
+                  onAcceptInvite={
+                    canRespondInvite
+                      ? (notif) =>
+                          handleInviteAction(
+                            notif,
+                            "accept",
+                            Number.parseInt(String(linkId), 10)
+                          )
+                      : undefined
+                  }
+                  onDeclineInvite={
+                    canRespondInvite
+                      ? (notif) =>
+                          handleInviteAction(
+                            notif,
+                            "reject",
+                            Number.parseInt(String(linkId), 10)
+                          )
+                      : undefined
+                  }
+                />
+              );
+            })}
           </View>
         </ScrollView>
       )}

@@ -37,9 +37,10 @@ export const useNotifications = (filters?: NotificationFilters) => {
 
       // Fetch notifications
       const response = await notificationApi.getNotifications(params);
+      const payload = response.data?.results ?? response.data ?? [];
 
       // Transform API response to match our Notification interface
-      const transformedNotifications: Notification[] = response.data.results.map((item: any) => ({
+      const transformedNotifications: Notification[] = (Array.isArray(payload) ? payload : []).map((item: any) => ({
         id: item.id,
         type: mapNotificationType(item.type),
         title: item.title,
@@ -70,7 +71,7 @@ export const useNotifications = (filters?: NotificationFilters) => {
           by_status: {read: 0, unread: 0},
         });
       } else {
-        setError(err.message || "Error al cargar las notificaciones");
+        setError(err?.message || "Error al cargar las notificaciones");
       }
     } finally {
       setIsLoading(false);
@@ -80,7 +81,7 @@ export const useNotifications = (filters?: NotificationFilters) => {
   const fetchStats = useCallback(async () => {
     try {
       const response = await notificationApi.getStats();
-      setStats(response.data);
+      setStats(response.data ?? null);
     } catch (err: any) {
       console.error("Error fetching notification stats:", err);
 

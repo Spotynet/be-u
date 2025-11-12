@@ -248,12 +248,16 @@ export const profileApi = {
   getClientProfile: (userId: number) => api.get<any>(`/users/${userId}/`),
   updateClientProfile: (userId: number, data: any) => api.put<any>(`/users/${userId}/`, data),
 
+  // Professional search/listing
+  searchProfessionals: (params?: {search?: string; city?: string}) =>
+    api.get<any>(`/professionals/`, {params}),
+
   // Professional Profile
-  getProfessionalProfile: (userId: number) => api.get<any>(`/users/professionals/${userId}/`),
+  getProfessionalProfile: (profileId: number) => api.get<any>(`/professionals/${profileId}/`),
   updateProfessionalProfile: (userId: number, data: any) => api.put<any>(`/users/${userId}/`, data),
 
   // Place Profile
-  getPlaceProfile: (userId: number) => api.get<any>(`/users/places/${userId}/`),
+  getPlaceProfile: (profileId: number) => api.get<any>(`/places/${profileId}/`),
   updatePlaceProfile: (userId: number, data: any) => api.put<any>(`/users/${userId}/`, data),
 };
 
@@ -342,7 +346,8 @@ export const profileCustomizationApi = {
   updatePublicProfile: async (data: any) => {
     const profileResponse = await profileCustomizationApi.getProfileImages();
     const profileId = profileResponse.data.id;
-    return api.put<any>(`/public-profiles/${profileId}/`, data);
+    // Use PATCH for partial updates to avoid 400 when not sending required fields for PUT
+    return api.patch<any>(`/public-profiles/${profileId}/`, data);
   },
 };
 
@@ -845,35 +850,39 @@ export type PlaceProfessionalLink = {
 export const linkApi = {
   // List links for a place (default ACCEPTED)
   listPlaceLinks: (placeId: number, status: "INVITED" | "ACCEPTED" | "REJECTED" | "REMOVED" | undefined = "ACCEPTED") =>
-    api.get<PlaceProfessionalLink[]>(`/users/places/${placeId}/links/`, {
-      params: status ? {status} : undefined,
+    api.get<PlaceProfessionalLink[]>(`/links/`, {
+      params: {
+        ...(status ? {status} : {}),
+        place_id: placeId,
+      },
     }),
   // List links for current user (professional) or all for place with optional place_id
   listMyLinks: (params?: {status?: "INVITED" | "ACCEPTED" | "REJECTED" | "REMOVED"; place_id?: number}) =>
-    api.get<PlaceProfessionalLink[]>('/users/links/', {params}),
+    api.get<PlaceProfessionalLink[]>('/links/', {params}),
 
   // Invite professional to a place (place owner only)
   inviteProfessionalToPlace: (placeId: number, professionalId: number, notes?: string) =>
-    api.post<PlaceProfessionalLink>(`/users/places/${placeId}/links/`, {
+    api.post<PlaceProfessionalLink>(`/links/`, {
+      place_id: placeId,
       professional_id: professionalId,
       notes,
     }),
 
   // Accept an invite (professional only)
-  acceptInvite: (linkId: number) => api.post<PlaceProfessionalLink>(`/users/links/${linkId}/accept/`),
+  acceptInvite: (linkId: number) => api.post<PlaceProfessionalLink>(`/links/${linkId}/accept/`),
 
   // Reject an invite (professional only)
-  rejectInvite: (linkId: number) => api.post<PlaceProfessionalLink>(`/users/links/${linkId}/reject/`),
+  rejectInvite: (linkId: number) => api.post<PlaceProfessionalLink>(`/links/${linkId}/reject/`),
 
   // Remove a link (place owner only, soft delete)
-  removeLink: (linkId: number) => api.delete(`/users/links/${linkId}/`),
+  removeLink: (linkId: number) => api.delete(`/links/${linkId}/`),
 
   // Get per-link schedule
-  getLinkSchedule: (linkId: number) => api.get<LinkedAvailabilitySchedule[]>(`/users/links/${linkId}/schedule/`),
+  getLinkSchedule: (linkId: number) => api.get<LinkedAvailabilitySchedule[]>(`/links/${linkId}/schedule/`),
 
   // Set per-link schedule (bulk replace)
   setLinkSchedule: (linkId: number, schedule: LinkedAvailabilitySchedule[]) =>
-    api.post<LinkedAvailabilitySchedule[]>(`/users/links/${linkId}/schedule/`, schedule),
+    api.post<LinkedAvailabilitySchedule[]>(`/links/${linkId}/schedule/`, schedule),
 };
 
 // Token management utilities

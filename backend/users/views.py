@@ -218,6 +218,8 @@ class ProfessionalProfileViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(
                 models.Q(name__icontains=search) |
                 models.Q(last_name__icontains=search) |
+                models.Q(user__email__icontains=search) |
+                models.Q(user__username__icontains=search) |
                 models.Q(city__icontains=search) |
                 models.Q(bio__icontains=search)
             )

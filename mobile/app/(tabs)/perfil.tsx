@@ -515,6 +515,58 @@ export default function Perfil() {
               />
             </TouchableOpacity>
 
+            {/* Equipo / Profesionales vinculados - Only for PLACE */}
+            {user?.role === "PLACE" && (
+              <TouchableOpacity
+                style={[
+                  styles.personalizarTabCard,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                  },
+                ]}
+                onPress={() => router.push("/links")}
+                activeOpacity={0.8}>
+                <View
+                  style={[
+                    styles.personalizarTabIconWrapper,
+                    {
+                      backgroundColor: colors.muted,
+                    },
+                  ]}>
+                  <Ionicons
+                    name="people"
+                    color={colors.mutedForeground}
+                    size={24}
+                  />
+                </View>
+                <View style={styles.personalizarTabCardContent}>
+                  <Text
+                    style={[
+                      styles.personalizarTabCardTitle,
+                      {
+                        color: colors.foreground,
+                        fontWeight: "600",
+                      },
+                    ]}>
+                    Equipo
+                  </Text>
+                  <Text
+                    style={[
+                      styles.personalizarTabCardDescription,
+                      {color: colors.mutedForeground},
+                    ]}>
+                    Vincula profesionales a tu establecimiento
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  color={colors.mutedForeground}
+                  size={20}
+                />
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={[
                 styles.personalizarTabCard,
@@ -705,6 +757,7 @@ const styles = StyleSheet.create({
   smallHeaderButton: {
     padding: 6,
     marginLeft: 8,
+    marginRight: 12,
   },
   headerButton: {
     padding: 8,
