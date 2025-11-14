@@ -61,6 +61,7 @@ apiClient.interceptors.request.use(
       method: config.method,
       baseURL: config.baseURL,
       fullURL: `${config.baseURL}${config.url}`,
+      params: config.params,
       hasAuth: !!config.headers.Authorization,
       isFormData: config.data instanceof FormData,
     });
@@ -341,6 +342,21 @@ export const profileCustomizationApi = {
   // Availability Schedule
   getAvailabilitySchedule: () => api.get<any>(`/profile/availability/`),
   updateAvailabilitySchedule: (data: any) => api.post<any>(`/profile/availability/`, data),
+  
+  // Public availability endpoints
+  getPublicAvailability: (providerType: 'professional' | 'place', providerId: number) =>
+    api.get<any>(`/availability/public/`, {
+      params: {provider_type: providerType, provider_id: providerId},
+    }),
+  getAvailableSlots: (providerType: 'professional' | 'place', providerId: number, date: string, serviceId?: number) =>
+    api.get<any>(`/availability/slots/`, {
+      params: {
+        provider_type: providerType,
+        provider_id: providerId,
+        date,
+        ...(serviceId ? {service_id: serviceId} : {}),
+      },
+    }),
 
   // PublicProfile update (including coordinates)
   updatePublicProfile: async (data: any) => {
@@ -860,6 +876,15 @@ export const linkApi = {
   listMyLinks: (params?: {status?: "INVITED" | "ACCEPTED" | "REJECTED" | "REMOVED"; place_id?: number}) =>
     api.get<PlaceProfessionalLink[]>('/links/', {params}),
 
+  // List links for a specific professional (by professional_id)
+  listProfessionalLinks: (professionalId: number, status: "INVITED" | "ACCEPTED" | "REJECTED" | "REMOVED" | undefined = "ACCEPTED") =>
+    api.get<PlaceProfessionalLink[]>('/links/', {
+      params: {
+        ...(status ? {status} : {}),
+        professional_id: professionalId,
+      },
+    }),
+
   // Invite professional to a place (place owner only)
   inviteProfessionalToPlace: (placeId: number, professionalId: number, notes?: string) =>
     api.post<PlaceProfessionalLink>(`/links/`, {
@@ -877,7 +902,16 @@ export const linkApi = {
   // Remove a link (place owner only, soft delete)
   removeLink: (linkId: number) => api.delete(`/links/${linkId}/`),
 
-  // Get per-link schedule
+  // Linked professional schedule management
+  getLinkedProfessionalSchedule: (linkId: number) => api.get<any>(`/links/${linkId}/schedule/`),
+  updateLinkedProfessionalSchedule: (linkId: number, scheduleData: any) =>
+    api.post<any>(`/links/${linkId}/schedule/`, scheduleData),
+  
+  // Get all schedules for a place (including linked professionals)
+  getPlaceSchedules: (placeId: number) =>
+    api.get<any>(`/links/place-schedules/`, {params: {place_id: placeId}}),
+  
+  // Get per-link schedule (legacy - use getLinkedProfessionalSchedule)
   getLinkSchedule: (linkId: number) => api.get<LinkedAvailabilitySchedule[]>(`/links/${linkId}/schedule/`),
 
   // Set per-link schedule (bulk replace)

@@ -16,7 +16,7 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useState, useEffect} from "react";
 import {useRouter} from "expo-router";
-import {providerApi, profileCustomizationApi} from "@/lib/api";
+import {providerApi, profileCustomizationApi, linkApi, PlaceProfessionalLink} from "@/lib/api";
 import {PlaceProfile} from "@/types/global";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
@@ -35,7 +35,7 @@ export const ViewPlaceProfile = ({placeId, onClose}: ViewPlaceProfileProps) => {
   const [profile, setProfile] = useState<PlaceProfile | null>(null);
   const [services, setServices] = useState<any[]>([]);
   const [images, setImages] = useState<any[]>([]);
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [linkedProfessionals, setLinkedProfessionals] = useState<PlaceProfessionalLink[]>([]);
   const [availability, setAvailability] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +67,21 @@ export const ViewPlaceProfile = ({placeId, onClose}: ViewPlaceProfileProps) => {
       } catch (customizationError) {
         console.log("Customization data not available:", customizationError);
         // Continue without customization data
+      }
+
+      // Load linked professionals
+      try {
+        // Try to get place user ID from profile
+        const placeUserId = (profileResponse.data as any)?.user_id || (profileResponse.data as any)?.user?.id;
+        if (placeUserId) {
+          // Get place profile ID to use with listPlaceLinks
+          const placeProfileId = (profileResponse.data as any)?.id || placeId;
+          const linksResponse = await linkApi.listPlaceLinks(placeProfileId, "ACCEPTED");
+          setLinkedProfessionals(Array.isArray(linksResponse.data) ? linksResponse.data : []);
+        }
+      } catch (linksError) {
+        console.log("Linked professionals not available:", linksError);
+        setLinkedProfessionals([]);
       }
     } catch (err: any) {
       console.error("Error loading place data:", err);
@@ -346,39 +361,67 @@ export const ViewPlaceProfile = ({placeId, onClose}: ViewPlaceProfileProps) => {
       </View>
 
       {/* Team Section */}
-      {teamMembers.length > 0 && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Nuestro Equipo</Text>
-          {teamMembers.map((member) => (
-            <TouchableOpacity
-              key={member.id}
-              style={[styles.teamCard, {backgroundColor: colors.card, borderColor: colors.border}]}
-              activeOpacity={0.7}>
-              <View style={[styles.teamAvatar, {backgroundColor: colors.primary}]}>
-                <Text style={styles.teamAvatarText}>
-                  {member.name.substring(0, 2).toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.teamInfo}>
-                <Text style={[styles.teamName, {color: colors.foreground}]}>{member.name}</Text>
-                <View style={styles.teamMeta}>
-                  <View style={[styles.teamRoleBadge, {backgroundColor: colors.primary + "15"}]}>
-                    <Ionicons name="briefcase" color={colors.primary} size={10} />
-                    <Text style={[styles.teamRole, {color: colors.primary}]}>{member.role}</Text>
-                  </View>
-                  <View style={styles.teamRating}>
-                    <Ionicons name="star" color="#fbbf24" size={12} />
-                    <Text style={[styles.teamRatingText, {color: colors.foreground}]}>
-                      {member.rating || "5.0"}
-                    </Text>
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Nuestro Equipo</Text>
+        {linkedProfessionals.length > 0 ? (
+          linkedProfessionals.map((link) => {
+            const getInitials = (name: string) => {
+              const words = name.split(" ");
+              if (words.length >= 2) {
+                return `${words[0].charAt(0)}${words[1].charAt(0)}`.toUpperCase();
+              }
+              return name.substring(0, 2).toUpperCase();
+            };
+            return (
+              <TouchableOpacity
+                key={link.id}
+                style={[styles.teamCard, {backgroundColor: colors.card, borderColor: colors.border}]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  router.push({
+                    pathname: "/view-professional-profile",
+                    params: {professionalId: link.professional_id.toString()},
+                  });
+                }}>
+                <View style={[styles.teamAvatar, {backgroundColor: colors.primary}]}>
+                  <Text style={styles.teamAvatarText}>
+                    {getInitials(link.professional_name)}
+                  </Text>
+                </View>
+                <View style={styles.teamInfo}>
+                  <Text style={[styles.teamName, {color: colors.foreground}]}>
+                    {link.professional_name}
+                  </Text>
+                  <View style={styles.teamMeta}>
+                    <View style={[styles.teamRoleBadge, {backgroundColor: colors.primary + "15"}]}>
+                      <Ionicons name="person" color={colors.primary} size={10} />
+                      <Text style={[styles.teamRole, {color: colors.primary}]}>Profesional</Text>
+                    </View>
+                    <View style={styles.linkedBadge}>
+                      <Ionicons name="checkmark-circle" color="#10b981" size={12} />
+                      <Text style={[styles.linkedStatus, {color: colors.mutedForeground}]}>
+                        Vinculado
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-              <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+                <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+              </TouchableOpacity>
+            );
+          })
+        ) : (
+          <View
+            style={[styles.emptyCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+            <Ionicons name="people-outline" color={colors.mutedForeground} size={48} />
+            <Text style={[styles.emptyTitle, {color: colors.foreground}]}>
+              No hay profesionales en el equipo
+            </Text>
+            <Text style={[styles.emptyText, {color: colors.mutedForeground}]}>
+              Este establecimiento aún no tiene profesionales vinculados
+            </Text>
+          </View>
+        )}
+      </View>
 
       {/* Portfolio Section */}
       {images.length > 0 && (
@@ -806,6 +849,15 @@ const styles = StyleSheet.create({
   teamRatingText: {
     fontSize: 12,
     fontWeight: "600",
+  },
+  linkedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  linkedStatus: {
+    fontSize: 11,
+    fontWeight: "500",
   },
   portfolioScroll: {
     marginHorizontal: -16,

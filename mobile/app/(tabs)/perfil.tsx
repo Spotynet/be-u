@@ -314,7 +314,7 @@ export default function Perfil() {
               paddingTop: Math.max(insets.top + 8, 16),
             },
           ]}>
-        {/* Row 1: avatar, name/role, settings */}
+        {/* Row 1: avatar + name/role (no settings here to avoid clipping on real phones) */}
         <View style={styles.headerTopRow}>
           <View style={styles.headerProfile}>
             <View style={[styles.headerAvatar, {backgroundColor: avatarColor}]}> 
@@ -372,15 +372,9 @@ export default function Perfil() {
             )}
             </View>
           </View>
-          <TouchableOpacity
-            style={styles.smallHeaderButton}
-            onPress={() => router.push("/settings")}
-            activeOpacity={0.7}>
-            <Ionicons name="settings-outline" color={colors.foreground} size={20} />
-          </TouchableOpacity>
         </View>
 
-        {/* Row 2: action buttons */}
+        {/* Row 2: action buttons + settings (moved here for better visibility on devices) */}
         <View style={styles.headerActionRow}>
               {/* Personalizar Perfil Button - Only show for PROFESSIONAL and PLACE */}
               {(user?.role === "PROFESSIONAL" || user?.role === "PLACE") && (
@@ -406,9 +400,9 @@ export default function Perfil() {
 
               {/* Ver como cliente Button - Only show for PROFESSIONAL and PLACE roles */}
               {(user?.role === "PROFESSIONAL" || user?.role === "PLACE") && (
-                <TouchableOpacity
-                  style={[styles.previewButton, {borderColor: colors.primary, borderWidth: 1}]}
-                  onPress={() => {
+              <TouchableOpacity
+                style={[styles.previewButton, {borderColor: colors.primary, borderWidth: 1}]}
+                onPress={() => {
                   // Navigate to unified public profile preview
                   console.log("Preview public profile pressed");
                   const publicId = publicProfileId;
@@ -438,6 +432,14 @@ export default function Perfil() {
                 <Text style={[styles.previewButtonText, {color: colors.primary}]}>Ver como cliente</Text>
               </TouchableOpacity>
               )}
+
+              {/* Settings button moved here so it's always visible on real phones */}
+              <TouchableOpacity
+                style={[styles.settingsActionButton, {borderColor: colors.border}]}
+                onPress={() => router.push("/settings")}
+                activeOpacity={0.7}>
+                <Ionicons name="settings-outline" color={colors.foreground} size={16} />
+              </TouchableOpacity>
         </View>
         {/* Row 3: (reserved for future/status line) */}
         <View style={styles.headerActions} />
@@ -700,7 +702,7 @@ const styles = StyleSheet.create({
   headerTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-start", // keep avatar + text aligned to the left so they don't clash with safe areas
   },
   headerProfile: {
     flexDirection: "row",
@@ -758,6 +760,16 @@ const styles = StyleSheet.create({
     padding: 6,
     marginLeft: 8,
     marginRight: 12,
+  },
+  settingsActionButton: {
+    marginLeft: "auto",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerButton: {
     padding: 8,

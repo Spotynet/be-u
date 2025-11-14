@@ -26,13 +26,41 @@ class PlaceProfessionalLinkViewSet(viewsets.ModelViewSet):
     ).all()
     serializer_class = PlaceProfessionalLinkSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None
     
+    def get_permissions(self):
+        if self.action == 'list':
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
     def get_queryset(self):
         user = self.request.user
         qs = super().get_queryset()
         status_param = self.request.query_params.get('status')
         place_id = self.request.query_params.get('place_id')
+        professional_user_id = self.request.query_params.get('professional_id')
         
+        # Public filtering by professional (by professional.user_id) or place
+        # This is used for public profile pages (no auth required)
+        if not user.is_authenticated:
+            if place_id:
+                filtered = qs.filter(place_id=place_id)
+                filtered = filtered.filter(status=status_param or PlaceProfessionalLink.Status.ACCEPTED)
+                return filtered
+            if professional_user_id:
+                filtered = qs.filter(professional__user_id=professional_user_id)
+                filtered = filtered.filter(status=status_param or PlaceProfessionalLink.Status.ACCEPTED)
+                return filtered
+            return PlaceProfessionalLink.objects.none()
+
+        # For authenticated users, allow explicit professional_user_id filtering as well.
+        # This is primarily for read-only public profile views.
+        if professional_user_id:
+            qs = qs.filter(professional__user_id=professional_user_id)
+            if status_param:
+                qs = qs.filter(status=status_param)
+            return qs
+
         if user.is_staff:
             pass  # full access
         elif user.role == User.Role.PLACE and hasattr(user, 'place_profile'):
@@ -252,11 +280,11 @@ class PlaceProfessionalLinkViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['get', 'post'], url_path='schedule')
     def schedule(self, request, pk=None):
-        """Get or set schedule for a specific link."""
+        """Get or set schedule for a specific link. Professionals can now manage their own linked schedules."""
         link: PlaceProfessionalLink = self.get_object()
         user = request.user
         
-        # Permissions: place owner can write; place/pro (accepted) can read
+        # Permissions: place owner can write; place/pro (accepted) can read and write
         profile_id = getattr(user, 'professional_profile_id', None)
         if profile_id is None and user.role == User.Role.PROFESSIONAL:
             defaults = {
@@ -270,7 +298,11 @@ class PlaceProfessionalLinkViewSet(viewsets.ModelViewSet):
             professional_profile, _created = ProfessionalProfile.objects.get_or_create(user=user, defaults=defaults)
             profile_id = professional_profile.id
 
-        can_write = user.role == User.Role.PLACE and (link.place.user_id == user.id or (link.place.owner_id and link.place.owner_id == user.id))
+        # Place owner can always write
+        place_can_write = user.role == User.Role.PLACE and (link.place.user_id == user.id or (link.place.owner_id and link.place.owner_id == user.id))
+        # Professional can write their own linked schedule
+        professional_can_write = user.role == User.Role.PROFESSIONAL and profile_id == link.professional_id
+        can_write = place_can_write or professional_can_write
         can_read = can_write or (user.role == User.Role.PROFESSIONAL and profile_id == link.professional_id)
         
         if request.method == 'GET':
@@ -307,5 +339,78 @@ class PlaceProfessionalLinkViewSet(viewsets.ModelViewSet):
                 )
         
         return Response(LinkedAvailabilityScheduleSerializer(created_schedules, many=True).data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['get'], url_path='place-schedules')
+    def place_schedules(self, request):
+        """Get all schedules for a place (including linked professionals)"""
+        place_id = request.query_params.get('place_id')
+        if not place_id:
+            return Response({'detail': 'place_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            place = PlaceProfile.objects.get(id=place_id)
+        except PlaceProfile.DoesNotExist:
+            return Response({'detail': 'Place not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get place's own schedule
+        from django.contrib.contenttypes.models import ContentType
+        from .profile_models import AvailabilitySchedule, TimeSlot
+        ct = ContentType.objects.get_for_model(PlaceProfile)
+        place_schedules = AvailabilitySchedule.objects.filter(
+            content_type=ct,
+            object_id=place_id
+        ).order_by('day_of_week')
+        
+        place_schedule_data = []
+        for schedule in place_schedules:
+            slots = TimeSlot.objects.filter(schedule=schedule, is_active=True).order_by('start_time')
+            place_schedule_data.append({
+                'day_of_week': schedule.day_of_week,
+                'day_name': schedule.get_day_of_week_display(),
+                'is_available': schedule.is_available,
+                'time_slots': [
+                    {
+                        'start_time': slot.start_time.strftime('%H:%M'),
+                        'end_time': slot.end_time.strftime('%H:%M')
+                    }
+                    for slot in slots
+                ]
+            })
+        
+        # Get linked professionals' schedules
+        links = PlaceProfessionalLink.objects.filter(
+            place=place,
+            status=PlaceProfessionalLink.Status.ACCEPTED
+        )
+        
+        linked_schedules = []
+        for link in links:
+            prof_schedules = LinkedAvailabilitySchedule.objects.filter(link=link).order_by('day_of_week')
+            prof_schedule_data = []
+            for schedule in prof_schedules:
+                slots = LinkedTimeSlot.objects.filter(schedule=schedule, is_active=True).order_by('start_time')
+                prof_schedule_data.append({
+                    'day_of_week': schedule.day_of_week,
+                    'day_name': schedule.get_day_of_week_display(),
+                    'is_available': schedule.is_available,
+                    'time_slots': [
+                        {
+                            'start_time': slot.start_time.strftime('%H:%M'),
+                            'end_time': slot.end_time.strftime('%H:%M')
+                        }
+                        for slot in slots
+                    ]
+                })
+            
+            linked_schedules.append({
+                'professional_id': link.professional_id,
+                'professional_name': f"{link.professional.name} {link.professional.last_name}".strip(),
+                'schedules': prof_schedule_data
+            })
+        
+        return Response({
+            'place_schedules': place_schedule_data,
+            'linked_professionals': linked_schedules
+        })
 
 

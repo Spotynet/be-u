@@ -17,10 +17,11 @@ import {useState, useEffect, useRef} from "react";
 import {useRouter, useLocalSearchParams} from "expo-router";
 import {useNavigation} from "@/hooks/useNavigation";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
-import {providerApi, postApi, reviewApi, serviceApi} from "@/lib/api";
+import {providerApi, postApi, reviewApi, serviceApi, linkApi, PlaceProfessionalLink, api} from "@/lib/api";
 import {BookingFlow} from "@/components/booking/BookingFlow";
 import {errorUtils} from "@/lib/api";
 import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from "@/constants/categories";
+import {ServiceDetailModal} from "@/components/service/ServiceDetailModal";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -35,9 +36,11 @@ export default function ProfileDetailScreen() {
   const [posts, setPosts] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
+  const [linkedProfessionals, setLinkedProfessionals] = useState<PlaceProfessionalLink[]>([]);
+  const [linkedPlaces, setLinkedPlaces] = useState<PlaceProfessionalLink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"services" | "reviews">("services");
+  const [activeTab, setActiveTab] = useState<"services" | "reviews" | "posts">("services");
   const [showBooking, setShowBooking] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -47,15 +50,16 @@ export default function ProfileDetailScreen() {
     try {
       setIsLoading(true);
       setError(null);
+      console.log("📋 ====== FETCHING PROFILE ======");
+      console.log("📋 Profile ID:", id);
       const profileResponse = await providerApi.getPublicProfile(Number(id));
       const profileData = profileResponse.data;
+      console.log("📋 Profile type:", profileData.profile_type);
+      console.log("📋 Full profile data:", profileData);
       setProfile(profileData);
 
-      // Fetch related data (using public APIs that don't require authentication)
-      const [postsResponse, reviewsResponse] = await Promise.all([
-        postApi.getPosts({user: profileData.user}).catch(() => ({data: {results: []}})),
-        reviewApi.getReviews({to_public_profile: Number(id)}).catch(() => ({data: {results: []}})),
-      ]);
+      // Fetch reviews (same for all profile types)
+      const reviewsResponse = await reviewApi.getReviews({to_public_profile: Number(id)}).catch(() => ({data: {results: []}}));
 
       // Fetch services from the public profile data (accessible to everyone)
       // If not available in public profile, try the service API (now public for list/retrieve)
@@ -89,9 +93,266 @@ export default function ProfileDetailScreen() {
         }
       }
 
-      setPosts(postsResponse.data.results || []);
       setReviews(reviewsResponse.data.results || []);
       setServices(servicesData);
+
+      // Load linked professionals and posts if this is a place profile
+      console.log("📋 Checking profile type for posts loading...");
+      console.log("📋 profileData.profile_type === 'PLACE':", profileData.profile_type === "PLACE");
+      console.log("📋 profileData.profile_type === 'PROFESSIONAL':", profileData.profile_type === "PROFESSIONAL");
+      
+      if (profileData.profile_type === "PLACE") {
+        console.log("📋 Loading data for PLACE profile");
+        try {
+          // Try to get PlaceProfile by searching places endpoint with user_id
+          // PublicProfile.user -> User.place_profile -> PlaceProfile.id
+          const userId = profileData.user;
+          if (userId) {
+            try {
+              // Try to get PlaceProfile by listing places and finding the one with matching user_id
+              // Or try using the places endpoint with the PublicProfile name to find the PlaceProfile
+              const placesResponse = await api.get<any>(`/places/`, {
+                params: { search: profileData.name }
+              });
+              const places = Array.isArray(placesResponse.data?.results) 
+                ? placesResponse.data.results 
+                : Array.isArray(placesResponse.data) 
+                  ? placesResponse.data 
+                  : [];
+              
+              // Find the place with matching user_id
+              const matchingPlace = places.find((place: any) => place.user_id === userId);
+              
+              if (matchingPlace?.id) {
+                console.log("📋 Found PlaceProfile ID:", matchingPlace.id);
+                const linksResponse = await linkApi.listPlaceLinks(matchingPlace.id, "ACCEPTED");
+                console.log("📋 Linked professionals response:", linksResponse.data);
+                const linkedPros = Array.isArray(linksResponse.data) ? linksResponse.data : [];
+                setLinkedProfessionals(linkedPros);
+
+                // Load posts from place and all linked professionals
+                // First, get user_ids for all linked professionals
+                const professionalUserIds = await Promise.all(
+                  linkedPros.map(async (link: PlaceProfessionalLink) => {
+                    try {
+                      const profResponse = await profileApi.getProfessionalProfile(link.professional_id);
+                      return profResponse.data?.user || profResponse.data?.user_id || null;
+                    } catch (error) {
+                      console.log(`Error getting user_id for professional ${link.professional_id}:`, error);
+                      return null;
+                    }
+                  })
+                );
+
+                const allPostPromises = [
+                  // Posts from the place itself
+                  postApi.getPosts({author: userId}).catch(() => ({data: {results: []}})),
+                  // Posts from each linked professional (using their user_id)
+                  ...professionalUserIds
+                    .filter((uid): uid is number => uid !== null)
+                    .map((professionalUserId: number) =>
+                      postApi.getPosts({author: professionalUserId}).catch(() => ({data: {results: []}}))
+                    ),
+                ];
+
+                const allPostsResponses = await Promise.all(allPostPromises);
+                // Combine all posts and sort by created_at (most recent first)
+                const allPosts = allPostsResponses
+                  .flatMap((response) => response.data?.results || [])
+                  .sort((a: any, b: any) => {
+                    const dateA = new Date(a.created_at || a.created || 0).getTime();
+                    const dateB = new Date(b.created_at || b.created || 0).getTime();
+                    return dateB - dateA; // Most recent first
+                  });
+                setPosts(allPosts);
+              } else {
+                console.log("📋 PlaceProfile not found, trying direct link API call");
+                // Fallback: try using PublicProfile id directly
+                const placeProfileId = profileData.id || Number(id);
+                console.log("📋 Trying with PublicProfile ID as fallback:", placeProfileId);
+                const linksResponse = await linkApi.listPlaceLinks(placeProfileId, "ACCEPTED");
+                const linkedPros = Array.isArray(linksResponse.data) ? linksResponse.data : [];
+                setLinkedProfessionals(linkedPros);
+
+                // Load posts from place and all linked professionals
+                // First, get user_ids for all linked professionals
+                const professionalUserIds = await Promise.all(
+                  linkedPros.map(async (link: PlaceProfessionalLink) => {
+                    try {
+                      const profResponse = await profileApi.getProfessionalProfile(link.professional_id);
+                      return profResponse.data?.user || profResponse.data?.user_id || null;
+                    } catch (error) {
+                      console.log(`Error getting user_id for professional ${link.professional_id}:`, error);
+                      return null;
+                    }
+                  })
+                );
+
+                const allPostPromises = [
+                  postApi.getPosts({author: userId}).catch(() => ({data: {results: []}})),
+                  ...professionalUserIds
+                    .filter((uid): uid is number => uid !== null)
+                    .map((professionalUserId: number) =>
+                      postApi.getPosts({author: professionalUserId}).catch(() => ({data: {results: []}}))
+                    ),
+                ];
+                const allPostsResponses = await Promise.all(allPostPromises);
+                const allPosts = allPostsResponses
+                  .flatMap((response) => response.data?.results || [])
+                  .sort((a: any, b: any) => {
+                    const dateA = new Date(a.created_at || a.created || 0).getTime();
+                    const dateB = new Date(b.created_at || b.created || 0).getTime();
+                    return dateB - dateA;
+                  });
+                setPosts(allPosts);
+              }
+            } catch (searchError) {
+              console.log("📋 Error searching PlaceProfile:", searchError);
+              // Fallback: try using PublicProfile id directly
+              const placeProfileId = profileData.id || Number(id);
+              console.log("📋 Trying with PublicProfile ID as fallback:", placeProfileId);
+              const linksResponse = await linkApi.listPlaceLinks(placeProfileId, "ACCEPTED");
+              const linkedPros = Array.isArray(linksResponse.data) ? linksResponse.data : [];
+              setLinkedProfessionals(linkedPros);
+
+              // Load posts from place and all linked professionals
+              // First, get user_ids for all linked professionals
+              const professionalUserIds = await Promise.all(
+                linkedPros.map(async (link: PlaceProfessionalLink) => {
+                  try {
+                    const profResponse = await profileApi.getProfessionalProfile(link.professional_id);
+                    return profResponse.data?.user || profResponse.data?.user_id || null;
+                  } catch (error) {
+                    console.log(`Error getting user_id for professional ${link.professional_id}:`, error);
+                    return null;
+                  }
+                })
+              );
+
+              const allPostPromises = [
+                postApi.getPosts({author: userId}).catch(() => ({data: {results: []}})),
+                ...professionalUserIds
+                  .filter((uid): uid is number => uid !== null)
+                  .map((professionalUserId: number) =>
+                    postApi.getPosts({author: professionalUserId}).catch(() => ({data: {results: []}}))
+                  ),
+              ];
+              const allPostsResponses = await Promise.all(allPostPromises);
+              const allPosts = allPostsResponses
+                .flatMap((response) => response.data?.results || [])
+                .sort((a: any, b: any) => {
+                  const dateA = new Date(a.created_at || a.created || 0).getTime();
+                  const dateB = new Date(b.created_at || b.created || 0).getTime();
+                  return dateB - dateA;
+                });
+              setPosts(allPosts);
+            }
+          } else {
+            console.log("📋 No user ID found in profileData");
+            setLinkedProfessionals([]);
+            // Still load posts from the place
+            const userId = profileData.user || profileData.user_id;
+            if (userId) {
+              const postsResponse = await postApi.getPosts({author: userId}).catch((error) => {
+                console.error("📋 Error loading posts:", error);
+                return {data: {results: []}};
+              });
+              setPosts(postsResponse.data?.results || postsResponse.data || []);
+            } else {
+              setPosts([]);
+            }
+          }
+        } catch (linksError) {
+          console.log("📋 Linked professionals error:", linksError);
+          setLinkedProfessionals([]);
+          // Still load posts from the place
+          const userId = profileData.user || profileData.user_id;
+          if (userId) {
+            const postsResponse = await postApi.getPosts({author: userId}).catch((error) => {
+              console.error("📋 Error loading posts:", error);
+              return {data: {results: []}};
+            });
+            setPosts(postsResponse.data?.results || postsResponse.data || []);
+          } else {
+            setPosts([]);
+          }
+        }
+      } else if (profileData.profile_type === "PROFESSIONAL") {
+        // For professional profiles, use same feed endpoint as Home
+        // and filter client-side by the USER who created the post
+        console.log("📋 ====== LOADING POSTS FOR PROFESSIONAL (FEED FILTER BY USER) ======");
+        const userId = profileData.user; // this is the User.id (e.g. 19)
+        console.log("📋 PublicProfile ID:", profileData.id);
+        console.log("📋 User ID (author id to match):", userId);
+
+        try {
+          const res = await postApi.getPosts(); // same as Home
+          const allPosts = res.data?.results || res.data || [];
+          console.log("📋 Total posts from feed:", allPosts.length);
+
+          // Log a small sample of posts to inspect author data
+          console.log(
+            "📋 Sample posts:",
+            allPosts.slice(0, 5).map((p: any) => ({
+              id: p.id,
+              author_id: p.author?.id,
+              author_email: p.author?.email,
+              author_profile_id: p.author_profile_id,
+              author_display_name: p.author_display_name,
+            })),
+          );
+
+          const profilePosts = allPosts.filter((post: any) => {
+            // Filter by the user who created the post
+            return post.author && post.author.id === userId;
+          });
+
+          console.log("📋 Posts for this user:", profilePosts.length);
+          setPosts(profilePosts);
+        } catch (err) {
+          console.error("📋 Error fetching posts for professional profile:", err);
+          setPosts([]);
+        }
+        console.log("📋 ====== FINISHED LOADING POSTS (FEED FILTER BY USER) ======");
+      }
+
+      // Load linked places if this is a professional profile
+      if (profileData.profile_type === "PROFESSIONAL") {
+        try {
+          const professionalUserId = profileData.user_id || profileData.user || Number(id);
+          console.log("📍 Loading links for professional user_id:", professionalUserId);
+          const linksResponse = await linkApi.listProfessionalLinks(professionalUserId, "ACCEPTED");
+          const rawLinks = Array.isArray(linksResponse.data) ? linksResponse.data : [];
+          console.log("📍 Raw links from API:", rawLinks);
+
+          // Extra safety: filter on frontend by professional email/name to avoid showing wrong salon
+          const profEmail = (profileData.user_email || "").toLowerCase();
+          const profName = (profileData.name || "").toLowerCase().trim();
+
+          const filtered = rawLinks.filter((link: any) => {
+            const linkEmail = (link.professional_email || "").toLowerCase();
+            const linkName = (link.professional_name || "").toLowerCase().trim();
+
+            if (profEmail && linkEmail && linkEmail === profEmail) {
+              return true;
+            }
+            if (profName && linkName && linkName.includes(profName)) {
+              return true;
+            }
+            return false;
+          });
+
+          console.log(
+            "📍 Filtered links for this professional:",
+            filtered.map((l: any) => ({id: l.id, place: l.place_name, professional: l.professional_name})),
+          );
+
+          setLinkedPlaces(filtered);
+        } catch (linksError) {
+          console.log("Linked places not available:", linksError);
+          setLinkedPlaces([]);
+        }
+      }
 
       console.log("📋 Public Profile data:", JSON.stringify(profileData, null, 2));
       console.log("📋 Category:", profileData.category);
@@ -135,6 +396,9 @@ export default function ProfileDetailScreen() {
     return stars;
   };
 
+  const [selectedService, setSelectedService] = useState<any>(null);
+  const [serviceModalVisible, setServiceModalVisible] = useState(false);
+
   const renderServices = () => {
     if (services.length === 0) {
       return (
@@ -150,12 +414,17 @@ export default function ProfileDetailScreen() {
     return (
       <View style={styles.servicesContainer}>
         {services.map((service, index) => (
-          <View
+          <TouchableOpacity
             key={service.id || index}
             style={[
               styles.serviceCard,
               {backgroundColor: colors.background, borderColor: colors.border},
-            ]}>
+            ]}
+            activeOpacity={0.7}
+            onPress={() => {
+              setSelectedService(service);
+              setServiceModalVisible(true);
+            }}>
             <View style={styles.serviceImageContainer}>
               {service.image_url ? (
                 <Image source={{uri: service.image_url}} style={styles.serviceImage} />
@@ -182,9 +451,69 @@ export default function ProfileDetailScreen() {
                   ${service.price} MXN
                 </Text>
               </View>
+              {/* Availability indicator */}
+              {service.availability_summary && service.availability_summary.length > 0 && (
+                <View style={styles.availabilityIndicator}>
+                  <Ionicons name="calendar-outline" color={colors.primary} size={14} />
+                  <Text style={[styles.availabilityText, {color: colors.primary}]}>
+                    Disponible {service.availability_summary.length} días/semana
+                  </Text>
+                </View>
+              )}
             </View>
-          </View>
+          </TouchableOpacity>
         ))}
+      </View>
+    );
+  };
+
+  const renderPosts = () => {
+    if (posts.length === 0) {
+      return (
+        <View style={styles.noContentContainer}>
+          <Ionicons name="images-outline" size={60} color={colors.mutedForeground} />
+          <Text style={[styles.noContentText, {color: colors.mutedForeground}]}>
+            No hay publicaciones disponibles
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.postsSection}>
+        <View style={styles.postsGrid}>
+          {posts.map((post, index) => (
+            <TouchableOpacity
+              key={post.id || index}
+              style={[styles.postCard, {backgroundColor: colors.card}]}
+              activeOpacity={0.7}
+              onPress={() => {
+                // Navigate to post detail if needed
+                console.log("Post pressed:", post.id);
+              }}>
+              {post.image_url || (post.media && post.media.length > 0) ? (
+                <Image
+                  source={{uri: post.image_url || post.media[0]}}
+                  style={styles.postImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.postImagePlaceholder, {backgroundColor: colors.muted + "20"}]}>
+                  <Ionicons name="image-outline" size={30} color={colors.mutedForeground} />
+                </View>
+              )}
+              {(post.caption || post.text) && (
+                <View style={styles.postCaptionContainer}>
+                  <Text
+                    style={[styles.postCaption, {color: colors.mutedForeground}]}
+                    numberOfLines={2}>
+                    {post.caption || post.text}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
     );
   };
@@ -419,6 +748,121 @@ export default function ProfileDetailScreen() {
 
           </View>
 
+          {/* Team Section - Only for Places */}
+          {profile.profile_type === "PLACE" && (
+            <View style={styles.teamSection}>
+              <Text style={[styles.teamSectionTitle, {color: colors.foreground}]}>Nuestro Equipo</Text>
+              {linkedProfessionals.length > 0 ? (
+                <View style={styles.teamContainer}>
+                  {linkedProfessionals.map((link) => {
+                    const getInitials = (name: string) => {
+                      const words = name.split(" ");
+                      if (words.length >= 2) {
+                        return `${words[0].charAt(0)}${words[1].charAt(0)}`.toUpperCase();
+                      }
+                      return name.substring(0, 2).toUpperCase();
+                    };
+                    return (
+                      <TouchableOpacity
+                        key={link.id}
+                        style={[styles.teamCard, {backgroundColor: colors.card, borderColor: colors.border}]}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          router.push(`/profile/${link.professional_id}`);
+                        }}>
+                        <View style={[styles.teamAvatar, {backgroundColor: colors.primary}]}>
+                          <Text style={styles.teamAvatarText}>
+                            {getInitials(link.professional_name)}
+                          </Text>
+                        </View>
+                        <View style={styles.teamInfo}>
+                          <Text style={[styles.teamName, {color: colors.foreground}]}>
+                            {link.professional_name}
+                          </Text>
+                          <View style={styles.teamMeta}>
+                            <View style={[styles.teamRoleBadge, {backgroundColor: colors.primary + "15"}]}>
+                              <Ionicons name="person" color={colors.primary} size={10} />
+                              <Text style={[styles.teamRole, {color: colors.primary}]}>Profesional</Text>
+                            </View>
+                            <View style={styles.linkedBadge}>
+                              <Ionicons name="checkmark-circle" color="#10b981" size={12} />
+                              <Text style={[styles.linkedStatus, {color: colors.mutedForeground}]}>
+                                Vinculado
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                        <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={[styles.emptyTeamCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                  <Ionicons name="people-outline" color={colors.mutedForeground} size={48} />
+                  <Text style={[styles.emptyTeamTitle, {color: colors.foreground}]}>
+                    No hay profesionales en el equipo
+                  </Text>
+                  <Text style={[styles.emptyTeamText, {color: colors.mutedForeground}]}>
+                    Este establecimiento aún no tiene profesionales vinculados
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Linked Places Section - Only for Professionals */}
+          {profile.profile_type === "PROFESSIONAL" && (
+            <View style={styles.teamSection}>
+              <Text style={[styles.teamSectionTitle, {color: colors.foreground}]}>Trabaja en</Text>
+              {linkedPlaces.length > 0 ? (
+                <View style={styles.teamContainer}>
+                  {linkedPlaces.map((link) => (
+                    <TouchableOpacity
+                      key={link.id}
+                      style={[styles.teamCard, {backgroundColor: colors.card, borderColor: colors.border}]}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        router.push(`/profile/${link.place_id}`);
+                      }}>
+                      <View style={[styles.teamAvatar, {backgroundColor: colors.primary}]}>
+                        <Ionicons name="business" color="#ffffff" size={24} />
+                      </View>
+                      <View style={styles.teamInfo}>
+                        <Text style={[styles.teamName, {color: colors.foreground}]}>
+                          {link.place_name}
+                        </Text>
+                        <View style={styles.teamMeta}>
+                          <View style={[styles.teamRoleBadge, {backgroundColor: colors.primary + "15"}]}>
+                            <Ionicons name="business" color={colors.primary} size={10} />
+                            <Text style={[styles.teamRole, {color: colors.primary}]}>Establecimiento</Text>
+                          </View>
+                          <View style={styles.linkedBadge}>
+                            <Ionicons name="checkmark-circle" color="#10b981" size={12} />
+                            <Text style={[styles.linkedStatus, {color: colors.mutedForeground}]}>
+                              Vinculado
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <View style={[styles.emptyTeamCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                  <Ionicons name="business-outline" color={colors.mutedForeground} size={48} />
+                  <Text style={[styles.emptyTeamTitle, {color: colors.foreground}]}>
+                    No está vinculado a ningún lugar
+                  </Text>
+                  <Text style={[styles.emptyTeamText, {color: colors.mutedForeground}]}>
+                    Este profesional aún no está vinculado a ningún establecimiento
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Tab Navigation */}
           <View style={styles.tabsWrapper}>
             <View style={[styles.tabsContainer, {backgroundColor: colors.muted + "20"}]}>
@@ -460,6 +904,22 @@ export default function ProfileDetailScreen() {
                   Opiniones
                 </Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.tab,
+                  activeTab === "posts" && [styles.activeTab, {backgroundColor: colors.background}],
+                ]}
+                onPress={() => setActiveTab("posts")}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    {color: colors.mutedForeground},
+                    activeTab === "posts" && [styles.activeTabText, {color: colors.foreground}],
+                  ]}
+                  numberOfLines={1}>
+                  Publicaciones
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -467,49 +927,8 @@ export default function ProfileDetailScreen() {
           <View style={styles.tabContent}>
             {activeTab === "services" && renderServices()}
             {activeTab === "reviews" && renderReviews()}
+            {activeTab === "posts" && renderPosts()}
           </View>
-
-          {/* Posts Section - Grid */}
-          {posts.length > 0 && (
-            <View style={styles.postsSection}>
-              <Text style={[styles.postsSectionTitle, {color: colors.foreground}]}>
-                Publicaciones
-              </Text>
-              <View style={styles.postsGrid}>
-                {posts.map((post, index) => (
-                  <TouchableOpacity
-                    key={post.id || index}
-                    style={[styles.postCard, {backgroundColor: colors.card, borderColor: colors.border}]}
-                    activeOpacity={0.9}>
-                    {post.image_url ? (
-                      <Image
-                        source={{uri: post.image_url}}
-                        style={styles.postImage}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View
-                        style={[
-                          styles.postImagePlaceholder,
-                          {backgroundColor: colors.muted + "20"},
-                        ]}>
-                        <Ionicons name="image-outline" size={30} color={colors.mutedForeground} />
-                      </View>
-                    )}
-                    {post.caption && (
-                      <View style={styles.postCaptionContainer}>
-                        <Text
-                          style={[styles.postCaption, {color: colors.mutedForeground}]}
-                          numberOfLines={2}>
-                          {post.caption}
-                        </Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
 
           {/* Information Section */}
           <View style={styles.infoSection}>
@@ -556,6 +975,25 @@ export default function ProfileDetailScreen() {
           onClose={() => setShowBooking(false)}
           onBookingComplete={() => {
             setShowBooking(false);
+          }}
+        />
+      )}
+
+      {/* Service Detail Modal */}
+      {selectedService && (
+        <ServiceDetailModal
+          visible={serviceModalVisible}
+          service={selectedService}
+          providerType={profile.profile_type === 'PLACE' ? 'place' : 'professional'}
+          providerId={profile.user || profile.user_id}
+          onClose={() => {
+            setServiceModalVisible(false);
+            setSelectedService(null);
+          }}
+          onBook={(date, slot) => {
+            setServiceModalVisible(false);
+            setShowBooking(true);
+            // You can pass the selected date/slot to BookingFlow if needed
           }}
         />
       )}
@@ -916,6 +1354,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
   },
+  availabilityIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    gap: 4,
+  },
+  availabilityText: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
   reviewsContainer: {
     gap: 16,
   },
@@ -1073,5 +1521,97 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  teamSection: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 24,
+    marginTop: 16,
+  },
+  teamSectionTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    marginBottom: 16,
+    letterSpacing: -0.5,
+  },
+  teamContainer: {
+    gap: 12,
+  },
+  teamCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    gap: 12,
+  },
+  teamAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  teamAvatarText: {
+    color: "#ffffff",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  teamInfo: {
+    flex: 1,
+  },
+  teamName: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  teamMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  teamRoleBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+  },
+  teamRole: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  linkedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  linkedStatus: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  emptyTeamCard: {
+    padding: 32,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: "center",
+    borderStyle: "dashed",
+  },
+  emptyTeamTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyTeamText: {
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 20,
   },
 });

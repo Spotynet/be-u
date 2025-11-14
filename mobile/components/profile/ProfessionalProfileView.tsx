@@ -16,9 +16,10 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {User, ProfessionalProfile} from "@/types/global";
 import {useRouter} from "expo-router";
 import {useState, useEffect} from "react";
-import {profileCustomizationApi} from "@/lib/api";
+import {profileCustomizationApi, linkApi, PlaceProfessionalLink} from "@/lib/api";
 import {ProfileTabs} from "./ProfileTabs";
 import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from "@/constants/categories";
+import {ScheduleView} from "./ScheduleView";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -47,25 +48,41 @@ export const ProfessionalProfileView = ({
 
   const [customServices, setCustomServices] = useState<any[]>([]);
   const [customImages, setCustomImages] = useState<any[]>([]);
+  const [linkedPlaces, setLinkedPlaces] = useState<PlaceProfessionalLink[]>([]);
+  const [availability, setAvailability] = useState<any[]>([]);
   const [loadingCustomization, setLoadingCustomization] = useState(false);
 
   useEffect(() => {
     loadCustomizationData();
-  }, []);
+    loadLinkedPlaces();
+  }, [user]);
 
   const loadCustomizationData = async () => {
     try {
       setLoadingCustomization(true);
-      const [servicesResponse, imagesResponse] = await Promise.all([
+      const [servicesResponse, imagesResponse, availabilityResponse] = await Promise.all([
         profileCustomizationApi.getCustomServices(),
         profileCustomizationApi.getProfileImages(),
+        profileCustomizationApi.getAvailabilitySchedule().catch(() => ({data: []})),
       ]);
       setCustomServices(servicesResponse.data || []);
       setCustomImages(imagesResponse.data || []);
+      setAvailability(availabilityResponse.data || []);
     } catch (error) {
       console.log("Customization data not available:", error);
     } finally {
       setLoadingCustomization(false);
+    }
+  };
+
+  const loadLinkedPlaces = async () => {
+    if (!user?.id) return;
+    try {
+      const linksResponse = await linkApi.listMyLinks({status: "ACCEPTED"});
+      setLinkedPlaces(Array.isArray(linksResponse.data) ? linksResponse.data : []);
+    } catch (error) {
+      console.log("Linked places not available:", error);
+      setLinkedPlaces([]);
     }
   };
 
@@ -199,6 +216,59 @@ export const ProfessionalProfileView = ({
             </View>
           )}
         </View>
+      </View>
+
+      {/* Linked Places Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionTitleContainer}>
+            <Ionicons name="business" color={colors.primary} size={24} />
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Trabajo en</Text>
+          </View>
+        </View>
+        {linkedPlaces.length > 0 ? (
+          linkedPlaces.map((link) => (
+            <TouchableOpacity
+              key={link.id}
+              style={[styles.linkedPlaceCard, {backgroundColor: colors.card, borderColor: colors.border}]}
+              activeOpacity={0.7}
+              onPress={() => {
+                router.push({
+                  pathname: "/view-place-profile",
+                  params: {placeId: link.place_id.toString()},
+                });
+              }}>
+              <View style={[styles.linkedPlaceIcon, {backgroundColor: colors.primary + "15"}]}>
+                <Ionicons name="business" color={colors.primary} size={24} />
+              </View>
+              <View style={styles.linkedPlaceInfo}>
+                <Text style={[styles.linkedPlaceName, {color: colors.foreground}]}>
+                  {link.place_name}
+                </Text>
+                <View style={styles.linkedPlaceBadge}>
+                  <Ionicons name="checkmark-circle" color="#10b981" size={14} />
+                  <Text style={[styles.linkedPlaceStatus, {color: colors.mutedForeground}]}>
+                    Vinculado
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+            </TouchableOpacity>
+          ))
+        ) : (
+          <View
+            style={[styles.emptyCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+            <View style={[styles.emptyIconContainer, {backgroundColor: colors.primary + "10"}]}>
+              <Ionicons name="business-outline" color={colors.primary} size={48} />
+            </View>
+            <Text style={[styles.emptyTitle, {color: colors.foreground}]}>
+              No estás vinculado a ningún lugar
+            </Text>
+            <Text style={[styles.emptyText, {color: colors.mutedForeground}]}>
+              Acepta una invitación de un establecimiento para aparecer en su equipo
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Services Section */}
@@ -699,6 +769,50 @@ const styles = StyleSheet.create({
   },
   actionSubtitle: {
     fontSize: 13,
+    fontWeight: "500",
+  },
+  linkedPlaceCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 12,
+    gap: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: {width: 0, height: 2},
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  linkedPlaceIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  linkedPlaceInfo: {
+    flex: 1,
+  },
+  linkedPlaceName: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  linkedPlaceBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  linkedPlaceStatus: {
+    fontSize: 12,
     fontWeight: "500",
   },
 });

@@ -1,10 +1,12 @@
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.contrib.contenttypes.models import ContentType
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from datetime import datetime, timedelta, time as dt_time
 from .models import ProfessionalProfile, PlaceProfile
 from .profile_models import ProfileImage, CustomService, AvailabilitySchedule, TimeSlot
 from .profile_serializers import (
@@ -201,17 +203,11 @@ def custom_service_detail_view(request, service_id):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def availability_schedule_view(request):
-    """Get or update availability schedule"""
+    """Get or update availability schedule - now allows places to manage their own schedules"""
     profile = get_profile_instance(request.user)
     if not profile:
         return Response(
             {"error": f"Profile customization only available for professionals and places. Current role: {request.user.role}"}, 
-            status=status.HTTP_403_FORBIDDEN
-        )
-    # Per requirement 2b: places should not use the old availability endpoint
-    if request.user.role == 'PLACE':
-        return Response(
-            {"error": "Place schedules must be managed per linked professional via /api/users/links/{id}/schedule"},
             status=status.HTTP_403_FORBIDDEN
         )
     
@@ -260,6 +256,166 @@ def availability_schedule_view(request):
         # Return the created schedules
         serializer = AvailabilityScheduleSerializer(created_schedules, many=True)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def public_availability_view(request):
+    """Get availability for a specific provider (public access for viewing)"""
+    provider_type = request.query_params.get('provider_type')
+    provider_id = request.query_params.get('provider_id')
+    
+    if not provider_type or not provider_id:
+        return Response(
+            {"error": "provider_type and provider_id are required"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        if provider_type == 'professional':
+            ct = ContentType.objects.get_for_model(ProfessionalProfile)
+            provider = get_object_or_404(ProfessionalProfile, id=provider_id)
+        elif provider_type == 'place':
+            ct = ContentType.objects.get_for_model(PlaceProfile)
+            provider = get_object_or_404(PlaceProfile, id=provider_id)
+        else:
+            return Response(
+                {"error": "provider_type must be 'professional' or 'place'"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        schedules = AvailabilitySchedule.objects.filter(
+            content_type=ct,
+            object_id=provider_id
+        ).order_by('day_of_week')
+        
+        serializer = AvailabilityScheduleSerializer(schedules, many=True)
+        return Response(serializer.data)
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def available_slots_view(request):
+    """Get available time slots for a specific date and service, considering existing reservations"""
+    provider_type = request.query_params.get('provider_type')
+    provider_id = request.query_params.get('provider_id')
+    date_str = request.query_params.get('date')
+    service_id = request.query_params.get('service_id')  # Optional: for service duration validation
+    
+    if not provider_type or not provider_id or not date_str:
+        return Response(
+            {"error": "provider_type, provider_id, and date are required"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        # Parse date
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        day_of_week = target_date.weekday()  # 0 = Monday, 6 = Sunday
+        
+        # Get content type
+        if provider_type == 'professional':
+            ct = ContentType.objects.get_for_model(ProfessionalProfile)
+            provider = get_object_or_404(ProfessionalProfile, id=provider_id)
+        elif provider_type == 'place':
+            ct = ContentType.objects.get_for_model(PlaceProfile)
+            provider = get_object_or_404(PlaceProfile, id=provider_id)
+        else:
+            return Response(
+                {"error": "provider_type must be 'professional' or 'place'"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get availability schedule for this day
+        schedule = AvailabilitySchedule.objects.filter(
+            content_type=ct,
+            object_id=provider_id,
+            day_of_week=day_of_week,
+            is_available=True
+        ).first()
+        
+        if not schedule:
+            return Response({"available_slots": []})
+        
+        # Get time slots for this schedule
+        time_slots = TimeSlot.objects.filter(
+            schedule=schedule,
+            is_active=True
+        ).order_by('start_time')
+        
+        # Get service duration if service_id provided
+        service_duration = None
+        if service_id:
+            try:
+                from .profile_models import CustomService
+                # CustomService uses GenericForeignKey, so we need to filter by content_type and object_id
+                service = CustomService.objects.get(
+                    id=service_id,
+                    content_type=ct,
+                    object_id=provider_id
+                )
+                service_duration = service.duration_minutes
+            except:
+                pass
+        
+        # Get existing reservations for this date and provider
+        from reservations.models import Reservation
+        existing_reservations = Reservation.objects.filter(
+            provider_content_type=ct,
+            provider_object_id=provider_id,
+            date=target_date,
+            status__in=['PENDING', 'CONFIRMED']
+        )
+        
+        # Format available slots, excluding blocked times
+        available_slots = []
+        for slot in time_slots:
+            slot_start = datetime.combine(target_date, slot.start_time)
+            slot_end = datetime.combine(target_date, slot.end_time)
+            slot_duration = (slot_end - slot_start).total_seconds() / 60  # minutes
+            
+            # If service duration is provided, check if it fits
+            if service_duration and service_duration > slot_duration:
+                continue
+            
+            # Check if slot conflicts with existing reservations
+            slot_available = True
+            for reservation in existing_reservations:
+                res_start = datetime.combine(target_date, reservation.time)
+                res_end = res_start + (reservation.duration or timedelta(minutes=30))
+                
+                # Check for overlap
+                if not (slot_end <= res_start or slot_start >= res_end):
+                    slot_available = False
+                    break
+            
+            if slot_available:
+                available_slots.append({
+                    'start_time': slot.start_time.strftime('%H:%M'),
+                    'end_time': slot.end_time.strftime('%H:%M'),
+                    'duration_minutes': int(slot_duration)
+                })
+        
+        return Response({
+            'date': date_str,
+            'day_of_week': day_of_week,
+            'available_slots': available_slots
+        })
+    except ValueError:
+        return Response(
+            {"error": "Invalid date format. Use YYYY-MM-DD"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 
 # ======================

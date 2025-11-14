@@ -40,14 +40,43 @@ class ProfileImageSerializer(serializers.ModelSerializer):
 class CustomServiceSerializer(serializers.ModelSerializer):
     category = serializers.CharField(default='Otros', required=False)
     is_active = serializers.BooleanField(default=True, required=False)
+    availability_summary = serializers.SerializerMethodField()
     
     class Meta:
         model = CustomService
         fields = [
             'id', 'name', 'description', 'price', 'duration_minutes', 
-            'category', 'is_active', 'created_at', 'updated_at'
+            'category', 'is_active', 'availability_summary', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'availability_summary']
+    
+    def get_availability_summary(self, obj):
+        """Get availability summary for the service provider"""
+        try:
+            schedules = AvailabilitySchedule.objects.filter(
+                content_type=ContentType.objects.get_for_model(obj.provider.__class__),
+                object_id=obj.provider.id,
+                is_available=True
+            ).order_by('day_of_week')
+            
+            summary = []
+            for schedule in schedules:
+                slots = TimeSlot.objects.filter(schedule=schedule, is_active=True).order_by('start_time')
+                if slots.exists():
+                    summary.append({
+                        'day_of_week': schedule.day_of_week,
+                        'day_name': schedule.get_day_of_week_display(),
+                        'time_slots': [
+                            {
+                                'start_time': slot.start_time.strftime('%H:%M'),
+                                'end_time': slot.end_time.strftime('%H:%M')
+                            }
+                            for slot in slots
+                        ]
+                    })
+            return summary
+        except:
+            return []
 
 
 class ProfileCustomizationSerializer(serializers.Serializer):

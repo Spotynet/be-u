@@ -26,4 +26,8 @@ urlpatterns = [
     path('profile/services/<int:service_id>/', profile_views.custom_service_detail_view, name='custom-service-detail'),
     path('profile/availability/', profile_views.availability_schedule_view, name='availability-schedule'),
     path('profile/customization/', profile_views.profile_customization_view, name='profile-customization'),
+    
+    # Public availability endpoints
+    path('availability/public/', profile_views.public_availability_view, name='public-availability'),
+    path('availability/slots/', profile_views.available_slots_view, name='available-slots'),
 ]

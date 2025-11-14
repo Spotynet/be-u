@@ -16,9 +16,10 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {User, PlaceProfile} from "@/types/global";
 import {useRouter} from "expo-router";
 import {useState, useEffect} from "react";
-import {profileCustomizationApi} from "@/lib/api";
+import {profileCustomizationApi, linkApi, PlaceProfessionalLink} from "@/lib/api";
 import {ProfileTabs} from "./ProfileTabs";
 import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from "@/constants/categories";
+import {ScheduleView} from "./ScheduleView";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -48,25 +49,41 @@ export const PlaceProfileView = ({
 
   const [customServices, setCustomServices] = useState<any[]>([]);
   const [customImages, setCustomImages] = useState<any[]>([]);
+  const [linkedProfessionals, setLinkedProfessionals] = useState<PlaceProfessionalLink[]>([]);
+  const [availability, setAvailability] = useState<any[]>([]);
   const [loadingCustomization, setLoadingCustomization] = useState(false);
 
   useEffect(() => {
     loadCustomizationData();
-  }, []);
+    loadLinkedProfessionals();
+  }, [profile]);
 
   const loadCustomizationData = async () => {
     try {
       setLoadingCustomization(true);
-      const [servicesResponse, imagesResponse] = await Promise.all([
+      const [servicesResponse, imagesResponse, availabilityResponse] = await Promise.all([
         profileCustomizationApi.getCustomServices(),
         profileCustomizationApi.getProfileImages(),
+        profileCustomizationApi.getAvailabilitySchedule().catch(() => ({data: []})),
       ]);
       setCustomServices(servicesResponse.data || []);
       setCustomImages(imagesResponse.data || []);
+      setAvailability(availabilityResponse.data || []);
     } catch (error) {
       console.log("Customization data not available:", error);
     } finally {
       setLoadingCustomization(false);
+    }
+  };
+
+  const loadLinkedProfessionals = async () => {
+    if (!profile?.id) return;
+    try {
+      const linksResponse = await linkApi.listPlaceLinks(profile.id, "ACCEPTED");
+      setLinkedProfessionals(Array.isArray(linksResponse.data) ? linksResponse.data : []);
+    } catch (error) {
+      console.log("Linked professionals not available:", error);
+      setLinkedProfessionals([]);
     }
   };
 
@@ -304,6 +321,14 @@ export const PlaceProfileView = ({
         )}
       </View>
 
+      {/* Schedule Section */}
+      <View style={styles.section}>
+        <ScheduleView
+          schedule={availability}
+          editable={true}
+        />
+      </View>
+
       {/* Team Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -311,40 +336,57 @@ export const PlaceProfileView = ({
             <Ionicons name="people" color={colors.primary} size={24} />
             <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Nuestro Equipo</Text>
           </View>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push("/place/manage-links")}>
             <Text style={[styles.seeAllText, {color: colors.primary}]}>Gestionar</Text>
           </TouchableOpacity>
         </View>
 
-        {teamMembers.length > 0 ? (
-          teamMembers.map((member) => (
-            <TouchableOpacity
-              key={member.id}
-              style={[styles.teamCard, {backgroundColor: colors.card, borderColor: colors.border}]}
-              activeOpacity={0.7}>
-              <View style={[styles.teamAvatar, {backgroundColor: colors.primary}]}>
-                <Text style={styles.teamAvatarText}>
-                  {member.name.substring(0, 2).toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.teamInfo}>
-                <Text style={[styles.teamName, {color: colors.foreground}]}>{member.name}</Text>
-                <View style={styles.teamMeta}>
-                  <View style={[styles.teamRoleBadge, {backgroundColor: colors.primary + "15"}]}>
-                    <Ionicons name="briefcase" color={colors.primary} size={10} />
-                    <Text style={[styles.teamRole, {color: colors.primary}]}>{member.role}</Text>
-                  </View>
-                  <View style={styles.teamRating}>
-                    <Ionicons name="star" color="#fbbf24" size={12} />
-                    <Text style={[styles.teamRatingText, {color: colors.foreground}]}>
-                      {member.rating || "5.0"}
-                    </Text>
+        {linkedProfessionals.length > 0 ? (
+          linkedProfessionals.map((link) => {
+            const getInitials = (name: string) => {
+              const words = name.split(" ");
+              if (words.length >= 2) {
+                return `${words[0].charAt(0)}${words[1].charAt(0)}`.toUpperCase();
+              }
+              return name.substring(0, 2).toUpperCase();
+            };
+            return (
+              <TouchableOpacity
+                key={link.id}
+                style={[styles.teamCard, {backgroundColor: colors.card, borderColor: colors.border}]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  router.push({
+                    pathname: "/view-professional-profile",
+                    params: {professionalId: link.professional_id.toString()},
+                  });
+                }}>
+                <View style={[styles.teamAvatar, {backgroundColor: colors.primary}]}>
+                  <Text style={styles.teamAvatarText}>
+                    {getInitials(link.professional_name)}
+                  </Text>
+                </View>
+                <View style={styles.teamInfo}>
+                  <Text style={[styles.teamName, {color: colors.foreground}]}>
+                    {link.professional_name}
+                  </Text>
+                  <View style={styles.teamMeta}>
+                    <View style={[styles.teamRoleBadge, {backgroundColor: colors.primary + "15"}]}>
+                      <Ionicons name="person" color={colors.primary} size={10} />
+                      <Text style={[styles.teamRole, {color: colors.primary}]}>Profesional</Text>
+                    </View>
+                    <View style={styles.linkedBadge}>
+                      <Ionicons name="checkmark-circle" color="#10b981" size={12} />
+                      <Text style={[styles.linkedStatus, {color: colors.mutedForeground}]}>
+                        Vinculado
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-              <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-            </TouchableOpacity>
-          ))
+                <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+              </TouchableOpacity>
+            );
+          })
         ) : (
           <View
             style={[styles.emptyCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
@@ -359,6 +401,7 @@ export const PlaceProfileView = ({
             </Text>
             <TouchableOpacity
               style={[styles.emptyActionButton, {backgroundColor: colors.primary}]}
+              onPress={() => router.push("/place/manage-links")}
               activeOpacity={0.9}>
               <Ionicons name="person-add" color="#ffffff" size={18} />
               <Text style={styles.emptyActionText}>Agregar Profesional</Text>
@@ -757,6 +800,15 @@ const styles = StyleSheet.create({
   teamRatingText: {
     fontSize: 12,
     fontWeight: "600",
+  },
+  linkedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  linkedStatus: {
+    fontSize: 11,
+    fontWeight: "500",
   },
   emptyCard: {
     padding: 32,
