@@ -22,6 +22,7 @@ import {BookingFlow} from "@/components/booking/BookingFlow";
 import {errorUtils} from "@/lib/api";
 import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from "@/constants/categories";
 import {ServiceDetailModal} from "@/components/service/ServiceDetailModal";
+import {AvailabilityDisplay} from "@/components/profile/AvailabilityDisplay";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -930,17 +931,15 @@ export default function ProfileDetailScreen() {
             {activeTab === "posts" && renderPosts()}
           </View>
 
+          {/* Availability Section */}
+          {profile.availability && Array.isArray(profile.availability) && (
+            <View style={styles.availabilitySection}>
+              <AvailabilityDisplay availability={profile.availability} />
+            </View>
+          )}
+
           {/* Information Section */}
           <View style={styles.infoSection}>
-            <View style={styles.infoItem}>
-              <Text style={[styles.infoLabel, {color: colors.foreground}]}>Horarios</Text>
-              <Text style={[styles.infoValue, {color: colors.mutedForeground}]}>
-                Lun - Vie : 10AM - 8PM
-              </Text>
-              <Text style={[styles.infoValue, {color: colors.mutedForeground}]}>
-                Sab - Dom : 10AM - 5PM
-              </Text>
-            </View>
             <View style={styles.infoItem}>
               <Text style={[styles.infoLabel, {color: colors.foreground}]}>Ubicación</Text>
               <Text style={[styles.infoValue, {color: colors.mutedForeground}]}>
@@ -1413,6 +1412,11 @@ const styles = StyleSheet.create({
   },
   reviewDate: {
     fontSize: 12,
+  },
+  availabilitySection: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
   infoSection: {
     paddingHorizontal: 20,

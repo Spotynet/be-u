@@ -1,5 +1,8 @@
 from rest_framework import serializers
-from .models import PublicProfile, User
+from django.contrib.contenttypes.models import ContentType
+from .models import PublicProfile, User, ProfessionalProfile, PlaceProfile
+from .profile_models import AvailabilitySchedule
+from .profile_serializers import AvailabilityScheduleSerializer
 
 
 class PublicProfileSerializer(serializers.ModelSerializer):
@@ -12,6 +15,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     user_country = serializers.CharField(source='user.country', read_only=True)
     user_image = serializers.ImageField(source='user.image', read_only=True)
     display_name = serializers.CharField(read_only=True)
+    availability = serializers.SerializerMethodField()
     
     class Meta:
         model = PublicProfile
@@ -21,7 +25,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
             'profile_type', 'name', 'description', 'category', 'sub_categories',
             'images', 'linked_pros_place', 'has_calendar',
             'street', 'number_ext', 'number_int', 'postal_code', 'city', 'country',
-            'last_name', 'bio', 'rating', 'display_name',
+            'last_name', 'bio', 'rating', 'display_name', 'availability',
             'latitude', 'longitude',
             'created_at', 'updated_at'
         ]
@@ -51,6 +55,40 @@ class PublicProfileSerializer(serializers.ModelSerializer):
                 })
         
         return attrs
+    
+    def get_availability(self, obj):
+        """Get availability schedule for the public profile"""
+        try:
+            # Determine the underlying profile based on profile_type
+            if obj.profile_type == 'PROFESSIONAL':
+                # Get the ProfessionalProfile
+                try:
+                    professional_profile = obj.user.professional_profile
+                    content_type = ContentType.objects.get_for_model(ProfessionalProfile)
+                    object_id = professional_profile.id
+                except (ProfessionalProfile.DoesNotExist, AttributeError):
+                    return []
+            elif obj.profile_type == 'PLACE':
+                # Get the PlaceProfile
+                try:
+                    place_profile = obj.user.place_profile
+                    content_type = ContentType.objects.get_for_model(PlaceProfile)
+                    object_id = place_profile.id
+                except (PlaceProfile.DoesNotExist, AttributeError):
+                    return []
+            else:
+                return []
+            
+            # Fetch availability schedules
+            schedules = AvailabilitySchedule.objects.filter(
+                content_type=content_type,
+                object_id=object_id
+            ).order_by('day_of_week')
+            
+            return AvailabilityScheduleSerializer(schedules, many=True).data
+        except Exception as e:
+            # Return empty list if there's any error
+            return []
 
 
 class PublicProfileCreateSerializer(serializers.ModelSerializer):
