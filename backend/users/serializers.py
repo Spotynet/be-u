@@ -131,7 +131,7 @@ class PlaceProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlaceProfile
         fields = [
-            'id', 'user_id', 'email', 'name', 'bio', 'description', 'street', 'number_ext', 'number_int',
+            'id', 'user_id', 'email', 'name', 'bio', 'street', 'number_ext', 'number_int',
             'postal_code', 'city', 'country', 'owner', 'category', 'sub_categories', 'services_count', 'address'
         ]
         read_only_fields = ['id', 'user_id', 'email']
@@ -258,7 +258,7 @@ class PlaceProfileDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlaceProfile
         fields = [
-            'id', 'user_id', 'email', 'phone', 'name', 'bio', 'description', 'street', 'number_ext', 'number_int',
+            'id', 'user_id', 'email', 'phone', 'name', 'bio', 'street', 'number_ext', 'number_int',
             'postal_code', 'city', 'country', 'owner', 'category', 'sub_categories', 'images', 'services', 'availability', 
             'services_count', 'address'
         ]

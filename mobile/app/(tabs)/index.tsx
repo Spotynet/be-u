@@ -561,12 +561,39 @@ export default function Home() {
           }
         ]}>
         <View style={styles.postHeader}>
-          <View style={styles.postUserInfo}>
-            <Text style={[styles.postUserNameText, {color: colors.foreground}]} numberOfLines={1}>
-              {authorName}
-            </Text>
-            <Text style={[styles.postTime, {color: colors.mutedForeground}]}>#{post.post_type}</Text>
-          </View>
+          <TouchableOpacity 
+            style={styles.postUserInfoContainer}
+            onPress={() => {
+              console.log('Post author data:', {
+                author_public_profile_id: post.author_public_profile_id,
+                author_profile_id: post.author_profile_id,
+                author: post.author,
+              });
+              const profileId = post.author_public_profile_id || post.author_profile_id;
+              if (profileId) {
+                console.log('Navigating to profile:', profileId);
+                router.push(`/profile/${profileId}` as any);
+              } else {
+                console.warn('No profile ID found for navigation');
+              }
+            }}
+            activeOpacity={0.7}>
+            <View style={[styles.postAvatar, {backgroundColor: borderColor}]}>
+              {post.author_photo ? (
+                <Image source={{uri: post.author_photo}} style={styles.postAvatarImage} />
+              ) : (
+                <Text style={styles.postAvatarText}>
+                  {authorName.charAt(0).toUpperCase()}
+                </Text>
+              )}
+            </View>
+            <View style={styles.postUserInfo}>
+              <Text style={[styles.postUserNameText, {color: colors.foreground}]} numberOfLines={1}>
+                {authorName}
+              </Text>
+              <Text style={[styles.postTime, {color: colors.mutedForeground}]}>#{post.post_type}</Text>
+            </View>
+          </TouchableOpacity>
           <View style={styles.postHeaderRight}>
             {authorRating !== null && !Number.isNaN(authorRating) ? (
               <View style={[styles.ratingBadge, {backgroundColor: `${colors.primary}15`}]}>
@@ -663,13 +690,6 @@ export default function Home() {
             <Text style={[styles.postActionText, {color: colors.foreground}]}>
               {post.comments_count || 0}
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.postActionCta, {backgroundColor: colors.primary}]}
-            activeOpacity={0.9}
-            onPress={handleReservePress}>
-            <Ionicons name="calendar-outline" color="#ffffff" size={16} />
-            <Text style={styles.postActionCtaText}>Reservar</Text>
           </TouchableOpacity>
         </View>
         {openCommentFor === post.id && (
@@ -1729,11 +1749,28 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
   },
+  postUserInfoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
   postAvatar: {
     width: 42,
     height: 42,
     borderRadius: 21,
     marginRight: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  postAvatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  postAvatarText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "700",
   },
   postUserInfo: {
     flex: 1,

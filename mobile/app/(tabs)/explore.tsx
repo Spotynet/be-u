@@ -129,7 +129,6 @@ export default function Explore() {
         user_id: prof.user,
         email: prof.user_email || "",
         name: prof.name || `Profesional ${index + 1}`,
-        last_name: prof.last_name || "",
         bio: prof.bio || prof.description || `Profesional especializado en belleza ${index + 1}`,
         city: prof.city || "Ciudad no especificada",
         rating:
@@ -157,7 +156,6 @@ export default function Explore() {
         user_id: place.user,
         email: place.user_email || "",
         name: place.name || `Lugar ${index + 1}`,
-        last_name: "", // Places don't have last names
         street: place.street || "",
         city: place.city || "Ciudad no especificada",
         country: place.country || "México",
@@ -278,7 +276,6 @@ export default function Explore() {
         id: item.id,
         name: item.name,
         type: item.type,
-        last_name: item.last_name,
       }))
     );
     console.log("🔍 Professionals count:", professionals.length);
@@ -291,7 +288,6 @@ export default function Explore() {
     const searchLower = searchQuery.toLowerCase();
     return (
       item.name?.toLowerCase().includes(searchLower) ||
-      item.last_name?.toLowerCase().includes(searchLower) ||
       item.city?.toLowerCase().includes(searchLower)
     );
   });
@@ -463,9 +459,7 @@ export default function Explore() {
                       {isSelected && (
                         <View style={[styles.pinLabel, {backgroundColor: colors.primary}]}>
                           <Text style={styles.pinLabelText}>
-                            {item.type === "professional"
-                              ? `${item.name || "Profesional"} ${item.last_name || ""}`
-                              : item.name || "Lugar"}
+                            {item.name || (item.type === "professional" ? "Profesional" : "Lugar")}
                           </Text>
                         </View>
                       )}
@@ -540,18 +534,16 @@ export default function Explore() {
                     },
                   ]}>
                   <Text style={styles.itemAvatarTextVertical}>
-                    {item.type === "professional"
-                      ? `${(item.name || "P")[0]}${(item.last_name || "R")[0]}`
-                      : (item.name || "L").substring(0, 2).toUpperCase()}
+                    {(item.name || (item.type === "professional" ? "P" : "L"))
+                      .substring(0, 2)
+                      .toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.itemInfoVertical}>
                   <Text
                     style={[styles.itemNameVertical, {color: colors.foreground}]}
                     numberOfLines={1}>
-                    {item.type === "professional"
-                      ? `${item.name || "Profesional"} ${item.last_name || ""}`
-                      : item.name || "Lugar"}
+                    {item.name || (item.type === "professional" ? "Profesional" : "Lugar")}
                   </Text>
                   <View style={styles.itemMetaVertical}>
                     {typeof item.rating !== "undefined" && (
@@ -622,20 +614,16 @@ export default function Explore() {
                     },
                   ]}>
                   <Text style={styles.detailAvatarText}>
-                    {selectedItemData.type === "professional"
-                      ? `${(selectedItemData.name || "P")[0]}${
-                          (selectedItemData.last_name || "R")[0]
-                        }`
-                      : (selectedItemData.name || "L").substring(0, 2).toUpperCase()}
+                    {(selectedItemData.name ||
+                      (selectedItemData.type === "professional" ? "P" : "L"))
+                      .substring(0, 2)
+                      .toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.detailInfo}>
                   <Text style={[styles.detailName, {color: colors.foreground}]}>
-                    {selectedItemData.type === "professional"
-                      ? `${selectedItemData.name || "Profesional"} ${
-                          selectedItemData.last_name || ""
-                        }`
-                      : selectedItemData.name || "Lugar"}
+                    {selectedItemData.name ||
+                      (selectedItemData.type === "professional" ? "Profesional" : "Lugar")}
                   </Text>
                   <View style={styles.detailMeta}>
                     {selectedItemData.rating && (

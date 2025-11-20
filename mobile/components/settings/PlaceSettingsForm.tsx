@@ -21,7 +21,6 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
   const [phone, setPhone] = useState(user.phone || "");
   const [name, setName] = useState(profile?.name || "");
   const [bio, setBio] = useState(profile?.bio || "");
-  const [description, setDescription] = useState(profile?.description || "");
   const [street, setStreet] = useState(profile?.street || "");
   const [numberExt, setNumberExt] = useState(profile?.number_ext || "");
   const [numberInt, setNumberInt] = useState(profile?.number_int || "");
@@ -34,7 +33,6 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
     setPhone(user.phone || "");
     setName(profile?.name || "");
     setBio(profile?.bio || "");
-    setDescription(profile?.description || "");
     setStreet(profile?.street || "");
     setNumberExt(profile?.number_ext || "");
     setNumberInt(profile?.number_int || "");
@@ -46,7 +44,6 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
     user.phone,
     profile?.name,
     profile?.bio,
-    profile?.description,
     profile?.street,
     profile?.number_ext,
     profile?.number_int,
@@ -64,7 +61,6 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
     const profileData = {
       name,
       bio,
-      description,
       street,
       number_ext: numberExt,
       number_int: numberInt,
@@ -114,7 +110,7 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
               {backgroundColor: colors.card, borderColor: colors.border},
             ]}>
             <Ionicons
-              name="person-outline"
+              name="document-text-outline"
               color={colors.mutedForeground}
               size={18}
               style={styles.textAreaIcon}
@@ -123,34 +119,7 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
               style={[styles.input, styles.textArea, {color: colors.foreground}]}
               value={bio}
               onChangeText={setBio}
-              placeholder="Cuéntanos sobre ti y tu experiencia..."
-              placeholderTextColor={colors.mutedForeground}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          </View>
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={[styles.label, {color: colors.foreground}]}>Descripción</Text>
-          <View
-            style={[
-              styles.inputContainer,
-              styles.textAreaContainer,
-              {backgroundColor: colors.card, borderColor: colors.border},
-            ]}>
-            <Ionicons
-              name="document-text-outline"
-              color={colors.mutedForeground}
-              size={18}
-              style={styles.textAreaIcon}
-            />
-            <TextInput
-              style={[styles.input, styles.textArea, {color: colors.foreground}]}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Describe tu negocio y servicios..."
+              placeholder="Cuéntanos sobre tu negocio y servicios..."
               placeholderTextColor={colors.mutedForeground}
               multiline
               numberOfLines={4}

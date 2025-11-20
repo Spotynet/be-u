@@ -5,6 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Image,
+  RefreshControl,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
@@ -13,6 +15,8 @@ import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
 import {useAuth} from "@/features/auth";
 import {useFavorites} from "@/features/favorites";
+import {useState, useEffect, useCallback} from "react";
+import {postApi, errorUtils} from "@/lib/api";
 
 export function FavoritesTab() {
   const colorScheme = useColorScheme();
@@ -22,13 +26,54 @@ export function FavoritesTab() {
 
   // Fetch real favorites data
   const {favorites, isLoading, error, removeFavorite, refreshFavorites} = useFavorites();
+  
+  // Fetch liked posts
+  const [likedPosts, setLikedPosts] = useState<any[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  const fetchLikedPosts = useCallback(async () => {
+    try {
+      setLoadingPosts(true);
+      const response = await postApi.getLikedPosts();
+      setLikedPosts(response.data.results || []);
+    } catch (err) {
+      console.error("Error fetching liked posts:", err);
+      setLikedPosts([]);
+    } finally {
+      setLoadingPosts(false);
+    }
+  }, []);
+  
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchLikedPosts();
+    }
+  }, [isAuthenticated, fetchLikedPosts]);
+  
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([refreshFavorites(), fetchLikedPosts()]);
+    setRefreshing(false);
+  }, [refreshFavorites, fetchLikedPosts]);
+  
+  const handleUnlikePost = async (postId: number) => {
+    try {
+      await postApi.likePost(postId); // Toggle like (unlike)
+      fetchLikedPosts(); // Refresh list
+    } catch (err) {
+      console.error("Error unliking post:", err);
+    }
+  };
 
+  const hasContent = favorites.length > 0 || likedPosts.length > 0;
+  
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Ionicons name="heart-outline" color={colors.mutedForeground} size={64} />
       <Text style={[styles.emptyTitle, {color: colors.foreground}]}>No hay favoritos</Text>
       <Text style={[styles.emptyText, {color: colors.mutedForeground}]}>
-        Guarda tus profesionales y lugares favoritos para acceder a ellos rápidamente.
+        Guarda tus profesionales, lugares y publicaciones favoritas para acceder a ellos rápidamente.
       </Text>
       <TouchableOpacity
         style={[styles.exploreButton, {backgroundColor: colors.primary}]}
@@ -81,7 +126,7 @@ export function FavoritesTab() {
   }
 
   // Show loading state
-  if (isLoading) {
+  if (isLoading || loadingPosts) {
     return renderLoadingState();
   }
 
@@ -91,7 +136,7 @@ export function FavoritesTab() {
   }
 
   // Show empty state
-  if (favorites.length === 0) {
+  if (!hasContent) {
     return renderEmptyState();
   }
 
@@ -118,46 +163,103 @@ export function FavoritesTab() {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.grid}>
-        {favorites.map((item, index) => (
-          <TouchableOpacity
-            key={item.id}
-            style={[styles.card, {backgroundColor: colors.card}]}
-            onPress={() => {
-              const route =
-                item.favorite_type === "PROFESSIONAL"
-                  ? `/professional/${item.content_object_id}`
-                  : `/place/${item.content_object_id}`;
-              router.push(route as any);
-            }}
-            activeOpacity={0.7}>
-            <View style={[styles.avatar, {backgroundColor: getAvatarColor(index)}]}>
-              <Text style={styles.avatarText}>{getInitials(item.favorite_name)}</Text>
-            </View>
-            <Text style={[styles.name, {color: colors.foreground}]} numberOfLines={1}>
-              {item.favorite_name}
-            </Text>
-            <Text style={[styles.specialty, {color: colors.mutedForeground}]} numberOfLines={1}>
-              {item.favorite_specialty}
-            </Text>
-            <View style={styles.rating}>
-              <Ionicons name="star" size={14} color="#FFA500" />
-              <Text style={[styles.ratingText, {color: colors.mutedForeground}]}>
-                {item.favorite_rating.toFixed(1)}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.heartButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleRemoveFavorite(item.id);
-              }}>
-              <Ionicons name="heart" size={20} color="#EF4444" />
-            </TouchableOpacity>
-          </TouchableOpacity>
-        ))}
-      </View>
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+      
+      {/* Profiles Section */}
+      {favorites.length > 0 && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Perfiles Guardados</Text>
+          <View style={styles.grid}>
+            {favorites.map((item, index) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.card, {backgroundColor: colors.card}]}
+                onPress={() => {
+                  router.push(`/profile/${item.content_object_id}` as any);
+                }}
+                activeOpacity={0.7}>
+                <View style={[styles.avatar, {backgroundColor: getAvatarColor(index)}]}>
+                  <Text style={styles.avatarText}>{getInitials(item.favorite_name)}</Text>
+                </View>
+                <Text style={[styles.name, {color: colors.foreground}]} numberOfLines={1}>
+                  {item.favorite_name}
+                </Text>
+                <Text style={[styles.specialty, {color: colors.mutedForeground}]} numberOfLines={1}>
+                  {item.favorite_specialty}
+                </Text>
+                <View style={styles.rating}>
+                  <Ionicons name="star" size={14} color="#FFA500" />
+                  <Text style={[styles.ratingText, {color: colors.mutedForeground}]}>
+                    {item.favorite_rating.toFixed(1)}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.heartButton}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleRemoveFavorite(item.id);
+                  }}>
+                  <Ionicons name="heart" size={20} color="#EF4444" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+      
+      {/* Posts Section */}
+      {likedPosts.length > 0 && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Publicaciones Guardadas</Text>
+          <View style={styles.postsGrid}>
+            {likedPosts.map((post) => (
+              <TouchableOpacity
+                key={post.id}
+                style={styles.postCard}
+                activeOpacity={0.7}>
+                {post.media && post.media.length > 0 ? (
+                  <Image 
+                    source={{uri: post.media[0].media_file}} 
+                    style={styles.postImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.postImagePlaceholder, {backgroundColor: colors.muted}]}>
+                    <Ionicons name="image-outline" size={40} color={colors.mutedForeground} />
+                  </View>
+                )}
+                <View style={styles.postOverlay}>
+                  <View style={styles.postStats}>
+                    <View style={styles.postStat}>
+                      <Ionicons name="heart" size={16} color="#ffffff" />
+                      <Text style={styles.postStatText}>{post.likes_count || 0}</Text>
+                    </View>
+                    {post.comments_count > 0 && (
+                      <View style={styles.postStat}>
+                        <Ionicons name="chatbubble" size={16} color="#ffffff" />
+                        <Text style={styles.postStatText}>{post.comments_count}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    style={styles.postHeartButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleUnlikePost(post.id);
+                    }}>
+                    <Ionicons name="heart" size={20} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+      
+      <View style={{height: 40}} />
     </ScrollView>
   );
 }
@@ -206,6 +308,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     textAlign: "center",
+  },
+  section: {
+    marginTop: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    paddingHorizontal: 16,
+    marginBottom: 12,
   },
   grid: {
     flexDirection: "row",
@@ -268,5 +379,59 @@ const styles = StyleSheet.create({
     top: 8,
     right: 8,
     padding: 8,
+  },
+  postsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  postCard: {
+    width: "32%",
+    aspectRatio: 1,
+    position: "relative",
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  postImage: {
+    width: "100%",
+    height: "100%",
+  },
+  postImagePlaceholder: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  postOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "space-between",
+    padding: 8,
+  },
+  postStats: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  postStat: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  postStatText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700",
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowOffset: {width: 0, height: 1},
+    textShadowRadius: 2,
+  },
+  postHeartButton: {
+    alignSelf: "flex-end",
+    padding: 4,
   },
 });

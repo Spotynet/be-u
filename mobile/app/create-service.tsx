@@ -32,7 +32,7 @@ export default function CreateServiceScreen() {
     try {
       await createService(data);
       Alert.alert("Éxito", "Servicio creado correctamente", [
-        {text: "OK", onPress: () => router.back()},
+        {text: "OK", onPress: () => router.push("/profile/services")},
       ]);
     } catch (error) {
       // Error is already handled in the hook

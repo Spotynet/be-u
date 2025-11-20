@@ -69,15 +69,28 @@ class ServiceInPlaceViewSet(viewsets.ModelViewSet):
         
         # Filter based on query parameters
         place_id = self.request.query_params.get('place', None)
+        user_id = self.request.query_params.get('user', None)
         is_active = self.request.query_params.get('is_active', None)
         
         if place_id:
             queryset = queryset.filter(place_id=place_id)
+        elif user_id:
+            # Allow filtering by user_id for public profile lookups
+            from users.models import User
+            try:
+                target_user = User.objects.get(id=user_id)
+                if hasattr(target_user, 'place_profile'):
+                    queryset = queryset.filter(place=target_user.place_profile)
+                else:
+                    queryset = queryset.none()
+            except User.DoesNotExist:
+                queryset = queryset.none()
+                
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active == 'true')
         
         # For PLACE users, only show their own services (only if authenticated)
-        if user.is_authenticated and user.role == 'PLACE':
+        if user.is_authenticated and user.role == 'PLACE' and not place_id and not user_id:
             try:
                 place = user.place_profile
                 queryset = queryset.filter(place=place)
@@ -126,15 +139,28 @@ class ProfessionalServiceViewSet(viewsets.ModelViewSet):
         
         # Filter based on query parameters
         professional_id = self.request.query_params.get('professional', None)
+        user_id = self.request.query_params.get('user', None)
         is_active = self.request.query_params.get('is_active', None)
         
         if professional_id:
             queryset = queryset.filter(professional_id=professional_id)
+        elif user_id:
+            # Allow filtering by user_id for public profile lookups
+            from users.models import User
+            try:
+                target_user = User.objects.get(id=user_id)
+                if hasattr(target_user, 'professional_profile'):
+                    queryset = queryset.filter(professional=target_user.professional_profile)
+                else:
+                    queryset = queryset.none()
+            except User.DoesNotExist:
+                queryset = queryset.none()
+                
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active == 'true')
         
         # For PROFESSIONAL users, only show their own services (only if authenticated)
-        if user.is_authenticated and user.role == 'PROFESSIONAL':
+        if user.is_authenticated and user.role == 'PROFESSIONAL' and not professional_id and not user_id:
             try:
                 professional = user.professional_profile
                 queryset = queryset.filter(professional=professional)
@@ -413,7 +439,73 @@ def get_available_slots(self, request):
 
 class CombinedServicesViewSet(viewsets.ViewSet):
     """Combined view for all user's services regardless of type"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]  # Allow public access for list
+    
+    def get_permissions(self):
+        """Allow anyone to list services; require auth for my-services"""
+        if self.action == 'list':
+            return [AllowAny()]
+        return [IsAuthenticated()]
+    
+    def list(self, request):
+        """Get services for a specific provider (public endpoint)"""
+        from users.models import User
+        
+        provider_id = request.query_params.get('provider', None)
+        if not provider_id:
+            return Response({'results': [], 'count': 0})
+        
+        try:
+            user = User.objects.get(id=provider_id)
+        except User.DoesNotExist:
+            return Response({'results': [], 'count': 0})
+        
+        services = []
+        
+        if user.role == 'PLACE':
+            try:
+                place_services = ServiceInPlace.objects.filter(
+                    place=user.place_profile,
+                    is_active=True
+                ).select_related('service', 'professional')
+                
+                for svc in place_services:
+                    services.append({
+                        'id': svc.id,
+                        'type': 'place_service',
+                        'name': svc.service.name,
+                        'description': svc.description or '',
+                        'category': svc.service.category.name if svc.service.category else '',
+                        'price': float(svc.price),
+                        'duration_minutes': int(svc.time.total_seconds() / 60) if svc.time else 0,
+                        'is_active': svc.is_active,
+                        'professional_assigned': f"{svc.professional.name} {svc.professional.last_name}" if svc.professional else None,
+                    })
+            except Exception as e:
+                print(f"Error fetching place services: {e}")
+        
+        elif user.role == 'PROFESSIONAL':
+            try:
+                prof_services = ProfessionalService.objects.filter(
+                    professional=user.professional_profile,
+                    is_active=True
+                ).select_related('service')
+                
+                for svc in prof_services:
+                    services.append({
+                        'id': svc.id,
+                        'type': 'professional_service',
+                        'name': svc.service.name,
+                        'description': svc.description or '',
+                        'category': svc.service.category.name if svc.service.category else '',
+                        'price': float(svc.price),
+                        'duration_minutes': int(svc.time.total_seconds() / 60) if svc.time else 0,
+                        'is_active': svc.is_active,
+                    })
+            except Exception as e:
+                print(f"Error fetching professional services: {e}")
+        
+        return Response({'results': services, 'count': len(services)})
     
     @action(detail=False, methods=['get'], url_path='my-services')
     def my_services(self, request):

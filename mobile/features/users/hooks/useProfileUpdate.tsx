@@ -120,9 +120,16 @@ export const useProfileUpdate = (userId: number, userRole: string) => {
 
       // Use the single /auth/profile/ endpoint for all updates
       const result = await authApi.updateProfile(combinedData);
+      
+      console.log("Profile update response:", result.data);
+      Alert.alert("Éxito", "Perfil actualizado correctamente");
 
       return result;
     } catch (err) {
+      console.error("Profile update error:", err);
+      const message = errorUtils.getErrorMessage(err);
+      setError(message);
+      Alert.alert("Error", message);
       throw err;
     } finally {
       setIsLoading(false);

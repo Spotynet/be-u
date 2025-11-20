@@ -24,12 +24,7 @@ export const ProfessionalSettingsForm = ({
 
   const [email, setEmail] = useState(user.email);
   const [phone, setPhone] = useState(user.phone || "");
-  const [name, setName] = useState(
-    (user as any).firstName || (user as any).first_name || profile?.name || ""
-  );
-  const [lastName, setLastName] = useState(
-    (user as any).lastName || (user as any).last_name || profile?.last_name || ""
-  );
+  const [username, setUsername] = useState(user.username || "");
   const [bio, setBio] = useState(profile?.bio || "");
   const [city, setCity] = useState(profile?.city || "");
   const [isInitialized, setIsInitialized] = useState(false);
@@ -42,8 +37,7 @@ export const ProfessionalSettingsForm = ({
 
       setEmail(user.email);
       setPhone(user.phone || "");
-      setName((user as any).firstName || (user as any).first_name || profile?.name || "");
-      setLastName((user as any).lastName || (user as any).last_name || profile?.last_name || "");
+      setUsername(user.username || "");
       setBio(profile?.bio || "");
       setCity(profile?.city || "");
       setIsInitialized(true);
@@ -51,12 +45,7 @@ export const ProfessionalSettingsForm = ({
   }, [
     user.email,
     user.phone,
-    (user as any).firstName,
-    (user as any).first_name,
-    (user as any).lastName,
-    (user as any).last_name,
-    profile?.name,
-    profile?.last_name,
+    user.username,
     profile?.bio,
     profile?.city,
     isInitialized,
@@ -66,13 +55,10 @@ export const ProfessionalSettingsForm = ({
     const userData = {
       email,
       phone,
-      firstName: name,
-      lastName: lastName,
+      username,
     };
 
     const profileData = {
-      name,
-      last_name: lastName,
       bio,
       city,
     };
@@ -95,7 +81,7 @@ export const ProfessionalSettingsForm = ({
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={[styles.label, {color: colors.foreground}]}>Nombre Profesional</Text>
+          <Text style={[styles.label, {color: colors.foreground}]}>Nombre de Usuario</Text>
           <View
             style={[
               styles.inputContainer,
@@ -104,28 +90,11 @@ export const ProfessionalSettingsForm = ({
             <Ionicons name="person-outline" color={colors.mutedForeground} size={18} />
             <TextInput
               style={[styles.input, {color: colors.foreground}]}
-              value={name}
-              onChangeText={setName}
-              placeholder="Tu nombre profesional"
+              value={username}
+              onChangeText={setUsername}
+              placeholder="Tu nombre de usuario"
               placeholderTextColor={colors.mutedForeground}
-            />
-          </View>
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={[styles.label, {color: colors.foreground}]}>Apellido</Text>
-          <View
-            style={[
-              styles.inputContainer,
-              {backgroundColor: colors.card, borderColor: colors.border},
-            ]}>
-            <Ionicons name="person-outline" color={colors.mutedForeground} size={18} />
-            <TextInput
-              style={[styles.input, {color: colors.foreground}]}
-              value={lastName}
-              onChangeText={setLastName}
-              placeholder="Tu apellido"
-              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="none"
             />
           </View>
         </View>

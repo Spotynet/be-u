@@ -28,8 +28,6 @@ export default function RegisterPlace() {
   const [values, setValues] = useState({
     email: "",
     password: "",
-    firstName: "",
-    lastName: "",
     username: "",
     placeName: "",
     phone: "",
@@ -139,21 +137,7 @@ export default function RegisterPlace() {
           onChangeText={set("placeName")}
         />
         <TextInput
-          placeholder="Nombre"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.firstName}
-          onChangeText={set("firstName")}
-        />
-        <TextInput
-          placeholder="Apellido"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.lastName}
-          onChangeText={set("lastName")}
-        />
-        <TextInput
-          placeholder="Usuario"
+          placeholder="Nombre de usuario"
           autoCapitalize="none"
           placeholderTextColor={colors.mutedForeground}
           style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}

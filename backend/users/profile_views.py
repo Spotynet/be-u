@@ -137,19 +137,40 @@ def profile_image_detail_view(request, image_id):
 # ======================
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def custom_services_view(request):
     """Get or create custom services"""
-    profile = get_profile_instance(request.user)
-    if not profile:
-        return Response(
-            {"error": f"Profile customization only available for professionals and places. Current role: {request.user.role}"}, 
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    content_type, object_id = get_content_type_and_id(profile)
-    
+    # For GET requests, allow public access with user filter
     if request.method == 'GET':
+        # Check if user_id is provided (for public profile access)
+        user_id = request.query_params.get('user')
+        
+        if user_id:
+            # Public access - fetch services for specified user
+            try:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                target_user = User.objects.get(id=user_id)
+                profile = get_profile_instance(target_user)
+                if not profile:
+                    return Response([], status=status.HTTP_200_OK)
+            except User.DoesNotExist:
+                return Response([], status=status.HTTP_200_OK)
+        else:
+            # Authenticated access - fetch services for current user
+            if not request.user.is_authenticated:
+                return Response(
+                    {"error": "Authentication required when user parameter is not provided"}, 
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            profile = get_profile_instance(request.user)
+            if not profile:
+                return Response(
+                    {"error": f"Profile customization only available for professionals and places. Current role: {request.user.role}"}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        content_type, object_id = get_content_type_and_id(profile)
         services = CustomService.objects.filter(
             content_type=content_type, 
             object_id=object_id
@@ -157,7 +178,22 @@ def custom_services_view(request):
         serializer = CustomServiceSerializer(services, many=True)
         return Response(serializer.data)
     
+    # POST requires authentication
     elif request.method == 'POST':
+        if not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        profile = get_profile_instance(request.user)
+        if not profile:
+            return Response(
+                {"error": f"Profile customization only available for professionals and places. Current role: {request.user.role}"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        content_type, object_id = get_content_type_and_id(profile)
         serializer = CustomServiceSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(content_type=content_type, object_id=object_id)

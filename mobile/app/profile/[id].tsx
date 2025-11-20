@@ -17,12 +17,13 @@ import {useState, useEffect, useRef} from "react";
 import {useRouter, useLocalSearchParams} from "expo-router";
 import {useNavigation} from "@/hooks/useNavigation";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
-import {providerApi, postApi, reviewApi, serviceApi, linkApi, PlaceProfessionalLink, api} from "@/lib/api";
+import {providerApi, postApi, reviewApi, serviceApi, linkApi, profileCustomizationApi, PlaceProfessionalLink, api} from "@/lib/api";
 import {BookingFlow} from "@/components/booking/BookingFlow";
 import {errorUtils} from "@/lib/api";
 import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from "@/constants/categories";
 import {ServiceDetailModal} from "@/components/service/ServiceDetailModal";
 import {AvailabilityDisplay} from "@/components/profile/AvailabilityDisplay";
+import {useFavorites} from "@/features/favorites";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -38,6 +39,7 @@ export default function ProfileDetailScreen() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [linkedProfessionals, setLinkedProfessionals] = useState<PlaceProfessionalLink[]>([]);
+  const [linkedProfessionalsDetails, setLinkedProfessionalsDetails] = useState<any[]>([]);
   const [linkedPlaces, setLinkedPlaces] = useState<PlaceProfessionalLink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +48,30 @@ export default function ProfileDetailScreen() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  
+  // Favorites functionality
+  const {toggleFavorite, isFavorited} = useFavorites();
+  const [isFavorite, setIsFavorite] = useState(false);
+  
+  // Check if profile is favorited
+  useEffect(() => {
+    if (profile && Number(id)) {
+      const contentType = profile.profile_type === "PROFESSIONAL" ? "professionalprofile" : "placeprofile";
+      setIsFavorite(isFavorited(contentType, Number(id)));
+    }
+  }, [profile, id, isFavorited]);
+  
+  const handleToggleFavorite = async () => {
+    if (!profile || !id) return;
+    
+    try {
+      const contentType = profile.profile_type === "PROFESSIONAL" ? "professionalprofile" : "placeprofile";
+      await toggleFavorite(contentType, Number(id));
+      setIsFavorite(!isFavorite);
+    } catch (err) {
+      // Error already handled in hook
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -62,45 +88,27 @@ export default function ProfileDetailScreen() {
       // Fetch reviews (same for all profile types)
       const reviewsResponse = await reviewApi.getReviews({to_public_profile: Number(id)}).catch(() => ({data: {results: []}}));
 
-      // Fetch services from the public profile data (accessible to everyone)
-      // If not available in public profile, try the service API (now public for list/retrieve)
+      // Fetch services using the SAME endpoint as settings page
       let servicesData: any[] = [];
       
-      // First, check if services are already in the public profile data
-      if (profileData.services && Array.isArray(profileData.services)) {
-        servicesData = profileData.services;
-      } else {
-        // Fallback: try to get from service API based on profile type
-        try {
-          if (profileData.profile_type === "PLACE") {
-            // For places, get place services
-            const servicesResponse = await serviceApi.getPlaceServices({
-              place: profileData.user,
-              is_active: true,
-            });
-            servicesData = servicesResponse.data.results || [];
-          } else {
-            // For professionals, get professional services
-            const servicesResponse = await serviceApi.getProfessionalServices({
-              professional: profileData.user,
-              is_active: true,
-            });
-            servicesData = servicesResponse.data.results || [];
-          }
-        } catch (serviceError) {
-          console.log("Services not available from API:", serviceError);
-          // If both fail, just use empty array - page will still work
-          servicesData = [];
-        }
+      try {
+        // Use /profile/services/ endpoint with user parameter (same as settings page)
+        const servicesResponse = await profileCustomizationApi.getCustomServices({
+          user: profileData.user,
+        });
+        console.log("📋 Custom services response:", servicesResponse.data);
+        servicesData = servicesResponse.data || [];
+      } catch (serviceError) {
+        console.log("Services not available:", serviceError);
+        servicesData = [];
       }
 
       setReviews(reviewsResponse.data.results || []);
       setServices(servicesData);
 
-      // Load linked professionals and posts if this is a place profile
-      console.log("📋 Checking profile type for posts loading...");
-      console.log("📋 profileData.profile_type === 'PLACE':", profileData.profile_type === "PLACE");
-      console.log("📋 profileData.profile_type === 'PROFESSIONAL':", profileData.profile_type === "PROFESSIONAL");
+      console.log("📋 ========== LOADING POSTS ==========");
+      console.log("📋 Profile type:", profileData.profile_type);
+      console.log("📋 Profile user ID:", profileData.user);
       
       if (profileData.profile_type === "PLACE") {
         console.log("📋 Loading data for PLACE profile");
@@ -132,19 +140,43 @@ export default function ProfileDetailScreen() {
                 setLinkedProfessionals(linkedPros);
 
                 // Load posts from place and all linked professionals
-                // First, get user_ids for all linked professionals
-                const professionalUserIds = await Promise.all(
-                  linkedPros.map(async (link: PlaceProfessionalLink) => {
+                // First, get full details for all linked professionals (including category/subcategories)
+                const professionalDetails = await Promise.all(
+                  linkedPros.map(async (link: any) => {
+                    // Use professional_public_profile_id from backend
+                    const publicProfileId = link.professional_public_profile_id || link.professional_id;
+                    console.log(`📋 Professional ${link.professional_name}:`, {
+                      link_professional_id: link.professional_id,
+                      professional_public_profile_id: link.professional_public_profile_id,
+                      using_public_profile_id: publicProfileId,
+                    });
+                    
                     try {
-                      const profResponse = await profileApi.getProfessionalProfile(link.professional_id);
-                      return profResponse.data?.user || profResponse.data?.user_id || null;
+                      const profResponse = await providerApi.getPublicProfile(publicProfileId);
+                      return {
+                        ...link,
+                        public_profile_id: publicProfileId,
+                        user_id: profResponse.data?.user || profResponse.data?.user_id || null,
+                        category: profResponse.data?.category,
+                        sub_categories: profResponse.data?.sub_categories || [],
+                      };
                     } catch (error) {
-                      console.log(`Error getting user_id for professional ${link.professional_id}:`, error);
-                      return null;
+                      console.log(`Error getting details for professional ${publicProfileId}:`, error);
+                      return {
+                        ...link,
+                        public_profile_id: publicProfileId,
+                        user_id: null,
+                        category: null,
+                        sub_categories: [],
+                      };
                     }
                   })
                 );
+                setLinkedProfessionalsDetails(professionalDetails);
+                const professionalUserIds = professionalDetails.map(p => p.user_id).filter((id): id is number => id !== null);
 
+                console.log("📋 Loading posts for place user_id:", userId);
+                console.log("📋 Loading posts for professionals:", professionalUserIds);
                 const allPostPromises = [
                   // Posts from the place itself
                   postApi.getPosts({author: userId}).catch(() => ({data: {results: []}})),
@@ -157,6 +189,10 @@ export default function ProfileDetailScreen() {
                 ];
 
                 const allPostsResponses = await Promise.all(allPostPromises);
+                console.log("📋 ========== POST RESPONSES ==========");
+                allPostsResponses.forEach((r, i) => {
+                  console.log(`📋 Response ${i}: ${r.data?.results?.length || 0} posts`);
+                });
                 // Combine all posts and sort by created_at (most recent first)
                 const allPosts = allPostsResponses
                   .flatMap((response) => response.data?.results || [])
@@ -165,6 +201,9 @@ export default function ProfileDetailScreen() {
                     const dateB = new Date(b.created_at || b.created || 0).getTime();
                     return dateB - dateA; // Most recent first
                   });
+                console.log("📋 ========== FINAL RESULT ==========");
+                console.log("📋 Combined posts for PLACE:", allPosts.length);
+                console.log("📋 First 3 posts:", allPosts.slice(0, 3).map((p: any) => ({id: p.id, author: p.author?.email, media_count: p.media?.length})));
                 setPosts(allPosts);
               } else {
                 console.log("📋 PlaceProfile not found, trying direct link API call");
@@ -176,19 +215,36 @@ export default function ProfileDetailScreen() {
                 setLinkedProfessionals(linkedPros);
 
                 // Load posts from place and all linked professionals
-                // First, get user_ids for all linked professionals
-                const professionalUserIds = await Promise.all(
-                  linkedPros.map(async (link: PlaceProfessionalLink) => {
+                // First, get full details for all linked professionals
+                const professionalDetails = await Promise.all(
+                  linkedPros.map(async (link: any) => {
+                    const publicProfileId = link.professional_public_profile_id || link.professional_id;
                     try {
-                      const profResponse = await profileApi.getProfessionalProfile(link.professional_id);
-                      return profResponse.data?.user || profResponse.data?.user_id || null;
+                      const profResponse = await providerApi.getPublicProfile(publicProfileId);
+                      return {
+                        ...link,
+                        public_profile_id: publicProfileId,
+                        user_id: profResponse.data?.user || profResponse.data?.user_id || null,
+                        category: profResponse.data?.category,
+                        sub_categories: profResponse.data?.sub_categories || [],
+                      };
                     } catch (error) {
-                      console.log(`Error getting user_id for professional ${link.professional_id}:`, error);
-                      return null;
+                      console.log(`Error getting details for professional ${publicProfileId}:`, error);
+                      return {
+                        ...link,
+                        public_profile_id: publicProfileId,
+                        user_id: null,
+                        category: null,
+                        sub_categories: [],
+                      };
                     }
                   })
                 );
+                setLinkedProfessionalsDetails(professionalDetails);
+                const professionalUserIds = professionalDetails.map(p => p.user_id).filter((id): id is number => id !== null);
 
+                console.log("📋 [Fallback 1] Loading posts for place user_id:", userId);
+                console.log("📋 [Fallback 1] Loading posts for professionals:", professionalUserIds);
                 const allPostPromises = [
                   postApi.getPosts({author: userId}).catch(() => ({data: {results: []}})),
                   ...professionalUserIds
@@ -198,6 +254,7 @@ export default function ProfileDetailScreen() {
                     ),
                 ];
                 const allPostsResponses = await Promise.all(allPostPromises);
+                console.log("📋 [Fallback 1] All post responses:", allPostsResponses.map(r => ({count: r.data?.results?.length || 0})));
                 const allPosts = allPostsResponses
                   .flatMap((response) => response.data?.results || [])
                   .sort((a: any, b: any) => {
@@ -205,6 +262,7 @@ export default function ProfileDetailScreen() {
                     const dateB = new Date(b.created_at || b.created || 0).getTime();
                     return dateB - dateA;
                   });
+                console.log("📋 [Fallback 1] Combined posts:", allPosts.length);
                 setPosts(allPosts);
               }
             } catch (searchError) {
@@ -217,19 +275,36 @@ export default function ProfileDetailScreen() {
               setLinkedProfessionals(linkedPros);
 
               // Load posts from place and all linked professionals
-              // First, get user_ids for all linked professionals
-              const professionalUserIds = await Promise.all(
-                linkedPros.map(async (link: PlaceProfessionalLink) => {
+              // First, get full details for all linked professionals
+              const professionalDetails = await Promise.all(
+                linkedPros.map(async (link: any) => {
+                  const publicProfileId = link.professional_public_profile_id || link.professional_id;
                   try {
-                    const profResponse = await profileApi.getProfessionalProfile(link.professional_id);
-                    return profResponse.data?.user || profResponse.data?.user_id || null;
+                    const profResponse = await providerApi.getPublicProfile(publicProfileId);
+                    return {
+                      ...link,
+                      public_profile_id: publicProfileId,
+                      user_id: profResponse.data?.user || profResponse.data?.user_id || null,
+                      category: profResponse.data?.category,
+                      sub_categories: profResponse.data?.sub_categories || [],
+                    };
                   } catch (error) {
-                    console.log(`Error getting user_id for professional ${link.professional_id}:`, error);
-                    return null;
+                    console.log(`Error getting details for professional ${publicProfileId}:`, error);
+                    return {
+                      ...link,
+                      public_profile_id: publicProfileId,
+                      user_id: null,
+                      category: null,
+                      sub_categories: [],
+                    };
                   }
                 })
               );
+              setLinkedProfessionalsDetails(professionalDetails);
+              const professionalUserIds = professionalDetails.map(p => p.user_id).filter((id): id is number => id !== null);
 
+              console.log("📋 [Fallback 2] Loading posts for place user_id:", userId);
+              console.log("📋 [Fallback 2] Loading posts for professionals:", professionalUserIds);
               const allPostPromises = [
                 postApi.getPosts({author: userId}).catch(() => ({data: {results: []}})),
                 ...professionalUserIds
@@ -239,6 +314,7 @@ export default function ProfileDetailScreen() {
                   ),
               ];
               const allPostsResponses = await Promise.all(allPostPromises);
+              console.log("📋 [Fallback 2] All post responses:", allPostsResponses.map(r => ({count: r.data?.results?.length || 0})));
               const allPosts = allPostsResponses
                 .flatMap((response) => response.data?.results || [])
                 .sort((a: any, b: any) => {
@@ -246,6 +322,7 @@ export default function ProfileDetailScreen() {
                   const dateB = new Date(b.created_at || b.created || 0).getTime();
                   return dateB - dateA;
                 });
+              console.log("📋 [Fallback 2] Combined posts:", allPosts.length);
               setPosts(allPosts);
             }
           } else {
@@ -348,7 +425,17 @@ export default function ProfileDetailScreen() {
             filtered.map((l: any) => ({id: l.id, place: l.place_name, professional: l.professional_name})),
           );
 
-          setLinkedPlaces(filtered);
+          // Use place_public_profile_id from backend
+          const placesWithDetails = filtered.map((link: any) => {
+            const publicProfileId = link.place_public_profile_id || link.place_id;
+            console.log(`📍 Place ${link.place_name}: link.place_id=${link.place_id}, place_public_profile_id=${link.place_public_profile_id}, using=${publicProfileId}`);
+            return {
+              ...link,
+              public_profile_id: publicProfileId,
+            };
+          });
+
+          setLinkedPlaces(placesWithDetails);
         } catch (linksError) {
           console.log("Linked places not available:", linksError);
           setLinkedPlaces([]);
@@ -481,40 +568,50 @@ export default function ProfileDetailScreen() {
     }
 
     return (
-      <View style={styles.postsSection}>
-        <View style={styles.postsGrid}>
-          {posts.map((post, index) => (
+      <View style={styles.postsGrid}>
+        {posts.map((post, index) => {
+          // Get the first media image if available
+          const mediaUrl = post.media && post.media.length > 0 
+            ? (typeof post.media[0] === 'string' ? post.media[0] : post.media[0]?.media_file)
+            : post.image_url;
+          
+          return (
             <TouchableOpacity
               key={post.id || index}
-              style={[styles.postCard, {backgroundColor: colors.card}]}
+              style={styles.postGridItem}
               activeOpacity={0.7}
               onPress={() => {
-                // Navigate to post detail if needed
-                console.log("Post pressed:", post.id);
+                // Disabled for now
+                // router.push(`/post/${post.id}`);
               }}>
-              {post.image_url || (post.media && post.media.length > 0) ? (
+              {mediaUrl ? (
                 <Image
-                  source={{uri: post.image_url || post.media[0]}}
-                  style={styles.postImage}
+                  source={{uri: mediaUrl}}
+                  style={styles.postGridImage}
                   resizeMode="cover"
                 />
               ) : (
-                <View style={[styles.postImagePlaceholder, {backgroundColor: colors.muted + "20"}]}>
-                  <Ionicons name="image-outline" size={30} color={colors.mutedForeground} />
+                <View style={[styles.postGridImagePlaceholder, {backgroundColor: colors.muted}]}>
+                  <Ionicons name="image-outline" size={40} color={colors.mutedForeground} />
                 </View>
               )}
-              {(post.caption || post.text) && (
-                <View style={styles.postCaptionContainer}>
-                  <Text
-                    style={[styles.postCaption, {color: colors.mutedForeground}]}
-                    numberOfLines={2}>
-                    {post.caption || post.text}
-                  </Text>
+              <View style={styles.postGridOverlay}>
+                <View style={styles.postGridStats}>
+                  <View style={styles.postGridStat}>
+                    <Ionicons name="heart" size={16} color="#ffffff" />
+                    <Text style={styles.postGridStatText}>{post.likes_count || 0}</Text>
+                  </View>
+                  {post.comments_count > 0 && (
+                    <View style={styles.postGridStat}>
+                      <Ionicons name="chatbubble" size={16} color="#ffffff" />
+                      <Text style={styles.postGridStatText}>{post.comments_count}</Text>
+                    </View>
+                  )}
                 </View>
-              )}
+              </View>
             </TouchableOpacity>
-          ))}
-        </View>
+          );
+        })}
       </View>
     );
   };
@@ -616,11 +713,15 @@ export default function ProfileDetailScreen() {
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>
-          {profile.profile_type === "PROFESSIONAL" ? "Perfil: Profesionales" : "Perfil: Salones"}
+          Perfil
         </Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerActionButton}>
-            <Ionicons name="heart-outline" color={colors.foreground} size={24} />
+          <TouchableOpacity style={styles.headerActionButton} onPress={handleToggleFavorite}>
+            <Ionicons 
+              name={isFavorite ? "heart" : "heart-outline"} 
+              color={isFavorite ? "#EF4444" : colors.foreground} 
+              size={24} 
+            />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerActionButton}>
             <Ionicons name="share-outline" color={colors.foreground} size={24} />
@@ -713,102 +814,97 @@ export default function ProfileDetailScreen() {
                 <Text style={[styles.profileName, {color: colors.foreground}]} numberOfLines={1}>
                   {profile.name || "Sin nombre"}
                 </Text>
-                <Text style={[styles.profileRole, {color: colors.mutedForeground}]} numberOfLines={1}>
-                  {profile.profile_type === "PROFESSIONAL" ? "Profesional" : "Salón"}
-                </Text>
-                {/* Category and Subcategory */}
-                {(profile.category || (profile.sub_categories && profile.sub_categories.length > 0)) && (
-                  <View style={styles.profileCategoryContainer}>
-                    {profile.category && (
-                      <Text style={[styles.profileCategory, {color: colors.mutedForeground}]}>
+                
+                {/* Location */}
+                {(profile.city || profile.street) && (
+                  <Text style={[styles.profileLocation, {color: colors.mutedForeground}]} numberOfLines={1}>
+                    <Ionicons name="location-outline" size={14} color={colors.mutedForeground} />
+                    {" "}
+                    {profile.street && `${profile.street}, `}
+                    {profile.city}{profile.country && `, ${profile.country}`}
+                  </Text>
+                )}
+                
+                {/* Tags for Category and Subcategories */}
+                <View style={styles.profileTagsContainer}>
+                  {profile.category && (
+                    <View style={[styles.profileTag, {backgroundColor: colors.primary + "20", borderColor: colors.primary + "40"}]}>
+                      <Text style={[styles.profileTagText, {color: colors.primary}]}>
                         {MAIN_CATEGORIES.find((c) => c.id === profile.category)?.name || profile.category}
                       </Text>
-                    )}
-                    {profile.sub_categories && profile.sub_categories.length > 0 && (
-                      <View style={styles.profileSubcategoryContainer}>
-                        {profile.sub_categories.map((subId: string, idx: number) => {
-                          const subCategory = getSubCategoryById(profile.category || "", subId);
-                          return subCategory ? (
-                            <Text
-                              key={idx}
-                              style={[styles.profileSubcategory, {color: colors.mutedForeground}]}>
-                              {idx > 0 ? " • " : ""}
-                              {subCategory.name}
-                            </Text>
-                          ) : null;
-                        })}
-                      </View>
-                    )}
-                  </View>
+                    </View>
+                  )}
+                  {profile.sub_categories && profile.sub_categories.length > 0 && (
+                    profile.sub_categories.map((subId: string, idx: number) => {
+                      const subCategory = getSubCategoryById(profile.category || "", subId);
+                      return subCategory ? (
+                        <View 
+                          key={idx}
+                          style={[styles.profileTag, {backgroundColor: colors.muted, borderColor: colors.border}]}>
+                          <Text style={[styles.profileTagText, {color: colors.mutedForeground}]}>
+                            {subCategory.name}
+                          </Text>
+                        </View>
+                      ) : null;
+                    })
+                  )}
+                </View>
+
+                {/* Bio/Description */}
+                {profile.bio && (
+                  <Text style={[styles.profileBio, {color: colors.mutedForeground}]} numberOfLines={3}>
+                    {profile.bio}
+                  </Text>
                 )}
               </View>
-              <TouchableOpacity style={styles.settingsButton}>
-                <Ionicons name="settings-outline" size={20} color={colors.foreground} />
-              </TouchableOpacity>
             </View>
 
           </View>
 
           {/* Team Section - Only for Places */}
-          {profile.profile_type === "PLACE" && (
+          {profile.profile_type === "PLACE" && linkedProfessionalsDetails.length > 0 && (
             <View style={styles.teamSection}>
               <Text style={[styles.teamSectionTitle, {color: colors.foreground}]}>Nuestro Equipo</Text>
-              {linkedProfessionals.length > 0 ? (
-                <View style={styles.teamContainer}>
-                  {linkedProfessionals.map((link) => {
-                    const getInitials = (name: string) => {
-                      const words = name.split(" ");
-                      if (words.length >= 2) {
-                        return `${words[0].charAt(0)}${words[1].charAt(0)}`.toUpperCase();
-                      }
-                      return name.substring(0, 2).toUpperCase();
-                    };
-                    return (
-                      <TouchableOpacity
-                        key={link.id}
-                        style={[styles.teamCard, {backgroundColor: colors.card, borderColor: colors.border}]}
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          router.push(`/profile/${link.professional_id}`);
-                        }}>
-                        <View style={[styles.teamAvatar, {backgroundColor: colors.primary}]}>
-                          <Text style={styles.teamAvatarText}>
-                            {getInitials(link.professional_name)}
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.teamScrollContainer}>
+                {linkedProfessionalsDetails.map((linkDetail) => {
+                  const getInitials = (name: string) => {
+                    const words = name.split(" ");
+                    if (words.length >= 2) {
+                      return `${words[0].charAt(0)}${words[1].charAt(0)}`.toUpperCase();
+                    }
+                    return name.substring(0, 2).toUpperCase();
+                  };
+                  const borderColor = getAvatarColorFromSubcategory(
+                    linkDetail.category,
+                    linkDetail.sub_categories
+                  );
+                  return (
+                    <TouchableOpacity
+                      key={linkDetail.id}
+                      style={styles.teamStoryItem}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        const profileId = linkDetail.public_profile_id || linkDetail.professional_id;
+                        console.log(`Navigating to professional profile: ${profileId}`);
+                        router.push(`/profile/${profileId}`);
+                      }}>
+                      <View style={[styles.teamStoryRing, {borderColor: borderColor}]}>
+                        <View style={[styles.teamStoryAvatar, {backgroundColor: borderColor}]}>
+                          <Text style={styles.teamStoryAvatarText}>
+                            {getInitials(linkDetail.professional_name)}
                           </Text>
                         </View>
-                        <View style={styles.teamInfo}>
-                          <Text style={[styles.teamName, {color: colors.foreground}]}>
-                            {link.professional_name}
-                          </Text>
-                          <View style={styles.teamMeta}>
-                            <View style={[styles.teamRoleBadge, {backgroundColor: colors.primary + "15"}]}>
-                              <Ionicons name="person" color={colors.primary} size={10} />
-                              <Text style={[styles.teamRole, {color: colors.primary}]}>Profesional</Text>
-                            </View>
-                            <View style={styles.linkedBadge}>
-                              <Ionicons name="checkmark-circle" color="#10b981" size={12} />
-                              <Text style={[styles.linkedStatus, {color: colors.mutedForeground}]}>
-                                Vinculado
-                              </Text>
-                            </View>
-                          </View>
-                        </View>
-                        <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ) : (
-                <View style={[styles.emptyTeamCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-                  <Ionicons name="people-outline" color={colors.mutedForeground} size={48} />
-                  <Text style={[styles.emptyTeamTitle, {color: colors.foreground}]}>
-                    No hay profesionales en el equipo
-                  </Text>
-                  <Text style={[styles.emptyTeamText, {color: colors.mutedForeground}]}>
-                    Este establecimiento aún no tiene profesionales vinculados
-                  </Text>
-                </View>
-              )}
+                      </View>
+                      <Text style={[styles.teamStoryName, {color: colors.foreground}]} numberOfLines={1}>
+                        {linkDetail.professional_name.split(' ')[0]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
           )}
 
@@ -824,7 +920,9 @@ export default function ProfileDetailScreen() {
                       style={[styles.teamCard, {backgroundColor: colors.card, borderColor: colors.border}]}
                       activeOpacity={0.7}
                       onPress={() => {
-                        router.push(`/profile/${link.place_id}`);
+                        const profileId = (link as any).public_profile_id || link.place_id;
+                        console.log(`Navigating to place profile: ${profileId}`);
+                        router.push(`/profile/${profileId}`);
                       }}>
                       <View style={[styles.teamAvatar, {backgroundColor: colors.primary}]}>
                         <Ionicons name="business" color="#ffffff" size={24} />
@@ -876,18 +974,11 @@ export default function ProfileDetailScreen() {
                   ],
                 ]}
                 onPress={() => setActiveTab("services")}>
-                <Text
-                  style={[
-                    styles.tabText,
-                    {color: colors.mutedForeground},
-                    activeTab === "services" && [
-                      styles.activeTabText,
-                      {color: colors.foreground},
-                    ],
-                  ]}
-                  numberOfLines={1}>
-                  Servicios
-                </Text>
+                <Ionicons
+                  name="briefcase-outline"
+                  size={24}
+                  color={activeTab === "services" ? colors.foreground : colors.mutedForeground}
+                />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -895,15 +986,11 @@ export default function ProfileDetailScreen() {
                   activeTab === "reviews" && [styles.activeTab, {backgroundColor: colors.background}],
                 ]}
                 onPress={() => setActiveTab("reviews")}>
-                <Text
-                  style={[
-                    styles.tabText,
-                    {color: colors.mutedForeground},
-                    activeTab === "reviews" && [styles.activeTabText, {color: colors.foreground}],
-                  ]}
-                  numberOfLines={1}>
-                  Opiniones
-                </Text>
+                <Ionicons
+                  name="star-outline"
+                  size={24}
+                  color={activeTab === "reviews" ? colors.foreground : colors.mutedForeground}
+                />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -911,15 +998,11 @@ export default function ProfileDetailScreen() {
                   activeTab === "posts" && [styles.activeTab, {backgroundColor: colors.background}],
                 ]}
                 onPress={() => setActiveTab("posts")}>
-                <Text
-                  style={[
-                    styles.tabText,
-                    {color: colors.mutedForeground},
-                    activeTab === "posts" && [styles.activeTabText, {color: colors.foreground}],
-                  ]}
-                  numberOfLines={1}>
-                  Publicaciones
-                </Text>
+                <Ionicons
+                  name="images-outline"
+                  size={24}
+                  color={activeTab === "posts" ? colors.foreground : colors.mutedForeground}
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -937,20 +1020,6 @@ export default function ProfileDetailScreen() {
               <AvailabilityDisplay availability={profile.availability} />
             </View>
           )}
-
-          {/* Information Section */}
-          <View style={styles.infoSection}>
-            <View style={styles.infoItem}>
-              <Text style={[styles.infoLabel, {color: colors.foreground}]}>Ubicación</Text>
-              <Text style={[styles.infoValue, {color: colors.mutedForeground}]}>
-                {profile.street && `${profile.street}, `}
-                {profile.city}, {profile.country}
-              </Text>
-              <TouchableOpacity style={[styles.locationButton, {backgroundColor: colors.primary}]}>
-                <Text style={styles.locationButtonText}>Cómo llegar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
         </Animated.View>
       </ScrollView>
 
@@ -1042,58 +1111,54 @@ const styles = StyleSheet.create({
   profileSection: {
     paddingBottom: 0,
   },
-  postsSection: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 32,
-    marginTop: 16,
-  },
-  postsSectionTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 20,
-    letterSpacing: -0.5,
-  },
   postsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 8,
   },
-  postCard: {
-    width: (SCREEN_WIDTH - 50) / 3, // 3 columns: 20px padding each side + 20px total gaps (10px between items)
+  postGridItem: {
+    width: "32%",
     aspectRatio: 1,
+    position: "relative",
     borderRadius: 12,
     overflow: "hidden",
-    borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  postImage: {
+  postGridImage: {
     width: "100%",
     height: "100%",
   },
-  postImagePlaceholder: {
+  postGridImagePlaceholder: {
     width: "100%",
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
   },
-  postCaptionContainer: {
+  postGridOverlay: {
     position: "absolute",
-    bottom: 0,
+    top: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "space-between",
+    padding: 8,
   },
-  postCaption: {
-    fontSize: 10,
+  postGridStats: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  postGridStat: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  postGridStatText: {
     color: "#ffffff",
-    lineHeight: 14,
+    fontSize: 12,
+    fontWeight: "700",
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowOffset: {width: 0, height: 1},
+    textShadowRadius: 2,
   },
   heroSection: {
     position: "relative",
@@ -1179,34 +1244,33 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     letterSpacing: -0.5,
   },
-  profileRole: {
-    fontSize: 15,
-    fontWeight: "500",
-    marginBottom: 6,
-    letterSpacing: 0.2,
+  profileLocation: {
+    fontSize: 14,
+    marginTop: 4,
+    marginBottom: 2,
   },
-  profileCategoryContainer: {
-    marginTop: 6,
-    gap: 4,
-  },
-  profileCategory: {
-    fontSize: 13,
-    fontWeight: "500",
-    textTransform: "capitalize",
-    letterSpacing: 0.1,
-  },
-  profileSubcategoryContainer: {
+  profileTagsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 4,
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 8,
   },
-  profileSubcategory: {
+  profileTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  profileTagText: {
     fontSize: 11,
-    fontWeight: "400",
+    fontWeight: "600",
+    textTransform: "capitalize",
   },
-  settingsButton: {
-    padding: 8,
-    borderRadius: 20,
+  profileBio: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
   },
   profileRowActions: {
     flexDirection: "row",
@@ -1264,7 +1328,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: "center",
     justifyContent: "center",
@@ -1418,33 +1482,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 16,
   },
-  infoSection: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 24,
-    gap: 24,
-  },
-  infoItem: {
-    gap: 8,
-  },
-  infoLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  infoValue: {
-    fontSize: 14,
-  },
-  locationButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    alignSelf: "flex-start",
-  },
-  locationButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#ffffff",
-  },
   actionContainer: {
     position: "absolute",
     bottom: 0,
@@ -1527,16 +1564,50 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   teamSection: {
-    paddingHorizontal: 20,
+    paddingLeft: 20,
     paddingTop: 8,
-    paddingBottom: 24,
-    marginTop: 16,
+    paddingBottom: 16,
+    marginTop: 8,
   },
   teamSectionTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "700",
     marginBottom: 16,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
+    paddingRight: 20,
+  },
+  teamScrollContainer: {
+    paddingRight: 20,
+    gap: 8,
+  },
+  teamStoryItem: {
+    alignItems: "center",
+    width: 68,
+  },
+  teamStoryRing: {
+    padding: 2,
+    borderRadius: 40,
+    borderWidth: 3,
+    marginBottom: 6,
+  },
+  teamStoryAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#ffffff",
+  },
+  teamStoryAvatarText: {
+    color: "#ffffff",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  teamStoryName: {
+    fontSize: 12,
+    fontWeight: "500",
+    textAlign: "center",
   },
   teamContainer: {
     gap: 12,

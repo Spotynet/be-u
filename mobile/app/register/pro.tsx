@@ -29,8 +29,6 @@ export default function RegisterPro() {
   const [values, setValues] = useState({
     email: "",
     password: "",
-    firstName: "",
-    lastName: "",
     username: "",
     phone: "",
     city: "",
@@ -67,8 +65,8 @@ export default function RegisterPro() {
   };
 
   const onSubmit = async () => {
-    if (!values.email || !values.password || !values.firstName) {
-      Alert.alert("Campos requeridos", "Ingresa al menos email, contraseña y nombre");
+    if (!values.email || !values.password || !values.username) {
+      Alert.alert("Campos requeridos", "Ingresa al menos email, contraseña y nombre de usuario");
       return;
     }
     if (!values.category || !values.subcategory) {
@@ -161,21 +159,7 @@ export default function RegisterPro() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
         <TextInput
-          placeholder="Nombre"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.firstName}
-          onChangeText={set("firstName")}
-        />
-        <TextInput
-          placeholder="Apellido"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.lastName}
-          onChangeText={set("lastName")}
-        />
-        <TextInput
-          placeholder="Usuario"
+          placeholder="Nombre de usuario"
           autoCapitalize="none"
           placeholderTextColor={colors.mutedForeground}
           style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}

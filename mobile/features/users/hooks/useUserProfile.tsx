@@ -1,6 +1,7 @@
 import {useState, useEffect} from "react";
 import {
   profileApi,
+  authApi,
   providerApi,
   reservationApi,
   reviewApi,
@@ -86,7 +87,7 @@ export const useUserProfile = () => {
         case "PROFESSIONAL":
           try {
             // Get current user's profile data
-            const profileResponse = await profileApi.getClientProfile(user.id); // This uses /auth/profile/
+            const profileResponse = await authApi.getProfile(); // This uses /auth/profile/
             console.log("Professional profile response:", profileResponse.data);
             profile = profileResponse.data.profile; // Extract profile from response
           } catch (err) {
@@ -95,7 +96,7 @@ export const useUserProfile = () => {
 
           // Fetch professional data
           try {
-            const professionalId = (user as any).professional_profile?.id || user.id;
+            const professionalId = profile?.id || user.id;
             const [servicesRes, reviewsRes] = await Promise.all([
               serviceApi.getProfessionalServices({professional: professionalId}),
               reviewApi.listProfessionals({professional: professionalId}),
@@ -117,7 +118,8 @@ export const useUserProfile = () => {
         case "PLACE":
           try {
             // Get current user's profile data
-            const profileResponse = await profileApi.getClientProfile(user.id); // This uses /auth/profile/
+            const profileResponse = await authApi.getProfile(); // This uses /auth/profile/
+            console.log("Place profile response:", profileResponse.data);
             profile = profileResponse.data.profile; // Extract profile from response
           } catch (err) {
             console.log("No place profile found");
@@ -125,7 +127,7 @@ export const useUserProfile = () => {
 
           // Fetch place data
           try {
-            const placeId = (user as any).place_profile?.id || user.id;
+            const placeId = profile?.id || user.id;
             const [servicesRes, reviewsRes] = await Promise.all([
               serviceApi.getPlaceServices({place: placeId}),
               reviewApi.listPlaces({place: placeId}),

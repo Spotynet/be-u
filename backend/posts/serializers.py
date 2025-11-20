@@ -53,7 +53,9 @@ class PostSerializer(serializers.ModelSerializer):
     author_display_name = serializers.SerializerMethodField()
     author_rating = serializers.SerializerMethodField()
     author_profile_id = serializers.SerializerMethodField()
+    author_public_profile_id = serializers.SerializerMethodField()
     author_profile_type = serializers.SerializerMethodField()
+    author_photo = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
@@ -61,7 +63,8 @@ class PostSerializer(serializers.ModelSerializer):
             'id', 'author', 'post_type', 'content', 'created_at', 'updated_at', 'expires_at',
             'media', 'likes_count', 'comments_count', 'user_has_liked', 'poll_options',
             'author_category', 'author_sub_categories', 'author_display_name',
-            'author_rating', 'author_profile_id', 'author_profile_type'
+            'author_rating', 'author_profile_id', 'author_public_profile_id', 'author_profile_type',
+            'author_photo'
         ]
         read_only_fields = ['id', 'author', 'created_at', 'updated_at']
 
@@ -140,11 +143,28 @@ class PostSerializer(serializers.ModelSerializer):
         if profile:
             return profile.id
         return None
+    
+    def get_author_public_profile_id(self, obj):
+        """Alias for author_profile_id for consistency"""
+        return self.get_author_profile_id(obj)
 
     def get_author_profile_type(self, obj):
         profile = self._get_public_profile(obj)
         if profile:
             return profile.profile_type
+        return None
+    
+    def get_author_photo(self, obj):
+        """Get author's profile photo from PublicProfile"""
+        profile = self._get_public_profile(obj)
+        if profile:
+            # PublicProfile uses a JSON field for images or ProfileImage model
+            # For now, return None - can be enhanced later to get primary image
+            # from ProfileImage model using Generic Foreign Keys
+            if hasattr(profile, 'images') and profile.images:
+                # If images is a list with at least one URL
+                if isinstance(profile.images, list) and len(profile.images) > 0:
+                    return profile.images[0]  # Return first image
         return None
 
 class PostCreateSerializer(serializers.ModelSerializer):

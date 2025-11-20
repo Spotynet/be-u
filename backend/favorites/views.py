@@ -17,9 +17,7 @@ class FavoriteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Get favorites for the current user"""
         user = self.request.user
-        if hasattr(user, 'client_profile'):
-            return Favorite.objects.filter(user=user.client_profile)
-        return Favorite.objects.none()
+        return Favorite.objects.filter(user=user)
     
     def create(self, request, *args, **kwargs):
         """Create a new favorite"""
@@ -33,7 +31,7 @@ class FavoriteViewSet(viewsets.ModelViewSet):
             
             # Check if already favorited
             existing_favorite = Favorite.objects.filter(
-                user=request.user.client_profile,
+                user=request.user,
                 content_type=content_type,
                 object_id=object_id
             ).first()
@@ -46,7 +44,7 @@ class FavoriteViewSet(viewsets.ModelViewSet):
             
             # Create the favorite
             favorite = Favorite.objects.create(
-                user=request.user.client_profile,
+                user=request.user,
                 content_type=content_type,
                 object_id=object_id
             )
@@ -62,13 +60,7 @@ class FavoriteViewSet(viewsets.ModelViewSet):
     def stats(self, request):
         """Get favorite statistics for the user"""
         user = request.user
-        if not hasattr(user, 'client_profile'):
-            return Response(
-                {"detail": "Client profile not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        favorites = Favorite.objects.filter(user=user.client_profile)
+        favorites = Favorite.objects.filter(user=user)
         
         stats = {
             'total_count': favorites.count(),
@@ -95,16 +87,11 @@ class FavoriteViewSet(viewsets.ModelViewSet):
             )
         
         user = request.user
-        if not hasattr(user, 'client_profile'):
-            return Response(
-                {"detail": "Client profile not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
         
         # Delete the favorites
         deleted_count = Favorite.objects.filter(
             id__in=favorite_ids,
-            user=user.client_profile
+            user=user
         ).delete()[0]
         
         return Response({
@@ -124,7 +111,7 @@ class FavoriteViewSet(viewsets.ModelViewSet):
             
             # Check if already favorited
             existing_favorite = Favorite.objects.filter(
-                user=request.user.client_profile,
+                user=request.user,
                 content_type=content_type,
                 object_id=object_id
             ).first()
@@ -139,7 +126,7 @@ class FavoriteViewSet(viewsets.ModelViewSet):
             else:
                 # Add favorite
                 favorite = Favorite.objects.create(
-                    user=request.user.client_profile,
+                    user=request.user,
                     content_type=content_type,
                     object_id=object_id
                 )

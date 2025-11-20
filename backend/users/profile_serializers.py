@@ -113,7 +113,9 @@ class LinkedAvailabilityScheduleSerializer(serializers.ModelSerializer):
 class PlaceProfessionalLinkSerializer(serializers.ModelSerializer):
     place_id = serializers.IntegerField(source='place.id', read_only=True)
     place_name = serializers.CharField(source='place.name', read_only=True)
+    place_public_profile_id = serializers.SerializerMethodField()
     professional_id = serializers.IntegerField(source='professional.id', read_only=True)
+    professional_public_profile_id = serializers.SerializerMethodField()
     professional_name = serializers.SerializerMethodField()
     professional_email = serializers.EmailField(source='professional.user.email', read_only=True)
     invited_by_email = serializers.EmailField(source='invited_by.email', read_only=True)
@@ -122,13 +124,28 @@ class PlaceProfessionalLinkSerializer(serializers.ModelSerializer):
         model = PlaceProfessionalLink
         fields = [
             'id', 'status', 'notes', 'created_at', 'updated_at',
-            'place_id', 'place_name', 'professional_id', 'professional_name', 'professional_email',
+            'place_id', 'place_name', 'place_public_profile_id', 
+            'professional_id', 'professional_public_profile_id', 'professional_name', 'professional_email',
             'invited_by_email'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'place_id', 'place_name', 'professional_id', 'professional_name', 'professional_email', 'invited_by_email']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'place_id', 'place_name', 'place_public_profile_id', 'professional_id', 'professional_public_profile_id', 'professional_name', 'professional_email', 'invited_by_email']
     
     def get_professional_name(self, obj):
         return f"{obj.professional.name} {obj.professional.last_name}".strip()
+    
+    def get_professional_public_profile_id(self, obj):
+        """Get the PublicProfile ID for the professional"""
+        try:
+            return obj.professional.user.public_profile.id
+        except Exception:
+            return None
+    
+    def get_place_public_profile_id(self, obj):
+        """Get the PublicProfile ID for the place"""
+        try:
+            return obj.place.user.public_profile.id
+        except Exception:
+            return None
 
 
 

@@ -1,13 +1,14 @@
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.conf import settings
 from users.models import ClientProfile, ProfessionalProfile, PlaceProfile
 
 
 class Favorite(models.Model):
-    """Model for user favorites (professionals and places)"""
+    """Model for user favorites (professionals, places, and posts)"""
     
-    user = models.ForeignKey(ClientProfile, on_delete=models.CASCADE, related_name="favorites")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="favorites")
     
     # Can be either Professional or Place
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)

@@ -15,19 +15,42 @@ import {useAvailability} from "@/features/services";
 import {AvailabilityEditor} from "@/components/calendar";
 import {WeeklySchedule} from "@/types/global";
 import {useNavigation} from "@/hooks/useNavigation";
+import {authApi} from "@/lib/api";
 
 export default function AvailabilityScreen() {
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const {goBack} = useNavigation();
   const {user, isAuthenticated} = useAuth();
+  const [providerId, setProviderId] = useState<number | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   const isProvider = user?.role === "PROFESSIONAL" || user?.role === "PLACE";
   const providerType = user?.role === "PROFESSIONAL" ? "professional" : "place";
-  const providerId =
-    user?.role === "PROFESSIONAL"
-      ? (user as any).professional_profile?.id
-      : (user as any).place_profile?.id;
+
+  // Fetch profile ID from API
+  useEffect(() => {
+    const fetchProfileId = async () => {
+      if (!user || !isProvider) {
+        setLoadingProfile(false);
+        return;
+      }
+
+      try {
+        const response = await authApi.getProfile();
+        const profileId = response.data?.profile?.id;
+        if (profileId) {
+          setProviderId(profileId);
+        }
+      } catch (error) {
+        console.error("Error fetching profile ID:", error);
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    fetchProfileId();
+  }, [user, isProvider]);
 
   const {
     availability,
@@ -82,6 +105,34 @@ export default function AvailabilityScreen() {
       // Error already handled in hook
     }
   };
+
+  // Show loading while fetching profile
+  if (loadingProfile) {
+    return (
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: colors.background,
+              borderBottomColor: colors.border,
+              paddingTop: Math.max(insets.top + 16, 20),
+            },
+          ]}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => goBack("/(tabs)/perfil")}>
+            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Disponibilidad</Text>
+          <View style={styles.placeholder} />
+        </View>
+        <View style={styles.centeredContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </View>
+    );
+  }
 
   // Redirect if not a provider
   if (!isAuthenticated || !isProvider) {

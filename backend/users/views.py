@@ -11,7 +11,7 @@ from .profile_models import PlaceProfessionalLink
 from .profile_serializers import PlaceProfessionalLinkSerializer
 from .serializers import (
     UserSerializer, UserRegistrationSerializer, UserLoginSerializer,
-    ProfessionalProfileSerializer, PlaceProfileSerializer,
+    ClientProfileSerializer, ProfessionalProfileSerializer, PlaceProfileSerializer,
     ProfessionalProfileDetailSerializer, PlaceProfileDetailSerializer
 )
 
@@ -153,10 +153,21 @@ def profile_view(request):
         })
     
     elif request.method == 'PUT':
+        # Debug: Log received data
+        print(f"🔧 Profile update request data: {request.data}")
+        print(f"🔧 User before update - phone: {user.phone}")
+        
         # Update user data
         user_serializer = UserSerializer(user, data=request.data, partial=True)
         if user_serializer.is_valid():
             user_serializer.save()
+            print(f"🔧 User after update - phone: {user.phone}")
+        else:
+            print(f"🔧 UserSerializer validation errors: {user_serializer.errors}")
+            return Response({
+                'error': 'User data validation failed',
+                'details': user_serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         # Update role-specific profile
         profile_data = None
@@ -169,7 +180,12 @@ def profile_view(request):
                 )
                 if profile_serializer.is_valid():
                     profile_serializer.save()
-                profile_data = profile_serializer.data
+                    profile_data = profile_serializer.data
+                else:
+                    return Response({
+                        'error': 'Profile data validation failed',
+                        'details': profile_serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST)
         elif user.role == 'PROFESSIONAL':
             if hasattr(user, 'professional_profile'):
                 profile_serializer = ProfessionalProfileSerializer(
@@ -179,7 +195,12 @@ def profile_view(request):
                 )
                 if profile_serializer.is_valid():
                     profile_serializer.save()
-                profile_data = profile_serializer.data
+                    profile_data = profile_serializer.data
+                else:
+                    return Response({
+                        'error': 'Profile data validation failed',
+                        'details': profile_serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST)
         elif user.role == 'PLACE':
             if hasattr(user, 'place_profile'):
                 profile_serializer = PlaceProfileSerializer(
@@ -189,7 +210,12 @@ def profile_view(request):
                 )
                 if profile_serializer.is_valid():
                     profile_serializer.save()
-                profile_data = profile_serializer.data
+                    profile_data = profile_serializer.data
+                else:
+                    return Response({
+                        'error': 'Profile data validation failed',
+                        'details': profile_serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST)
         
         return Response({
             'user': UserSerializer(user).data,

@@ -128,7 +128,23 @@ export default function Perfil() {
     }
   };
 
-  const getInitials = (firstName?: string, lastName?: string) => {
+  const getInitials = (firstName?: string, lastName?: string, username?: string, role?: string, placeName?: string) => {
+    // For PLACE, use first 2 chars of place name
+    if (role === "PLACE") {
+      const name = placeName || username || "U";
+      if (name.length >= 2) {
+        return name.substring(0, 2).toUpperCase();
+      }
+      return name.charAt(0).toUpperCase();
+    }
+    // For PROFESSIONAL, use first 2 chars of username
+    if (role === "PROFESSIONAL") {
+      if (username && username.length >= 2) {
+        return username.substring(0, 2).toUpperCase();
+      }
+      return username?.charAt(0).toUpperCase() || "U";
+    }
+    // For CLIENT, use first and last name initials
     const first = firstName?.charAt(0) || "";
     const last = lastName?.charAt(0) || "";
     return `${first}${last}`.toUpperCase() || "U";
@@ -195,7 +211,11 @@ export default function Perfil() {
   };
 
   const displayName = user
-    ? `${user.first_name || user.firstName || "Usuario"} ${user.last_name || user.lastName || ""}`
+    ? user.role === "CLIENT"
+      ? `${user.first_name || user.firstName || "Usuario"} ${user.last_name || user.lastName || ""}`.trim()
+      : user.role === "PLACE"
+      ? (profile as any)?.name || user.username || "Usuario"
+      : user.username || "Usuario"
     : "Usuario";
 
   // Get avatar color based on subcategory, fallback to primary color
@@ -317,15 +337,19 @@ export default function Perfil() {
         {/* Row 1: avatar + name/role (no settings here to avoid clipping on real phones) */}
         <View style={styles.headerTopRow}>
           <View style={styles.headerProfile}>
-            <View style={[styles.headerAvatar, {backgroundColor: avatarColor}]}> 
-            {profile?.photo ? (
-              <Image source={{uri: profile.photo}} style={styles.headerAvatarImage} />
+            <TouchableOpacity
+              onPress={() => router.push("/settings")}
+              activeOpacity={0.7}>
+              <View style={[styles.headerAvatar, {backgroundColor: avatarColor}]}> 
+              {profile?.photo ? (
+                <Image source={{uri: profile.photo}} style={styles.headerAvatarImage} />
             ) : (
               <Text style={styles.headerAvatarText}>
-                {getInitials(user?.first_name, user?.last_name)}
+                {getInitials(user?.first_name, user?.last_name, user?.username, user?.role, (profile as any)?.name)}
               </Text>
             )}
-            </View>
+              </View>
+            </TouchableOpacity>
             <View style={styles.headerTextContainer}>
             <Text style={[styles.headerTitle, {color: colors.foreground}]}>{displayName}</Text>
             <Text style={[styles.headerRole, {color: colors.mutedForeground}]}>
@@ -432,14 +456,6 @@ export default function Perfil() {
                 <Text style={[styles.previewButtonText, {color: colors.primary}]}>Ver como cliente</Text>
               </TouchableOpacity>
               )}
-
-              {/* Settings button moved here so it's always visible on real phones */}
-              <TouchableOpacity
-                style={[styles.settingsActionButton, {borderColor: colors.border}]}
-                onPress={() => router.push("/settings")}
-                activeOpacity={0.7}>
-                <Ionicons name="settings-outline" color={colors.foreground} size={16} />
-              </TouchableOpacity>
         </View>
         {/* Row 3: (reserved for future/status line) */}
         <View style={styles.headerActions} />
@@ -760,16 +776,6 @@ const styles = StyleSheet.create({
     padding: 6,
     marginLeft: 8,
     marginRight: 12,
-  },
-  settingsActionButton: {
-    marginLeft: "auto",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
   },
   headerButton: {
     padding: 8,

@@ -29,7 +29,7 @@ class PostViewSet(viewsets.ModelViewSet):
         return [AllowAny()]
 
     def get_queryset(self):
-        queryset = Post.objects.select_related('author', 'author__public_profile').prefetch_related('media', 'likes', 'comments')
+        queryset = Post.objects.select_related('author').prefetch_related('media', 'likes', 'comments')
 
         # Filter out expired video posts (stories-like behavior)
         # Show videos that either:
@@ -86,6 +86,23 @@ class PostViewSet(viewsets.ModelViewSet):
             return Response({'liked': False})
 
         return Response({'liked': True})
+    
+    @action(detail=False, methods=['get'], url_path='liked')
+    def liked_posts(self, request):
+        """Get all posts liked by the authenticated user"""
+        user = request.user
+        liked_post_ids = PostLike.objects.filter(user=user).values_list('post_id', flat=True)
+        posts = Post.objects.filter(id__in=liked_post_ids).select_related(
+            'author', 'author__public_profile'
+        ).prefetch_related('media', 'likes', 'comments')
+        
+        page = self.paginate_queryset(posts)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(posts, many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=['get'])
     def comments(self, request, pk=None):

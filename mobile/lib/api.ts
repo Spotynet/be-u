@@ -333,7 +333,7 @@ export const profileCustomizationApi = {
   },
 
   // Custom Services
-  getCustomServices: () => api.get<any>(`/profile/services/`),
+  getCustomServices: (params?: {user?: number}) => api.get<any>(`/profile/services/`, {params}),
   createCustomService: (data: any) => api.post<any>(`/profile/services/`, data),
   updateCustomService: (serviceId: number, data: any) =>
     api.put<any>(`/profile/services/${serviceId}/`, data),
@@ -452,7 +452,7 @@ export const serviceApi = {
   getMyServices: () => api.get<{results: any[]; count: number}>("/services/my-services/"),
 
   // Place services
-  getPlaceServices: (params?: {place?: number; is_active?: boolean}) =>
+  getPlaceServices: (params?: {place?: number; user?: number; is_active?: boolean}) =>
     api.get<{results: any[]; count: number}>("/services/place-services/", {params}),
 
   createPlaceService: (data: {
@@ -470,7 +470,7 @@ export const serviceApi = {
   deletePlaceService: (id: number) => api.delete(`/services/place-services/${id}/`),
 
   // Professional services
-  getProfessionalServices: (params?: {professional?: number; is_active?: boolean}) =>
+  getProfessionalServices: (params?: {professional?: number; user?: number; is_active?: boolean}) =>
     api.get<{results: any[]; count: number}>("/services/professional-services/", {params}),
 
   createProfessionalService: (data: {
@@ -779,6 +779,10 @@ export const postApi = {
   // Like toggle
   likePost: (id: number) => api.post<any>(`/posts/list/${id}/like/`),
   unlikePost: (id: number) => api.post<any>(`/posts/list/${id}/like/`),
+  
+  // Get liked posts
+  getLikedPosts: (params?: {page?: number}) =>
+    api.get<{results: any[]; count: number}>("/posts/list/liked/", {params}),
 
   // Get post comments
   getComments: (postId: number, params?: {page?: number}) =>
@@ -857,7 +861,9 @@ export type PlaceProfessionalLink = {
   updated_at: string;
   place_id: number;
   place_name: string;
+  place_public_profile_id?: number;
   professional_id: number;
+  professional_public_profile_id?: number;
   professional_name: string;
   professional_email: string;
   invited_by_email?: string;
