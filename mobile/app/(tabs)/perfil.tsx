@@ -16,7 +16,7 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useUserProfile} from "@/features/users/hooks/useUserProfile";
-import {ProfileTabs} from "@/components/profile";
+import {ProfileTabs, SettingsMenu} from "@/components/profile";
 import {useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {useState, useRef, useEffect} from "react";
@@ -36,6 +36,8 @@ export default function Perfil() {
 
   // State for personalizar perfil expansion
   const [isPersonalizarExpanded, setIsPersonalizarExpanded] = useState(false);
+  // State for settings menu
+  const [isSettingsMenuVisible, setIsSettingsMenuVisible] = useState(false);
   
   // Reset expansion state if user is not a provider
   useEffect(() => {
@@ -334,7 +336,7 @@ export default function Perfil() {
               paddingTop: Math.max(insets.top + 8, 16),
             },
           ]}>
-        {/* Row 1: avatar + name/role (no settings here to avoid clipping on real phones) */}
+        {/* Row 1: avatar + name/role + settings icon */}
         <View style={styles.headerTopRow}>
           <View style={styles.headerProfile}>
             <TouchableOpacity
@@ -396,6 +398,15 @@ export default function Perfil() {
             )}
             </View>
           </View>
+          {/* Settings Icon - Positioned on the right */}
+          <TouchableOpacity
+            onPress={() => setIsSettingsMenuVisible(true)}
+            style={styles.settingsIconButton}
+            activeOpacity={0.7}>
+            <View style={[styles.settingsIconContainer, {backgroundColor: colors.card}]}>
+              <Ionicons name="settings" color={colors.primary} size={22} />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Row 2: action buttons + settings (moved here for better visibility on devices) */}
@@ -691,6 +702,12 @@ export default function Perfil() {
           <ProfileTabs userRole={user.role as "CLIENT" | "PROFESSIONAL" | "PLACE"} />
         </View>
       </ScrollView>
+
+      {/* Settings Menu Modal */}
+      <SettingsMenu
+        visible={isSettingsMenuVisible}
+        onClose={() => setIsSettingsMenuVisible(false)}
+      />
     </View>
   );
 }
@@ -711,14 +728,14 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     alignItems: "stretch",
     paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
     borderBottomWidth: 1,
   },
   headerTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-start", // keep avatar + text aligned to the left so they don't clash with safe areas
+    justifyContent: "space-between", // space between for avatar+name and settings icon
   },
   headerProfile: {
     flexDirection: "row",
@@ -1113,5 +1130,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     letterSpacing: -0.2,
+  },
+  settingsIconButton: {
+    padding: 4,
+  },
+  settingsIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
 });

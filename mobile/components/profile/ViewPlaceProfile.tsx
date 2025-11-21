@@ -427,16 +427,13 @@ export const ViewPlaceProfile = ({placeId, onClose}: ViewPlaceProfileProps) => {
       {images.length > 0 && (
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Galería</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.portfolioScroll}>
+          <View style={styles.portfolioGrid}>
             {images.map((image, index) => (
               <View key={index} style={[styles.portfolioItem, {backgroundColor: colors.card}]}>
                 <Image source={{uri: image.image_url}} style={styles.portfolioImage} />
               </View>
             ))}
-          </ScrollView>
+          </View>
         </View>
       )}
 
@@ -863,11 +860,16 @@ const styles = StyleSheet.create({
     marginHorizontal: -16,
     paddingHorizontal: 16,
   },
+  portfolioGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingHorizontal: 16,
+  },
   portfolioItem: {
-    width: 200,
-    height: 200,
-    borderRadius: 16,
-    marginRight: 12,
+    width: (SCREEN_WIDTH - 48) / 3,
+    height: (SCREEN_WIDTH - 48) / 3,
+    borderRadius: 12,
     overflow: "hidden",
   },
   portfolioImage: {

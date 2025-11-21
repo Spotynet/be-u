@@ -363,16 +363,13 @@ export const ProfessionalProfileView = ({
               <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Mi Portfolio</Text>
             </View>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.portfolioScroll}>
+          <View style={styles.portfolioGrid}>
             {displayPortfolio.map((item, index) => (
               <View key={index} style={[styles.portfolioItem, {backgroundColor: colors.card}]}>
                 <Image source={{uri: item.image_url || item.image}} style={styles.portfolioImage} />
               </View>
             ))}
-          </ScrollView>
+          </View>
         </View>
       )}
 
@@ -719,11 +716,16 @@ const styles = StyleSheet.create({
     marginHorizontal: -16,
     paddingHorizontal: 16,
   },
+  portfolioGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingHorizontal: 16,
+  },
   portfolioItem: {
-    width: 200,
-    height: 200,
-    borderRadius: 16,
-    marginRight: 12,
+    width: (SCREEN_WIDTH - 48) / 3,
+    height: (SCREEN_WIDTH - 48) / 3,
+    borderRadius: 12,
     overflow: "hidden",
   },
   portfolioImage: {

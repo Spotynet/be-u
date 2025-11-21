@@ -23,6 +23,7 @@ import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {postApi, tokenUtils} from "@/lib/api";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 import {getAvatarColorFromSubcategory} from "@/constants/categories";
+import {useAuth} from "@/features/auth/hooks/useAuth";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -77,6 +78,7 @@ export default function Home() {
   const colorScheme = useColorScheme();
   const {colors, setVariant} = useThemeVariant();
   const insets = useSafeAreaInsets();
+  const {user} = useAuth();
   const {
     selectedMainCategory,
     setSelectedMainCategory,
@@ -603,9 +605,12 @@ export default function Home() {
                 </Text>
               </View>
             ) : null}
-            <TouchableOpacity style={styles.postMoreButton}>
-              <Ionicons name="ellipsis-horizontal" color={colors.mutedForeground} size={20} />
-            </TouchableOpacity>
+            {/* Only show menu for post author (professionals and places) */}
+            {user && post.author?.id === user.id && (user.role === "PROFESSIONAL" || user.role === "PLACE") && (
+              <TouchableOpacity style={styles.postMoreButton}>
+                <Ionicons name="ellipsis-vertical" color={colors.mutedForeground} size={20} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
         
@@ -1319,7 +1324,7 @@ export default function Home() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        style={styles.carousel}>
+        style={styles.carouselScrollView}>
         {post.images.map((image: string, index: number) => (
           <Image key={index} source={{uri: image}} style={styles.carouselImage} />
         ))}
@@ -1392,7 +1397,7 @@ export default function Home() {
           {
             backgroundColor: colors.background,
             borderBottomColor: colors.border,
-            paddingTop: insets.top + 44,
+            paddingTop: insets.top + 22,
           },
         ]}>
         <Image
@@ -1542,8 +1547,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 60,
-    paddingBottom: 12,
+    paddingTop: 30,
+    paddingBottom: 8,
     borderBottomWidth: 1,
   },
   headerTitle: {
@@ -1557,9 +1562,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerLogo: {
-    height: 50,
-    width: 50,
-    marginLeft: 16,
+    height: 36,
+    width: 36,
+    marginLeft: 12,
   },
   headerTitleText: {
     fontSize: 24,
@@ -1628,7 +1633,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   subCategoryContainer: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   feed: {
     flex: 1,
@@ -1649,7 +1654,7 @@ const styles = StyleSheet.create({
 
   // Stories - Timeline horizontal novedoso
   storiesSection: {
-    paddingVertical: 16,
+    paddingVertical: 12,
   },
   storiesTitle: {
     fontSize: 20,
@@ -1778,7 +1783,7 @@ const styles = StyleSheet.create({
   postHeaderRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 12,
   },
   postUserName: {
     flexDirection: "row",
@@ -1795,6 +1800,8 @@ const styles = StyleSheet.create({
   },
   postMoreButton: {
     padding: 4,
+    minWidth: 28,
+    alignItems: "center",
   },
   ratingBadge: {
     flexDirection: "row",

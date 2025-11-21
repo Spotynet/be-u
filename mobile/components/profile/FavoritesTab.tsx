@@ -384,13 +384,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     paddingHorizontal: 16,
-    gap: 8,
+    gap: 4,
   },
   postCard: {
-    width: "32%",
+    width: "31.5%",
     aspectRatio: 1,
     position: "relative",
-    borderRadius: 12,
+    borderRadius: 8,
     overflow: "hidden",
   },
   postImage: {

@@ -295,7 +295,7 @@ export default function Explore() {
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* Header */}
-      <View style={[styles.header, {paddingTop: insets.top + 44}]}>
+      <View style={[styles.header, {paddingTop: insets.top + 30}]}>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, {color: colors.foreground}]}>Explorar</Text>
           <Text style={[styles.headerSubtitle, {color: colors.mutedForeground}]}>
@@ -733,15 +733,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 12,
+    paddingTop: 30,
+    paddingBottom: 8,
     gap: 12,
   },
   headerCenter: {
     flex: 1,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "800",
     letterSpacing: -0.5,
   },
@@ -815,12 +815,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   subCategoryContainer: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   searchContainer: {
     paddingHorizontal: 16,
-    marginBottom: 8,
-    gap: 8,
+    marginBottom: 4,
+    gap: 4,
   },
   searchBar: {
     flexDirection: "row",

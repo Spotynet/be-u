@@ -13,3 +13,4 @@ export {ProfileCustomizationTab} from "./ProfileCustomizationTab";
 export {ImageGallery} from "./ImageGallery";
 export {ServiceManager} from "./ServiceManager";
 export {AvailabilityManager} from "./AvailabilityManager";
+export {default as SettingsMenu} from "./SettingsMenu";

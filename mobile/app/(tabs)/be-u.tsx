@@ -651,7 +651,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 48,
   },
   aiAvatar: {
     width: 48,
@@ -778,8 +778,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingTop: 48,
+    paddingBottom: 16,
   },
   backButton: {
     marginRight: 16,
@@ -961,8 +961,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingTop: 48,
+    paddingBottom: 16,
   },
   bookingHeaderTitle: {
     fontSize: 24,

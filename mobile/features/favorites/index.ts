@@ -32,16 +32,21 @@ export const useFavorites = () => {
     } catch (err: any) {
       console.error("Error fetching favorites:", err);
 
-      // Handle 404 or API not available as empty state instead of error
+      // Handle 404, 401 (not authenticated), or API not available as empty state instead of error
       if (
         err.status === 404 ||
+        err.status === 401 ||
+        err.response?.status === 404 ||
+        err.response?.status === 401 ||
         err.message?.includes("404") ||
+        err.message?.includes("401") ||
+        err.message?.includes("Unauthorized") ||
         err.message?.includes("not found") ||
         err.message?.includes("Page not found")
       ) {
         setFavorites([]);
         setError(null);
-        // Set empty stats when API is not available
+        // Set empty stats when API is not available or user not authenticated
         setStats({
           total_count: 0,
           professionals_count: 0,
@@ -63,10 +68,15 @@ export const useFavorites = () => {
     } catch (err: any) {
       console.error("Error fetching favorite stats:", err);
 
-      // Handle 404 or API not available as empty stats
+      // Handle 404, 401 (not authenticated), or API not available as empty stats
       if (
         err.status === 404 ||
+        err.status === 401 ||
+        err.response?.status === 404 ||
+        err.response?.status === 401 ||
         err.message?.includes("404") ||
+        err.message?.includes("401") ||
+        err.message?.includes("Unauthorized") ||
         err.message?.includes("not found") ||
         err.message?.includes("Page not found")
       ) {

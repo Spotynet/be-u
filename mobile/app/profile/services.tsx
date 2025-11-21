@@ -176,14 +176,6 @@ export default function ServiceManagementScreen() {
         style={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         showsVerticalScrollIndicator={false}>
-        {/* Add Service Button */}
-        <TouchableOpacity
-          style={[styles.addServiceButton, {backgroundColor: colors.primary}]}
-          onPress={handleAddService}>
-          <Ionicons name="add" color="#ffffff" size={20} />
-          <Text style={styles.addServiceButtonText}>Agregar Nuevo Servicio</Text>
-        </TouchableOpacity>
-
         {/* Services List */}
         {services.length === 0 ? (
           <View style={styles.emptyState}>
@@ -298,26 +290,12 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+    paddingTop: 20,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  },
-  addServiceButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginVertical: 20,
-  },
-  addServiceButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
   },
   emptyState: {
     alignItems: "center",

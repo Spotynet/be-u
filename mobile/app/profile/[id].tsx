@@ -112,14 +112,25 @@ export default function ProfileDetailScreen() {
       
       if (profileData.profile_type === "PLACE") {
         console.log("📋 Loading data for PLACE profile");
+        const userId = profileData.user;
+        const publicProfileId = Number(id); // Use the Public Profile ID from the URL
+        console.log("📋 Public Profile ID:", publicProfileId);
+        console.log("📋 User ID:", userId);
+        
+        // Load linked professionals using the Public Profile ID
+        let linkedPros: any[] = [];
         try {
-          // Try to get PlaceProfile by searching places endpoint with user_id
-          // PublicProfile.user -> User.place_profile -> PlaceProfile.id
-          const userId = profileData.user;
-          if (userId) {
+          // Try public endpoint first (no authentication required)
+          let linksResponse;
+          try {
+            linksResponse = await linkApi.listPlaceLinksPublic(publicProfileId, "ACCEPTED");
+            console.log("📋 Linked professionals response (public):", linksResponse.data);
+          } catch (publicError: any) {
+            // Fallback to private endpoint if public doesn't exist
+            // When using private endpoint, we need the PlaceProfile ID not PublicProfile ID
+            // So let's get it from the places endpoint
+            console.log("📋 Public endpoint not available, searching for PlaceProfile ID...");
             try {
-              // Try to get PlaceProfile by listing places and finding the one with matching user_id
-              // Or try using the places endpoint with the PublicProfile name to find the PlaceProfile
               const placesResponse = await api.get<any>(`/places/`, {
                 params: { search: profileData.name }
               });
@@ -128,16 +139,30 @@ export default function ProfileDetailScreen() {
                 : Array.isArray(placesResponse.data) 
                   ? placesResponse.data 
                   : [];
-              
-              // Find the place with matching user_id
               const matchingPlace = places.find((place: any) => place.user_id === userId);
-              
               if (matchingPlace?.id) {
                 console.log("📋 Found PlaceProfile ID:", matchingPlace.id);
-                const linksResponse = await linkApi.listPlaceLinks(matchingPlace.id, "ACCEPTED");
-                console.log("📋 Linked professionals response:", linksResponse.data);
-                const linkedPros = Array.isArray(linksResponse.data) ? linksResponse.data : [];
-                setLinkedProfessionals(linkedPros);
+                linksResponse = await linkApi.listPlaceLinks(matchingPlace.id, "ACCEPTED");
+                console.log("📋 Linked professionals response (private):", linksResponse.data);
+              } else {
+                console.log("📋 PlaceProfile not found");
+                linksResponse = { data: [] };
+              }
+            } catch (searchError) {
+              console.log("📋 Error searching for PlaceProfile:", searchError);
+              linksResponse = { data: [] };
+            }
+          }
+          linkedPros = Array.isArray(linksResponse.data) ? linksResponse.data : [];
+          setLinkedProfessionals(linkedPros);
+        } catch (linkError: any) {
+          console.log("📋 Error loading linked professionals:", linkError.response?.status || linkError.message);
+          linkedPros = [];
+          setLinkedProfessionals([]);
+        }
+        
+        if (linkedPros.length > 0) {
+          try {
 
                 // Load posts from place and all linked professionals
                 // First, get full details for all linked professionals (including category/subcategories)
@@ -205,134 +230,12 @@ export default function ProfileDetailScreen() {
                 console.log("📋 Combined posts for PLACE:", allPosts.length);
                 console.log("📋 First 3 posts:", allPosts.slice(0, 3).map((p: any) => ({id: p.id, author: p.author?.email, media_count: p.media?.length})));
                 setPosts(allPosts);
-              } else {
-                console.log("📋 PlaceProfile not found, trying direct link API call");
-                // Fallback: try using PublicProfile id directly
-                const placeProfileId = profileData.id || Number(id);
-                console.log("📋 Trying with PublicProfile ID as fallback:", placeProfileId);
-                const linksResponse = await linkApi.listPlaceLinks(placeProfileId, "ACCEPTED");
-                const linkedPros = Array.isArray(linksResponse.data) ? linksResponse.data : [];
-                setLinkedProfessionals(linkedPros);
-
-                // Load posts from place and all linked professionals
-                // First, get full details for all linked professionals
-                const professionalDetails = await Promise.all(
-                  linkedPros.map(async (link: any) => {
-                    const publicProfileId = link.professional_public_profile_id || link.professional_id;
-                    try {
-                      const profResponse = await providerApi.getPublicProfile(publicProfileId);
-                      return {
-                        ...link,
-                        public_profile_id: publicProfileId,
-                        user_id: profResponse.data?.user || profResponse.data?.user_id || null,
-                        category: profResponse.data?.category,
-                        sub_categories: profResponse.data?.sub_categories || [],
-                      };
-                    } catch (error) {
-                      console.log(`Error getting details for professional ${publicProfileId}:`, error);
-                      return {
-                        ...link,
-                        public_profile_id: publicProfileId,
-                        user_id: null,
-                        category: null,
-                        sub_categories: [],
-                      };
-                    }
-                  })
-                );
-                setLinkedProfessionalsDetails(professionalDetails);
-                const professionalUserIds = professionalDetails.map(p => p.user_id).filter((id): id is number => id !== null);
-
-                console.log("📋 [Fallback 1] Loading posts for place user_id:", userId);
-                console.log("📋 [Fallback 1] Loading posts for professionals:", professionalUserIds);
-                const allPostPromises = [
-                  postApi.getPosts({author: userId}).catch(() => ({data: {results: []}})),
-                  ...professionalUserIds
-                    .filter((uid): uid is number => uid !== null)
-                    .map((professionalUserId: number) =>
-                      postApi.getPosts({author: professionalUserId}).catch(() => ({data: {results: []}}))
-                    ),
-                ];
-                const allPostsResponses = await Promise.all(allPostPromises);
-                console.log("📋 [Fallback 1] All post responses:", allPostsResponses.map(r => ({count: r.data?.results?.length || 0})));
-                const allPosts = allPostsResponses
-                  .flatMap((response) => response.data?.results || [])
-                  .sort((a: any, b: any) => {
-                    const dateA = new Date(a.created_at || a.created || 0).getTime();
-                    const dateB = new Date(b.created_at || b.created || 0).getTime();
-                    return dateB - dateA;
-                  });
-                console.log("📋 [Fallback 1] Combined posts:", allPosts.length);
-                setPosts(allPosts);
-              }
-            } catch (searchError) {
-              console.log("📋 Error searching PlaceProfile:", searchError);
-              // Fallback: try using PublicProfile id directly
-              const placeProfileId = profileData.id || Number(id);
-              console.log("📋 Trying with PublicProfile ID as fallback:", placeProfileId);
-              const linksResponse = await linkApi.listPlaceLinks(placeProfileId, "ACCEPTED");
-              const linkedPros = Array.isArray(linksResponse.data) ? linksResponse.data : [];
-              setLinkedProfessionals(linkedPros);
-
-              // Load posts from place and all linked professionals
-              // First, get full details for all linked professionals
-              const professionalDetails = await Promise.all(
-                linkedPros.map(async (link: any) => {
-                  const publicProfileId = link.professional_public_profile_id || link.professional_id;
-                  try {
-                    const profResponse = await providerApi.getPublicProfile(publicProfileId);
-                    return {
-                      ...link,
-                      public_profile_id: publicProfileId,
-                      user_id: profResponse.data?.user || profResponse.data?.user_id || null,
-                      category: profResponse.data?.category,
-                      sub_categories: profResponse.data?.sub_categories || [],
-                    };
-                  } catch (error) {
-                    console.log(`Error getting details for professional ${publicProfileId}:`, error);
-                    return {
-                      ...link,
-                      public_profile_id: publicProfileId,
-                      user_id: null,
-                      category: null,
-                      sub_categories: [],
-                    };
-                  }
-                })
-              );
-              setLinkedProfessionalsDetails(professionalDetails);
-              const professionalUserIds = professionalDetails.map(p => p.user_id).filter((id): id is number => id !== null);
-
-              console.log("📋 [Fallback 2] Loading posts for place user_id:", userId);
-              console.log("📋 [Fallback 2] Loading posts for professionals:", professionalUserIds);
-              const allPostPromises = [
-                postApi.getPosts({author: userId}).catch(() => ({data: {results: []}})),
-                ...professionalUserIds
-                  .filter((uid): uid is number => uid !== null)
-                  .map((professionalUserId: number) =>
-                    postApi.getPosts({author: professionalUserId}).catch(() => ({data: {results: []}}))
-                  ),
-              ];
-              const allPostsResponses = await Promise.all(allPostPromises);
-              console.log("📋 [Fallback 2] All post responses:", allPostsResponses.map(r => ({count: r.data?.results?.length || 0})));
-              const allPosts = allPostsResponses
-                .flatMap((response) => response.data?.results || [])
-                .sort((a: any, b: any) => {
-                  const dateA = new Date(a.created_at || a.created || 0).getTime();
-                  const dateB = new Date(b.created_at || b.created || 0).getTime();
-                  return dateB - dateA;
-                });
-              console.log("📋 [Fallback 2] Combined posts:", allPosts.length);
-              setPosts(allPosts);
-            }
-          } else {
-            console.log("📋 No user ID found in profileData");
-            setLinkedProfessionals([]);
-            // Still load posts from the place
-            const userId = profileData.user || profileData.user_id;
+          } catch (postsError) {
+            console.log("📋 Error loading posts:", postsError);
+            // Still load posts from the place only
             if (userId) {
               const postsResponse = await postApi.getPosts({author: userId}).catch((error) => {
-                console.error("📋 Error loading posts:", error);
+                console.error("📋 Error loading place posts:", error);
                 return {data: {results: []}};
               });
               setPosts(postsResponse.data?.results || postsResponse.data || []);
@@ -340,14 +243,12 @@ export default function ProfileDetailScreen() {
               setPosts([]);
             }
           }
-        } catch (linksError) {
-          console.log("📋 Linked professionals error:", linksError);
-          setLinkedProfessionals([]);
-          // Still load posts from the place
-          const userId = profileData.user || profileData.user_id;
+        } else {
+          // No linked professionals, just load place posts
+          console.log("📋 No linked professionals, loading place posts only");
           if (userId) {
             const postsResponse = await postApi.getPosts({author: userId}).catch((error) => {
-              console.error("📋 Error loading posts:", error);
+              console.error("📋 Error loading place posts:", error);
               return {data: {results: []}};
             });
             setPosts(postsResponse.data?.results || postsResponse.data || []);
@@ -397,9 +298,21 @@ export default function ProfileDetailScreen() {
       // Load linked places if this is a professional profile
       if (profileData.profile_type === "PROFESSIONAL") {
         try {
-          const professionalUserId = profileData.user_id || profileData.user || Number(id);
-          console.log("📍 Loading links for professional user_id:", professionalUserId);
-          const linksResponse = await linkApi.listProfessionalLinks(professionalUserId, "ACCEPTED");
+          const professionalPublicProfileId = Number(id);
+          console.log("📍 Loading links for professional public profile ID:", professionalPublicProfileId);
+          
+          // Try public endpoint first (no authentication required)
+          let linksResponse;
+          try {
+            linksResponse = await linkApi.listProfessionalLinksPublic(professionalPublicProfileId, "ACCEPTED");
+            console.log("📍 Links response (public):", linksResponse.data);
+          } catch (publicError: any) {
+            // Fallback to private endpoint if public doesn't exist
+            console.log("📍 Public endpoint not available, trying private endpoint");
+            const professionalUserId = profileData.user_id || profileData.user;
+            linksResponse = await linkApi.listProfessionalLinks(professionalUserId, "ACCEPTED");
+            console.log("📍 Links response (private):", linksResponse.data);
+          }
           const rawLinks = Array.isArray(linksResponse.data) ? linksResponse.data : [];
           console.log("📍 Raw links from API:", rawLinks);
 
@@ -581,8 +494,9 @@ export default function ProfileDetailScreen() {
               style={styles.postGridItem}
               activeOpacity={0.7}
               onPress={() => {
-                // Disabled for now
-                // router.push(`/post/${post.id}`);
+                if (post.id) {
+                  router.push(`/post/${post.id}`);
+                }
               }}>
               {mediaUrl ? (
                 <Image
@@ -1114,13 +1028,14 @@ const styles = StyleSheet.create({
   postsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 4,
+    paddingHorizontal: 4,
   },
   postGridItem: {
-    width: "32%",
+    width: "31.5%",
     aspectRatio: 1,
     position: "relative",
-    borderRadius: 12,
+    borderRadius: 8,
     overflow: "hidden",
   },
   postGridImage: {
