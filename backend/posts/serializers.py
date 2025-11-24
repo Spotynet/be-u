@@ -86,7 +86,27 @@ class PostSerializer(serializers.ModelSerializer):
             # Try to access public_profile directly
             # If it doesn't exist, Django will raise PublicProfile.DoesNotExist
             profile = obj.author.public_profile
-            return profile.category if profile else None
+            if not profile:
+                return None
+            
+            category = profile.category
+            if category is None:
+                return None
+            
+            # Handle JSONField (list format) - return the list itself
+            # Frontend can handle both list and string formats
+            if isinstance(category, list):
+                # Return the list if it has items, otherwise return None
+                # Frontend will check if selectedMainCategory is in the list
+                return category if len(category) > 0 else None
+            
+            # Handle string format (backward compatibility)
+            # Convert single string to list for consistency
+            if isinstance(category, str):
+                return [category] if category else None
+            
+            # Fallback for any other type
+            return None
         except Exception:
             # Profile doesn't exist or other error
             return None

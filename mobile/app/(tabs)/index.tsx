@@ -245,8 +245,33 @@ export default function Home() {
   // Filter posts by active category and subcategory
   const filteredPosts = posts.filter((post: any) => {
     // First, filter by main category
-    if (post.author_category !== selectedMainCategory) {
+    // Handle both list and string formats (for backward compatibility)
+    const authorCategory = post.author_category;
+    let categoryMatches = false;
+    
+    // Handle null/undefined cases
+    if (authorCategory == null) {
       return false;
+    }
+    
+    if (Array.isArray(authorCategory)) {
+      // If category is a list, check if selectedMainCategory is in the list
+      // Also handle case-insensitive comparison
+      categoryMatches = authorCategory.some((cat: string) => 
+        cat && cat.toLowerCase() === selectedMainCategory.toLowerCase()
+      );
+    } else if (typeof authorCategory === 'string') {
+      // If category is a string, do direct comparison (case-insensitive)
+      categoryMatches = authorCategory.toLowerCase() === selectedMainCategory.toLowerCase();
+    }
+    
+    if (!categoryMatches) {
+      return false;
+    }
+    
+    // Debug log for first few posts
+    if (posts.indexOf(post) < 3) {
+      console.log(`📱 Post ${post.id} category:`, authorCategory, "Selected:", selectedMainCategory, "Matches:", categoryMatches);
     }
     
     // If "todos" subcategory is selected, show all posts in the main category
@@ -261,8 +286,32 @@ export default function Home() {
   
   // Get video posts (stories) filtered by active category and subcategory
   const videoPosts = posts.filter((post: any) => {
-    // First, filter by main category and post type
-    if (post.post_type !== 'video' || post.author_category !== selectedMainCategory) {
+    // First, filter by post type
+    if (post.post_type !== 'video') {
+      return false;
+    }
+    
+    // Filter by main category - handle both list and string formats
+    const authorCategory = post.author_category;
+    let categoryMatches = false;
+    
+    // Handle null/undefined cases
+    if (authorCategory == null) {
+      return false;
+    }
+    
+    if (Array.isArray(authorCategory)) {
+      // If category is a list, check if selectedMainCategory is in the list
+      // Also handle case-insensitive comparison
+      categoryMatches = authorCategory.some((cat: string) => 
+        cat && cat.toLowerCase() === selectedMainCategory.toLowerCase()
+      );
+    } else if (typeof authorCategory === 'string') {
+      // If category is a string, do direct comparison (case-insensitive)
+      categoryMatches = authorCategory.toLowerCase() === selectedMainCategory.toLowerCase();
+    }
+    
+    if (!categoryMatches) {
       return false;
     }
     
@@ -279,8 +328,16 @@ export default function Home() {
   const fetchPosts = async () => {
     try {
       setLoading(true);
+      console.log("📱 Fetching posts from API...");
       const res = await postApi.getPosts();
       const postsData = res.data.results || [];
+      console.log(`📱 Fetched ${postsData.length} posts from API`);
+      
+      // Log first post's category for debugging
+      if (postsData.length > 0) {
+        console.log("📱 First post category:", postsData[0].author_category, "Type:", typeof postsData[0].author_category);
+      }
+      
       setPosts(postsData);
       
       // Initialize likedPosts from user_has_liked field
@@ -292,7 +349,7 @@ export default function Home() {
       });
       setLikedPosts(likedPostIds);
     } catch (err) {
-      console.error("Error fetching posts:", err);
+      console.error("❌ Error fetching posts:", err);
     } finally {
       setLoading(false);
     }
