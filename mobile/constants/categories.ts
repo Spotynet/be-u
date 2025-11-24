@@ -307,9 +307,10 @@ export const getCategoryEmoji = (categoryId: string): string => {
 /**
  * Get avatar background color based on subcategory
  * Returns the subcategory color if available, otherwise defaults to a neutral color
+ * Supports both single category (string) and multiple categories (array)
  */
 export const getAvatarColorFromSubcategory = (
-  categoryId?: string,
+  categoryId?: string | string[],
   subCategoryIds?: string[]
 ): string => {
   // If no subcategories, return default color
@@ -323,8 +324,10 @@ export const getAvatarColorFromSubcategory = (
     return "#8B5CF6"; // Default purple color
   }
 
-  // Normalize category ID to lowercase for lookup
-  const normalizedCategoryId = categoryId.toLowerCase();
+  // Handle array of categories - use the first category
+  const normalizedCategoryId = Array.isArray(categoryId) 
+    ? categoryId[0]?.toLowerCase() 
+    : categoryId.toLowerCase();
   
   // Get the first subcategory (primary subcategory)
   const firstSubCategoryId = subCategoryIds[0];

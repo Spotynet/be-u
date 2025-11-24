@@ -155,12 +155,27 @@ def profile_view(request):
     elif request.method == 'PUT':
         # Debug: Log received data
         print(f"🔧 Profile update request data: {request.data}")
+        print(f"🔧 Phone in request.data: {request.data.get('phone', 'NOT FOUND')}")
         print(f"🔧 User before update - phone: {user.phone}")
         
+        # Extract user-specific fields from request.data
+        user_fields = {
+            'email': request.data.get('email'),
+            'phone': request.data.get('phone'),
+            'firstName': request.data.get('firstName'),
+            'lastName': request.data.get('lastName'),
+        }
+        # Remove None values to avoid overwriting with None
+        user_fields = {k: v for k, v in user_fields.items() if v is not None}
+        
+        print(f"🔧 Extracted user_fields: {user_fields}")
+        
         # Update user data
-        user_serializer = UserSerializer(user, data=request.data, partial=True)
+        user_serializer = UserSerializer(user, data=user_fields, partial=True)
         if user_serializer.is_valid():
             user_serializer.save()
+            # Refresh user from database to get updated values
+            user.refresh_from_db()
             print(f"🔧 User after update - phone: {user.phone}")
         else:
             print(f"🔧 UserSerializer validation errors: {user_serializer.errors}")
@@ -203,9 +218,23 @@ def profile_view(request):
                     }, status=status.HTTP_400_BAD_REQUEST)
         elif user.role == 'PLACE':
             if hasattr(user, 'place_profile'):
+                # Extract only place profile fields from request.data
+                place_profile_fields = {
+                    'name': request.data.get('name'),
+                    'bio': request.data.get('bio'),
+                    'street': request.data.get('street'),
+                    'number_ext': request.data.get('number_ext'),
+                    'number_int': request.data.get('number_int'),
+                    'postal_code': request.data.get('postal_code'),
+                    'city': request.data.get('city'),
+                    'country': request.data.get('country'),
+                }
+                # Remove None values to avoid overwriting with None
+                place_profile_fields = {k: v for k, v in place_profile_fields.items() if v is not None}
+                
                 profile_serializer = PlaceProfileSerializer(
                     user.place_profile, 
-                    data=request.data, 
+                    data=place_profile_fields, 
                     partial=True
                 )
                 if profile_serializer.is_valid():
@@ -333,6 +362,24 @@ class PlaceProfileViewSet(viewsets.ReadOnlyModelViewSet):
             prof = ProfessionalProfile.objects.get(id=professional_id)
         except ProfessionalProfile.DoesNotExist:
             return Response({'detail': 'Professional not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Validate that place and professional have at least one matching main category
+        place_categories = place.category if isinstance(place.category, list) else ([place.category] if place.category else [])
+        professional_categories = prof.category if isinstance(prof.category, list) else ([prof.category] if prof.category else [])
+        
+        # Normalize categories to strings for comparison
+        place_categories = [str(cat).strip().lower() for cat in place_categories if cat]
+        professional_categories = [str(cat).strip().lower() for cat in professional_categories if cat]
+        
+        # Check if there's any intersection
+        common_categories = set(place_categories) & set(professional_categories)
+        
+        if not common_categories:
+            return Response({
+                'detail': 'No se puede enviar la invitación. El establecimiento y el profesional deben tener al menos una categoría principal en común.',
+                'place_categories': place_categories,
+                'professional_categories': professional_categories
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         link, created = PlaceProfessionalLink.objects.get_or_create(
             place=place, professional=prof,

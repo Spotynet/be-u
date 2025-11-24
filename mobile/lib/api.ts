@@ -176,9 +176,11 @@ export const apiCall = async <T = any>(
     }
 
     throw {
-      message: errorData?.error || errorData?.message || axiosError.message || "An error occurred",
+      message: errorData?.detail || errorData?.error || errorData?.message || axiosError.message || "An error occurred",
       status: axiosError.response?.status || 500,
       errors: errorData?.errors,
+      response: axiosError.response, // Preserve full response for detailed error extraction
+      data: errorData, // Preserve error data
     } as ApiError;
   }
 };
@@ -1019,16 +1021,28 @@ export const tokenRefreshScheduler = {
 export const errorUtils = {
   // Extract error message from API error
   getErrorMessage: (error: any): string => {
-    if (error?.message) {
-      return error.message;
+    // Priority 1: Check for detail field (Django REST Framework standard)
+    if (error?.response?.data?.detail) {
+      return error.response.data.detail;
     }
+    // Priority 2: Check for error field
     if (error?.response?.data?.error) {
       return error.response.data.error;
     }
+    // Priority 3: Check for message field
     if (error?.response?.data?.message) {
       return error.response.data.message;
     }
-    return "An unexpected error occurred";
+    // Priority 4: Check for top-level message (axios error)
+    if (error?.message) {
+      // Don't show technical HTTP error messages
+      if (error.message.includes('status code') || error.message.includes('Request failed')) {
+        return "Ocurrió un error al procesar la solicitud. Por favor, intenta de nuevo.";
+      }
+      return error.message;
+    }
+    // Default fallback
+    return "Ocurrió un error inesperado. Por favor, intenta de nuevo.";
   },
 
   // Extract validation errors

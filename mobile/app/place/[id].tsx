@@ -546,18 +546,32 @@ export default function PlaceDetailScreen() {
               {/* Category and Subcategory */}
               {(place.category || (place.sub_categories && place.sub_categories.length > 0)) && (
                 <View style={styles.categoryContainer}>
-                  {place.category && (
-                    <View style={[styles.categoryBadge, {backgroundColor: colors.primary + "15"}]}>
-                      <Ionicons name="pricetag" color={colors.primary} size={12} />
-                      <Text style={[styles.categoryText, {color: colors.primary}]}>
-                        {MAIN_CATEGORIES.find((c) => c.id === place.category)?.name || place.category}
-                      </Text>
-                    </View>
+                  {place.category && (Array.isArray(place.category) ? place.category.length > 0 : place.category) && (
+                    (Array.isArray(place.category) ? place.category : [place.category]).map((catId: string, catIdx: number) => {
+                      const category = MAIN_CATEGORIES.find((c) => c.id === catId);
+                      return category ? (
+                        <View 
+                          key={catIdx}
+                          style={[styles.categoryBadge, {backgroundColor: colors.primary + "15"}]}>
+                          <Ionicons name="pricetag" color={colors.primary} size={12} />
+                          <Text style={[styles.categoryText, {color: colors.primary}]}>
+                            {category.name}
+                          </Text>
+                        </View>
+                      ) : null;
+                    })
                   )}
                   {place.sub_categories && place.sub_categories.length > 0 && (
                     <View style={styles.subcategoryContainer}>
                       {place.sub_categories.map((subId, idx) => {
-                        const subCategory = getSubCategoryById(place.category || "", subId);
+                        const categories = Array.isArray(place.category) 
+                          ? place.category 
+                          : place.category ? [place.category] : [];
+                        let subCategory = null;
+                        for (const catId of categories) {
+                          subCategory = getSubCategoryById(catId, subId);
+                          if (subCategory) break;
+                        }
                         return subCategory ? (
                           <View
                             key={idx}

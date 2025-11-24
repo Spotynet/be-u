@@ -19,6 +19,7 @@ import {authApi, errorUtils, profileCustomizationApi, tokenUtils} from "@/lib/ap
 import AddressAutocomplete from "@/components/address/AddressAutocomplete";
 import {useCategory} from "@/contexts/CategoryContext";
 import {Dropdown} from "@/components/ui/Dropdown";
+import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector";
 
 export default function RegisterPlace() {
   const router = useRouter();
@@ -38,35 +39,20 @@ export default function RegisterPlace() {
     latitude: undefined as number | undefined,
     longitude: undefined as number | undefined,
     role: "place" as "place",
-    category: "" as string,
-    subcategory: "" as string,
   });
-  const [mainCategory, setMainCategory] = useState<"belleza" | "bienestar" | "mascotas">("belleza");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const subs = useMemo(
-    () => subcategoriesByMainCategory[mainCategory].filter((s) => s.id !== "todos"),
-    [mainCategory, subcategoriesByMainCategory]
-  );
-
   const set = (k: keyof typeof values) => (t: string) => setValues((s) => ({...s, [k]: t}));
-
-  const handleMainCategoryChange = (category: string) => {
-    setMainCategory(category as "belleza" | "bienestar" | "mascotas");
-    setValues((s) => ({...s, category: category, subcategory: ""}));
-  };
-
-  const handleSubcategoryChange = (subcategory: string) => {
-    setValues((s) => ({...s, subcategory: subcategory}));
-  };
 
   const onSubmit = async () => {
     if (!values.email || !values.password || !values.placeName) {
       Alert.alert("Campos requeridos", "Ingresa al menos email, contraseña y nombre del lugar");
       return;
     }
-    if (!values.category || !values.subcategory) {
-      Alert.alert("Campos requeridos", "Selecciona una categoría y subcategoría");
+    if (selectedCategories.length === 0 || selectedSubCategories.length === 0) {
+      Alert.alert("Campos requeridos", "Selecciona al menos una categoría y una subcategoría");
       return;
     }
     try {
@@ -80,8 +66,8 @@ export default function RegisterPlace() {
         await profileCustomizationApi.getProfileImages();
         // Always update with category/subcategory and address if provided
         const updateData: any = {
-          category: values.category || '',
-          sub_categories: values.subcategory ? [values.subcategory] : [],
+          category: selectedCategories,
+          sub_categories: selectedSubCategories,
         };
         if (values.address && values.latitude && values.longitude) {
           updateData.street = values.address;
@@ -209,29 +195,12 @@ export default function RegisterPlace() {
           onChangeText={set("country")}
         />
 
-        <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Categoría Principal</Text>
-        <Dropdown
-          options={[
-            {value: "belleza", label: "Belleza"},
-            {value: "bienestar", label: "Bienestar"},
-            {value: "mascotas", label: "Mascotas"},
-          ]}
-          selectedValue={values.category}
-          onValueChange={handleMainCategoryChange}
-          placeholder="Selecciona una categoría"
+        <MultiCategorySelector
+          selectedCategories={selectedCategories}
+          selectedSubCategories={selectedSubCategories}
+          onCategoriesChange={setSelectedCategories}
+          onSubCategoriesChange={setSelectedSubCategories}
         />
-
-        {values.category && (
-          <>
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Subcategoría</Text>
-            <Dropdown
-              options={subs.map((s) => ({value: s.id, label: s.name}))}
-              selectedValue={values.subcategory}
-              onValueChange={handleSubcategoryChange}
-              placeholder="Selecciona una subcategoría"
-            />
-          </>
-        )}
 
         <TouchableOpacity
           style={[styles.submit, {backgroundColor: colors.primary}]}

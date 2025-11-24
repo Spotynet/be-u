@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  Switch,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
@@ -24,6 +25,7 @@ export default function CreateCarouselScreen() {
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [description, setDescription] = useState("");
+  const [allowComments, setAllowComments] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
 
   const handlePublish = async () => {
@@ -46,6 +48,7 @@ export default function CreateCarouselScreen() {
         formData.append("content", description);
       }
       formData.append("post_type", "carousel");
+      formData.append("allow_comments", allowComments ? "true" : "false");
 
       // Add photos to FormData
       if (Platform.OS === "web") {
@@ -120,7 +123,7 @@ export default function CreateCarouselScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, {paddingBottom: 100}]}
         showsVerticalScrollIndicator={false}>
         {/* Photos Uploader */}
         <View style={[styles.section, {backgroundColor: colors.card}]}>
@@ -159,14 +162,32 @@ export default function CreateCarouselScreen() {
           />
         </View>
 
-        {/* Publish Button (Bottom) */}
+        {/* Allow Comments */}
+        <View style={[styles.section, {backgroundColor: colors.card}]}>
+          <View style={styles.switchRow}>
+            <View style={styles.switchContent}>
+              <Text style={[styles.switchLabel, {color: colors.foreground}]}>
+                Permitir comentarios
+              </Text>
+              <Text style={[styles.switchDescription, {color: colors.mutedForeground}]}>
+                Los usuarios podrán comentar en tu publicación
+              </Text>
+            </View>
+            <Switch
+              value={allowComments}
+              onValueChange={setAllowComments}
+              trackColor={{false: colors.muted, true: colors.primary}}
+              thumbColor="#ffffff"
+              ios_backgroundColor={colors.muted}
+            />
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Publish Button (Fixed Bottom) */}
+      <View style={[styles.fixedBottomContainer, {backgroundColor: colors.background, borderTopColor: colors.border}]}>
         <TouchableOpacity
-          style={[
-            styles.publishButtonLarge,
-            {
-              backgroundColor: isUploading || photos.length === 0 ? colors.muted : colors.primary,
-            },
-          ]}
+          style={[styles.publishButtonLarge, {backgroundColor: colors.primary}]}
           onPress={handlePublish}
           activeOpacity={0.8}
           disabled={isUploading || photos.length === 0}>
@@ -179,9 +200,7 @@ export default function CreateCarouselScreen() {
             {isUploading ? "Publicando..." : "Publicar Carrusel"}
           </Text>
         </TouchableOpacity>
-
-        <View style={{height: 40}} />
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -249,6 +268,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlignVertical: "top",
   },
+  fixedBottomContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === "ios" ? 34 : 16,
+    borderTopWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
   publishButtonLarge: {
     flexDirection: "row",
     alignItems: "center",
@@ -256,12 +293,29 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 16,
     gap: 12,
-    marginTop: 8,
   },
   publishButtonLargeText: {
     color: "#ffffff",
     fontSize: 18,
     fontWeight: "700",
+  },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  switchContent: {
+    flex: 1,
+    marginRight: 16,
+  },
+  switchLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  switchDescription: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
 

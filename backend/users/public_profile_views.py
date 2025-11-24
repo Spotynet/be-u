@@ -45,10 +45,14 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
         if profile_type:
             queryset = queryset.filter(profile_type=profile_type)
         
-        # Filter by category
+        # Filter by category (supports both single category and array)
         category = self.request.query_params.get('category')
         if category:
-            queryset = queryset.filter(category__icontains=category)
+            # For JSONField, check if category is in the array
+            queryset = queryset.filter(
+                Q(category__contains=[category]) |  # Array contains category
+                Q(category=category)  # Single category match (backward compatibility)
+            )
         
         # Filter by city
         city = self.request.query_params.get('city')

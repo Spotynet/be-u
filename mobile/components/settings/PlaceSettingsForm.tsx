@@ -5,6 +5,8 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useState, useEffect} from "react";
 import {User, PlaceProfile} from "@/types/global";
+import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector";
+import {profileCustomizationApi} from "@/lib/api";
 
 interface PlaceSettingsFormProps {
   user: User;
@@ -20,6 +22,7 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
   const [email, setEmail] = useState(user.email);
   const [phone, setPhone] = useState(user.phone || "");
   const [name, setName] = useState(profile?.name || "");
+  const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState(profile?.bio || "");
   const [street, setStreet] = useState(profile?.street || "");
   const [numberExt, setNumberExt] = useState(profile?.number_ext || "");
@@ -27,6 +30,46 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
   const [postalCode, setPostalCode] = useState(profile?.postal_code || "");
   const [city, setCity] = useState(profile?.city || "");
   const [country, setCountry] = useState(profile?.country || "");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
+  const [isLoadingPublicProfile, setIsLoadingPublicProfile] = useState(true);
+
+  // Load public profile to get categories and subcategories
+  useEffect(() => {
+    const loadPublicProfile = async () => {
+      try {
+        setIsLoadingPublicProfile(true);
+        const response = await profileCustomizationApi.getProfileImages();
+        if (response?.data) {
+          const publicProfile = response.data;
+          // Handle both array and single value formats
+          const categories = Array.isArray(publicProfile.category)
+            ? publicProfile.category
+            : publicProfile.category
+            ? [publicProfile.category]
+            : [];
+          const subcategories = Array.isArray(publicProfile.sub_categories)
+            ? publicProfile.sub_categories
+            : publicProfile.sub_categories
+            ? [publicProfile.sub_categories]
+            : [];
+          setSelectedCategories(categories);
+          setSelectedSubcategories(subcategories);
+          // Load display_name from public profile
+          if (publicProfile.display_name) {
+            setDisplayName(publicProfile.display_name);
+          }
+          console.log("Loaded categories:", categories);
+          console.log("Loaded subcategories:", subcategories);
+        }
+      } catch (error) {
+        console.error("Error loading public profile:", error);
+      } finally {
+        setIsLoadingPublicProfile(false);
+      }
+    };
+    loadPublicProfile();
+  }, []);
 
   useEffect(() => {
     setEmail(user.email);
@@ -55,7 +98,7 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
   const handleSave = async () => {
     const userData = {
       email,
-      phone,
+      phone: phone || "", // Always include phone, even if empty
     };
 
     const profileData = {
@@ -69,7 +112,24 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
       country,
     };
 
+    console.log("PlaceSettingsForm - Saving data:", {userData, profileData});
     await onSave(userData, profileData);
+
+    // Update public profile with categories, subcategories, and display_name
+    try {
+      const publicProfileData: any = {
+        category: selectedCategories,
+        sub_categories: selectedSubcategories,
+      };
+      // Update name (which controls display_name for places) if displayName is provided
+      if (displayName && displayName.trim() && displayName !== name) {
+        publicProfileData.name = displayName.trim();
+      }
+      await profileCustomizationApi.updatePublicProfile(publicProfileData);
+      console.log("Public profile updated successfully");
+    } catch (error) {
+      console.error("Error updating public profile:", error);
+    }
   };
 
   return (
@@ -99,6 +159,27 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
               placeholderTextColor={colors.mutedForeground}
             />
           </View>
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Nombre para mostrar</Text>
+          <View
+            style={[
+              styles.inputContainer,
+              {backgroundColor: colors.card, borderColor: colors.border},
+            ]}>
+            <Ionicons name="at-outline" color={colors.mutedForeground} size={18} />
+            <TextInput
+              style={[styles.input, {color: colors.foreground}]}
+              value={displayName}
+              onChangeText={setDisplayName}
+              placeholder="Nombre que se mostrará en tu perfil público"
+              placeholderTextColor={colors.mutedForeground}
+            />
+          </View>
+          <Text style={[styles.helperText, {color: colors.mutedForeground}]}>
+            Este es el nombre que verán otros usuarios en tu perfil público
+          </Text>
         </View>
 
         <View style={styles.formGroup}>
@@ -287,6 +368,24 @@ export const PlaceSettingsForm = ({user, profile, onSave, isLoading}: PlaceSetti
         </View>
       </View>
 
+      {/* Categories Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="pricetags" color={colors.primary} size={20} />
+          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+            Categorías y Servicios
+          </Text>
+        </View>
+        {!isLoadingPublicProfile && (
+          <MultiCategorySelector
+            selectedCategories={selectedCategories}
+            selectedSubCategories={selectedSubcategories}
+            onCategoriesChange={setSelectedCategories}
+            onSubCategoriesChange={setSelectedSubcategories}
+          />
+        )}
+      </View>
+
       {/* Save Button */}
       <TouchableOpacity
         style={[styles.saveButton, {backgroundColor: colors.primary}]}
@@ -386,5 +485,10 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  helperText: {
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: "italic",
   },
 });

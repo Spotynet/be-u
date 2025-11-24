@@ -133,18 +133,18 @@ export default function Perfil() {
   const getInitials = (firstName?: string, lastName?: string, username?: string, role?: string, placeName?: string) => {
     // For PLACE, use first 2 chars of place name
     if (role === "PLACE") {
-      const name = placeName || username || "U";
+      const name = placeName || firstName || "U";
       if (name.length >= 2) {
         return name.substring(0, 2).toUpperCase();
       }
       return name.charAt(0).toUpperCase();
     }
-    // For PROFESSIONAL, use first 2 chars of username
+    // For PROFESSIONAL, use first 2 chars of firstName
     if (role === "PROFESSIONAL") {
-      if (username && username.length >= 2) {
-        return username.substring(0, 2).toUpperCase();
+      if (firstName && firstName.length >= 2) {
+        return firstName.substring(0, 2).toUpperCase();
       }
-      return username?.charAt(0).toUpperCase() || "U";
+      return firstName?.charAt(0).toUpperCase() || "U";
     }
     // For CLIENT, use first and last name initials
     const first = firstName?.charAt(0) || "";
@@ -214,10 +214,10 @@ export default function Perfil() {
 
   const displayName = user
     ? user.role === "CLIENT"
-      ? `${user.first_name || user.firstName || "Usuario"} ${user.last_name || user.lastName || ""}`.trim()
+      ? `${user.firstName || "Usuario"} ${user.lastName || ""}`.trim()
       : user.role === "PLACE"
-      ? (profile as any)?.name || user.username || "Usuario"
-      : user.username || "Usuario"
+      ? (profile as any)?.name || user.firstName || "Usuario"
+      : user.firstName || "Usuario"
     : "Usuario";
 
   // Get avatar color based on subcategory, fallback to primary color
@@ -339,21 +339,40 @@ export default function Perfil() {
         {/* Row 1: avatar + name/role + settings icon */}
         <View style={styles.headerTopRow}>
           <View style={styles.headerProfile}>
-            <TouchableOpacity
-              onPress={() => router.push("/settings")}
-              activeOpacity={0.7}>
-              <View style={[styles.headerAvatar, {backgroundColor: avatarColor}]}> 
-              {profile?.photo ? (
-                <Image source={{uri: profile.photo}} style={styles.headerAvatarImage} />
-            ) : (
+            <View style={styles.avatarContainer}>
+              <TouchableOpacity
+                onPress={() => router.push("/settings")}
+                activeOpacity={0.7}>
+                <View style={[styles.headerAvatar, {backgroundColor: avatarColor}]}> 
+                {(profile as any)?.photo ? (
+                  <Image source={{uri: (profile as any).photo}} style={styles.headerAvatarImage} />
+              ) : (
               <Text style={styles.headerAvatarText}>
-                {getInitials(user?.first_name, user?.last_name, user?.username, user?.role, (profile as any)?.name)}
+                {getInitials(user?.firstName, user?.lastName, user?.firstName, user?.role, (profile as any)?.name)}
               </Text>
-            )}
-              </View>
-            </TouchableOpacity>
+              )}
+                </View>
+                {/* Edit icon overlay - always visible with transparency */}
+                <View style={styles.avatarEditOverlay}>
+                 
+                    <Ionicons name="pencil" color="#ffffff" size={16} />
+                  
+                </View>
+              </TouchableOpacity>
+            </View>
             <View style={styles.headerTextContainer}>
-            <Text style={[styles.headerTitle, {color: colors.foreground}]}>{displayName}</Text>
+            <View style={styles.headerTitleRow}>
+              <Text style={[styles.headerTitle, {color: colors.foreground}]}>{displayName}</Text>
+              {/* Settings Icon - Positioned right after the name */}
+              <TouchableOpacity
+                onPress={() => setIsSettingsMenuVisible(true)}
+                style={styles.settingsIconButton}
+                activeOpacity={0.7}>
+                <View style={[styles.settingsIconContainer, {backgroundColor: colors.card}]}>
+                  <Ionicons name="settings" color={colors.primary} size={22} />
+                </View>
+              </TouchableOpacity>
+            </View>
             <Text style={[styles.headerRole, {color: colors.mutedForeground}]}>
               {user?.role === "PROFESSIONAL"
                 ? "Profesional"
@@ -366,10 +385,21 @@ export default function Perfil() {
             {/* Category and Subcategory - Only show for PROFESSIONAL and PLACE */}
             {(user?.role === "PROFESSIONAL" || user?.role === "PLACE") && (
               <View style={styles.headerCategoryContainer}>
-                {publicProfile?.category ? (
-                  <Text style={[styles.headerCategory, {color: colors.mutedForeground}]}>
-                    {MAIN_CATEGORIES.find((c) => c.id === publicProfile.category)?.name || publicProfile.category}
-                  </Text>
+                {publicProfile?.category && (Array.isArray(publicProfile.category) ? publicProfile.category.length > 0 : publicProfile.category) ? (
+                  <View style={styles.headerCategoryTags}>
+                    {(Array.isArray(publicProfile.category) ? publicProfile.category : [publicProfile.category]).map((catId: string, idx: number) => {
+                      const category = MAIN_CATEGORIES.find((c) => c.id === catId);
+                      return category ? (
+                        <View
+                          key={idx}
+                          style={[styles.headerCategoryTag, {backgroundColor: colors.primary + "20", borderColor: colors.primary + "40"}]}>
+                          <Text style={[styles.headerCategoryTagText, {color: colors.primary}]}>
+                            {category.name}
+                          </Text>
+                        </View>
+                      ) : null;
+                    })}
+                  </View>
                 ) : (
                   <Text style={[styles.headerCategory, {color: colors.mutedForeground, fontStyle: "italic"}]}>
                     Sin categoría
@@ -378,14 +408,23 @@ export default function Perfil() {
                 {publicProfile?.sub_categories && publicProfile.sub_categories.length > 0 ? (
                   <View style={styles.headerSubcategoryContainer}>
                     {publicProfile.sub_categories.map((subId: string, idx: number) => {
-                      const subCategory = getSubCategoryById(publicProfile.category || "", subId);
+                      // Find the category that contains this subcategory
+                      const categories = Array.isArray(publicProfile.category) 
+                        ? publicProfile.category 
+                        : publicProfile.category ? [publicProfile.category] : [];
+                      let subCategory = null;
+                      for (const catId of categories) {
+                        subCategory = getSubCategoryById(catId, subId);
+                        if (subCategory) break;
+                      }
                       return subCategory ? (
-                        <Text
+                        <View
                           key={idx}
-                          style={[styles.headerSubcategory, {color: colors.mutedForeground}]}>
-                          {idx > 0 ? " • " : ""}
-                          {subCategory.name}
-                        </Text>
+                          style={[styles.headerSubcategoryTag, {backgroundColor: colors.muted, borderColor: colors.border}]}>
+                          <Text style={[styles.headerSubcategoryTagText, {color: colors.mutedForeground}]}>
+                            {subCategory.name}
+                          </Text>
+                        </View>
                       ) : null;
                     })}
                   </View>
@@ -398,15 +437,6 @@ export default function Perfil() {
             )}
             </View>
           </View>
-          {/* Settings Icon - Positioned on the right */}
-          <TouchableOpacity
-            onPress={() => setIsSettingsMenuVisible(true)}
-            style={styles.settingsIconButton}
-            activeOpacity={0.7}>
-            <View style={[styles.settingsIconContainer, {backgroundColor: colors.card}]}>
-              <Ionicons name="settings" color={colors.primary} size={22} />
-            </View>
-          </TouchableOpacity>
         </View>
 
         {/* Row 2: action buttons + settings (moved here for better visibility on devices) */}
@@ -735,12 +765,15 @@ const styles = StyleSheet.create({
   headerTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between", // space between for avatar+name and settings icon
+    justifyContent: "flex-start",
   },
   headerProfile: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  avatarContainer: {
+    position: "relative",
   },
   headerAvatar: {
     width: 40,
@@ -748,11 +781,34 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
   },
   headerAvatarImage: {
     width: 40,
     height: 40,
     borderRadius: 20,
+  },
+  avatarEditOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+    pointerEvents: "none",
+  },
+  avatarEditIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerAvatarText: {
     color: "#ffffff",
@@ -769,8 +825,24 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   headerCategoryContainer: {
-    marginTop: 4,
-    gap: 2,
+    marginTop: 8,
+    gap: 6,
+  },
+  headerCategoryTags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  headerCategoryTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  headerCategoryTagText: {
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "capitalize",
   },
   headerCategory: {
     fontSize: 12,
@@ -780,6 +852,17 @@ const styles = StyleSheet.create({
   headerSubcategoryContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: 6,
+  },
+  headerSubcategoryTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  headerSubcategoryTagText: {
+    fontSize: 11,
+    fontWeight: "600",
   },
   headerSubcategory: {
     fontSize: 11,
@@ -849,6 +932,11 @@ const styles = StyleSheet.create({
   // Personalizar Perfil Styles
   headerTextContainer: {
     flex: 1,
+  },
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   headerActionRow: {
     flexDirection: "row",
@@ -1135,9 +1223,9 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   settingsIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",

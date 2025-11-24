@@ -29,6 +29,7 @@ interface UpdateUserData {
   firstName?: string;
   lastName?: string;
   email?: string;
+  phone?: string;
 }
 
 export const useProfileUpdate = (userId: number, userRole: string) => {

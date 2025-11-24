@@ -83,6 +83,8 @@ export default function ProfileDetailScreen() {
       const profileData = profileResponse.data;
       console.log("📋 Profile type:", profileData.profile_type);
       console.log("📋 Full profile data:", profileData);
+      console.log("📋 Bio field (profile.bio):", profileData.bio);
+      console.log("📋 Bio exists?", !!profileData.bio);
       setProfile(profileData);
 
       // Fetch reviews (same for all profile types)
@@ -741,16 +743,31 @@ export default function ProfileDetailScreen() {
                 
                 {/* Tags for Category and Subcategories */}
                 <View style={styles.profileTagsContainer}>
-                  {profile.category && (
-                    <View style={[styles.profileTag, {backgroundColor: colors.primary + "20", borderColor: colors.primary + "40"}]}>
-                      <Text style={[styles.profileTagText, {color: colors.primary}]}>
-                        {MAIN_CATEGORIES.find((c) => c.id === profile.category)?.name || profile.category}
-                      </Text>
-                    </View>
+                  {profile.category && (Array.isArray(profile.category) ? profile.category.length > 0 : profile.category) && (
+                    (Array.isArray(profile.category) ? profile.category : [profile.category]).map((catId: string, idx: number) => {
+                      const category = MAIN_CATEGORIES.find((c) => c.id === catId);
+                      return category ? (
+                        <View 
+                          key={idx}
+                          style={[styles.profileTag, {backgroundColor: colors.primary + "20", borderColor: colors.primary + "40"}]}>
+                          <Text style={[styles.profileTagText, {color: colors.primary}]}>
+                            {category.name}
+                          </Text>
+                        </View>
+                      ) : null;
+                    })
                   )}
                   {profile.sub_categories && profile.sub_categories.length > 0 && (
                     profile.sub_categories.map((subId: string, idx: number) => {
-                      const subCategory = getSubCategoryById(profile.category || "", subId);
+                      // Find the category that contains this subcategory
+                      const categories = Array.isArray(profile.category) 
+                        ? profile.category 
+                        : profile.category ? [profile.category] : [];
+                      let subCategory = null;
+                      for (const catId of categories) {
+                        subCategory = getSubCategoryById(catId, subId);
+                        if (subCategory) break;
+                      }
                       return subCategory ? (
                         <View 
                           key={idx}
@@ -765,10 +782,20 @@ export default function ProfileDetailScreen() {
                 </View>
 
                 {/* Bio/Description */}
-                {profile.bio && (
-                  <Text style={[styles.profileBio, {color: colors.mutedForeground}]} numberOfLines={3}>
-                    {profile.bio}
+                {(profile.bio || profile.description) && (
+                  <Text style={[styles.profileBio, {color: colors.mutedForeground}]} numberOfLines={4}>
+                    {profile.bio || profile.description}
                   </Text>
+                )}
+                
+                {/* Phone */}
+                {profile.user_phone && (
+                  <View style={styles.profilePhoneContainer}>
+                    <Ionicons name="call-outline" color={colors.mutedForeground} size={16} />
+                    <Text style={[styles.profilePhone, {color: colors.mutedForeground}]}>
+                      {profile.user_phone}
+                    </Text>
+                  </View>
                 )}
               </View>
             </View>
@@ -1185,7 +1212,18 @@ const styles = StyleSheet.create({
   profileBio: {
     fontSize: 14,
     lineHeight: 20,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  profilePhoneContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     marginTop: 8,
+  },
+  profilePhone: {
+    fontSize: 14,
+    fontWeight: "400",
   },
   profileRowActions: {
     flexDirection: "row",

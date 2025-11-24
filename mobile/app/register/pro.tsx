@@ -19,6 +19,7 @@ import {authApi, errorUtils, profileCustomizationApi, tokenUtils} from "@/lib/ap
 import AddressAutocomplete from "@/components/address/AddressAutocomplete";
 import {useCategory} from "@/contexts/CategoryContext";
 import {Dropdown} from "@/components/ui/Dropdown";
+import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector";
 
 export default function RegisterPro() {
   const router = useRouter();
@@ -30,6 +31,8 @@ export default function RegisterPro() {
     email: "",
     password: "",
     username: "",
+    firstName: "",
+    lastName: "",
     phone: "",
     city: "",
     bio: "",
@@ -39,38 +42,20 @@ export default function RegisterPro() {
     latitude: undefined as number | undefined,
     longitude: undefined as number | undefined,
     role: "professional" as "professional",
-    category: "" as string,
-    subcategory: "" as string,
   });
-  const [mainCategory, setMainCategory] = useState<"belleza" | "bienestar" | "mascotas">("belleza");
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string>("");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const subs = useMemo(
-    () => subcategoriesByMainCategory[mainCategory].filter((s) => s.id !== "todos"),
-    [mainCategory, subcategoriesByMainCategory]
-  );
   const set = (k: keyof typeof values) => (t: string) => setValues((s) => ({...s, [k]: t}));
 
-  const handleMainCategoryChange = (category: string) => {
-    const cat = category as "belleza" | "bienestar" | "mascotas";
-    setMainCategory(cat);
-    setValues((s) => ({...s, category: category, subcategory: ""}));
-    setSelectedSubcategory(""); // Reset subcategory when main category changes
-  };
-
-  const handleSubcategoryChange = (subcategory: string) => {
-    setSelectedSubcategory(subcategory);
-    setValues((s) => ({...s, subcategory: subcategory}));
-  };
-
   const onSubmit = async () => {
-    if (!values.email || !values.password || !values.username) {
-      Alert.alert("Campos requeridos", "Ingresa al menos email, contraseña y nombre de usuario");
+    if (!values.email || !values.password || !values.username || !values.firstName || !values.lastName) {
+      Alert.alert("Campos requeridos", "Ingresa email, contraseña, nombre de usuario, nombre y apellido");
       return;
     }
-    if (!values.category || !values.subcategory) {
-      Alert.alert("Campos requeridos", "Selecciona una categoría y subcategoría");
+    if (selectedCategories.length === 0 || selectedSubCategories.length === 0) {
+      Alert.alert("Campos requeridos", "Selecciona al menos una categoría y una subcategoría");
       return;
     }
     try {
@@ -84,8 +69,8 @@ export default function RegisterPro() {
         await profileCustomizationApi.getProfileImages();
         // Always update with category/subcategory and address if provided
         const updateData: any = {
-          category: values.category || '',
-          sub_categories: values.subcategory ? [values.subcategory] : [],
+          category: selectedCategories,
+          sub_categories: selectedSubCategories,
         };
         if (values.address && values.latitude && values.longitude) {
           updateData.street = values.address;
@@ -167,6 +152,22 @@ export default function RegisterPro() {
           onChangeText={set("username")}
         />
         <TextInput
+          placeholder="Nombre"
+          autoCapitalize="words"
+          placeholderTextColor={colors.mutedForeground}
+          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
+          value={values.firstName}
+          onChangeText={set("firstName")}
+        />
+        <TextInput
+          placeholder="Apellido"
+          autoCapitalize="words"
+          placeholderTextColor={colors.mutedForeground}
+          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
+          value={values.lastName}
+          onChangeText={set("lastName")}
+        />
+        <TextInput
           placeholder="Email"
           keyboardType="email-address"
           autoCapitalize="none"
@@ -227,29 +228,12 @@ export default function RegisterPro() {
           onChangeText={set("bio")}
         />
 
-        <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Categoría Principal</Text>
-        <Dropdown
-          options={[
-            {value: "belleza", label: "Belleza"},
-            {value: "bienestar", label: "Bienestar"},
-            {value: "mascotas", label: "Mascotas"},
-          ]}
-          selectedValue={values.category}
-          onValueChange={handleMainCategoryChange}
-          placeholder="Selecciona una categoría"
+        <MultiCategorySelector
+          selectedCategories={selectedCategories}
+          selectedSubCategories={selectedSubCategories}
+          onCategoriesChange={setSelectedCategories}
+          onSubCategoriesChange={setSelectedSubCategories}
         />
-
-        {values.category && (
-          <>
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Subcategoría</Text>
-            <Dropdown
-              options={subs.map((s) => ({value: s.id, label: s.name}))}
-              selectedValue={values.subcategory}
-              onValueChange={handleSubcategoryChange}
-              placeholder="Selecciona una subcategoría"
-            />
-          </>
-        )}
 
         <TouchableOpacity
           style={[styles.submit, {backgroundColor: colors.primary}]}

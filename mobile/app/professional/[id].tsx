@@ -531,18 +531,32 @@ export default function ProfessionalDetailScreen() {
               {/* Category and Subcategory */}
               {(professional.category || (professional.sub_categories && professional.sub_categories.length > 0)) && (
                 <View style={styles.categoryContainer}>
-                  {professional.category && (
-                    <View style={[styles.categoryBadge, {backgroundColor: colors.primary + "15"}]}>
-                      <Ionicons name="pricetag" color={colors.primary} size={12} />
-                      <Text style={[styles.categoryText, {color: colors.primary}]}>
-                        {MAIN_CATEGORIES.find((c) => c.id === professional.category)?.name || professional.category}
-                      </Text>
-                    </View>
+                  {professional.category && (Array.isArray(professional.category) ? professional.category.length > 0 : professional.category) && (
+                    (Array.isArray(professional.category) ? professional.category : [professional.category]).map((catId: string, catIdx: number) => {
+                      const category = MAIN_CATEGORIES.find((c) => c.id === catId);
+                      return category ? (
+                        <View 
+                          key={catIdx}
+                          style={[styles.categoryBadge, {backgroundColor: colors.primary + "15"}]}>
+                          <Ionicons name="pricetag" color={colors.primary} size={12} />
+                          <Text style={[styles.categoryText, {color: colors.primary}]}>
+                            {category.name}
+                          </Text>
+                        </View>
+                      ) : null;
+                    })
                   )}
                   {professional.sub_categories && professional.sub_categories.length > 0 && (
                     <View style={styles.subcategoryContainer}>
                       {professional.sub_categories.map((subId, idx) => {
-                        const subCategory = getSubCategoryById(professional.category || "", subId);
+                        const categories = Array.isArray(professional.category) 
+                          ? professional.category 
+                          : professional.category ? [professional.category] : [];
+                        let subCategory = null;
+                        for (const catId of categories) {
+                          subCategory = getSubCategoryById(catId, subId);
+                          if (subCategory) break;
+                        }
                         return subCategory ? (
                           <View
                             key={idx}

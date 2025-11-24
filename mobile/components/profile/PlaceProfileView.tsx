@@ -163,18 +163,32 @@ export const PlaceProfileView = ({
           {/* Category and Subcategory */}
           {(profile?.category || (profile?.sub_categories && profile.sub_categories.length > 0)) && (
             <View style={styles.categoryContainer}>
-              {profile.category && (
-                <View style={[styles.categoryBadge, {backgroundColor: colors.primary + "15"}]}>
-                  <Ionicons name="pricetag" color={colors.primary} size={12} />
-                  <Text style={[styles.categoryText, {color: colors.primary}]}>
-                    {MAIN_CATEGORIES.find((c) => c.id === profile.category)?.name || profile.category}
-                  </Text>
-                </View>
+              {profile.category && (Array.isArray(profile.category) ? profile.category.length > 0 : profile.category) && (
+                (Array.isArray(profile.category) ? profile.category : [profile.category]).map((catId: string, catIdx: number) => {
+                  const category = MAIN_CATEGORIES.find((c) => c.id === catId);
+                  return category ? (
+                    <View 
+                      key={catIdx}
+                      style={[styles.categoryBadge, {backgroundColor: colors.primary + "15"}]}>
+                      <Ionicons name="pricetag" color={colors.primary} size={12} />
+                      <Text style={[styles.categoryText, {color: colors.primary}]}>
+                        {category.name}
+                      </Text>
+                    </View>
+                  ) : null;
+                })
               )}
               {profile.sub_categories && profile.sub_categories.length > 0 && (
                 <View style={styles.subcategoryContainer}>
                   {profile.sub_categories.map((subId, idx) => {
-                    const subCategory = getSubCategoryById(profile.category || "", subId);
+                    const categories = Array.isArray(profile.category) 
+                      ? profile.category 
+                      : profile.category ? [profile.category] : [];
+                    let subCategory = null;
+                    for (const catId of categories) {
+                      subCategory = getSubCategoryById(catId, subId);
+                      if (subCategory) break;
+                    }
                     return subCategory ? (
                       <View
                         key={idx}

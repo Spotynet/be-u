@@ -1,7 +1,7 @@
 import React from "react";
 import {View, Text, StyleSheet, TouchableOpacity} from "react-native";
 import {useRouter} from "expo-router";
-import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
+import {Ionicons} from "@expo/vector-icons";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 
@@ -16,24 +16,18 @@ export default function RegisterSelector() {
       title: "Cliente",
       description: "Reservar y descubrir",
       route: "/register/client" as const,
-      icon: "spa-outline",
-      color: "#EC4899",
     },
     {
       id: "professional",
       title: "Profesional",
       description: "Ofrecer servicios",
       route: "/register/pro" as const,
-      icon: "meditation",
-      color: "#8B5CF6",
     },
     {
       id: "place",
       title: "Lugar",
       description: "Salón / Negocio",
       route: "/register/place" as const,
-      icon: "paw",
-      color: "#F97316",
     },
   ];
 
@@ -55,13 +49,6 @@ export default function RegisterSelector() {
             style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}
             onPress={() => router.push(option.route)}
             activeOpacity={0.9}>
-            <View style={[styles.iconWrapper, {backgroundColor: `${option.color}20`}]}>
-              <MaterialCommunityIcons
-                name={option.icon as any}
-                size={28}
-                color={option.color}
-              />
-            </View>
             <Text style={[styles.cardTitle, {color: colors.foreground}]}>{option.title}</Text>
             <Text style={[styles.cardText, {color: colors.mutedForeground}]}>{option.description}</Text>
           </TouchableOpacity>
@@ -85,14 +72,6 @@ const styles = StyleSheet.create({
   headerTitle: {fontSize: 20, fontWeight: "700"},
   cards: {padding: 16, gap: 12},
   card: {borderWidth: 1, borderRadius: 14, padding: 16, alignItems: "center", gap: 8},
-  iconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
   cardTitle: {fontSize: 16, fontWeight: "700"},
   cardText: {fontSize: 13},
 });

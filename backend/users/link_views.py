@@ -98,6 +98,24 @@ class PlaceProfessionalLinkViewSet(viewsets.ModelViewSet):
         
         professional = get_object_or_404(ProfessionalProfile, id=professional_id)
         
+        # Validate that place and professional have at least one matching main category
+        place_categories = place.category if isinstance(place.category, list) else ([place.category] if place.category else [])
+        professional_categories = professional.category if isinstance(professional.category, list) else ([professional.category] if professional.category else [])
+        
+        # Normalize categories to strings for comparison
+        place_categories = [str(cat).strip().lower() for cat in place_categories if cat]
+        professional_categories = [str(cat).strip().lower() for cat in professional_categories if cat]
+        
+        # Check if there's any intersection
+        common_categories = set(place_categories) & set(professional_categories)
+        
+        if not common_categories:
+            return Response({
+                'detail': 'No se puede enviar la invitación. El establecimiento y el profesional deben tener al menos una categoría principal en común.',
+                'place_categories': place_categories,
+                'professional_categories': professional_categories
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         link, created = PlaceProfessionalLink.objects.get_or_create(
             place=place, professional=professional,
             defaults={'status': PlaceProfessionalLink.Status.INVITED, 'invited_by': user, 'notes': notes}
