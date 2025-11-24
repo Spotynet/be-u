@@ -3,56 +3,6 @@
 from django.db import migrations, models
 
 
-def convert_category_to_list(apps, schema_editor):
-    """Convert existing category strings to lists"""
-    PlaceProfile = apps.get_model('users', 'PlaceProfile')
-    ProfessionalProfile = apps.get_model('users', 'ProfessionalProfile')
-    PublicProfile = apps.get_model('users', 'PublicProfile')
-    
-    # Convert PlaceProfile categories
-    for profile in PlaceProfile.objects.all():
-        if profile.category and isinstance(profile.category, str):
-            profile.category = [profile.category] if profile.category else []
-            profile.save(update_fields=['category'])
-    
-    # Convert ProfessionalProfile categories
-    for profile in ProfessionalProfile.objects.all():
-        if profile.category and isinstance(profile.category, str):
-            profile.category = [profile.category] if profile.category else []
-            profile.save(update_fields=['category'])
-    
-    # Convert PublicProfile categories
-    for profile in PublicProfile.objects.all():
-        if profile.category and isinstance(profile.category, str):
-            profile.category = [profile.category] if profile.category else []
-            profile.save(update_fields=['category'])
-
-
-def convert_category_to_string(apps, schema_editor):
-    """Convert category lists back to strings (reverse migration)"""
-    PlaceProfile = apps.get_model('users', 'PlaceProfile')
-    ProfessionalProfile = apps.get_model('users', 'ProfessionalProfile')
-    PublicProfile = apps.get_model('users', 'PublicProfile')
-    
-    # Convert PlaceProfile categories
-    for profile in PlaceProfile.objects.all():
-        if profile.category and isinstance(profile.category, list):
-            profile.category = profile.category[0] if profile.category else None
-            profile.save(update_fields=['category'])
-    
-    # Convert ProfessionalProfile categories
-    for profile in ProfessionalProfile.objects.all():
-        if profile.category and isinstance(profile.category, list):
-            profile.category = profile.category[0] if profile.category else None
-            profile.save(update_fields=['category'])
-    
-    # Convert PublicProfile categories
-    for profile in PublicProfile.objects.all():
-        if profile.category and isinstance(profile.category, list):
-            profile.category = profile.category[0] if profile.category else None
-            profile.save(update_fields=['category'])
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -60,6 +10,70 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Use RunSQL to alter column type with USING clause for data conversion
+        migrations.RunSQL(
+            # Forward: Convert CharField to JSONField with USING clause
+            sql=[
+                """
+                ALTER TABLE users_placeprofile 
+                ALTER COLUMN category TYPE jsonb 
+                USING CASE
+                    WHEN category IS NULL OR category = '' THEN '[]'::jsonb
+                    ELSE jsonb_build_array(category)
+                END;
+                """,
+                """
+                ALTER TABLE users_professionalprofile 
+                ALTER COLUMN category TYPE jsonb 
+                USING CASE
+                    WHEN category IS NULL OR category = '' THEN '[]'::jsonb
+                    ELSE jsonb_build_array(category)
+                END;
+                """,
+                """
+                ALTER TABLE users_publicprofile 
+                ALTER COLUMN category TYPE jsonb 
+                USING CASE
+                    WHEN category IS NULL OR category = '' THEN '[]'::jsonb
+                    ELSE jsonb_build_array(category)
+                END;
+                """,
+            ],
+            # Reverse: Convert JSONField back to CharField
+            reverse_sql=[
+                """
+                ALTER TABLE users_placeprofile 
+                ALTER COLUMN category TYPE varchar(100) 
+                USING CASE
+                    WHEN category IS NULL OR category = '[]'::jsonb THEN NULL
+                    WHEN jsonb_typeof(category) = 'array' AND jsonb_array_length(category) > 0 
+                        THEN (category->>0)
+                    ELSE NULL
+                END;
+                """,
+                """
+                ALTER TABLE users_professionalprofile 
+                ALTER COLUMN category TYPE varchar(100) 
+                USING CASE
+                    WHEN category IS NULL OR category = '[]'::jsonb THEN NULL
+                    WHEN jsonb_typeof(category) = 'array' AND jsonb_array_length(category) > 0 
+                        THEN (category->>0)
+                    ELSE NULL
+                END;
+                """,
+                """
+                ALTER TABLE users_publicprofile 
+                ALTER COLUMN category TYPE varchar(100) 
+                USING CASE
+                    WHEN category IS NULL OR category = '[]'::jsonb THEN NULL
+                    WHEN jsonb_typeof(category) = 'array' AND jsonb_array_length(category) > 0 
+                        THEN (category->>0)
+                    ELSE NULL
+                END;
+                """,
+            ],
+        ),
+        # Update the field definition in Django's model state
         migrations.AlterField(
             model_name='placeprofile',
             name='category',
@@ -75,5 +89,4 @@ class Migration(migrations.Migration):
             name='category',
             field=models.JSONField(blank=True, default=list, help_text='List of main categories'),
         ),
-        migrations.RunPython(convert_category_to_list, convert_category_to_string),
     ]
