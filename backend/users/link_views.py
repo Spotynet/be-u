@@ -4,12 +4,13 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+import json
 from .profile_models import (
     PlaceProfessionalLink,
     LinkedAvailabilitySchedule,
     LinkedTimeSlot,
 )
-from .models import User, ProfessionalProfile, PlaceProfile
+from .models import User, ProfessionalProfile, PlaceProfile, PublicProfile
 from .profile_serializers import (
     PlaceProfessionalLinkSerializer,
     LinkedAvailabilityScheduleSerializer,
@@ -98,9 +99,47 @@ class PlaceProfessionalLinkViewSet(viewsets.ModelViewSet):
         
         professional = get_object_or_404(ProfessionalProfile, id=professional_id)
         
-        # Validate that place and professional have at least one matching main category
-        place_categories = place.category if isinstance(place.category, list) else ([place.category] if place.category else [])
-        professional_categories = professional.category if isinstance(professional.category, list) else ([professional.category] if professional.category else [])
+        # Get categories from PublicProfile (where they are actually edited and stored)
+        try:
+            place_public_profile = place.user.public_profile
+            place_categories = place_public_profile.category if isinstance(place_public_profile.category, list) else ([place_public_profile.category] if place_public_profile.category else [])
+        except PublicProfile.DoesNotExist:
+            # Fallback to PlaceProfile category if PublicProfile doesn't exist
+            place_categories = place.category if isinstance(place.category, list) else ([place.category] if place.category else [])
+        
+        try:
+            professional_public_profile = professional.user.public_profile
+            professional_categories = professional_public_profile.category if isinstance(professional_public_profile.category, list) else ([professional_public_profile.category] if professional_public_profile.category else [])
+        except PublicProfile.DoesNotExist:
+            # Fallback to ProfessionalProfile category if PublicProfile doesn't exist
+            professional_categories = professional.category if isinstance(professional.category, list) else ([professional.category] if professional.category else [])
+        
+        # Handle case where category might be a stringified JSON array (from migration issues)
+        def normalize_category_list(categories):
+            """Normalize category list, handling stringified JSON arrays"""
+            if not categories:
+                return []
+            result = []
+            for cat in categories:
+                if isinstance(cat, str):
+                    # Check if it's a stringified JSON array
+                    if cat.strip().startswith('[') and cat.strip().endswith(']'):
+                        try:
+                            parsed = json.loads(cat)
+                            if isinstance(parsed, list):
+                                result.extend(parsed)
+                            else:
+                                result.append(cat)
+                        except (json.JSONDecodeError, ValueError):
+                            result.append(cat)
+                    else:
+                        result.append(cat)
+                else:
+                    result.append(cat)
+            return result
+        
+        place_categories = normalize_category_list(place_categories)
+        professional_categories = normalize_category_list(professional_categories)
         
         # Normalize categories to strings for comparison
         place_categories = [str(cat).strip().lower() for cat in place_categories if cat]

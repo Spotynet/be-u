@@ -22,8 +22,8 @@ export interface ApiError {
 
 // API Configuration - HARDCODED for testing
 
-const API_BASE_URL = "http://127.0.0.1:8000/api";
-//const API_BASE_URL = "https://stg.be-u.ai/api";
+//const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = "https://stg.be-u.ai/api";
 
 console.log("🔧 HARDCODED API URL:", API_BASE_URL);
 const AUTH_TOKEN_KEY = "@auth_token";
@@ -366,6 +366,15 @@ export const profileCustomizationApi = {
     const profileId = profileResponse.data.id;
     // Use PATCH for partial updates to avoid 400 when not sending required fields for PUT
     return api.patch<any>(`/public-profiles/${profileId}/`, data);
+  },
+  
+  // Upload profile photo (main profile picture)
+  uploadProfilePhoto: async (data: FormData) => {
+    const profileResponse = await profileCustomizationApi.getProfileImages();
+    const profileId = profileResponse.data.id;
+    return api.patch<any>(`/public-profiles/${profileId}/`, data, {
+      headers: {"Content-Type": "multipart/form-data"},
+    });
   },
 };
 

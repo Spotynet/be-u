@@ -1828,6 +1828,8 @@ const styles = StyleSheet.create({
   postAvatarImage: {
     width: "100%",
     height: "100%",
+    borderRadius: 20,
+    resizeMode: "cover",
   },
   postAvatarText: {
     color: "#ffffff",

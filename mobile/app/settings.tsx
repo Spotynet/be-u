@@ -16,11 +16,13 @@ import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useUserProfile, useProfileUpdate} from "@/features/users";
 import {useRouter, Redirect} from "expo-router";
 import {useNavigation} from "@/hooks/useNavigation";
+import {useRef, useEffect, useState} from "react";
 import {
   ClientSettingsForm,
   ProfessionalSettingsForm,
   PlaceSettingsForm,
 } from "@/components/settings";
+import {SettingsMenu} from "@/components/profile";
 
 export default function Settings() {
   const colorScheme = useColorScheme();
@@ -31,6 +33,13 @@ export default function Settings() {
   const {user, isAuthenticated, logout} = useAuth();
   const {profile, isLoading: profileLoading, refreshProfile} = useUserProfile();
   const {updateProfile, isLoading: updating} = useProfileUpdate(user?.id || 0, user?.role || "");
+  const formRef = useRef<{save: () => Promise<void>} | null>(null);
+  const [isSettingsMenuVisible, setIsSettingsMenuVisible] = useState(false);
+
+  // Reset ref when user role changes
+  useEffect(() => {
+    formRef.current = null;
+  }, [user?.role]);
 
   const handleSave = async (userData: any, profileData: any) => {
     try {
@@ -150,6 +159,7 @@ export default function Settings() {
       case "CLIENT":
         return (
           <ClientSettingsForm
+            ref={formRef}
             user={user}
             profile={profile as any}
             onSave={handleSave}
@@ -159,6 +169,7 @@ export default function Settings() {
       case "PROFESSIONAL":
         return (
           <ProfessionalSettingsForm
+            ref={formRef}
             user={user}
             profile={profile as any}
             onSave={handleSave}
@@ -168,6 +179,7 @@ export default function Settings() {
       case "PLACE":
         return (
           <PlaceSettingsForm
+            ref={formRef}
             user={user}
             profile={profile as any}
             onSave={handleSave}
@@ -212,124 +224,24 @@ export default function Settings() {
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>Configuración</Text>
-        <View style={styles.placeholder} />
+        <TouchableOpacity
+          style={styles.settingsIconButton}
+          onPress={() => setIsSettingsMenuVisible(true)}
+          activeOpacity={0.7}>
+          <View style={[styles.settingsIconContainer, {backgroundColor: colors.card}]}>
+            <Ionicons name="settings" color={colors.primary} size={22} />
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={{paddingBottom: 100}}
+        showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           {/* Settings Form */}
           {renderSettingsForm()}
-
-          {/* Additional Options */}
-          <View style={styles.additionalOptions}>
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Opciones</Text>
-
-            {/* Light/Dark Mode Toggle */}
-            <TouchableOpacity
-              style={[
-                styles.optionButton,
-                {backgroundColor: colors.card, borderColor: colors.border},
-              ]}
-              onPress={() => setColorMode(colorMode === "light" ? "dark" : "light")}
-              activeOpacity={0.7}>
-              <View style={styles.optionLeft}>
-                <View style={[styles.optionIcon, {backgroundColor: colors.primary + "15"}]}>
-                  <Ionicons
-                    name={colorMode === "light" ? "sunny" : "moon"}
-                    color={colors.primary}
-                    size={20}
-                  />
-                </View>
-                <Text style={[styles.optionText, {color: colors.foreground}]}>
-                  {colorMode === "light" ? "Modo Oscuro" : "Modo Claro"}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.toggleSwitch,
-                  {backgroundColor: colorMode === "dark" ? colors.primary : colors.muted},
-                ]}>
-                <View style={[styles.toggleThumb, {backgroundColor: "#ffffff"}]} />
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.optionButton,
-                {backgroundColor: colors.card, borderColor: colors.border},
-              ]}
-              activeOpacity={0.7}>
-              <View style={styles.optionLeft}>
-                <View style={[styles.optionIcon, {backgroundColor: "#8b5cf6" + "15"}]}>
-                  <Ionicons name="lock-closed" color="#8b5cf6" size={20} />
-                </View>
-                <Text style={[styles.optionText, {color: colors.foreground}]}>
-                  Cambiar Contraseña
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.optionButton,
-                {backgroundColor: colors.card, borderColor: colors.border},
-              ]}
-              activeOpacity={0.7}>
-              <View style={styles.optionLeft}>
-                <View style={[styles.optionIcon, {backgroundColor: "#3b82f6" + "15"}]}>
-                  <Ionicons name="notifications" color="#3b82f6" size={20} />
-                </View>
-                <Text style={[styles.optionText, {color: colors.foreground}]}>Notificaciones</Text>
-              </View>
-              <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.optionButton,
-                {backgroundColor: colors.card, borderColor: colors.border},
-              ]}
-              activeOpacity={0.7}>
-              <View style={styles.optionLeft}>
-                <View style={[styles.optionIcon, {backgroundColor: "#10b981" + "15"}]}>
-                  <Ionicons name="shield-checkmark" color="#10b981" size={20} />
-                </View>
-                <Text style={[styles.optionText, {color: colors.foreground}]}>
-                  Privacidad y Seguridad
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.optionButton,
-                {backgroundColor: colors.card, borderColor: colors.border},
-              ]}
-              activeOpacity={0.7}>
-              <View style={styles.optionLeft}>
-                <View style={[styles.optionIcon, {backgroundColor: "#f59e0b" + "15"}]}>
-                  <Ionicons name="help-circle" color="#f59e0b" size={20} />
-                </View>
-                <Text style={[styles.optionText, {color: colors.foreground}]}>Ayuda y Soporte</Text>
-              </View>
-              <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-            </TouchableOpacity>
-
-            {/* Logout Button */}
-            <TouchableOpacity
-              style={[styles.logoutButton, {backgroundColor: "#ef4444"}]}
-              onPress={() => {
-                console.log("🔓 Logout button onPress triggered");
-                handleLogout();
-              }}
-              activeOpacity={0.9}>
-              <Ionicons name="log-out" color="#ffffff" size={20} />
-              <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
-            </TouchableOpacity>
-          </View>
 
           {/* App Version */}
           <View style={styles.versionContainer}>
@@ -339,6 +251,41 @@ export default function Settings() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Floating Save Button */}
+      <View 
+        style={[
+          styles.floatingButtonContainer, 
+          {
+            backgroundColor: colors.background,
+            paddingBottom: insets.bottom || 20,
+          }
+        ]}>
+        <TouchableOpacity
+          style={[styles.saveButton, {backgroundColor: colors.primary}]}
+          onPress={async () => {
+            if (formRef.current && typeof formRef.current.save === "function") {
+              await formRef.current.save();
+            }
+          }}
+          disabled={updating || profileLoading}
+          activeOpacity={0.8}>
+          {updating ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <>
+              <Ionicons name="checkmark-circle" color="#ffffff" size={20} />
+              <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Settings Menu Modal */}
+      <SettingsMenu
+        visible={isSettingsMenuVisible}
+        onClose={() => setIsSettingsMenuVisible(false)}
+      />
     </View>
   );
 }
@@ -365,6 +312,24 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
+  settingsIconButton: {
+    padding: 4,
+  },
+  settingsIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   scrollView: {
     flex: 1,
   },
@@ -390,54 +355,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
   },
-  additionalOptions: {
-    marginTop: 32,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 16,
-  },
-  optionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  optionLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  optionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  optionText: {
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  logoutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
-    marginTop: 16,
-  },
-  logoutButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
   versionContainer: {
     alignItems: "center",
     paddingVertical: 24,
@@ -445,24 +362,36 @@ const styles = StyleSheet.create({
   versionText: {
     fontSize: 13,
   },
-  toggleSwitch: {
-    width: 50,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: "center",
-    paddingHorizontal: 2,
-  },
-  toggleThumb: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  floatingButtonContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0, 0, 0, 0.1)",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: -2,
     },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  saveButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 8,
+  },
+  saveButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

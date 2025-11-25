@@ -1,10 +1,12 @@
-import {View, Text, TextInput, StyleSheet, TouchableOpacity, Platform} from "react-native";
+import {View, Text, TextInput, StyleSheet, TouchableOpacity, Platform, Image, Alert, ActivityIndicator} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
-import {useState, useEffect} from "react";
+import {useState, useEffect, forwardRef, useImperativeHandle} from "react";
 import {User, ClientProfile} from "@/types/global";
+import {profileCustomizationApi} from "@/lib/api";
+import * as ImagePicker from "expo-image-picker";
 
 interface ClientSettingsFormProps {
   user: User;
@@ -13,7 +15,8 @@ interface ClientSettingsFormProps {
   isLoading: boolean;
 }
 
-export const ClientSettingsForm = ({user, profile, onSave, isLoading}: ClientSettingsFormProps) => {
+const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, ClientSettingsFormProps>(
+  ({user, profile, onSave, isLoading}, ref) => {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
 
@@ -21,12 +24,15 @@ export const ClientSettingsForm = ({user, profile, onSave, isLoading}: ClientSet
   const [lastName, setLastName] = useState((user as any).lastName || (user as any).last_name);
   const [email, setEmail] = useState(user.email);
   const [phone, setPhone] = useState(user.phone || "");
+  const [profilePhoto, setProfilePhoto] = useState<string | null>((user as any).image || null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
     setFirstName((user as any).firstName || (user as any).first_name);
     setLastName((user as any).lastName || (user as any).last_name);
     setEmail(user.email);
     setPhone(user.phone || "");
+    setProfilePhoto((user as any).image || null);
   }, [
     user.email,
     user.phone,
@@ -34,7 +40,69 @@ export const ClientSettingsForm = ({user, profile, onSave, isLoading}: ClientSet
     (user as any).first_name,
     (user as any).lastName,
     (user as any).last_name,
+    (user as any).image,
   ]);
+
+  const requestPermissions = async () => {
+    const {status} = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permisos requeridos", "Necesitamos acceso a tu galería para subir imágenes.", [
+        {text: "OK"},
+      ]);
+      return false;
+    }
+    return true;
+  };
+
+  const pickImage = async () => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setUploadingPhoto(true);
+      try {
+        const formData = new FormData();
+
+        if (Platform.OS === "web") {
+          // On web, convert URI to Blob/File object
+          const res = await fetch(result.assets[0].uri);
+          const blob = await res.blob();
+          const mimeType = blob.type || "image/jpeg";
+          const ext = (mimeType.split("/")[1] || "jpg").replace("jpeg", "jpg");
+          const file = new File([blob], `profile_photo_${Date.now()}.${ext}`, {type: mimeType});
+          formData.append("photo", file);
+        } else {
+          // On native, use the React Native file descriptor
+          const uriParts = result.assets[0].uri.split(".");
+          const fileType = uriParts[uriParts.length - 1] || "jpg";
+          const rnFile = {
+            uri: result.assets[0].uri,
+            type: `image/${fileType === "jpg" ? "jpeg" : fileType}`,
+            name: `profile_photo_${Date.now()}.${fileType}`,
+          } as any;
+          formData.append("photo", rnFile);
+        }
+
+        const response = await profileCustomizationApi.uploadProfilePhoto(formData);
+        if (response.data.user_image) {
+          setProfilePhoto(response.data.user_image);
+          Alert.alert("Éxito", "Foto de perfil actualizada correctamente");
+        }
+      } catch (error) {
+        console.error("Error uploading profile photo:", error);
+        Alert.alert("Error", "No se pudo subir la foto de perfil. Inténtalo de nuevo.");
+      } finally {
+        setUploadingPhoto(false);
+      }
+    }
+  };
 
   const handleSave = async () => {
     const userData = {
@@ -49,8 +117,43 @@ export const ClientSettingsForm = ({user, profile, onSave, isLoading}: ClientSet
     await onSave(userData, profileData);
   };
 
+  useImperativeHandle(ref, () => ({
+    save: handleSave,
+  }));
+
   return (
     <View style={styles.container}>
+      {/* Profile Photo Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="camera" color={colors.primary} size={20} />
+          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Foto de Perfil</Text>
+        </View>
+
+        <View style={styles.photoContainer}>
+          <TouchableOpacity
+            style={[styles.photoButton, {backgroundColor: colors.card, borderColor: colors.border}]}
+            onPress={pickImage}
+            disabled={uploadingPhoto}>
+            {uploadingPhoto ? (
+              <ActivityIndicator color={colors.primary} size="large" />
+            ) : profilePhoto ? (
+              <Image source={{uri: profilePhoto}} style={styles.profilePhoto} />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Ionicons name="person" color={colors.mutedForeground} size={40} />
+                <Text style={[styles.photoPlaceholderText, {color: colors.mutedForeground}]}>
+                  Agregar foto
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <Text style={[styles.helperText, {color: colors.mutedForeground}]}>
+            Toca la imagen para cambiar tu foto de perfil
+          </Text>
+        </View>
+      </View>
+
       {/* Personal Information Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -136,24 +239,13 @@ export const ClientSettingsForm = ({user, profile, onSave, isLoading}: ClientSet
         </View>
       </View>
 
-      {/* Save Button */}
-      <TouchableOpacity
-        style={[styles.saveButton, {backgroundColor: colors.primary}]}
-        onPress={handleSave}
-        disabled={isLoading}
-        activeOpacity={0.9}>
-        {isLoading ? (
-          <Text style={styles.saveButtonText}>Guardando...</Text>
-        ) : (
-          <>
-            <Ionicons name="checkmark-circle" color="#ffffff" size={20} />
-            <Text style={styles.saveButtonText}>Guardar Cambios</Text>
-          </>
-        )}
-      </TouchableOpacity>
     </View>
   );
-};
+});
+
+ClientSettingsFormComponent.displayName = "ClientSettingsForm";
+
+export const ClientSettingsForm = ClientSettingsFormComponent;
 
 const styles = StyleSheet.create({
   container: {
@@ -217,5 +309,38 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  photoContainer: {
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  photoButton: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  profilePhoto: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  photoPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 4,
+  },
+  photoPlaceholderText: {
+    fontSize: 12,
+    textAlign: "center",
+  },
+  helperText: {
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: "italic",
   },
 });

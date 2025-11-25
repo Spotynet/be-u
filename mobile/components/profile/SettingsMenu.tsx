@@ -36,9 +36,6 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
     onClose();
     // Aquí puedes agregar navegación a las diferentes pantallas según la opción
     switch (option) {
-      case "general":
-        router.push("/settings");
-        break;
       case "password":
         // router.push("/change-password");
         console.log("Cambiar contraseña");
@@ -129,25 +126,6 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
                 trackColor={{false: colors.muted, true: colors.primary}}
                 thumbColor="#ffffff"
               />
-            </TouchableOpacity>
-
-            {/* General Information */}
-            <TouchableOpacity
-              style={[
-                styles.optionButton,
-                {backgroundColor: colors.background, borderColor: colors.border},
-              ]}
-              onPress={() => handleOptionPress("general")}
-              activeOpacity={0.7}>
-              <View style={styles.optionLeft}>
-                <View style={[styles.optionIcon, {backgroundColor: "#06b6d4" + "15"}]}>
-                  <Ionicons name="information-circle" color="#06b6d4" size={20} />
-                </View>
-                <Text style={[styles.optionText, {color: colors.foreground}]}>
-                  Información General
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
             </TouchableOpacity>
 
             {/* Change Password */}

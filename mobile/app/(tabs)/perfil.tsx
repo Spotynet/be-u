@@ -16,10 +16,10 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useUserProfile} from "@/features/users/hooks/useUserProfile";
-import {ProfileTabs, SettingsMenu} from "@/components/profile";
-import {useRouter} from "expo-router";
+import {ProfileTabs} from "@/components/profile";
+import {useRouter, useFocusEffect} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
-import {useState, useRef, useEffect} from "react";
+import {useState, useRef, useEffect, useCallback} from "react";
 import * as ImagePicker from "expo-image-picker";
 import {profileCustomizationApi} from "@/lib/api";
 import AddressAutocomplete from "@/components/address/AddressAutocomplete";
@@ -36,8 +36,6 @@ export default function Perfil() {
 
   // State for personalizar perfil expansion
   const [isPersonalizarExpanded, setIsPersonalizarExpanded] = useState(false);
-  // State for settings menu
-  const [isSettingsMenuVisible, setIsSettingsMenuVisible] = useState(false);
   
   // Reset expansion state if user is not a provider
   useEffect(() => {
@@ -97,29 +95,38 @@ export default function Perfil() {
   // Removed image loading effect since we're navigating to separate pages
 
   // Ensure we have the PublicProfile id available for preview navigation and category display
-  useEffect(() => {
-    const fetchPublicProfileId = async () => {
-      if (!isAuthenticated || !user) return;
-      
-      try {
-        const res = await profileCustomizationApi.getProfileImages();
-        console.log("📋 PublicProfile data received:", JSON.stringify(res?.data, null, 2));
-        if (res?.data?.id) {
-          setPublicProfileId(res.data.id as number);
-          setPublicProfile(res.data); // Store full PublicProfile data
-          console.log("📋 Category:", res.data.category);
-          console.log("📋 Sub categories:", res.data.sub_categories);
-          console.log("📋 Profile type:", res.data.profile_type);
-        } else {
-          console.log("📋 No PublicProfile ID found in response");
-        }
-      } catch (e) {
-        console.log("📋 No PublicProfile yet for preview", e);
-        setPublicProfile(null);
+  const fetchPublicProfileId = useCallback(async () => {
+    if (!isAuthenticated || !user) return;
+    
+    try {
+      const res = await profileCustomizationApi.getProfileImages();
+      console.log("📋 PublicProfile data received:", JSON.stringify(res?.data, null, 2));
+      if (res?.data?.id) {
+        setPublicProfileId(res.data.id as number);
+        setPublicProfile(res.data); // Store full PublicProfile data
+        console.log("📋 Category:", res.data.category);
+        console.log("📋 Sub categories:", res.data.sub_categories);
+        console.log("📋 Profile type:", res.data.profile_type);
+        console.log("📋 User image:", res.data.user_image);
+      } else {
+        console.log("📋 No PublicProfile ID found in response");
       }
-    };
-    fetchPublicProfileId();
+    } catch (e) {
+      console.log("📋 No PublicProfile yet for preview", e);
+      setPublicProfile(null);
+    }
   }, [isAuthenticated, user?.id]);
+
+  useEffect(() => {
+    fetchPublicProfileId();
+  }, [fetchPublicProfileId]);
+
+  // Refresh profile when screen comes into focus (e.g., after uploading photo)
+  useFocusEffect(
+    useCallback(() => {
+      fetchPublicProfileId();
+    }, [fetchPublicProfileId])
+  );
 
   const handleLogout = async () => {
     try {
@@ -344,34 +351,25 @@ export default function Perfil() {
                 onPress={() => router.push("/settings")}
                 activeOpacity={0.7}>
                 <View style={[styles.headerAvatar, {backgroundColor: avatarColor}]}> 
-                {(profile as any)?.photo ? (
-                  <Image source={{uri: (profile as any).photo}} style={styles.headerAvatarImage} />
+                {(publicProfile?.user_image || (user as any)?.image || (profile as any)?.photo) ? (
+                  <Image source={{uri: publicProfile?.user_image || (user as any)?.image || (profile as any).photo}} style={styles.headerAvatarImage} />
               ) : (
               <Text style={styles.headerAvatarText}>
                 {getInitials(user?.firstName, user?.lastName, user?.firstName, user?.role, (profile as any)?.name)}
               </Text>
               )}
                 </View>
-                {/* Edit icon overlay - always visible with transparency */}
-                <View style={styles.avatarEditOverlay}>
-                 
-                    <Ionicons name="pencil" color="#ffffff" size={16} />
-                  
+                {/* Edit icon in a circle at the bottom right corner */}
+                <View style={styles.avatarEditIconContainer}>
+                  <View style={[styles.avatarEditIconCircle, {backgroundColor: colors.primary}]}>
+                    <Ionicons name="pencil" color="#ffffff" size={12} />
+                  </View>
                 </View>
               </TouchableOpacity>
             </View>
             <View style={styles.headerTextContainer}>
             <View style={styles.headerTitleRow}>
               <Text style={[styles.headerTitle, {color: colors.foreground}]}>{displayName}</Text>
-              {/* Settings Icon - Positioned right after the name */}
-              <TouchableOpacity
-                onPress={() => setIsSettingsMenuVisible(true)}
-                style={styles.settingsIconButton}
-                activeOpacity={0.7}>
-                <View style={[styles.settingsIconContainer, {backgroundColor: colors.card}]}>
-                  <Ionicons name="settings" color={colors.primary} size={22} />
-                </View>
-              </TouchableOpacity>
             </View>
             <Text style={[styles.headerRole, {color: colors.mutedForeground}]}>
               {user?.role === "PROFESSIONAL"
@@ -733,11 +731,6 @@ export default function Perfil() {
         </View>
       </ScrollView>
 
-      {/* Settings Menu Modal */}
-      <SettingsMenu
-        visible={isSettingsMenuVisible}
-        onClose={() => setIsSettingsMenuVisible(false)}
-      />
     </View>
   );
 }
@@ -788,27 +781,34 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
   },
-  avatarEditOverlay: {
+  avatarEditIconContainer: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
     bottom: 0,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    right: 0,
+    width: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarEditIconCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#ffffff",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
     justifyContent: "center",
     alignItems: "center",
     pointerEvents: "none",
-  },
-  avatarEditIconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "rgba(0, 0, 0, 0.35)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   headerAvatarText: {
     color: "#ffffff",

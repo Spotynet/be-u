@@ -148,6 +148,7 @@ export default function Explore() {
         sub_categories: prof.sub_categories || [],
         images: prof.images || [],
         has_calendar: prof.has_calendar || false,
+        photo: prof.user_image, // Add profile photo
       }));
 
       // Transform places data (from PublicProfile)
@@ -183,6 +184,7 @@ export default function Explore() {
         postal_code: place.postal_code,
         number_ext: place.number_ext,
         number_int: place.number_int,
+        photo: place.user_image, // Add profile photo
       }));
 
       console.log(
@@ -533,11 +535,15 @@ export default function Explore() {
                       ),
                     },
                   ]}>
-                  <Text style={styles.itemAvatarTextVertical}>
-                    {(item.name || (item.type === "professional" ? "P" : "L"))
-                      .substring(0, 2)
-                      .toUpperCase()}
-                  </Text>
+                  {item.photo ? (
+                    <Image source={{uri: item.photo}} style={styles.itemAvatarImageVertical} />
+                  ) : (
+                    <Text style={styles.itemAvatarTextVertical}>
+                      {(item.name || (item.type === "professional" ? "P" : "L"))
+                        .substring(0, 2)
+                        .toUpperCase()}
+                    </Text>
+                  )}
                 </View>
                 <View style={styles.itemInfoVertical}>
                   <Text
@@ -1068,6 +1074,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "800",
     color: "#ffffff",
+  },
+  itemAvatarImageVertical: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 25,
+    resizeMode: "cover",
   },
   itemInfoVertical: {
     flex: 1,

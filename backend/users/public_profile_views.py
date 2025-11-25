@@ -84,6 +84,30 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
             )
         serializer.save()
     
+    def update(self, request, *args, **kwargs):
+        """Handle profile updates including photo uploads"""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        
+        # Check authorization
+        if instance.user != request.user:
+            return Response(
+                {"detail": "You can only update your own profile"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        # Return full profile data
+        return Response(PublicProfileSerializer(instance, context={'request': request}).data)
+    
+    def partial_update(self, request, *args, **kwargs):
+        """Handle partial profile updates"""
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+    
     def destroy(self, request, *args, **kwargs):
         """Only allow users to delete their own profiles"""
         instance = self.get_object()

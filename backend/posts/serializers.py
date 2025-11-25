@@ -175,12 +175,18 @@ class PostSerializer(serializers.ModelSerializer):
         return None
     
     def get_author_photo(self, obj):
-        """Get author's profile photo from PublicProfile"""
+        """Get author's profile photo from User.image or PublicProfile"""
+        # First, try to get the main profile photo from user.image
+        try:
+            if obj.author and obj.author.image:
+                return obj.author.image.url
+        except Exception:
+            pass
+        
+        # Fallback to PublicProfile images
         profile = self._get_public_profile(obj)
         if profile:
             # PublicProfile uses a JSON field for images or ProfileImage model
-            # For now, return None - can be enhanced later to get primary image
-            # from ProfileImage model using Generic Foreign Keys
             if hasattr(profile, 'images') and profile.images:
                 # If images is a list with at least one URL
                 if isinstance(profile.images, list) and len(profile.images) > 0:

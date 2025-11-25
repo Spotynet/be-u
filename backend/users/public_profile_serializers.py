@@ -114,6 +114,7 @@ class PublicProfileCreateSerializer(serializers.ModelSerializer):
 
 class PublicProfileUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating PublicProfile"""
+    photo = serializers.ImageField(write_only=True, required=False, help_text="Profile photo (updates user.image)")
     
     class Meta:
         model = PublicProfile
@@ -121,8 +122,24 @@ class PublicProfileUpdateSerializer(serializers.ModelSerializer):
             'name', 'description', 'category', 'sub_categories',
             'images', 'linked_pros_place', 'has_calendar',
             'street', 'number_ext', 'number_int', 'postal_code', 'city', 'country',
-            'last_name', 'bio', 'latitude', 'longitude'
+            'last_name', 'bio', 'latitude', 'longitude', 'photo'
         ]
+    
+    def update(self, instance, validated_data):
+        """Update profile and handle photo upload to user.image"""
+        photo = validated_data.pop('photo', None)
+        
+        # Update PublicProfile fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        # Update user.image if photo provided
+        if photo:
+            instance.user.image = photo
+            instance.user.save(update_fields=['image'])
+        
+        return instance
 
 
 class PublicProfileListSerializer(serializers.ModelSerializer):

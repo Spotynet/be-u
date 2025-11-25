@@ -239,6 +239,11 @@ SIMPLE_JWT = {
 }
 
 # AWS S3 Configuration
+# Toggle USE_S3 to False for local development, True for production
+import os
+USE_S3 = os.environ.get('USE_S3', 'False') == 'True'
+
+# AWS credentials - always defined to avoid import errors, but only used when USE_S3=True
 AWS_ACCESS_KEY_ID = 'AKIAXBZV5BYXMHMUVG4S'
 AWS_SECRET_ACCESS_KEY = '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'
 AWS_STORAGE_BUCKET_NAME = 'stg-be-u'
@@ -257,6 +262,13 @@ AWS_S3_FILE_OVERWRITE = False
 AWS_QUERYSTRING_AUTH = True
 AWS_QUERYSTRING_EXPIRE = 3600  # URL expiration time in seconds (1 hour)
 
-# Use S3 for media files
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+# Choose storage backend based on USE_S3
+if USE_S3:
+    # Use S3 for media files in production
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+else:
+    # Use local file storage for development
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'

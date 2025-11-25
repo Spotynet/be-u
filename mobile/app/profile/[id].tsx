@@ -722,9 +722,13 @@ export default function ProfileDetailScreen() {
                     ),
                   },
                 ]}>
-                <Text style={styles.profileAvatarText}>
-                  {(profile.name || "U").charAt(0).toUpperCase()}
-                </Text>
+                {profile.user_image ? (
+                  <Image source={{uri: profile.user_image}} style={styles.profileAvatarImage} />
+                ) : (
+                  <Text style={styles.profileAvatarText}>
+                    {(profile.name || "U").charAt(0).toUpperCase()}
+                  </Text>
+                )}
               </View>
               <View style={styles.profileNameRole}>
                 <Text style={[styles.profileName, {color: colors.foreground}]} numberOfLines={1}>
@@ -1176,6 +1180,12 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "700",
+  },
+  profileAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 20,
+    resizeMode: "cover",
   },
   profileNameRole: {
     flex: 1,

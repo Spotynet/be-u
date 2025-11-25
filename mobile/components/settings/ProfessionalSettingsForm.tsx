@@ -1,12 +1,55 @@
-import {View, Text, TextInput, StyleSheet, TouchableOpacity, Platform} from "react-native";
+import {View, Text, TextInput, StyleSheet, TouchableOpacity, Platform, Image, Alert, ActivityIndicator} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
-import {useState, useEffect} from "react";
+import {useState, useEffect, forwardRef, useImperativeHandle} from "react";
 import {User, ProfessionalProfile} from "@/types/global";
 import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector";
 import {profileCustomizationApi} from "@/lib/api";
+import * as ImagePicker from "expo-image-picker";
+
+// Helper function to normalize category/subcategory data from API
+const normalizeCategoryData = (data: any): string[] => {
+  if (!data) return [];
+  
+  // If it's already a proper array of strings
+  if (Array.isArray(data) && data.length > 0) {
+    // Check if first element is a stringified JSON array
+    if (typeof data[0] === 'string' && data[0].startsWith('[') && data[0].endsWith(']')) {
+      try {
+        const parsed = JSON.parse(data[0]);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      } catch (e) {
+        // If parsing fails, continue with normal processing
+      }
+    }
+    // Return the array as is if all elements are strings
+    if (data.every((item: any) => typeof item === 'string')) {
+      return data;
+    }
+  }
+  
+  // If it's a string, try to parse it
+  if (typeof data === 'string') {
+    try {
+      if (data.startsWith('[')) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      } else {
+        return [data];
+      }
+    } catch (e) {
+      return [data];
+    }
+  }
+  
+  return [];
+};
 
 interface ProfessionalSettingsFormProps {
   user: User;
@@ -15,12 +58,8 @@ interface ProfessionalSettingsFormProps {
   isLoading: boolean;
 }
 
-export const ProfessionalSettingsForm = ({
-  user,
-  profile,
-  onSave,
-  isLoading,
-}: ProfessionalSettingsFormProps) => {
+const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}, ProfessionalSettingsFormProps>(
+  ({user, profile, onSave, isLoading}, ref) => {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
 
@@ -34,6 +73,8 @@ export const ProfessionalSettingsForm = ({
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLoadingPublicProfile, setIsLoadingPublicProfile] = useState(true);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // Load public profile to get categories and subcategories
   useEffect(() => {
@@ -43,25 +84,25 @@ export const ProfessionalSettingsForm = ({
         const response = await profileCustomizationApi.getProfileImages();
         if (response?.data) {
           const publicProfile = response.data;
-          // Handle both array and single value formats
-          const categories = Array.isArray(publicProfile.category)
-            ? publicProfile.category
-            : publicProfile.category
-            ? [publicProfile.category]
-            : [];
-          const subcategories = Array.isArray(publicProfile.sub_categories)
-            ? publicProfile.sub_categories
-            : publicProfile.sub_categories
-            ? [publicProfile.sub_categories]
-            : [];
+          
+          // Normalize category and subcategory data
+          const categories = normalizeCategoryData(publicProfile.category);
+          const subcategories = normalizeCategoryData(publicProfile.sub_categories);
+          
           setSelectedCategories(categories);
           setSelectedSubcategories(subcategories);
           // Load display_name from public profile
           if (publicProfile.display_name) {
             setDisplayName(publicProfile.display_name);
           }
-          console.log("Loaded categories:", categories);
-          console.log("Loaded subcategories:", subcategories);
+          // Load profile photo
+          if (publicProfile.user_image) {
+            setProfilePhoto(publicProfile.user_image);
+          }
+          console.log("📋 Raw category from API:", publicProfile.category);
+          console.log("📋 Parsed categories:", categories);
+          console.log("📋 Raw sub_categories from API:", publicProfile.sub_categories);
+          console.log("📋 Parsed subcategories:", subcategories);
         }
       } catch (error) {
         console.error("Error loading public profile:", error);
@@ -71,6 +112,67 @@ export const ProfessionalSettingsForm = ({
     };
     loadPublicProfile();
   }, []);
+
+  const requestPermissions = async () => {
+    const {status} = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permisos requeridos", "Necesitamos acceso a tu galería para subir imágenes.", [
+        {text: "OK"},
+      ]);
+      return false;
+    }
+    return true;
+  };
+
+  const pickImage = async () => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setUploadingPhoto(true);
+      try {
+        const formData = new FormData();
+
+        if (Platform.OS === "web") {
+          // On web, convert URI to Blob/File object
+          const res = await fetch(result.assets[0].uri);
+          const blob = await res.blob();
+          const mimeType = blob.type || "image/jpeg";
+          const ext = (mimeType.split("/")[1] || "jpg").replace("jpeg", "jpg");
+          const file = new File([blob], `profile_photo_${Date.now()}.${ext}`, {type: mimeType});
+          formData.append("photo", file);
+        } else {
+          // On native, use the React Native file descriptor
+          const uriParts = result.assets[0].uri.split(".");
+          const fileType = uriParts[uriParts.length - 1] || "jpg";
+          const rnFile = {
+            uri: result.assets[0].uri,
+            type: `image/${fileType === "jpg" ? "jpeg" : fileType}`,
+            name: `profile_photo_${Date.now()}.${fileType}`,
+          } as any;
+          formData.append("photo", rnFile);
+        }
+
+        const response = await profileCustomizationApi.uploadProfilePhoto(formData);
+        if (response.data.user_image) {
+          setProfilePhoto(response.data.user_image);
+          Alert.alert("Éxito", "Foto de perfil actualizada correctamente");
+        }
+      } catch (error) {
+        console.error("Error uploading profile photo:", error);
+        Alert.alert("Error", "No se pudo subir la foto de perfil. Inténtalo de nuevo.");
+      } finally {
+        setUploadingPhoto(false);
+      }
+    }
+  };
 
   // Initialize form fields only once when component mounts
   useEffect(() => {
@@ -134,8 +236,43 @@ export const ProfessionalSettingsForm = ({
     }
   };
 
+  useImperativeHandle(ref, () => ({
+    save: handleSave,
+  }));
+
   return (
     <View style={styles.container}>
+      {/* Profile Photo Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="camera" color={colors.primary} size={20} />
+          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Foto de Perfil</Text>
+        </View>
+
+        <View style={styles.photoContainer}>
+          <TouchableOpacity
+            style={[styles.photoButton, {backgroundColor: colors.card, borderColor: colors.border}]}
+            onPress={pickImage}
+            disabled={uploadingPhoto}>
+            {uploadingPhoto ? (
+              <ActivityIndicator color={colors.primary} size="large" />
+            ) : profilePhoto ? (
+              <Image source={{uri: profilePhoto}} style={styles.profilePhoto} />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Ionicons name="person" color={colors.mutedForeground} size={40} />
+                <Text style={[styles.photoPlaceholderText, {color: colors.mutedForeground}]}>
+                  Agregar foto
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <Text style={[styles.helperText, {color: colors.mutedForeground}]}>
+            Toca la imagen para cambiar tu foto de perfil
+          </Text>
+        </View>
+      </View>
+
       {/* Professional Information Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -288,24 +425,13 @@ export const ProfessionalSettingsForm = ({
         )}
       </View>
 
-      {/* Save Button */}
-      <TouchableOpacity
-        style={[styles.saveButton, {backgroundColor: colors.primary}]}
-        onPress={handleSave}
-        disabled={isLoading}
-        activeOpacity={0.9}>
-        {isLoading ? (
-          <Text style={styles.saveButtonText}>Guardando...</Text>
-        ) : (
-          <>
-            <Ionicons name="checkmark-circle" color="#ffffff" size={20} />
-            <Text style={styles.saveButtonText}>Guardar Cambios</Text>
-          </>
-        )}
-      </TouchableOpacity>
     </View>
   );
-};
+});
+
+ProfessionalSettingsFormComponent.displayName = "ProfessionalSettingsForm";
+
+export const ProfessionalSettingsForm = ProfessionalSettingsFormComponent;
 
 const styles = StyleSheet.create({
   container: {
@@ -385,5 +511,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontStyle: "italic",
+  },
+  photoContainer: {
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  photoButton: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  profilePhoto: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  photoPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 4,
+  },
+  photoPlaceholderText: {
+    fontSize: 12,
+    textAlign: "center",
   },
 });
