@@ -66,7 +66,7 @@ class CalendarAuthUrlView(APIView):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([])  # Allow unauthenticated GET from Google; we'll enforce auth manually for POST
 def calendar_callback(request):
     """
     GET/POST /api/calendar/callback/
@@ -99,7 +99,14 @@ def calendar_callback(request):
         
         return render(request, 'calendar_integration/callback_page.html')
     
-    # POST request from mobile app
+    # POST request from mobile app (must be authenticated)
+    if not request.user or not request.user.is_authenticated:
+        return Response(
+            {'detail': 'Authentication credentials were not provided.'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    # Now we know the user is authenticated
     serializer = CalendarCallbackSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
