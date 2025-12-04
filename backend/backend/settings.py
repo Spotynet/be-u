@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'posts',
     'notifications',
     'favorites',
+    'calendar_integration',
 ]
 
 MIDDLEWARE = [
@@ -272,3 +273,20 @@ else:
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
+
+# Google Calendar API Configuration
+# For production, use environment variables. For development, these defaults are used.
+GOOGLE_CLIENT_ID = os.environ.get(
+    'GOOGLE_CLIENT_ID',
+    '879560491497-s56do4r3tbr4ooarmv6uulje9ek2p3c8.apps.googleusercontent.com'
+)
+GOOGLE_CLIENT_SECRET = os.environ.get(
+    'GOOGLE_CLIENT_SECRET',
+    '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'
+)
+GOOGLE_REDIRECT_URI = os.environ.get(
+    'GOOGLE_REDIRECT_URI',
+    'http://localhost:8000/api/calendar/callback/'
+)
+# Encryption key for storing Google tokens (derived from SECRET_KEY if not set)
+GOOGLE_TOKEN_ENCRYPTION_KEY = os.environ.get('GOOGLE_TOKEN_ENCRYPTION_KEY', None)

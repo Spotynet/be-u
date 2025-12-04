@@ -37,6 +37,7 @@ urlpatterns = [
     path('api/posts/', include('posts.urls')),
     path('api/notifications/', include('notifications.urls')),
     path('api/favorites/', include('favorites.urls')),
+    path('api/calendar/', include('calendar_integration.urls')),
     # Add a simple test endpoint
     path('api/test/', lambda request: HttpResponse('API is working!')),
     # Root endpoint

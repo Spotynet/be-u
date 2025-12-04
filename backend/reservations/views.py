@@ -14,6 +14,12 @@ from .permissions import IsReservationClient, IsReservationProvider, CanViewRese
 from users.models import ProfessionalProfile, PlaceProfile
 from services.models import TimeSlotBlock
 
+# Google Calendar integration
+from calendar_integration.event_helpers import (
+    create_reservation_event,
+    delete_reservation_event,
+)
+
 
 class ReservationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing reservations"""
@@ -218,11 +224,25 @@ class ReservationViewSet(viewsets.ModelViewSet):
         reservation.status = 'CONFIRMED'
         reservation.save()
         
+        # Create Google Calendar event if provider has calendar connected
+        calendar_event = None
+        try:
+            calendar_event = create_reservation_event(reservation)
+        except Exception as e:
+            # Log but don't fail the confirmation
+            import logging
+            logging.getLogger(__name__).error(f"Failed to create calendar event: {e}")
+        
         serializer = ReservationSerializer(reservation)
-        return Response({
+        response_data = {
             'message': 'Reservation confirmed successfully',
             'reservation': serializer.data
-        })
+        }
+        if calendar_event:
+            response_data['calendar_event_created'] = True
+            response_data['calendar_event_link'] = calendar_event.event_link
+        
+        return Response(response_data)
     
     @action(detail=True, methods=['patch'], url_path='reject')
     def reject_reservation(self, request, pk=None):
@@ -257,6 +277,13 @@ class ReservationViewSet(viewsets.ModelViewSet):
             reason='BOOKED',
             notes__contains=reservation.code
         ).delete()
+        
+        # Delete Google Calendar event if exists
+        try:
+            delete_reservation_event(reservation)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to delete calendar event: {e}")
         
         serializer = ReservationSerializer(reservation)
         return Response({
@@ -297,6 +324,13 @@ class ReservationViewSet(viewsets.ModelViewSet):
             reason='BOOKED',
             notes__contains=reservation.code
         ).delete()
+        
+        # Delete Google Calendar event if exists
+        try:
+            delete_reservation_event(reservation)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to delete calendar event: {e}")
         
         serializer = ReservationSerializer(reservation)
         return Response({

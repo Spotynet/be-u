@@ -15,12 +15,15 @@ import {useAvailability} from "@/features/services";
 import {AvailabilityEditor} from "@/components/calendar";
 import {WeeklySchedule} from "@/types/global";
 import {useNavigation} from "@/hooks/useNavigation";
+import {useRouter} from "expo-router";
 import {authApi} from "@/lib/api";
+import {CalendarStatusBadge, useCalendarIntegration} from "@/features/calendar";
 
 export default function AvailabilityScreen() {
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const {goBack} = useNavigation();
+  const router = useRouter();
   const {user, isAuthenticated} = useAuth();
   const [providerId, setProviderId] = useState<number | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -60,6 +63,9 @@ export default function AvailabilityScreen() {
     updateAvailability,
     availabilityToSchedule,
   } = useAvailability(providerId, providerType as any);
+
+  // Google Calendar integration
+  const {status: calendarStatus} = useCalendarIntegration();
 
   const [schedule, setSchedule] = useState<WeeklySchedule>({});
   const [hasChanges, setHasChanges] = useState(false);
@@ -208,6 +214,54 @@ export default function AvailabilityScreen() {
             </Text>
           </View>
 
+          {/* Google Calendar Integration Notice */}
+          <View style={[styles.calendarCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+            <View style={styles.calendarCardHeader}>
+              <View style={styles.calendarCardLeft}>
+                <Ionicons name="calendar" size={20} color={colors.primary} />
+                <Text style={[styles.calendarCardTitle, {color: colors.foreground}]}>
+                  Sincronización con Google Calendar
+                </Text>
+              </View>
+              <CalendarStatusBadge
+                isConnected={calendarStatus?.is_connected || false}
+                hasCalendar={true}
+                size="small"
+                showLabel={false}
+              />
+            </View>
+            <Text style={[styles.calendarCardText, {color: colors.mutedForeground}]}>
+              {calendarStatus?.is_connected
+                ? "Tu Google Calendar está conectado. Los eventos de tu calendario se mostrarán como no disponibles automáticamente."
+                : "Conecta tu Google Calendar para sincronizar automáticamente tu disponibilidad. Los horarios ocupados en tu calendario personal se reflejarán aquí."}
+            </Text>
+            <View style={styles.calendarActions}>
+              {!calendarStatus?.is_connected && (
+                <TouchableOpacity
+                  style={[styles.calendarLinkButton, {borderColor: colors.primary}]}
+                  onPress={() => {
+                    router.push("/settings");
+                  }}>
+                  <Text style={[styles.calendarLinkText, {color: colors.primary}]}>
+                    Conectar Google Calendar →
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {calendarStatus?.is_connected && (
+                <TouchableOpacity
+                  style={[styles.calendarLinkButton, {borderColor: colors.primary, backgroundColor: colors.primary + "10"}]}
+                  onPress={() => {
+                    router.push("/agenda");
+                  }}>
+                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                  <Text style={[styles.calendarLinkText, {color: colors.primary}]}>
+                    Ver Mi Agenda
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
           <AvailabilityEditor schedule={schedule} onChange={handleScheduleChange} />
         </ScrollView>
       )}
@@ -324,6 +378,53 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "700",
+  },
+  calendarCard: {
+    margin: 16,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  calendarCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  calendarCardLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  calendarCardTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  calendarCardText: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  calendarActions: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  calendarLinkButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  calendarLinkText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
 

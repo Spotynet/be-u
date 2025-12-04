@@ -20,12 +20,17 @@ export interface ApiError {
   errors?: Record<string, string[]>;
 }
 
-// API Configuration - HARDCODED for testing
+// API Configuration
+// Use environment variable if available, otherwise default to localhost for development
+// TEMPORAL: Forzar localhost para desarrollo hasta que Expo recargue las variables
+const API_BASE_URL = __DEV__ 
+  ? "http://127.0.0.1:8000/api"  // Siempre localhost en desarrollo
+  : (process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL || "https://stg.be-u.ai/api");
 
-//const API_BASE_URL = "http://127.0.0.1:8000/api";
-const API_BASE_URL = "https://stg.be-u.ai/api";
-
-console.log("🔧 HARDCODED API URL:", API_BASE_URL);
+console.log("🔧 API URL:", API_BASE_URL);
+console.log("🔧 __DEV__:", __DEV__);
+console.log("🔧 EXPO_PUBLIC_API_BASE_URL:", process.env.EXPO_PUBLIC_API_BASE_URL);
+console.log("🔧 EXPO_PUBLIC_API_URL:", process.env.EXPO_PUBLIC_API_URL);
 const AUTH_TOKEN_KEY = "@auth_token";
 const REFRESH_TOKEN_KEY = "@refresh_token";
 
@@ -980,6 +985,77 @@ export const tokenUtils = {
     const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
     return !!token;
   },
+};
+
+// Google Calendar Integration API
+export const calendarApi = {
+  // Get OAuth authorization URL
+  getAuthUrl: (redirectUri?: string) => 
+    api.get<{auth_url: string; state: string}>('/calendar/auth-url/', {
+      params: redirectUri ? {redirect_uri: redirectUri} : undefined
+    }),
+  
+  // Exchange authorization code for tokens
+  exchangeCode: (code: string, state?: string, redirectUri?: string) =>
+    api.post<{message: string; is_connected: boolean; calendar_id: string}>(
+      '/calendar/callback/',
+      {code, state, redirect_uri: redirectUri}
+    ),
+  
+  // Disconnect Google Calendar
+  disconnect: () =>
+    api.post<{message: string; is_connected: boolean}>('/calendar/disconnect/'),
+  
+  // Get calendar connection status
+  getStatus: () =>
+    api.get<{
+      is_connected: boolean;
+      calendar_id: string | null;
+      last_sync_at: string | null;
+      sync_error: string | null;
+      is_active: boolean;
+    }>('/calendar/status/'),
+  
+  // Manually trigger availability sync
+  syncAvailability: () =>
+    api.post<{message: string; last_sync_at: string}>('/calendar/sync-availability/'),
+  
+  // Get busy times from Google Calendar
+  getBusyTimes: (start: string, end: string) =>
+    api.get<{
+      busy_times: Array<{start: string; end: string}>;
+      count: number;
+    }>('/calendar/busy-times/', {params: {start, end}}),
+  
+  // Get provider's busy times (public)
+  getProviderBusyTimes: (providerType: 'professional' | 'place', providerId: number, start: string, end: string) =>
+    api.get<{
+      has_calendar: boolean;
+      busy_times: Array<{start: string; end: string}>;
+      count: number;
+    }>(`/calendar/provider-busy-times/${providerType}/${providerId}/`, {
+      params: {start, end}
+    }),
+  
+  // Get calendar events
+  getEvents: (start: string, end: string, maxResults?: number) =>
+    api.get<{
+      events: Array<{
+        id: string;
+        summary: string;
+        description: string;
+        location: string;
+        start: string;
+        end: string;
+        htmlLink: string;
+        status: string;
+        attendees: Array<{email: string; displayName?: string}>;
+      }>;
+      count: number;
+      has_calendar: boolean;
+    }>('/calendar/events/', {
+      params: {start, end, ...(maxResults ? {max_results: maxResults} : {})}
+    }),
 };
 
 // Token refresh scheduler

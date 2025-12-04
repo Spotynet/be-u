@@ -23,6 +23,7 @@ import {
   PlaceSettingsForm,
 } from "@/components/settings";
 import {SettingsMenu} from "@/components/profile";
+import {CalendarConnectionCard} from "@/features/calendar";
 
 export default function Settings() {
   const colorScheme = useColorScheme();
@@ -168,23 +169,41 @@ export default function Settings() {
         );
       case "PROFESSIONAL":
         return (
-          <ProfessionalSettingsForm
-            ref={formRef}
-            user={user}
-            profile={profile as any}
-            onSave={handleSave}
-            isLoading={updating}
-          />
+          <>
+            <ProfessionalSettingsForm
+              ref={formRef}
+              user={user}
+              profile={profile as any}
+              onSave={handleSave}
+              isLoading={updating}
+            />
+            {/* Google Calendar Integration */}
+            <View style={styles.calendarSection}>
+              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+                Integración de Calendario
+              </Text>
+              <CalendarConnectionCard />
+            </View>
+          </>
         );
       case "PLACE":
         return (
-          <PlaceSettingsForm
-            ref={formRef}
-            user={user}
-            profile={profile as any}
-            onSave={handleSave}
-            isLoading={updating}
-          />
+          <>
+            <PlaceSettingsForm
+              ref={formRef}
+              user={user}
+              profile={profile as any}
+              onSave={handleSave}
+              isLoading={updating}
+            />
+            {/* Google Calendar Integration */}
+            <View style={styles.calendarSection}>
+              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+                Integración de Calendario
+              </Text>
+              <CalendarConnectionCard />
+            </View>
+          </>
         );
       default:
         return (
@@ -393,5 +412,15 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
+  },
+    calendarSection: {
+    marginTop: 24,
+    marginHorizontal: -16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 8,
+    marginHorizontal: 16,
   },
 });

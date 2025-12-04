@@ -381,6 +381,25 @@ def get_available_slots(self, request):
             status=status.HTTP_200_OK
         )
     
+    # Get Google Calendar busy times if provider has calendar connected
+    google_busy_times = []
+    has_google_calendar = False
+    try:
+        from calendar_integration.services import google_calendar_service
+        provider_user = provider.user
+        if google_calendar_service.has_calendar_connected(provider_user):
+            has_google_calendar = True
+            # Get busy times for the entire day
+            day_start = datetime.combine(target_date, dt_time(0, 0))
+            day_end = datetime.combine(target_date, dt_time(23, 59, 59))
+            google_busy_times = google_calendar_service.get_busy_times(
+                provider_user, day_start, day_end
+            )
+    except Exception as e:
+        # Log but don't fail if Google Calendar is unavailable
+        import logging
+        logging.getLogger(__name__).warning(f"Could not fetch Google Calendar busy times: {e}")
+    
     # Generate time slots
     slots = []
     current_time = availability.start_time
@@ -415,10 +434,24 @@ def get_available_slots(self, request):
             status__in=['PENDING', 'CONFIRMED']
         ).exists()
         
+        # Check if slot conflicts with Google Calendar busy times
+        is_google_busy = False
+        if google_busy_times:
+            for busy in google_busy_times:
+                # Make datetimes timezone-naive for comparison if needed
+                busy_start = busy.start.replace(tzinfo=None) if busy.start.tzinfo else busy.start
+                busy_end = busy.end.replace(tzinfo=None) if busy.end.tzinfo else busy.end
+                
+                # Check for overlap
+                if current_dt < busy_end and slot_end_dt > busy_start:
+                    is_google_busy = True
+                    break
+        
         slots.append({
             'time': current_time.strftime('%H:%M'),
             'end_time': slot_end_dt.time().strftime('%H:%M'),
-            'available': not (is_blocked or is_booked)
+            'available': not (is_blocked or is_booked or is_google_busy),
+            'google_calendar_busy': is_google_busy if has_google_calendar else None
         })
         
         # Move to next slot
@@ -433,6 +466,7 @@ def get_available_slots(self, request):
         'date': date_str,
         'provider_type': service_type,
         'provider_id': provider.id,
+        'has_google_calendar': has_google_calendar,
         'slots': serializer.data
     })
 

@@ -157,4 +157,5 @@ class AvailableSlotSerializer(serializers.Serializer):
     time = serializers.TimeField()
     available = serializers.BooleanField()
     end_time = serializers.TimeField()
+    google_calendar_busy = serializers.BooleanField(allow_null=True, required=False)
 
