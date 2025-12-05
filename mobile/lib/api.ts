@@ -996,7 +996,7 @@ export const calendarApi = {
     }),
   
   // Exchange authorization code for tokens
-  exchangeCode: (code: string, state?: string, redirectUri?: string) =>
+  exchangeCode: (code?: string, state?: string, redirectUri?: string) =>
     api.post<{message: string; is_connected: boolean; calendar_id: string}>(
       '/calendar/callback/',
       {code, state, redirect_uri: redirectUri}

@@ -20,7 +20,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import GoogleCalendarCredentials
+from .models import GoogleCalendarCredentials, GoogleOAuthPendingCode
 from .services import google_calendar_service, BusyTime
 from .serializers import (
     CalendarAuthUrlSerializer,
@@ -88,10 +88,23 @@ def calendar_callback(request):
                 'error_description': request.GET.get('error_description', '')
             })
         
-        if code:
-            # Store code in session temporarily for mobile to pick up
-            request.session['google_oauth_code'] = code
-            request.session['google_oauth_state'] = state
+        if code and state:
+            # Store code in database temporarily for mobile to pick up
+            # This works in production where session cookies aren't available
+            redirect_uri_used = request.build_absolute_uri(request.path)
+            
+            # Delete any existing pending code for this state
+            GoogleOAuthPendingCode.objects.filter(state=state).delete()
+            
+            # Create new pending code
+            GoogleOAuthPendingCode.objects.create(
+                state=state,
+                code=code,
+                redirect_uri=redirect_uri_used
+            )
+            
+            logger.info(f"Stored OAuth code for state {state[:8]}... (production callback)")
+            
             # Show success page
             return render(request, 'calendar_integration/callback_page.html', {
                 'success': True
@@ -111,20 +124,48 @@ def calendar_callback(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    code = serializer.validated_data['code']
+    code = serializer.validated_data.get('code')
     state = serializer.validated_data.get('state')
     redirect_uri = request.data.get('redirect_uri')  # Get redirect_uri from mobile
     
-    # Check if code is in session (from web redirect)
-    session_code = request.session.get('google_oauth_code')
-    if session_code and not code:
-        code = session_code
-        # Clear from session
-        del request.session['google_oauth_code']
-        # For web redirects, use backend redirect_uri
-        redirect_uri = None
+    # If no code provided but we have state, try to get code from pending storage (production flow)
+    if not code and state:
+        try:
+            pending_code = GoogleOAuthPendingCode.objects.get(state=state)
+            
+            # Check if expired
+            if pending_code.is_expired():
+                pending_code.delete()
+                return Response(
+                    {'error': 'Authorization code has expired. Please try again.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Use the stored code and redirect_uri
+            code = pending_code.code
+            if not redirect_uri:
+                redirect_uri = pending_code.redirect_uri
+            
+            # Delete the pending code (one-time use)
+            pending_code.delete()
+            
+            logger.info(f"Retrieved OAuth code from pending storage for state {state[:8]}...")
+        except GoogleOAuthPendingCode.DoesNotExist:
+            # Fallback to session (development)
+            session_code = request.session.get('google_oauth_code')
+            if session_code:
+                code = session_code
+                del request.session['google_oauth_code']
+                if not redirect_uri:
+                    redirect_uri = None
     
-    # Verify state if provided
+    if not code:
+        return Response(
+            {'error': 'No authorization code provided. Please complete the OAuth flow again.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Verify state if stored in session (development)
     stored_state = request.session.get('google_oauth_state')
     if stored_state and state and stored_state != state:
         return Response(
@@ -132,7 +173,7 @@ def calendar_callback(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    # Clear the state from session
+    # Clear the state from session if exists
     if 'google_oauth_state' in request.session:
         del request.session['google_oauth_state']
     

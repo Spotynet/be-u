@@ -47,7 +47,7 @@ class CalendarAuthUrlSerializer(serializers.Serializer):
 class CalendarCallbackSerializer(serializers.Serializer):
     """Serializer for OAuth callback request"""
     
-    code = serializers.CharField(required=True)
+    code = serializers.CharField(required=False, allow_null=True)
     state = serializers.CharField(required=False, allow_null=True)
     redirect_uri = serializers.CharField(required=False, allow_null=True)
 

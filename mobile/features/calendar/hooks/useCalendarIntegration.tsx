@@ -115,15 +115,39 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
             return true;
           }
         } else {
-          // Production: Backend handled the callback, just verify status
-          // Wait a moment for backend to process
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Production: Backend handled the callback
+          // The backend stored the code with the state, so we need to POST with just the state
+          // Wait a moment for backend to process the redirect
+          await new Promise(resolve => setTimeout(resolve, 1500));
           
-          // Verify connection status by checking directly
+          // Exchange code using state (backend will retrieve code from pending storage)
+          try {
+            const exchangeResponse = await calendarApi.exchangeCode(
+              undefined, // No code - backend will get it from state
+              state,     // State is required to retrieve the code
+              mobileRedirectUri
+            );
+
+            if (exchangeResponse.data.is_connected) {
+              await refreshStatus();
+              
+              Alert.alert(
+                'Calendario conectado',
+                'Tu Google Calendar ha sido conectado exitosamente. Ahora tu disponibilidad se sincronizará automáticamente.',
+                [{ text: 'OK' }]
+              );
+              
+              return true;
+            }
+          } catch (exchangeErr) {
+            console.error('Failed to exchange code with state:', exchangeErr);
+            // Fall through to status check
+          }
+          
+          // Fallback: Verify connection status by polling
           let isConnected = false;
           for (let i = 0; i < 5; i++) {
             await refreshStatus();
-            // Check status after refresh
             const currentStatus = await calendarApi.getStatus();
             if (currentStatus.data.is_connected) {
               isConnected = true;
@@ -141,8 +165,8 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
             return true;
           } else {
             Alert.alert(
-              'Verificando conexión',
-              'Por favor, verifica en unos momentos si tu calendario se conectó correctamente. Puedes recargar la página de configuración.',
+              'Error de conexión',
+              'No se pudo completar la conexión. Por favor, intenta nuevamente.',
               [{ text: 'OK' }]
             );
             return false;
@@ -155,8 +179,32 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
       } else if (result.type === 'dismiss') {
         // Browser was dismissed - in production, backend might have processed it
         if (isBackendRedirect) {
-          // Wait and check status
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Wait for backend to process the redirect
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          // Try to exchange code using state
+          try {
+            const exchangeResponse = await calendarApi.exchangeCode(
+              undefined, // No code - backend will get it from state
+              state,     // State is required to retrieve the code
+              mobileRedirectUri
+            );
+
+            if (exchangeResponse.data.is_connected) {
+              await refreshStatus();
+              Alert.alert(
+                'Calendario conectado',
+                'Tu Google Calendar ha sido conectado exitosamente.',
+                [{ text: 'OK' }]
+              );
+              return true;
+            }
+          } catch (exchangeErr) {
+            console.error('Failed to exchange code after dismiss:', exchangeErr);
+            // Fall through to status check
+          }
+          
+          // Fallback: Check status
           const statusCheck = await calendarApi.getStatus();
           if (statusCheck.data.is_connected) {
             await refreshStatus();
