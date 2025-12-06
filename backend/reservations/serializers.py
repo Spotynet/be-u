@@ -24,6 +24,9 @@ class ReservationSerializer(serializers.ModelSerializer):
     duration_minutes = serializers.SerializerMethodField()
     end_time = serializers.SerializerMethodField()
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    calendar_event_link = serializers.SerializerMethodField()
+    calendar_event_id = serializers.SerializerMethodField()
+    calendar_event_created = serializers.SerializerMethodField()
     
     class Meta:
         model = Reservation
@@ -34,6 +37,7 @@ class ReservationSerializer(serializers.ModelSerializer):
             'date', 'time', 'duration', 'duration_minutes', 'end_time',
             'status', 'status_display',
             'notes', 'cancellation_reason', 'rejection_reason',
+            'calendar_event_link', 'calendar_event_id', 'calendar_event_created',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['code', 'created_at', 'updated_at', 'duration']
@@ -96,6 +100,23 @@ class ReservationSerializer(serializers.ModelSerializer):
             end_datetime = start_datetime + obj.duration
             return end_datetime.time().strftime('%H:%M')
         return None
+
+    def _get_calendar_event(self, obj):
+        try:
+            return obj.calendar_event
+        except Exception:
+            return None
+
+    def get_calendar_event_link(self, obj):
+        event = self._get_calendar_event(obj)
+        return getattr(event, 'event_link', None) if event else None
+
+    def get_calendar_event_id(self, obj):
+        event = self._get_calendar_event(obj)
+        return getattr(event, 'google_event_id', None) if event else None
+
+    def get_calendar_event_created(self, obj):
+        return self._get_calendar_event(obj) is not None
 
 
 class ReservationCreateSerializer(serializers.ModelSerializer):

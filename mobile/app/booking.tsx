@@ -45,11 +45,18 @@ export default function BookingScreen() {
   const [localNotes, setLocalNotes] = useState("");
 
   // Initialize service from params
+  const normalizedServiceType =
+    params.serviceType === "place_service"
+      ? "place"
+      : params.serviceType === "professional_service"
+        ? "professional"
+        : ((params.serviceType as "place" | "professional") || "place");
+
   const serviceInfo = params.serviceId
     ? {
         serviceId: parseInt(params.serviceId),
         serviceName: params.serviceName || "Servicio",
-        serviceType: (params.serviceType as "place" | "professional") || "place",
+        serviceType: normalizedServiceType,
         providerId: parseInt(params.providerId || "0"),
         providerName: params.providerName || "Proveedor",
         price: parseFloat(params.price || "0"),
@@ -70,13 +77,21 @@ export default function BookingScreen() {
   const handleConfirmBooking = async () => {
     const reservation = await createReservation();
     if (reservation) {
+      const calendarNote = reservation.calendar_event_created
+        ? "\nTambién creamos el evento en tu Google Calendar conectado."
+        : "";
+
       Alert.alert(
         "¡Reserva Creada!",
-        "Tu reserva ha sido enviada y está pendiente de confirmación",
+        `Tu reserva ha sido enviada y está pendiente de confirmación.${calendarNote}`,
         [
           {
             text: "Ver Mis Reservas",
             onPress: () => router.push("/(tabs)/reservas"),
+          },
+          {
+            text: "Ver Agenda",
+            onPress: () => router.push("/agenda"),
           },
         ]
       );

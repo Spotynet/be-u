@@ -14,6 +14,7 @@ export interface CalendarEvent {
   location: string;
   start: string;
   end: string;
+  is_all_day?: boolean;
   htmlLink: string;
   status: string;
   attendees: Array<{email: string; displayName?: string}>;
@@ -88,6 +89,10 @@ export const useCalendarEvents = (options: UseCalendarEventsOptions = {}): UseCa
     refreshEvents,
   };
 };
+
+
+
+
 
 
 

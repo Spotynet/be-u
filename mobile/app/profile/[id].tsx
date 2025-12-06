@@ -998,7 +998,23 @@ export default function ProfileDetailScreen() {
           visible={serviceModalVisible}
           service={selectedService}
           providerType={profile.profile_type === 'PLACE' ? 'place' : 'professional'}
-          providerId={profile.user || profile.user_id}
+          providerId={
+            profile.profile_type === 'PLACE'
+              ? (profile.place_profile?.id ??
+                profile.place_profile_id ??
+                profile.place?.id ??
+                profile.place_id ??
+                profile.user_place_profile_id ??
+                profile.user_id ??
+                profile.user)
+              : (profile.professional_profile?.id ??
+                profile.professional_profile_id ??
+                profile.professional?.id ??
+                profile.professional_id ??
+                profile.user_professional_profile_id ??
+                profile.user_id ??
+                profile.user)
+          }
           onClose={() => {
             setServiceModalVisible(false);
             setSelectedService(null);

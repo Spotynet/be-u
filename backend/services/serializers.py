@@ -99,14 +99,20 @@ class ProviderAvailabilitySerializer(serializers.ModelSerializer):
         return None
 
 
+class ProviderAvailabilityScheduleSerializer(serializers.Serializer):
+    """Schedule item serializer used inside bulk availability payload"""
+    day_of_week = serializers.IntegerField(min_value=0, max_value=6)
+    start_time = serializers.TimeField(format='%H:%M', input_formats=['%H:%M', '%H:%M:%S'])
+    end_time = serializers.TimeField(format='%H:%M', input_formats=['%H:%M', '%H:%M:%S'])
+    is_active = serializers.BooleanField(required=False, default=True)
+
+
 class ProviderAvailabilityCreateSerializer(serializers.Serializer):
     """Serializer for creating/updating availability for a provider"""
     provider_type = serializers.ChoiceField(choices=['professional', 'place'])
     provider_id = serializers.IntegerField()
     schedules = serializers.ListField(
-        child=serializers.DictField(
-            child=serializers.CharField()
-        )
+        child=ProviderAvailabilityScheduleSerializer()
     )
     
     def validate(self, attrs):

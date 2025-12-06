@@ -9,7 +9,7 @@ import {
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
-import {useState, useEffect} from "react";
+import {useState, useEffect, useMemo} from "react";
 import {useAuth} from "@/features/auth";
 import {useAvailability} from "@/features/services";
 import {AvailabilityEditor} from "@/components/calendar";
@@ -17,7 +17,11 @@ import {WeeklySchedule} from "@/types/global";
 import {useNavigation} from "@/hooks/useNavigation";
 import {useRouter} from "expo-router";
 import {authApi} from "@/lib/api";
-import {CalendarStatusBadge, useCalendarIntegration} from "@/features/calendar";
+import {
+  CalendarStatusBadge,
+  useCalendarIntegration,
+  useCalendarEvents,
+} from "@/features/calendar";
 
 export default function AvailabilityScreen() {
   const {colors} = useThemeVariant();
@@ -66,9 +70,92 @@ export default function AvailabilityScreen() {
 
   // Google Calendar integration
   const {status: calendarStatus} = useCalendarIntegration();
+  const {
+    events,
+    isLoading: loadingEvents,
+    error: eventsError,
+    fetchEvents,
+  } = useCalendarEvents();
 
   const [schedule, setSchedule] = useState<WeeklySchedule>({});
   const [hasChanges, setHasChanges] = useState(false);
+
+  // 7-day window for events (today -> 6 días)
+  const {rangeStartISO, rangeEndISO, dayLabels} = useMemo(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+
+    const labels: Record<string, {label: string; shortLabel: string}> = {};
+    const today = start.getTime();
+    const tomorrow = new Date(start);
+    tomorrow.setDate(start.getDate() + 1);
+    const tomorrowTs = tomorrow.getTime();
+
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(start);
+      day.setDate(start.getDate() + i);
+      const key = day.toISOString().split("T")[0];
+      const base = {
+        label: day.toLocaleDateString("es-ES", {
+          weekday: "long",
+          day: "numeric",
+          month: "short",
+        }),
+        shortLabel: day.toLocaleDateString("es-ES", {weekday: "short"}),
+      };
+
+      if (day.getTime() === today) {
+        labels[key] = {label: "Hoy", shortLabel: "Hoy"};
+      } else if (day.getTime() === tomorrowTs) {
+        labels[key] = {label: "Mañana", shortLabel: "Mañana"};
+      } else {
+        labels[key] = base;
+      }
+    }
+
+    return {
+      rangeStartISO: start.toISOString(),
+      rangeEndISO: end.toISOString(),
+      dayLabels: labels,
+    };
+  }, []);
+
+  useEffect(() => {
+    if (calendarStatus?.is_connected) {
+      fetchEvents(rangeStartISO, rangeEndISO, 100);
+    }
+  }, [calendarStatus?.is_connected, rangeStartISO, rangeEndISO, fetchEvents]);
+
+  const groupedEvents = useMemo(() => {
+    const groups: Record<string, typeof events> = {};
+    events.forEach((evt) => {
+      const dateKey = (evt.start && evt.start.split("T")[0]) || "";
+      if (!dateKey) return;
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(evt);
+    });
+
+    Object.keys(groups).forEach((key) => {
+      groups[key].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    });
+    return groups;
+  }, [events]);
+
+  const formatEventTime = (startTime: string, endTime: string, isAllDay?: boolean) => {
+    if (isAllDay) return "Todo el día";
+    try {
+      const s = new Date(startTime);
+      const e = new Date(endTime);
+      const toHHMM = (d: Date) =>
+        `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+      return `${toHHMM(s)} - ${toHHMM(e)}`;
+    } catch {
+      return startTime;
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated && isProvider && providerId) {
@@ -262,6 +349,116 @@ export default function AvailabilityScreen() {
             </View>
           </View>
 
+          {/* Google Calendar events preview */}
+          {calendarStatus?.is_connected && (
+            <View style={[styles.eventsCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+              <View style={styles.eventsHeader}>
+                <View style={styles.eventsHeaderLeft}>
+                  <Ionicons name="list-circle" size={22} color={colors.primary} />
+                  <View>
+                    <Text style={[styles.eventsTitle, {color: colors.foreground}]}>
+                      Próximos eventos (7 días)
+                    </Text>
+                    <Text style={[styles.eventsSubtitle, {color: colors.mutedForeground}]}>
+                      Tus eventos de Google Calendar se muestran aquí
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.refreshButton}
+                  onPress={() => fetchEvents(rangeStartISO, rangeEndISO, 100)}
+                  disabled={loadingEvents}
+                  activeOpacity={0.7}>
+                  {loadingEvents ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Ionicons name="refresh" size={18} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {loadingEvents && events.length === 0 ? (
+                <View style={styles.eventsLoading}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.eventsLoadingText, {color: colors.mutedForeground}]}>
+                    Cargando eventos...
+                  </Text>
+                </View>
+              ) : Object.keys(groupedEvents).length === 0 ? (
+                <View style={styles.eventsEmpty}>
+                  <Ionicons name="calendar-outline" size={40} color={colors.mutedForeground} />
+                  <Text style={[styles.eventsEmptyTitle, {color: colors.foreground}]}>
+                    Sin eventos esta semana
+                  </Text>
+                  <Text style={[styles.eventsEmptyText, {color: colors.mutedForeground}]}>
+                    Los eventos de tu Google Calendar aparecerán aquí.
+                  </Text>
+                </View>
+              ) : (
+                Object.keys(groupedEvents)
+                  .sort()
+                  .map((dayKey) => {
+                    const dayEvents = groupedEvents[dayKey];
+                    const labels = dayLabels[dayKey] || {label: dayKey, shortLabel: dayKey};
+                    return (
+                      <View key={dayKey} style={[styles.dayGroup, {borderColor: colors.border}]}>
+                        <View style={styles.dayGroupHeader}>
+                          <Text style={[styles.dayGroupLabel, {color: colors.foreground}]}>
+                            {labels.label}
+                          </Text>
+                          <Text style={[styles.dayGroupCount, {color: colors.mutedForeground}]}>
+                            {dayEvents.length} {dayEvents.length === 1 ? "evento" : "eventos"}
+                          </Text>
+                        </View>
+                        {dayEvents.map((evt) => (
+                          <View
+                            key={evt.id}
+                            style={[
+                              styles.eventItem,
+                              {backgroundColor: colors.background, borderColor: colors.border},
+                            ]}>
+                            <View style={styles.eventItemHeader}>
+                              <Text
+                                style={[styles.eventTitle, {color: colors.foreground}]}
+                                numberOfLines={1}>
+                                {evt.summary || "Sin título"}
+                              </Text>
+                              <Ionicons name="ellipse" size={10} color={colors.primary} />
+                            </View>
+                            <Text style={[styles.eventTime, {color: colors.mutedForeground}]}>
+                              {formatEventTime(evt.start, evt.end, (evt as any).is_all_day)}
+                            </Text>
+                            {evt.location ? (
+                              <Text style={[styles.eventLocation, {color: colors.mutedForeground}]}>
+                                {evt.location}
+                              </Text>
+                            ) : null}
+                          </View>
+                        ))}
+                      </View>
+                    );
+                  })
+              )}
+
+              {eventsError && (
+                <View style={[styles.eventsError, {backgroundColor: "#FEE8E7"}]}>
+                  <Ionicons name="warning" size={16} color="#C62828" />
+                  <Text style={[styles.eventsErrorText, {color: "#C62828"}]}>
+                    {eventsError}
+                  </Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[styles.fullAgendaButton, {borderColor: colors.primary}]}
+                onPress={() => router.push("/agenda")}>
+                <Text style={[styles.fullAgendaText, {color: colors.primary}]}>
+                  Ver agenda completa →
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <AvailabilityEditor schedule={schedule} onChange={handleScheduleChange} />
         </ScrollView>
       )}
@@ -425,6 +622,129 @@ const styles = StyleSheet.create({
   calendarLinkText: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  eventsCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 12,
+  },
+  eventsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  eventsHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  eventsTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  eventsSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  refreshButton: {
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  eventsLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  eventsLoadingText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  eventsEmpty: {
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+  },
+  eventsEmptyTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  eventsEmptyText: {
+    fontSize: 13,
+    textAlign: "center",
+  },
+  dayGroup: {
+    borderTopWidth: 1,
+    paddingTop: 10,
+    marginTop: 10,
+    gap: 8,
+  },
+  dayGroupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  dayGroupLabel: {
+    fontSize: 15,
+    fontWeight: "700",
+    textTransform: "capitalize",
+  },
+  dayGroupCount: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  eventItem: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    gap: 6,
+  },
+  eventItemHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  eventTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  eventTime: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  eventLocation: {
+    fontSize: 12,
+  },
+  eventsError: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 10,
+    borderRadius: 8,
+  },
+  eventsErrorText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  fullAgendaButton: {
+    marginTop: 4,
+    alignSelf: "flex-start",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  fullAgendaText: {
+    fontSize: 14,
+    fontWeight: "700",
   },
 });
 

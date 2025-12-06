@@ -10,7 +10,7 @@ import {
 import {Calendar} from 'react-native-calendars';
 import {Ionicons} from '@expo/vector-icons';
 import {useThemeVariant} from '@/contexts/ThemeVariantContext';
-import {profileCustomizationApi} from '@/lib/api';
+import {serviceApi} from '@/lib/api';
 import {TimeSlotPicker} from '@/components/schedule/TimeSlotPicker';
 
 interface ServiceScheduleViewProps {
@@ -29,7 +29,6 @@ export const ServiceScheduleView: React.FC<ServiceScheduleViewProps> = ({
   onSlotSelect,
 }) => {
   const {colors} = useThemeVariant();
-  const [availability, setAvailability] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<any>(null);
@@ -37,7 +36,8 @@ export const ServiceScheduleView: React.FC<ServiceScheduleViewProps> = ({
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
-    loadAvailability();
+    // initial state ready
+    setLoading(false);
   }, [providerType, providerId]);
 
   useEffect(() => {
@@ -46,31 +46,15 @@ export const ServiceScheduleView: React.FC<ServiceScheduleViewProps> = ({
     }
   }, [selectedDate, serviceId]);
 
-  const loadAvailability = async () => {
-    try {
-      setLoading(true);
-      const response = await profileCustomizationApi.getPublicAvailability(
-        providerType,
-        providerId,
-      );
-      setAvailability(response.data || []);
-    } catch (error) {
-      console.error('Error loading availability:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const loadAvailableSlots = async (date: string) => {
     try {
       setLoadingSlots(true);
-      const response = await profileCustomizationApi.getAvailableSlots(
-        providerType,
-        providerId,
+      const response = await serviceApi.getAvailableSlots({
+        service_id: serviceId as number,
         date,
-        serviceId,
-      );
-      setAvailableSlots(response.data?.available_slots || []);
+        service_type: providerType,
+      });
+      setAvailableSlots(response.data?.slots || response.data?.available_slots || []);
     } catch (error) {
       console.error('Error loading slots:', error);
       setAvailableSlots([]);
@@ -80,41 +64,14 @@ export const ServiceScheduleView: React.FC<ServiceScheduleViewProps> = ({
   };
 
   const getAvailableDays = () => {
-    const today = new Date();
     const markedDates: any = {};
-    const availableDays: string[] = [];
-
-    // Get days that have availability
-    const daysWithAvailability = availability
-      .filter(day => day.is_available && day.time_slots?.length > 0)
-      .map(day => day.day_of_week);
-
-    // Generate dates for next 30 days
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() + i);
-      const dayOfWeek = date.getDay() === 0 ? 6 : date.getDay() - 1; // Convert to Monday=0 format
-
-      if (daysWithAvailability.includes(dayOfWeek)) {
-        const dateStr = date.toISOString().split('T')[0];
-        availableDays.push(dateStr);
-        markedDates[dateStr] = {
-          marked: true,
-          dotColor: colors.primary,
-        };
-      }
-    }
-
-    // Mark selected date
     if (selectedDate) {
       markedDates[selectedDate] = {
-        ...markedDates[selectedDate],
         selected: true,
         selectedColor: colors.primary,
       };
     }
-
-    return {markedDates, availableDays};
+    return {markedDates, availableDays: []};
   };
 
   const handleDateSelect = (day: any) => {

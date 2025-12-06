@@ -1,3 +1,4 @@
+import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -19,6 +20,8 @@ from calendar_integration.event_helpers import (
     create_reservation_event,
     delete_reservation_event,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ReservationViewSet(viewsets.ModelViewSet):
@@ -108,6 +111,31 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 reason='BOOKED',
                 notes=f"Reservation {reservation.code}"
             )
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        reservation = serializer.instance
+
+        calendar_event = None
+        try:
+            calendar_event = create_reservation_event(reservation)
+        except Exception as e:
+            logger.error(f"Failed to create calendar event on reservation creation: {e}")
+
+        response_serializer = ReservationSerializer(
+            reservation, context=self.get_serializer_context()
+        )
+        data = response_serializer.data
+        if calendar_event:
+            data['calendar_event_created'] = True
+            data['calendar_event_link'] = calendar_event.event_link
+            data['calendar_event_id'] = calendar_event.google_event_id
+
+        headers = self.get_success_headers(response_serializer.data)
+        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
     
     @action(detail=False, methods=['get'], url_path='my-reservations')
     def my_reservations(self, request):
@@ -225,13 +253,13 @@ class ReservationViewSet(viewsets.ModelViewSet):
         reservation.save()
         
         # Create Google Calendar event if provider has calendar connected
-        calendar_event = None
-        try:
-            calendar_event = create_reservation_event(reservation)
-        except Exception as e:
-            # Log but don't fail the confirmation
-            import logging
-            logging.getLogger(__name__).error(f"Failed to create calendar event: {e}")
+        calendar_event = getattr(reservation, 'calendar_event', None)
+        if not calendar_event:
+            try:
+                calendar_event = create_reservation_event(reservation)
+            except Exception as e:
+                # Log but don't fail the confirmation
+                logger.error(f"Failed to create calendar event: {e}")
         
         serializer = ReservationSerializer(reservation)
         response_data = {
@@ -241,6 +269,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
         if calendar_event:
             response_data['calendar_event_created'] = True
             response_data['calendar_event_link'] = calendar_event.event_link
+            response_data['calendar_event_id'] = calendar_event.google_event_id
         
         return Response(response_data)
     

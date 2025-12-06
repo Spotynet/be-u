@@ -25,9 +25,8 @@ from rest_framework.routers import DefaultRouter
 router = DefaultRouter()
 
 urlpatterns = [
-    # Admin panel (both paths for convenience)
+    # Admin panel
     path('admin/', admin.site.urls),
-    path('api/admin/', admin.site.urls),
     # API endpoints
     path('api/', include(router.urls)),
     path('api/', include('users.urls')),
