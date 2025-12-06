@@ -28,6 +28,10 @@
             animation: spin 1s linear infinite;
             margin: 0 auto 1rem;
         }
+        .spinner.done {
+            animation: none;
+            border-color: rgba(255, 255, 255, 0.8);
+        }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -46,6 +50,23 @@
             border-radius: 8px;
             margin-top: 1rem;
         }
+        .close-btn {
+            display: inline-block;
+            margin-top: 1.5rem;
+            padding: 12px 32px;
+            background: rgba(255, 255, 255, 0.25);
+            border: 2px solid white;
+            border-radius: 30px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .close-btn:hover, .close-btn:active {
+            background: rgba(255, 255, 255, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -57,25 +78,65 @@
                 {% if error_description %}
                     <p>{{ error_description }}</p>
                 {% endif %}
+                <a href="mypikapp://calendar-callback?error={{ error }}" class="close-btn">Volver a la app</a>
             </div>
         {% else %}
-            <div class="spinner"></div>
+            <div class="spinner" id="spinner"></div>
             <h1>✅ Conectado</h1>
             <p>Google Calendar ha sido conectado exitosamente.</p>
-            <p>Puedes cerrar esta ventana y regresar a la app.</p>
+            <p id="status-text">Regresando a la app...</p>
+            <a href="#" id="close-btn" class="close-btn" style="display: none;">Volver a la app</a>
         {% endif %}
     </div>
     <script>
-        // Try to close the window after a short delay
-        setTimeout(() => {
-            if (window.opener) {
-                window.opener.postMessage('calendar_connected', '*');
+        (function() {
+            var redirectAttempted = false;
+            
+            function tryReturnToApp() {
+                if (redirectAttempted) return;
+                redirectAttempted = true;
+                
+                // Try deep link to return to app
+                var deepLink = 'mypikapp://calendar-callback?success=true';
+                
+                // On iOS/Android, this should trigger the app to open
+                window.location.href = deepLink;
+                
+                // If we're still here after 1.5s, deep link didn't work
+                // Show manual close button
+                setTimeout(function() {
+                    var spinner = document.getElementById('spinner');
+                    var statusText = document.getElementById('status-text');
+                    var closeBtn = document.getElementById('close-btn');
+                    
+                    if (spinner) spinner.classList.add('done');
+                    if (statusText) statusText.textContent = 'Cierra esta ventana para continuar.';
+                    if (closeBtn) {
+                        closeBtn.style.display = 'inline-block';
+                        closeBtn.onclick = function(e) {
+                            e.preventDefault();
+                            // Try deep link again
+                            window.location.href = deepLink;
+                            // Also try to close
+                            setTimeout(function() { window.close(); }, 100);
+                        };
+                    }
+                    
+                    // Try window.close as fallback
+                    if (window.opener) {
+                        window.opener.postMessage('calendar_connected', '*');
+                    }
+                    window.close();
+                }, 1500);
             }
-            window.close();
-        }, 3000);
+            
+            // Start immediately
+            setTimeout(tryReturnToApp, 500);
+        })();
     </script>
 </body>
 </html>
+
 
 
 

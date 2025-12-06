@@ -113,7 +113,11 @@ def calendar_callback(request):
         return render(request, 'calendar_integration/callback_page.html')
     
     # POST request from mobile app (must be authenticated)
+    logger.info(f"POST /calendar/callback/ received - User: {request.user}, Authenticated: {request.user.is_authenticated if request.user else False}")
+    logger.info(f"POST data: state={request.data.get('state', 'N/A')[:20] if request.data.get('state') else 'None'}...")
+    
     if not request.user or not request.user.is_authenticated:
+        logger.warning("POST /calendar/callback/ - User not authenticated!")
         return Response(
             {'detail': 'Authentication credentials were not provided.'},
             status=status.HTTP_401_UNAUTHORIZED

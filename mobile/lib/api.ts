@@ -20,17 +20,12 @@ export interface ApiError {
   errors?: Record<string, string[]>;
 }
 
-// API Configuration
-// Use environment variable if available, otherwise default to localhost for development
-// TEMPORAL: Forzar localhost para desarrollo hasta que Expo recargue las variables
-const API_BASE_URL = __DEV__ 
-  ? "http://127.0.0.1:8000/api"  // Siempre localhost en desarrollo
-  : (process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL || "https://stg.be-u.ai/api");
+// API Configuration - HARDCODED for testing
 
-console.log("🔧 API URL:", API_BASE_URL);
-console.log("🔧 __DEV__:", __DEV__);
-console.log("🔧 EXPO_PUBLIC_API_BASE_URL:", process.env.EXPO_PUBLIC_API_BASE_URL);
-console.log("🔧 EXPO_PUBLIC_API_URL:", process.env.EXPO_PUBLIC_API_URL);
+//const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = "https://stg.be-u.ai/api";
+
+console.log("🔧 HARDCODED API URL:", API_BASE_URL);
 const AUTH_TOKEN_KEY = "@auth_token";
 const REFRESH_TOKEN_KEY = "@refresh_token";
 

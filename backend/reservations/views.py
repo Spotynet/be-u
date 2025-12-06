@@ -255,10 +255,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
         # Create Google Calendar event if provider has calendar connected
         calendar_event = getattr(reservation, 'calendar_event', None)
         if not calendar_event:
-            try:
-                calendar_event = create_reservation_event(reservation)
-            except Exception as e:
-                # Log but don't fail the confirmation
+        try:
+            calendar_event = create_reservation_event(reservation)
+        except Exception as e:
+            # Log but don't fail the confirmation
                 logger.error(f"Failed to create calendar event: {e}")
         
         serializer = ReservationSerializer(reservation)
