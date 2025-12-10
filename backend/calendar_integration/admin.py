@@ -50,3 +50,10 @@ class CalendarEventAdmin(admin.ModelAdmin):
 
 
 
+
+
+
+
+
+
+

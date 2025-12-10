@@ -5,11 +5,18 @@
  * - OAuth flow for connecting calendar
  * - Calendar status management
  * - Availability sync
+ * 
+ * NOTE: For Expo Go testing, deep links (mypikapp://) won't work.
+ * This hook uses aggressive polling to detect when OAuth completes
+ * after the user manually closes the browser.
+ * 
+ * For production, use a Development Build which supports custom schemes.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Alert, Linking, AppState, AppStateStatus } from 'react-native';
+import { Alert, Linking, AppState, AppStateStatus, Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import Constants from 'expo-constants';
 import { calendarApi, errorUtils } from '@/lib/api';
 import {
   openGoogleAuth,
@@ -18,6 +25,9 @@ import {
   CalendarStatus,
   BusyTime,
 } from '@/lib/googleCalendar';
+
+// Check if running in Expo Go (deep links won't work)
+const isExpoGo = Constants.appOwnership === 'expo';
 
 interface UseCalendarIntegrationReturn {
   // State
@@ -230,7 +240,60 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
   };
 
   /**
+   * Check if calendar is already connected (fallback for when exchange fails)
+   */
+  const checkIfAlreadyConnected = async (): Promise<boolean> => {
+    try {
+      const statusCheck = await calendarApi.getStatus();
+      if (statusCheck.data.is_connected) {
+        console.log('📱 Calendar already connected!');
+        await refreshStatus();
+        return true;
+      }
+    } catch (e) {
+      console.log('📱 Status check error:', e);
+    }
+    return false;
+  };
+
+  /**
+   * Poll for connection completion (for Expo Go where deep links don't work)
+   * This aggressively checks if the OAuth flow completed on the backend
+   */
+  const pollForConnection = async (state: string, redirectUri: string, maxAttempts: number = 10): Promise<boolean> => {
+    console.log(`📱 Starting connection polling (${maxAttempts} attempts, isExpoGo: ${isExpoGo})`);
+    
+    for (let i = 0; i < maxAttempts; i++) {
+      console.log(`📱 Poll attempt ${i + 1}/${maxAttempts}...`);
+      
+      // First, try to exchange the code
+      if (await tryExchangeCode(state, redirectUri)) {
+        return true;
+      }
+      
+      // Then check if already connected (might have been from this or previous attempt)
+      if (await checkIfAlreadyConnected()) {
+        Alert.alert(
+          'Calendario conectado',
+          'Tu Google Calendar ha sido conectado exitosamente.',
+          [{ text: 'OK' }]
+        );
+        return true;
+      }
+      
+      // Wait before next attempt (increasing delay)
+      const delay = Math.min(1000 + (i * 500), 3000);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    return false;
+  };
+
+  /**
    * Connect Google Calendar via OAuth flow
+   * 
+   * NOTE: In Expo Go, deep links don't work, so we use aggressive polling
+   * to detect when OAuth completes after user manually closes the browser.
    */
   const connectGoogleCalendar = useCallback(async (): Promise<boolean> => {
     try {
@@ -241,6 +304,7 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
       // Step 1: Get auth URL from backend with mobile redirect URI
       const mobileRedirectUri = getRedirectUri();
       console.log('📱 Getting auth URL with redirect:', mobileRedirectUri);
+      console.log('📱 Running in Expo Go:', isExpoGo);
       
       const authUrlResponse = await calendarApi.getAuthUrl(mobileRedirectUri);
       const { auth_url, state } = authUrlResponse.data;
@@ -254,6 +318,44 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
       // Store state for deep link handling
       pendingOAuthState.current = state;
 
+      // Show a helpful message for Expo Go users
+      if (isExpoGo) {
+        Alert.alert(
+          'Importante',
+          'Después de autorizar en Google, cierra el navegador manualmente para continuar. La conexión se detectará automáticamente.',
+          [{ text: 'Entendido', onPress: async () => {
+            // Continue with OAuth after user acknowledges
+            await performOAuthFlow(auth_url, state, mobileRedirectUri);
+          }}]
+        );
+        return false; // Will be handled in the alert callback
+      }
+
+      return await performOAuthFlow(auth_url, state, mobileRedirectUri);
+    } catch (err) {
+      const message = errorUtils.getErrorMessage(err);
+      setError(message);
+      
+      Alert.alert(
+        'Error de conexión',
+        `No se pudo conectar tu calendario: ${message}`,
+        [{ text: 'OK' }]
+      );
+      
+      console.error('📱 Failed to connect Google Calendar:', err);
+      pendingOAuthState.current = null;
+      return false;
+    } finally {
+      setIsConnecting(false);
+      connectingRef.current = false;
+    }
+  }, [refreshStatus]);
+
+  /**
+   * Perform the actual OAuth flow
+   */
+  const performOAuthFlow = async (auth_url: string, state: string, mobileRedirectUri: string): Promise<boolean> => {
+    try {
       // Step 2: Open browser for OAuth
       console.log('📱 Opening browser for OAuth...');
       const result = await openGoogleAuth(auth_url);
@@ -296,25 +398,15 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
             return true;
           }
         } else {
-          // Production: Backend handled the callback
-          console.log('📱 Production flow - trying to exchange code...');
+          // Production: Backend handled the callback, poll for connection
+          console.log('📱 Production flow - polling for connection...');
           
-          // Wait for backend to fully process
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Wait a bit for backend to process
+          await new Promise(resolve => setTimeout(resolve, 1500));
           
-          // Try to exchange
-          if (await tryExchangeCode(state, mobileRedirectUri)) {
+          if (await pollForConnection(state, mobileRedirectUri, 5)) {
             pendingOAuthState.current = null;
             return true;
-          }
-          
-          // Retry a couple more times
-          for (let i = 0; i < 2; i++) {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            if (await tryExchangeCode(state, mobileRedirectUri)) {
-              pendingOAuthState.current = null;
-              return true;
-            }
           }
         }
       } else if (result.type === 'cancel') {
@@ -322,51 +414,33 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
         pendingOAuthState.current = null;
         return false;
       } else if (result.type === 'dismiss') {
-        // Browser was dismissed - in production, backend might have processed it
-        console.log('📱 Browser dismissed, checking if OAuth completed...');
+        // Browser was dismissed - user likely completed OAuth and closed manually
+        // This is the common case in Expo Go where deep links don't work
+        console.log('📱 Browser dismissed, polling for OAuth completion...');
         
-        if (isBackendRedirect) {
-          // Wait for backend to process
-          await new Promise(resolve => setTimeout(resolve, 2000));
+        if (isBackendRedirect || isExpoGo) {
+          // Wait a bit for backend to process
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
-          // Try to exchange multiple times
-          for (let i = 0; i < 5; i++) {
-            console.log(`📱 Exchange attempt ${i + 1}/5...`);
-            
-            if (await tryExchangeCode(state, mobileRedirectUri)) {
-              pendingOAuthState.current = null;
-              return true;
-            }
-            
-            // Also check if already connected (might have been from previous attempt)
-            try {
-              const statusCheck = await calendarApi.getStatus();
-              if (statusCheck.data.is_connected) {
-                console.log('📱 Already connected!');
-                await refreshStatus();
-                Alert.alert(
-                  'Calendario conectado',
-                  'Tu Google Calendar ha sido conectado exitosamente.',
-                  [{ text: 'OK' }]
-                );
-                pendingOAuthState.current = null;
-                return true;
-              }
-            } catch (e) {
-              console.log('📱 Status check error:', e);
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, 1500));
+          // Poll more aggressively for Expo Go
+          const maxAttempts = isExpoGo ? 15 : 8;
+          
+          if (await pollForConnection(state, mobileRedirectUri, maxAttempts)) {
+            pendingOAuthState.current = null;
+            return true;
           }
           
-          // Final failure message
+          // If still not connected, show a helpful message
           Alert.alert(
-            'No se pudo completar',
-            'Por favor intenta nuevamente. Asegúrate de completar todo el proceso de Google.',
-            [{ text: 'OK' }]
+            'Conexión no detectada',
+            '¿Completaste el proceso de autorización en Google?\n\nSi lo hiciste, intenta de nuevo. Si estás usando Expo Go, considera usar un Development Build para mejor compatibilidad.',
+            [
+              { text: 'Reintentar', onPress: () => refreshStatus() },
+              { text: 'OK', style: 'cancel' }
+            ]
           );
         }
-        console.log('📱 OAuth browser dismissed without success');
+        console.log('📱 OAuth browser dismissed without successful connection');
         pendingOAuthState.current = null;
         return false;
       }
@@ -374,23 +448,10 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
       pendingOAuthState.current = null;
       return false;
     } catch (err) {
-      const message = errorUtils.getErrorMessage(err);
-      setError(message);
-      
-      Alert.alert(
-        'Error de conexión',
-        `No se pudo conectar tu calendario: ${message}`,
-        [{ text: 'OK' }]
-      );
-      
-      console.error('📱 Failed to connect Google Calendar:', err);
-      pendingOAuthState.current = null;
-      return false;
-    } finally {
-      setIsConnecting(false);
-      connectingRef.current = false;
+      console.error('📱 OAuth flow error:', err);
+      throw err;
     }
-  }, [refreshStatus]);
+  };
 
   /**
    * Disconnect Google Calendar
