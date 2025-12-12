@@ -46,8 +46,10 @@ export default function BookingScreen() {
   const [localNotes, setLocalNotes] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
+  const [timeInputText, setTimeInputText] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Initialize service from params
   const normalizedServiceType =
@@ -84,16 +86,19 @@ export default function BookingScreen() {
 
   const handleTimeChange = (event: any, date?: Date) => {
     if (Platform.OS === "android") {
+      // Android shows a modal, so close it after selection
       setShowTimePicker(false);
-    }
-    
-    if (event.type === "set" && date) {
-      setSelectedTime(date);
-      if (Platform.OS === "ios") {
+      if (event.type === "set" && date) {
+        setSelectedTime(date);
+      }
+    } else {
+      // iOS shows inline spinner
+      if (event.type === "set" && date) {
+        setSelectedTime(date);
+        // Keep picker open on iOS spinner mode
+      } else if (event.type === "dismissed") {
         setShowTimePicker(false);
       }
-    } else if (event.type === "dismissed") {
-      setShowTimePicker(false);
     }
   };
 
@@ -110,25 +115,36 @@ export default function BookingScreen() {
   };
 
   const handleConfirmBooking = async () => {
-    if (!serviceInfo || !selectedDate || !selectedTime) {
-      Alert.alert("Error", "Por favor completa todos los campos");
+    if (isSubmitting) return; // Prevent multiple submissions
+    
+    if (!serviceInfo) {
+      Alert.alert("Error", "Información del servicio no disponible");
+      return;
+    }
+    
+    if (!selectedDate) {
+      Alert.alert("Error", "Por favor selecciona una fecha");
+      return;
+    }
+    
+    if (!selectedTime) {
+      Alert.alert("Error", "Por favor selecciona una hora");
       return;
     }
 
-    // Create a time slot object for the reservation flow
-    const timeSlot = {
-      time: formatTime(selectedTime),
-      end_time: formatTime(getEndTime(selectedTime, serviceInfo.duration)),
-    };
-
-    // Set the date and time in the flow
-    const dateStr = selectedDate.toISOString().split("T")[0];
+    setIsSubmitting(true);
     
-    // Manually set the state for the reservation
-    setNotes(localNotes);
-    
-    // Create reservation directly
     try {
+      // Create a time slot object for the reservation flow
+      const timeSlot = {
+        time: formatTime(selectedTime),
+        end_time: formatTime(getEndTime(selectedTime, serviceInfo.duration)),
+      };
+
+      // Set the date and time in the flow
+      const dateStr = selectedDate.toISOString().split("T")[0];
+      
+      // Create reservation directly
       const reservationData = {
         service: serviceInfo.serviceId,
         provider_type: serviceInfo.serviceType,
@@ -154,22 +170,27 @@ export default function BookingScreen() {
           },
           {
             text: "OK",
+            onPress: () => router.back(),
           },
         ]
       );
     } catch (err: any) {
-      Alert.alert("Error", err?.response?.data?.error || "No se pudo crear la reserva");
+      console.error("Error creating reservation:", err);
+      const errorMessage = err?.response?.data?.error || err?.message || "No se pudo crear la reserva";
+      Alert.alert("Error", errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  if (!isAuthenticated || !user || user.role !== "CLIENT") {
+  if (!isAuthenticated || !user) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
         <View style={styles.centeredContainer}>
           <Ionicons name="lock-closed" size={80} color={colors.mutedForeground} />
           <Text style={[styles.errorTitle, {color: colors.foreground}]}>Acceso Restringido</Text>
           <Text style={[styles.errorText, {color: colors.mutedForeground}]}>
-            Solo los clientes pueden hacer reservas
+            Debes iniciar sesión para hacer una reserva
           </Text>
         </View>
       </View>
@@ -359,25 +380,81 @@ export default function BookingScreen() {
                 })}
               </Text>
               
-              <TouchableOpacity
-                style={[styles.timePickerButton, {backgroundColor: colors.card, borderColor: colors.border}]}
-                onPress={() => setShowTimePicker(true)}
-                activeOpacity={0.7}>
-                <Ionicons name="time-outline" size={24} color={colors.primary} />
-                <Text style={[styles.timePickerText, {color: colors.foreground}]}>
-                  {selectedTime ? formatTime(selectedTime) : "Seleccionar hora"}
-                </Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
-              </TouchableOpacity>
+              {Platform.OS === "web" ? (
+                <View style={styles.timeInputContainer}>
+                  <Ionicons name="time-outline" size={24} color={colors.primary} />
+                  <TextInput
+                    style={[
+                      styles.timeInput,
+                      {
+                        backgroundColor: colors.card,
+                        color: colors.foreground,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                    value={timeInputText || (selectedTime ? formatTime(selectedTime) : "")}
+                    placeholder="HH:MM (ej: 14:30)"
+                    placeholderTextColor={colors.mutedForeground}
+                    onChangeText={(text) => {
+                      // Allow typing and format as user types
+                      // Remove non-numeric characters except colon
+                      let formatted = text.replace(/[^0-9:]/g, '');
+                      
+                      // Auto-format with colon after 2 digits
+                      if (formatted.length === 2 && !formatted.includes(':')) {
+                        formatted = formatted + ':';
+                      }
+                      
+                      // Limit length
+                      if (formatted.length > 5) {
+                        formatted = formatted.substring(0, 5);
+                      }
+                      
+                      // Update input text immediately
+                      setTimeInputText(formatted);
+                      
+                      // Try to parse and set time if valid format
+                      const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
+                      if (timeRegex.test(formatted) && formatted.length === 5) {
+                        const [hours, minutes] = formatted.split(":").map(Number);
+                        const date = new Date();
+                        date.setHours(hours, minutes, 0, 0);
+                        setSelectedTime(date);
+                      } else if (formatted === "") {
+                        setSelectedTime(null);
+                      }
+                    }}
+                    keyboardType="numeric"
+                    maxLength={5}
+                    editable={true}
+                  />
+                </View>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={[styles.timePickerButton, {backgroundColor: colors.card, borderColor: colors.border}]}
+                    onPress={() => {
+                      setShowTimePicker(true);
+                    }}
+                    activeOpacity={0.7}>
+                    <Ionicons name="time-outline" size={24} color={colors.primary} />
+                    <Text style={[styles.timePickerText, {color: colors.foreground}]}>
+                      {selectedTime ? formatTime(selectedTime) : "Seleccionar hora"}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+                  </TouchableOpacity>
 
-              {showTimePicker && (
-                <DateTimePicker
-                  value={selectedTime || new Date()}
-                  mode="time"
-                  is24Hour={true}
-                  display={Platform.OS === "ios" ? "spinner" : "default"}
-                  onChange={handleTimeChange}
-                />
+                  {showTimePicker && (
+                    <DateTimePicker
+                      value={selectedTime || new Date()}
+                      mode="time"
+                      is24Hour={true}
+                      display={Platform.OS === "ios" ? "spinner" : "default"}
+                      onChange={handleTimeChange}
+                      minimumDate={selectedDate || new Date()}
+                    />
+                  )}
+                </>
               )}
 
               <View style={[styles.infoCard, {backgroundColor: colors.primary + "10"}]}>
@@ -491,11 +568,17 @@ export default function BookingScreen() {
 
             {/* Confirm Button */}
             <TouchableOpacity
-              style={[styles.confirmButton, {backgroundColor: colors.primary}]}
+              style={[
+                styles.confirmButton,
+                {
+                  backgroundColor: isSubmitting ? colors.muted : colors.primary,
+                  opacity: isSubmitting ? 0.6 : 1,
+                },
+              ]}
               onPress={handleConfirmBooking}
-              disabled={isLoading}
+              disabled={isSubmitting}
               activeOpacity={0.9}>
-              {isLoading ? (
+              {isSubmitting ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
                 <>
@@ -733,5 +816,19 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: "600",
+  },
+  timeInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  timeInput: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
   },
 });

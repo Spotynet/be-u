@@ -114,17 +114,11 @@ export const BookingFlow = ({placeId, serviceId, onClose}: BookingFlowProps) => 
   }
 
   if (error || !profile) {
-    return (
-      <View style={styles.errorContainer}>
-        <Ionicons name="alert-circle" color={colors.mutedForeground} size={48} />
-        <Text style={[styles.errorText, {color: colors.foreground}]}>{error}</Text>
-        <TouchableOpacity
-          style={[styles.retryButton, {backgroundColor: colors.primary}]}
-          onPress={loadBookingData}>
-          <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
-      </View>
-    );
+    // Don't show error, just close the modal
+    if (onClose) {
+      onClose();
+    }
+    return null;
   }
 
   return (
@@ -288,13 +282,6 @@ export const BookingFlow = ({placeId, serviceId, onClose}: BookingFlowProps) => 
             <Text style={[styles.addServiceButtonText, {color: colors.foreground}]}>No</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Continue Button */}
-        <TouchableOpacity
-          style={[styles.continueButton, {backgroundColor: colors.primary}]}
-          onPress={handleContinue}>
-          <Text style={styles.continueButtonText}>Continuar</Text>
-        </TouchableOpacity>
 
         {/* Bottom Spacing */}
         <View style={{height: 40}} />

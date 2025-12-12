@@ -968,18 +968,6 @@ export default function ProfileDetailScreen() {
         </Animated.View>
       </ScrollView>
 
-      {/* Action Buttons */}
-      <View
-        style={[
-          styles.actionContainer,
-          {backgroundColor: colors.background, borderTopColor: colors.border},
-        ]}>
-        <TouchableOpacity
-          style={[styles.primaryButton, {backgroundColor: colors.primary}]}
-          onPress={() => setShowBooking(true)}>
-          <Text style={styles.primaryButtonText}>Reservar</Text>
-        </TouchableOpacity>
-      </View>
 
       {/* Booking Modal */}
       {showBooking && (
@@ -1014,6 +1002,13 @@ export default function ProfileDetailScreen() {
                 profile.user_professional_profile_id ??
                 profile.user_id ??
                 profile.user)
+          }
+          providerName={
+            profile.profile_type === 'PLACE'
+              ? (profile.place_profile?.name ?? profile.place?.name ?? profile.name ?? '')
+              : (profile.professional_profile
+                  ? `${profile.professional_profile.name || ''} ${profile.professional_profile.last_name || ''}`.trim()
+                  : profile.name || '')
           }
           onClose={() => {
             setServiceModalVisible(false);

@@ -140,23 +140,67 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Cannot book appointments in the past")
         
         # Validate provider exists
+        # provider_id can be:
+        # 1. ProfessionalProfile/PlaceProfile ID (direct)
+        # 2. User ID (get profile from user)
+        # 3. PublicProfile ID (get user from public profile, then get profile)
         provider_type = attrs['provider_type']
         provider_id = attrs['provider_id']
         
         if provider_type == 'professional':
+            provider = None
             try:
+                # First try to get by profile ID
                 provider = ProfessionalProfile.objects.get(id=provider_id)
-                attrs['provider_content_type'] = ContentType.objects.get_for_model(ProfessionalProfile)
-                attrs['provider_object_id'] = provider_id
             except ProfessionalProfile.DoesNotExist:
+                try:
+                    # If not found, try to get by user ID
+                    from users.models import User
+                    user = User.objects.get(id=provider_id)
+                    if hasattr(user, 'professional_profile'):
+                        provider = user.professional_profile
+                except (User.DoesNotExist, AttributeError):
+                    try:
+                        # If still not found, try to get by public profile ID
+                        from users.models import PublicProfile
+                        public_profile = PublicProfile.objects.get(id=provider_id, profile_type='PROFESSIONAL')
+                        if hasattr(public_profile.user, 'professional_profile'):
+                            provider = public_profile.user.professional_profile
+                    except (PublicProfile.DoesNotExist, AttributeError):
+                        pass
+            
+            if not provider:
                 raise serializers.ValidationError("Professional not found")
+            
+            attrs['provider_content_type'] = ContentType.objects.get_for_model(ProfessionalProfile)
+            attrs['provider_object_id'] = provider.id
         elif provider_type == 'place':
+            provider = None
             try:
+                # First try to get by profile ID
                 provider = PlaceProfile.objects.get(id=provider_id)
-                attrs['provider_content_type'] = ContentType.objects.get_for_model(PlaceProfile)
-                attrs['provider_object_id'] = provider_id
             except PlaceProfile.DoesNotExist:
+                try:
+                    # If not found, try to get by user ID
+                    from users.models import User
+                    user = User.objects.get(id=provider_id)
+                    if hasattr(user, 'place_profile'):
+                        provider = user.place_profile
+                except (User.DoesNotExist, AttributeError):
+                    try:
+                        # If still not found, try to get by public profile ID
+                        from users.models import PublicProfile
+                        public_profile = PublicProfile.objects.get(id=provider_id, profile_type='PLACE')
+                        if hasattr(public_profile.user, 'place_profile'):
+                            provider = public_profile.user.place_profile
+                    except (PublicProfile.DoesNotExist, AttributeError):
+                        pass
+            
+            if not provider:
                 raise serializers.ValidationError("Place not found")
+            
+            attrs['provider_content_type'] = ContentType.objects.get_for_model(PlaceProfile)
+            attrs['provider_object_id'] = provider.id
         
         # Get service duration
         service = attrs['service']
@@ -204,13 +248,21 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
             validated_data['service_instance_type'] = service_instance_ct
             validated_data['service_instance_id'] = service_instance_id
         
-        # Get client profile from request user
+        # Get or create client profile from request user
+        # Any user can make reservations, so we ensure they have a ClientProfile
         user = self.context['request'].user
         try:
             client_profile = user.client_profile
-            validated_data['client'] = client_profile
         except:
-            raise serializers.ValidationError("User does not have a client profile")
+            # If user doesn't have a client profile, create one
+            from users.models import ClientProfile
+            client_profile, created = ClientProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    'phone': user.phone if hasattr(user, 'phone') else '',
+                }
+            )
+        validated_data['client'] = client_profile
         
         return super().create(validated_data)
 

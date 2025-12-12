@@ -748,8 +748,19 @@ export default function ProfessionalDetailScreen() {
                       <TouchableOpacity
                         style={[styles.reserveButton, {backgroundColor: colors.primary}]}
                         onPress={() => {
-                          setSelectedService(service);
-                          setShowBookingFlow(true);
+                          // Navigate directly to booking screen with service info
+                          router.push({
+                            pathname: "/booking",
+                            params: {
+                              serviceId: service.id.toString(),
+                              serviceName: service.name,
+                              serviceType: "professional_service",
+                              providerId: numericId || "",
+                              providerName: professional ? `${professional.name} ${professional.last_name}` : "",
+                              price: service.price.toString(),
+                              duration: service.time?.toString() || service.duration?.toString() || "60",
+                            },
+                          });
                         }}
                         activeOpacity={0.8}>
                         <Text style={styles.reserveButtonText}>Reservar</Text>

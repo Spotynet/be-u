@@ -10,13 +10,14 @@ import {
 } from 'react-native';
 import {Ionicons} from '@expo/vector-icons';
 import {useThemeVariant} from '@/contexts/ThemeVariantContext';
-import {ServiceScheduleView} from './ServiceScheduleView';
+import {useRouter} from 'expo-router';
 
 interface ServiceDetailModalProps {
   visible: boolean;
   service: any;
   providerType: 'professional' | 'place';
   providerId: number;
+  providerName?: string;
   onClose: () => void;
   onBook?: (date: string, slot: any) => void;
 }
@@ -26,22 +27,28 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
   service,
   providerType,
   providerId,
+  providerName,
   onClose,
   onBook,
 }) => {
   const {colors} = useThemeVariant();
-  const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedSlot, setSelectedSlot] = useState<any>(null);
+  const router = useRouter();
 
-  const handleSlotSelect = (date: string, slot: any) => {
-    setSelectedDate(date);
-    setSelectedSlot(slot);
-  };
-
-  const handleBook = () => {
-    if (selectedDate && selectedSlot && onBook) {
-      onBook(selectedDate, selectedSlot);
-    }
+  const handleBookNow = () => {
+    onClose(); // Close modal first
+    // Navigate to booking screen with service info
+    router.push({
+      pathname: '/booking',
+      params: {
+        serviceId: service.id.toString(),
+        serviceName: service.name,
+        serviceType: providerType === 'place' ? 'place_service' : 'professional_service',
+        providerId: providerId.toString(),
+        providerName: providerName || '',
+        price: service.price?.toString() || '0',
+        duration: (service.duration_minutes || service.duration || service.time || 60).toString(),
+      },
+    });
   };
 
   return (
@@ -98,27 +105,30 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
             </View>
           </View>
 
-          {/* Schedule View */}
-          <ServiceScheduleView
-            providerType={providerType}
-            providerId={providerId}
-            serviceId={service.id}
-            serviceDuration={service.duration_minutes || service.duration}
-            onSlotSelect={handleSlotSelect}
-          />
+          {/* Booking Info */}
+          <View style={[styles.bookingInfoCard, {backgroundColor: colors.card}]}>
+            <View style={styles.bookingInfoHeader}>
+              <Ionicons name="calendar-outline" size={24} color={colors.primary} />
+              <Text style={[styles.bookingInfoTitle, {color: colors.foreground}]}>
+                Solicitar Reserva
+              </Text>
+            </View>
+            <Text style={[styles.bookingInfoText, {color: colors.mutedForeground}]}>
+              Selecciona la fecha y hora que prefieras. El proveedor revisará tu solicitud y te confirmará si está disponible.
+            </Text>
+          </View>
         </ScrollView>
 
-        {/* Book Button */}
-        {selectedDate && selectedSlot && (
-          <View style={[styles.footer, {borderTopColor: colors.border}]}>
-            <TouchableOpacity
-              style={[styles.bookButton, {backgroundColor: colors.primary}]}
-              onPress={handleBook}
-              activeOpacity={0.9}>
-              <Text style={styles.bookButtonText}>Reservar</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* Book Button Footer */}
+        <View style={[styles.footer, {borderTopColor: colors.border, backgroundColor: colors.background}]}>
+          <TouchableOpacity
+            style={[styles.bookButton, {backgroundColor: colors.primary}]}
+            onPress={handleBookNow}
+            activeOpacity={0.9}>
+            <Ionicons name="calendar" size={20} color="#ffffff" />
+            <Text style={styles.bookButtonText}>Solicitar Reserva</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </Modal>
   );
@@ -188,14 +198,36 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
   },
   bookButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     padding: 16,
     borderRadius: 12,
-    alignItems: 'center',
   },
   bookButtonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  bookingInfoCard: {
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+  },
+  bookingInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  bookingInfoTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  bookingInfoText: {
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
 
