@@ -241,26 +241,26 @@ class ReservationViewSet(viewsets.ModelViewSet):
             )
         
         reservation.status = 'CONFIRMED'
-        reservation.save()
+        # Save will trigger the signal which will create the calendar event and notifications
+        reservation.save(update_fields=['status', 'updated_at'])
         
-        # Create Google Calendar event if provider has calendar connected
-        calendar_event = getattr(reservation, 'calendar_event', None)
-        if not calendar_event:
-            try:
-                calendar_event = create_reservation_event(reservation)
-            except Exception as e:
-                # Log but don't fail the confirmation
-                logger.error(f"Failed to create calendar event: {e}")
+        # Refresh from database to get calendar event if it was created by signal
+        reservation.refresh_from_db()
         
         serializer = ReservationSerializer(reservation)
         response_data = {
             'message': 'Reservation confirmed successfully',
             'reservation': serializer.data
         }
-        if calendar_event:
+        
+        # Check if calendar event was created (by signal)
+        try:
+            calendar_event = reservation.calendar_event
             response_data['calendar_event_created'] = True
             response_data['calendar_event_link'] = calendar_event.event_link
             response_data['calendar_event_id'] = calendar_event.google_event_id
+        except:
+            response_data['calendar_event_created'] = False
         
         return Response(response_data)
     

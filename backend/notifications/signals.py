@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
@@ -6,6 +6,22 @@ from django.utils import timezone
 from .models import Notification, NotificationTemplate
 from reservations.models import Reservation
 from reviews.models import PlaceReview, ProfessionalReview
+
+# Store previous status to detect changes
+_previous_status_cache = {}
+
+
+@receiver(pre_save, sender=Reservation)
+def store_previous_status(sender, instance, **kwargs):
+    """Store previous status before save to detect changes"""
+    if instance.pk:
+        try:
+            old_instance = Reservation.objects.get(pk=instance.pk)
+            _previous_status_cache[instance.pk] = old_instance.status
+        except Reservation.DoesNotExist:
+            _previous_status_cache[instance.pk] = None
+    else:
+        _previous_status_cache[instance.pk] = None
 
 
 @receiver(post_save, sender=Reservation)
@@ -55,7 +71,12 @@ def create_reservation_notification(sender, instance, created, **kwargs):
         )
     else:
         # Reservation updated - check status changes
-        if instance.status == Reservation.Status.CONFIRMED:
+        # Get previous status from cache
+        previous_status = _previous_status_cache.get(instance.pk)
+        
+        # Only notify if status actually changed to CONFIRMED
+        if instance.status == Reservation.Status.CONFIRMED and previous_status != Reservation.Status.CONFIRMED:
+            # Notify client that reservation was confirmed
             _create_notification(
                 user=instance.client.user,
                 type=Notification.NotificationType.RESERVATION,
@@ -65,9 +86,38 @@ def create_reservation_notification(sender, instance, created, **kwargs):
                 metadata={
                     'reservation_code': instance.code,
                     'service_name': instance.service.name,
-                    'provider_name': getattr(instance.provider, 'name', 'N/A')
+                    'provider_name': getattr(instance.provider, 'name', 'N/A'),
+                    'status': instance.status,
                 }
             )
+            
+            # Create Google Calendar event if provider has calendar connected
+            # This happens after the reservation is saved, so we use a post_save signal
+            try:
+                from calendar_integration.event_helpers import create_reservation_event
+                calendar_event = create_reservation_event(instance)
+                if calendar_event:
+                    # Notify provider that calendar event was created
+                    _create_notification(
+                        user=instance.provider.user,
+                        type=Notification.NotificationType.RESERVATION,
+                        title="Evento creado en Google Calendar",
+                        message=f"Se creó un evento en tu Google Calendar para la reserva {instance.code}",
+                        content_object=instance,
+                        metadata={
+                            'reservation_code': instance.code,
+                            'service_name': instance.service.name,
+                            'client_name': f"{instance.client.user.first_name} {instance.client.user.last_name}",
+                            'calendar_event_id': calendar_event.google_event_id,
+                            'calendar_event_link': calendar_event.event_link,
+                            'status': instance.status,
+                        }
+                    )
+            except Exception as e:
+                # Log but don't fail - calendar event creation is optional
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Could not create calendar event for reservation {instance.code}: {e}")
         elif instance.status == Reservation.Status.CANCELLED:
             _create_notification(
                 user=instance.client.user,
