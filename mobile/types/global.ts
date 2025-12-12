@@ -165,6 +165,10 @@ export interface Reservation {
   notes?: string;
   cancellation_reason?: string;
   rejection_reason?: string;
+  // Google Calendar integration
+  calendar_event_created?: boolean;
+  calendar_event_link?: string;
+  calendar_event_id?: string;
   created_at: string;
   updated_at: string;
 }

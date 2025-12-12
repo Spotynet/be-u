@@ -579,11 +579,18 @@ export const reservationApi = {
     api.patch<any>(`/reservations/${id}/cancel/`, {reason}),
 
   // Confirm reservation (provider)
-  confirmReservation: (id: number) => api.patch<any>(`/reservations/${id}/confirm/`),
+  // Returns calendar event info if provider has Google Calendar connected
+  confirmReservation: (id: number) => api.patch<{
+    message: string;
+    reservation: any;
+    calendar_event_created?: boolean;
+    calendar_event_link?: string;
+    calendar_event_id?: string;
+  }>(`/reservations/${id}/confirm/`),
 
   // Reject reservation (provider)
   rejectReservation: (id: number, reason?: string) =>
-    api.patch<any>(`/reservations/${id}/reject/`, {reason}),
+    api.patch<{message: string; reservation: any}>(`/reservations/${id}/reject/`, {reason}),
 
   // Complete reservation
   completeReservation: (id: number) => api.patch<any>(`/reservations/${id}/complete/`),

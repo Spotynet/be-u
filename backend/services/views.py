@@ -328,6 +328,8 @@ class TimeSlotBlockViewSet(viewsets.ModelViewSet):
 @action(detail=False, methods=['get'], url_path='available-slots')
 def get_available_slots(self, request):
     """Get available time slots for a specific service and date"""
+    from users.profile_models import AvailabilitySchedule, TimeSlot as ProfileTimeSlot
+    
     service_id = request.query_params.get('service_id')
     date_str = request.query_params.get('date')
     service_type = request.query_params.get('service_type', 'place')  # 'place' or 'professional'
@@ -367,17 +369,29 @@ def get_available_slots(self, request):
     # Get day of week (0=Monday, 6=Sunday)
     day_of_week = target_date.weekday()
     
-    # Get provider's availability for this day
-    availability = ProviderAvailability.objects.filter(
+    # Get provider's availability schedule for this day (using the correct model from users.profile_models)
+    availability_schedule = AvailabilitySchedule.objects.filter(
         content_type=ct,
         object_id=provider.id,
         day_of_week=day_of_week,
-        is_active=True
+        is_available=True
     ).first()
     
-    if not availability:
+    if not availability_schedule:
         return Response(
             {"error": "Provider is not available on this day", "slots": []},
+            status=status.HTTP_200_OK
+        )
+    
+    # Get the time slots for this day
+    time_slots = ProfileTimeSlot.objects.filter(
+        schedule=availability_schedule,
+        is_active=True
+    ).order_by('start_time')
+    
+    if not time_slots.exists():
+        return Response(
+            {"error": "No time slots configured for this day", "slots": []},
             status=status.HTTP_200_OK
         )
     
@@ -400,66 +414,68 @@ def get_available_slots(self, request):
         import logging
         logging.getLogger(__name__).warning(f"Could not fetch Google Calendar busy times: {e}")
     
-    # Generate time slots
+    # Generate available slots from each configured time slot
     slots = []
-    current_time = availability.start_time
-    end_time = availability.end_time
-    slot_duration = timedelta(minutes=30)  # 30-minute slots
+    slot_interval = timedelta(minutes=30)  # 30-minute intervals
     
-    while True:
-        # Convert time to datetime for calculations
-        current_dt = datetime.combine(target_date, current_time)
-        slot_end_dt = current_dt + duration
+    for time_slot in time_slots:
+        current_time = time_slot.start_time
+        slot_end_limit = time_slot.end_time
         
-        # Check if slot fits within availability
-        if slot_end_dt.time() > end_time:
-            break
-        
-        # Check if slot is blocked
-        is_blocked = TimeSlotBlock.objects.filter(
-            content_type=ct,
-            object_id=provider.id,
-            date=target_date,
-            start_time__lt=slot_end_dt.time(),
-            end_time__gt=current_time
-        ).exists()
-        
-        # Check if slot is already booked
-        is_booked = Reservation.objects.filter(
-            provider_content_type=ct,
-            provider_object_id=provider.id,
-            date=target_date,
-            time__lt=slot_end_dt.time(),
-            time__gte=current_time,
-            status__in=['PENDING', 'CONFIRMED']
-        ).exists()
-        
-        # Check if slot conflicts with Google Calendar busy times
-        is_google_busy = False
-        if google_busy_times:
-            for busy in google_busy_times:
-                # Make datetimes timezone-naive for comparison if needed
-                busy_start = busy.start.replace(tzinfo=None) if busy.start.tzinfo else busy.start
-                busy_end = busy.end.replace(tzinfo=None) if busy.end.tzinfo else busy.end
-                
-                # Check for overlap
-                if current_dt < busy_end and slot_end_dt > busy_start:
-                    is_google_busy = True
-                    break
-        
-        slots.append({
-            'time': current_time.strftime('%H:%M'),
-            'end_time': slot_end_dt.time().strftime('%H:%M'),
-            'available': not (is_blocked or is_booked or is_google_busy),
-            'google_calendar_busy': is_google_busy if has_google_calendar else None
-        })
-        
-        # Move to next slot
-        next_dt = current_dt + slot_duration
-        current_time = next_dt.time()
-        
-        if current_time >= end_time:
-            break
+        while True:
+            # Convert time to datetime for calculations
+            current_dt = datetime.combine(target_date, current_time)
+            slot_end_dt = current_dt + duration
+            
+            # Check if slot fits within this time slot's bounds
+            if slot_end_dt.time() > slot_end_limit:
+                break
+            
+            # Check if slot is blocked
+            is_blocked = TimeSlotBlock.objects.filter(
+                content_type=ct,
+                object_id=provider.id,
+                date=target_date,
+                start_time__lt=slot_end_dt.time(),
+                end_time__gt=current_time
+            ).exists()
+            
+            # Check if slot is already booked
+            is_booked = Reservation.objects.filter(
+                provider_content_type=ct,
+                provider_object_id=provider.id,
+                date=target_date,
+                time__lt=slot_end_dt.time(),
+                time__gte=current_time,
+                status__in=['PENDING', 'CONFIRMED']
+            ).exists()
+            
+            # Check if slot conflicts with Google Calendar busy times
+            is_google_busy = False
+            if google_busy_times:
+                for busy in google_busy_times:
+                    # Make datetimes timezone-naive for comparison if needed
+                    busy_start = busy.start.replace(tzinfo=None) if busy.start.tzinfo else busy.start
+                    busy_end = busy.end.replace(tzinfo=None) if busy.end.tzinfo else busy.end
+                    
+                    # Check for overlap
+                    if current_dt < busy_end and slot_end_dt > busy_start:
+                        is_google_busy = True
+                        break
+            
+            slots.append({
+                'time': current_time.strftime('%H:%M'),
+                'end_time': slot_end_dt.time().strftime('%H:%M'),
+                'available': not (is_blocked or is_booked or is_google_busy),
+                'google_calendar_busy': is_google_busy if has_google_calendar else None
+            })
+            
+            # Move to next slot interval
+            next_dt = current_dt + slot_interval
+            current_time = next_dt.time()
+            
+            if current_time >= slot_end_limit:
+                break
     
     serializer = AvailableSlotSerializer(slots, many=True)
     return Response({

@@ -32,9 +32,19 @@ export const useIncomingReservations = () => {
 
   const confirmReservation = async (id: number) => {
     try {
-      await reservationApi.confirmReservation(id);
-      Alert.alert("Éxito", "Reservación confirmada");
+      const response = await reservationApi.confirmReservation(id);
+      const data = response.data;
+      
+      // Check if calendar event was created
+      let message = "Reservación confirmada";
+      if (data.calendar_event_created) {
+        message += "\n\n📅 Se ha creado un evento en tu Google Calendar.";
+      }
+      
+      Alert.alert("Éxito", message);
       fetchReservations();
+      
+      return data;
     } catch (err) {
       const message = errorUtils.getErrorMessage(err);
       Alert.alert("Error", message);

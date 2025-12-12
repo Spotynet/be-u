@@ -12,19 +12,45 @@ from reviews.models import PlaceReview, ProfessionalReview
 def create_reservation_notification(sender, instance, created, **kwargs):
     """Create notification when reservation is created or updated"""
     if created:
-        # New reservation created
+        # New reservation created - notify the PROVIDER (not the client)
+        # The provider needs to confirm or reject the reservation
+        provider_user = instance.provider.user
+        client_name = f"{instance.client.user.first_name} {instance.client.user.last_name}".strip()
+        
+        _create_notification(
+            user=provider_user,
+            type=Notification.NotificationType.RESERVATION,
+            title="Nueva solicitud de reserva",
+            message=f"{client_name} solicita una reserva para {instance.service.name} el {instance.date.strftime('%d/%m/%Y')} a las {instance.time.strftime('%H:%M')}",
+            content_object=instance,
+            metadata={
+                'reservation_code': instance.code,
+                'reservation_id': instance.id,
+                'service_name': instance.service.name,
+                'client_name': client_name,
+                'client_email': instance.client.user.email,
+                'date': str(instance.date),
+                'time': str(instance.time),
+                'status': instance.status,
+                'notes': instance.notes or '',
+                'action_required': True,  # Indicates provider needs to take action
+            }
+        )
+        
+        # Also notify the client that their request was sent
         _create_notification(
             user=instance.client.user,
             type=Notification.NotificationType.RESERVATION,
-            title="Nueva reserva confirmada",
-            message=f"Tu reserva para {instance.service.name} ha sido confirmada para {instance.date} a las {instance.time}",
+            title="Solicitud de reserva enviada",
+            message=f"Tu solicitud de reserva para {instance.service.name} ha sido enviada. El proveedor te notificará cuando la confirme o rechace.",
             content_object=instance,
             metadata={
                 'reservation_code': instance.code,
                 'service_name': instance.service.name,
                 'provider_name': getattr(instance.provider, 'name', 'N/A'),
                 'date': str(instance.date),
-                'time': str(instance.time)
+                'time': str(instance.time),
+                'status': instance.status,
             }
         )
     else:

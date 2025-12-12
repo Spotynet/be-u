@@ -47,8 +47,12 @@ export const useNotifications = (filters?: NotificationFilters) => {
         message: item.message,
         timestamp: item.created_at,
         status: item.status,
-        relatedId: item.content_object?.id,
-        metadata: item.metadata || {},
+        relatedId: item.content_object?.id || item.metadata?.reservation_id,
+        metadata: {
+          ...(item.metadata || {}),
+          // Ensure reservation_id is available in metadata
+          reservation_id: item.metadata?.reservation_id || item.content_object?.id,
+        },
       }));
 
       setNotifications(transformedNotifications);

@@ -30,7 +30,10 @@ export const CalendarConnectionCard: React.FC<CalendarConnectionCardProps> = ({
     connectGoogleCalendar,
     disconnectGoogleCalendar,
     syncAvailability,
+    tryCompleteConnection,
   } = useCalendarIntegration();
+
+  const [isChecking, setIsChecking] = React.useState(false);
 
   const handleConnect = async () => {
     const success = await connectGoogleCalendar();
@@ -48,6 +51,20 @@ export const CalendarConnectionCard: React.FC<CalendarConnectionCardProps> = ({
 
   const handleSync = async () => {
     await syncAvailability();
+  };
+
+  // Manual check for connection (useful for Expo Go)
+  // This actually tries to complete the OAuth exchange, not just check status
+  const handleCheckConnection = async () => {
+    setIsChecking(true);
+    try {
+      const success = await tryCompleteConnection();
+      if (success && onConnectionChange) {
+        onConnectionChange(true);
+      }
+    } finally {
+      setIsChecking(false);
+    }
   };
 
   const formatLastSync = (dateString: string | null): string => {
@@ -193,7 +210,7 @@ export const CalendarConnectionCard: React.FC<CalendarConnectionCardProps> = ({
             <TouchableOpacity
               style={[styles.button, styles.connectButton]}
               onPress={handleConnect}
-              disabled={isConnecting}
+              disabled={isConnecting || isChecking}
             >
               {isConnecting ? (
                 <ActivityIndicator size="small" color="#FFF" />
@@ -202,6 +219,24 @@ export const CalendarConnectionCard: React.FC<CalendarConnectionCardProps> = ({
                   <Ionicons name="logo-google" size={20} color="#FFF" />
                   <Text style={styles.connectButtonText}>
                     Conectar con Google
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {/* Check connection button - useful after OAuth in Expo Go */}
+            <TouchableOpacity
+              style={[styles.button, styles.checkButton]}
+              onPress={handleCheckConnection}
+              disabled={isConnecting || isChecking}
+            >
+              {isChecking ? (
+                <ActivityIndicator size="small" color="#4285F4" />
+              ) : (
+                <>
+                  <Ionicons name="refresh" size={18} color="#4285F4" />
+                  <Text style={styles.checkButtonText}>
+                    Verificar conexión
                   </Text>
                 </>
               )}
@@ -365,6 +400,18 @@ const styles = StyleSheet.create({
   connectButtonText: {
     color: '#FFF',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  checkButton: {
+    backgroundColor: '#E8F0FE',
+    borderWidth: 1,
+    borderColor: '#4285F4',
+    width: '100%',
+    marginTop: 10,
+  },
+  checkButtonText: {
+    color: '#4285F4',
+    fontSize: 14,
     fontWeight: '600',
   },
   syncButton: {

@@ -1,5 +1,5 @@
 import React from "react";
-import {View, Text, StyleSheet, TouchableOpacity} from "react-native";
+import {View, Text, StyleSheet, TouchableOpacity, Linking} from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
@@ -118,6 +118,27 @@ export const ReservationCard = ({
               {reservation.cancellation_reason || reservation.rejection_reason}
             </Text>
           </View>
+        )}
+
+        {/* Google Calendar Event Indicator */}
+        {reservation.calendar_event_created && (
+          <TouchableOpacity
+            style={[styles.calendarEventContainer, {backgroundColor: "#4285F4" + "15"}]}
+            onPress={() => {
+              if (reservation.calendar_event_link) {
+                Linking.openURL(reservation.calendar_event_link);
+              }
+            }}
+            activeOpacity={0.7}
+            disabled={!reservation.calendar_event_link}>
+            <Ionicons name="logo-google" size={14} color="#4285F4" />
+            <Text style={[styles.calendarEventText, {color: "#4285F4"}]}>
+              Evento en Google Calendar
+            </Text>
+            {reservation.calendar_event_link && (
+              <Ionicons name="open-outline" size={14} color="#4285F4" />
+            )}
+          </TouchableOpacity>
         )}
       </View>
 
@@ -248,6 +269,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "500",
+  },
+  calendarEventContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  calendarEventText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
   },
   actions: {
     flexDirection: "row",

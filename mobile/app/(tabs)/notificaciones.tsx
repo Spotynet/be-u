@@ -17,6 +17,7 @@ import {NotificationCard} from "@/components/notifications";
 import {useNotifications, NotificationType, Notification as NotificationTypeModel} from "@/features/notifications";
 import {useAuth} from "@/features/auth";
 import {linkApi} from "@/lib/api";
+import {useIncomingReservations} from "@/features/reservations";
 
 export default function Notificaciones() {
   const colorScheme = useColorScheme();
@@ -38,6 +39,9 @@ export default function Notificaciones() {
     bulkAction,
     refreshNotifications,
   } = useNotifications();
+
+  // For providers: handle reservation confirm/reject
+  const {confirmReservation, rejectReservation, refreshReservations} = useIncomingReservations();
 
   const handleNotificationPress = (notification: any) => {
     // Mark as read if unread
@@ -120,6 +124,48 @@ export default function Notificaciones() {
         "Error",
         err?.message || "No se pudo procesar la invitación. Inténtalo de nuevo más tarde."
       );
+    }
+  };
+
+  const handleReservationAction = async (
+    reservationId: number,
+    action: "confirm" | "reject"
+  ) => {
+    try {
+      if (action === "confirm") {
+        await confirmReservation(reservationId);
+      } else {
+        // For reject, we'll just call rejectReservation without reason
+        // The user can add a reason later if needed
+        Alert.alert(
+          "Rechazar Reserva",
+          "¿Estás seguro de que deseas rechazar esta solicitud de reserva?",
+          [
+            {text: "Cancelar", style: "cancel"},
+            {
+              text: "Rechazar",
+              style: "destructive",
+              onPress: async () => {
+                try {
+                  await rejectReservation(reservationId);
+                  await refreshNotifications();
+                  await refreshReservations();
+                } catch (err) {
+                  // Error already handled in hook
+                }
+              },
+            },
+          ]
+        );
+        return; // Don't refresh yet, wait for alert
+      }
+
+      // Refresh notifications and reservations
+      await refreshNotifications();
+      await refreshReservations();
+    } catch (err: any) {
+      console.error("Error handling reservation action:", err);
+      // Error already handled in hooks
     }
   };
 
@@ -317,6 +363,15 @@ export default function Notificaciones() {
                 notification.status === "unread" &&
                 linkId;
 
+              // Check if this is a pending reservation notification
+              const reservationId = notification.metadata?.reservation_id || notification.relatedId;
+              const isPendingReservation =
+                notification.type === "reserva" &&
+                notification.metadata?.status === "PENDING" &&
+                notification.metadata?.action_required === true &&
+                reservationId &&
+                (user?.role === "PROFESSIONAL" || user?.role === "PLACE");
+
               return (
                 <NotificationCard
                   key={notification.id}
@@ -342,6 +397,16 @@ export default function Notificaciones() {
                             "reject",
                             Number.parseInt(String(linkId), 10)
                           )
+                      : undefined
+                  }
+                  onConfirmReservation={
+                    isPendingReservation
+                      ? (id) => handleReservationAction(id, "confirm")
+                      : undefined
+                  }
+                  onRejectReservation={
+                    isPendingReservation
+                      ? (id) => handleReservationAction(id, "reject")
                       : undefined
                   }
                 />

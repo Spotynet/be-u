@@ -15,10 +15,11 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
-import {useState} from "react";
+import {useState, useEffect} from "react";
 import {useAuth} from "@/features/auth";
 import {useReservationFlow} from "@/features/reservations";
-import {CalendarView, TimeSlotPicker} from "@/components/calendar";
+import {CalendarView} from "@/components/calendar";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {useRouter, useLocalSearchParams} from "expo-router";
 import {useNavigation} from "@/hooks/useNavigation";
 
@@ -39,10 +40,14 @@ export default function BookingScreen() {
     duration?: string;
   }>();
 
-  const {state, isLoading, selectDate, selectTimeSlot, setNotes, createReservation} =
+  const {state, isLoading, selectService, setNotes, createReservation} =
     useReservationFlow();
 
   const [localNotes, setLocalNotes] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedTime, setSelectedTime] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   // Initialize service from params
   const normalizedServiceType =
@@ -64,37 +69,96 @@ export default function BookingScreen() {
       }
     : null;
 
-  const handleDateSelect = async (date: string) => {
-    if (!serviceInfo) return;
-    await selectDate(date);
+  // Initialize the service in the hook when component mounts
+  useEffect(() => {
+    if (serviceInfo && !state.service) {
+      selectService(serviceInfo);
+    }
+  }, [serviceInfo?.serviceId]);
+
+  const handleDateSelect = (date: string) => {
+    const dateObj = new Date(date);
+    setSelectedDate(dateObj);
+    setShowDatePicker(false);
   };
 
-  const handleTimeSelect = (slot: any) => {
-    selectTimeSlot(slot);
-    setNotes(localNotes);
+  const handleTimeChange = (event: any, date?: Date) => {
+    if (Platform.OS === "android") {
+      setShowTimePicker(false);
+    }
+    
+    if (event.type === "set" && date) {
+      setSelectedTime(date);
+      if (Platform.OS === "ios") {
+        setShowTimePicker(false);
+      }
+    } else if (event.type === "dismissed") {
+      setShowTimePicker(false);
+    }
+  };
+
+  const formatTime = (date: Date): string => {
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
+  };
+
+  const getEndTime = (startTime: Date, durationMinutes: number): Date => {
+    const endTime = new Date(startTime);
+    endTime.setMinutes(endTime.getMinutes() + durationMinutes);
+    return endTime;
   };
 
   const handleConfirmBooking = async () => {
-    const reservation = await createReservation();
-    if (reservation) {
-      const calendarNote = reservation.calendar_event_created
-        ? "\nTambién creamos el evento en tu Google Calendar conectado."
-        : "";
+    if (!serviceInfo || !selectedDate || !selectedTime) {
+      Alert.alert("Error", "Por favor completa todos los campos");
+      return;
+    }
 
+    // Create a time slot object for the reservation flow
+    const timeSlot = {
+      time: formatTime(selectedTime),
+      end_time: formatTime(getEndTime(selectedTime, serviceInfo.duration)),
+    };
+
+    // Set the date and time in the flow
+    const dateStr = selectedDate.toISOString().split("T")[0];
+    
+    // Manually set the state for the reservation
+    setNotes(localNotes);
+    
+    // Create reservation directly
+    try {
+      const reservationData = {
+        service: serviceInfo.serviceId,
+        provider_type: serviceInfo.serviceType,
+        provider_id: serviceInfo.providerId,
+        service_instance_type:
+          serviceInfo.serviceType === "place" ? "place_service" : "professional_service",
+        service_instance_id: serviceInfo.serviceId,
+        date: dateStr,
+        time: timeSlot.time,
+        notes: localNotes,
+      };
+
+      const {reservationApi} = await import("@/lib/api");
+      const response = await reservationApi.createReservation(reservationData as any);
+      
       Alert.alert(
-        "¡Reserva Creada!",
-        `Tu reserva ha sido enviada y está pendiente de confirmación.${calendarNote}`,
+        "¡Solicitud Enviada!",
+        "Tu solicitud de reserva ha sido enviada y está pendiente de confirmación por parte del proveedor. Te notificaremos cuando sea aceptada o rechazada.",
         [
           {
             text: "Ver Mis Reservas",
-            onPress: () => router.push("/(tabs)/reservas"),
+            onPress: () => router.push("/(tabs)/perfil"),
           },
           {
-            text: "Ver Agenda",
-            onPress: () => router.push("/agenda"),
+            text: "OK",
           },
         ]
       );
+    } catch (err: any) {
+      Alert.alert("Error", err?.response?.data?.error || "No se pudo crear la reserva");
     }
   };
 
@@ -182,13 +246,13 @@ export default function BookingScreen() {
             style={[
               styles.stepNumber,
               {
-                backgroundColor: state.date ? colors.primary : colors.muted,
+                backgroundColor: selectedDate ? colors.primary : colors.muted,
               },
             ]}>
             <Text
               style={[
                 styles.stepNumberText,
-                {color: state.date ? "#ffffff" : colors.mutedForeground},
+                {color: selectedDate ? "#ffffff" : colors.mutedForeground},
               ]}>
               1
             </Text>
@@ -196,7 +260,7 @@ export default function BookingScreen() {
           <Text
             style={[
               styles.stepLabel,
-              {color: state.date ? colors.primary : colors.mutedForeground},
+              {color: selectedDate ? colors.primary : colors.mutedForeground},
             ]}>
             Fecha
           </Text>
@@ -209,13 +273,13 @@ export default function BookingScreen() {
             style={[
               styles.stepNumber,
               {
-                backgroundColor: state.timeSlot ? colors.primary : colors.muted,
+                backgroundColor: selectedTime ? colors.primary : colors.muted,
               },
             ]}>
             <Text
               style={[
                 styles.stepNumberText,
-                {color: state.timeSlot ? "#ffffff" : colors.mutedForeground},
+                {color: selectedTime ? "#ffffff" : colors.mutedForeground},
               ]}>
               2
             </Text>
@@ -223,7 +287,7 @@ export default function BookingScreen() {
           <Text
             style={[
               styles.stepLabel,
-              {color: state.timeSlot ? colors.primary : colors.mutedForeground},
+              {color: selectedTime ? colors.primary : colors.mutedForeground},
             ]}>
             Hora
           </Text>
@@ -232,10 +296,28 @@ export default function BookingScreen() {
         <View style={[styles.stepDivider, {backgroundColor: colors.border}]} />
 
         <View style={styles.step}>
-          <View style={[styles.stepNumber, {backgroundColor: colors.muted}]}>
-            <Text style={[styles.stepNumberText, {color: colors.mutedForeground}]}>3</Text>
+          <View
+            style={[
+              styles.stepNumber,
+              {
+                backgroundColor: selectedDate && selectedTime ? colors.primary : colors.muted,
+              },
+            ]}>
+            <Text
+              style={[
+                styles.stepNumberText,
+                {color: selectedDate && selectedTime ? "#ffffff" : colors.mutedForeground},
+              ]}>
+              3
+            </Text>
           </View>
-          <Text style={[styles.stepLabel, {color: colors.mutedForeground}]}>Confirmar</Text>
+          <Text
+            style={[
+              styles.stepLabel,
+              {color: selectedDate && selectedTime ? colors.primary : colors.mutedForeground},
+            ]}>
+            Confirmar
+          </Text>
         </View>
       </View>
 
@@ -245,56 +327,78 @@ export default function BookingScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
         {/* Step 1: Date Selection */}
-        {!state.date ? (
+        {!selectedDate ? (
           <View style={styles.stepContent}>
             <Text style={[styles.stepTitle, {color: colors.foreground}]}>Selecciona una fecha</Text>
             <CalendarView
               reservations={[]}
-              onDayPress={handleDateSelect}
-              selectedDate={state.date}
+              onDayPress={(date) => handleDateSelect(date)}
+              selectedDate={selectedDate?.toISOString().split("T")[0]}
               minDate={new Date().toISOString().split("T")[0]}
             />
           </View>
-        ) : !state.timeSlot ? (
+        ) : !selectedTime ? (
           // Step 2: Time Selection
           <View style={styles.stepContent}>
             <View style={styles.stepHeader}>
-              <TouchableOpacity onPress={() => selectDate(undefined as any)} activeOpacity={0.7}>
+              <TouchableOpacity onPress={() => setSelectedDate(null)} activeOpacity={0.7}>
                 <Ionicons name="chevron-back" size={24} color={colors.primary} />
               </TouchableOpacity>
               <Text style={[styles.stepTitle, {color: colors.foreground}]}>
-                Selecciona un horario
+                Selecciona una hora
               </Text>
               <View style={styles.placeholder} />
             </View>
 
-            {isLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={[styles.loadingText, {color: colors.mutedForeground}]}>
-                  Cargando horarios disponibles...
+            <View style={styles.timePickerContainer}>
+              <Text style={[styles.timePickerLabel, {color: colors.mutedForeground}]}>
+                {selectedDate.toLocaleDateString("es-MX", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                })}
+              </Text>
+              
+              <TouchableOpacity
+                style={[styles.timePickerButton, {backgroundColor: colors.card, borderColor: colors.border}]}
+                onPress={() => setShowTimePicker(true)}
+                activeOpacity={0.7}>
+                <Ionicons name="time-outline" size={24} color={colors.primary} />
+                <Text style={[styles.timePickerText, {color: colors.foreground}]}>
+                  {selectedTime ? formatTime(selectedTime) : "Seleccionar hora"}
+                </Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+              </TouchableOpacity>
+
+              {showTimePicker && (
+                <DateTimePicker
+                  value={selectedTime || new Date()}
+                  mode="time"
+                  is24Hour={true}
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={handleTimeChange}
+                />
+              )}
+
+              <View style={[styles.infoCard, {backgroundColor: colors.primary + "10"}]}>
+                <Ionicons name="information-circle" size={20} color={colors.primary} />
+                <Text style={[styles.infoText, {color: colors.primary}]}>
+                  Elige la hora que prefieras. El proveedor revisará tu solicitud y te confirmará si está disponible.
                 </Text>
               </View>
-            ) : state.availableSlots ? (
-              <TimeSlotPicker
-                slots={state.availableSlots.slots}
-                selectedTime={state.timeSlot?.time}
-                onSelectTime={handleTimeSelect}
-                date={state.date}
-              />
-            ) : null}
+            </View>
           </View>
         ) : (
           // Step 3: Confirmation
           <View style={styles.stepContent}>
             <View style={styles.stepHeader}>
               <TouchableOpacity
-                onPress={() => selectTimeSlot(undefined as any)}
+                onPress={() => setSelectedTime(null)}
                 activeOpacity={0.7}>
                 <Ionicons name="chevron-back" size={24} color={colors.primary} />
               </TouchableOpacity>
               <Text style={[styles.stepTitle, {color: colors.foreground}]}>
-                Confirma tu reserva
+                Confirma tu solicitud
               </Text>
               <View style={styles.placeholder} />
             </View>
@@ -322,7 +426,7 @@ export default function BookingScreen() {
                 <View style={styles.summaryText}>
                   <Text style={[styles.summaryLabel, {color: colors.mutedForeground}]}>Fecha</Text>
                   <Text style={[styles.summaryValue, {color: colors.foreground}]}>
-                    {new Date(state.date).toLocaleDateString("es-MX", {
+                    {selectedDate && selectedDate.toLocaleDateString("es-MX", {
                       weekday: "long",
                       year: "numeric",
                       month: "long",
@@ -337,7 +441,7 @@ export default function BookingScreen() {
                 <View style={styles.summaryText}>
                   <Text style={[styles.summaryLabel, {color: colors.mutedForeground}]}>Hora</Text>
                   <Text style={[styles.summaryValue, {color: colors.foreground}]}>
-                    {state.timeSlot.time} - {state.timeSlot.end_time}
+                    {selectedTime && formatTime(selectedTime)} - {selectedTime && formatTime(getEndTime(selectedTime, serviceInfo.duration))}
                   </Text>
                 </View>
               </View>
@@ -381,7 +485,7 @@ export default function BookingScreen() {
             <View style={[styles.infoCard, {backgroundColor: "#3b82f6" + "10"}]}>
               <Ionicons name="information-circle" size={20} color="#3b82f6" />
               <Text style={[styles.infoText, {color: "#3b82f6"}]}>
-                Tu reserva será enviada y estará pendiente de confirmación por parte del proveedor
+                Tu solicitud será enviada al proveedor. Te notificaremos cuando la acepte o rechace.
               </Text>
             </View>
 
@@ -396,7 +500,7 @@ export default function BookingScreen() {
               ) : (
                 <>
                   <Ionicons name="checkmark-circle" size={22} color="#ffffff" />
-                  <Text style={styles.confirmButtonText}>Confirmar Reserva</Text>
+                  <Text style={styles.confirmButtonText}>Enviar Solicitud</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -605,5 +709,29 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 15,
     textAlign: "center",
+  },
+  timePickerContainer: {
+    gap: 20,
+  },
+  timePickerLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+    textTransform: "capitalize",
+    marginBottom: 8,
+  },
+  timePickerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    gap: 12,
+  },
+  timePickerText: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "600",
   },
 });

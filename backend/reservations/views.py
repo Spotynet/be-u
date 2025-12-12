@@ -119,23 +119,14 @@ class ReservationViewSet(viewsets.ModelViewSet):
 
         reservation = serializer.instance
 
-        calendar_event = None
-        try:
-            calendar_event = create_reservation_event(reservation)
-        except Exception as e:
-            logger.error(f"Failed to create calendar event on reservation creation: {e}")
+        # Note: Calendar event is created when reservation is CONFIRMED, not when created (PENDING)
+        # See confirm_reservation() action for calendar event creation
 
         response_serializer = ReservationSerializer(
             reservation, context=self.get_serializer_context()
         )
-        data = response_serializer.data
-        if calendar_event:
-            data['calendar_event_created'] = True
-            data['calendar_event_link'] = calendar_event.event_link
-            data['calendar_event_id'] = calendar_event.google_event_id
-
         headers = self.get_success_headers(response_serializer.data)
-        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     @action(detail=False, methods=['get'], url_path='my-reservations')
     def my_reservations(self, request):

@@ -12,6 +12,8 @@ interface NotificationCardProps {
   onDelete?: (notificationId: number) => void;
   onAcceptInvite?: (notification: Notification, linkId: number) => void;
   onDeclineInvite?: (notification: Notification, linkId: number) => void;
+  onConfirmReservation?: (reservationId: number) => void;
+  onRejectReservation?: (reservationId: number) => void;
 }
 
 export const NotificationCard = ({
@@ -21,6 +23,8 @@ export const NotificationCard = ({
   onDelete,
   onAcceptInvite,
   onDeclineInvite,
+  onConfirmReservation,
+  onRejectReservation,
 }: NotificationCardProps) => {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
@@ -105,6 +109,17 @@ export const NotificationCard = ({
     linkId &&
     inviteStatus === "INVITED" &&
     (typeof onAcceptInvite === "function" || typeof onDeclineInvite === "function");
+
+  // Check if this is a pending reservation notification that needs action
+  const reservationId = notification.metadata?.reservation_id || notification.relatedId;
+  const reservationStatus = notification.metadata?.status;
+  const actionRequired = notification.metadata?.action_required === true;
+  const canRespondReservation =
+    notification.type === "reserva" &&
+    reservationId &&
+    reservationStatus === "PENDING" &&
+    actionRequired &&
+    (typeof onConfirmReservation === "function" || typeof onRejectReservation === "function");
 
   return (
     <TouchableOpacity
@@ -217,6 +232,68 @@ export const NotificationCard = ({
               onPress={() => onAcceptInvite(notification, linkId)}>
               <Text style={[styles.inviteButtonText, {color: colors.primaryForeground}]}>
                 Aceptar
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Reservation action buttons */}
+      {canRespondReservation && (
+        <View style={styles.inviteActions}>
+          {typeof onRejectReservation === "function" && (
+            <TouchableOpacity
+              style={[
+                styles.inviteButton,
+                {
+                  borderWidth: 1,
+                  borderColor: "#ef4444",
+                },
+              ]}
+              onPress={() => {
+                Alert.alert(
+                  "Rechazar Reserva",
+                  "¿Estás seguro de que deseas rechazar esta solicitud de reserva?",
+                  [
+                    {text: "Cancelar", style: "cancel"},
+                    {
+                      text: "Rechazar",
+                      style: "destructive",
+                      onPress: () => onRejectReservation(reservationId),
+                    },
+                  ]
+                );
+              }}>
+              <Ionicons name="close-circle" size={16} color="#ef4444" />
+              <Text style={[styles.inviteButtonText, {color: "#ef4444", marginLeft: 4}]}>
+                Rechazar
+              </Text>
+            </TouchableOpacity>
+          )}
+          {typeof onConfirmReservation === "function" && (
+            <TouchableOpacity
+              style={[
+                styles.inviteButton,
+                {
+                  backgroundColor: "#10b981",
+                },
+              ]}
+              onPress={() => {
+                Alert.alert(
+                  "Confirmar Reserva",
+                  "¿Confirmar esta solicitud de reserva?",
+                  [
+                    {text: "Cancelar", style: "cancel"},
+                    {
+                      text: "Confirmar",
+                      onPress: () => onConfirmReservation(reservationId),
+                    },
+                  ]
+                );
+              }}>
+              <Ionicons name="checkmark-circle" size={16} color="#ffffff" />
+              <Text style={[styles.inviteButtonText, {color: "#ffffff", marginLeft: 4}]}>
+                Confirmar
               </Text>
             </TouchableOpacity>
           )}

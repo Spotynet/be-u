@@ -17,6 +17,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Alert, Linking, AppState, AppStateStatus, Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { calendarApi, errorUtils } from '@/lib/api';
 import {
   openGoogleAuth,
@@ -29,6 +30,10 @@ import {
 // Check if running in Expo Go (deep links won't work)
 const isExpoGo = Constants.appOwnership === 'expo';
 
+// Key for storing pending OAuth state
+const PENDING_OAUTH_STATE_KEY = '@calendar_pending_oauth_state';
+const PENDING_OAUTH_REDIRECT_KEY = '@calendar_pending_oauth_redirect';
+
 interface UseCalendarIntegrationReturn {
   // State
   status: CalendarStatus | null;
@@ -39,7 +44,8 @@ interface UseCalendarIntegrationReturn {
   // Actions
   connectGoogleCalendar: () => Promise<boolean>;
   disconnectGoogleCalendar: () => Promise<boolean>;
-  refreshStatus: () => Promise<void>;
+  refreshStatus: () => Promise<CalendarStatus | null>;
+  tryCompleteConnection: () => Promise<boolean>;
   syncAvailability: () => Promise<boolean>;
   getBusyTimes: (start: string, end: string) => Promise<BusyTime[]>;
 }
@@ -208,6 +214,46 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
   }, [refreshStatus]);
 
   /**
+   * Save pending OAuth state to AsyncStorage (persists across app restarts)
+   */
+  const savePendingOAuthState = async (state: string, redirectUri: string) => {
+    try {
+      await AsyncStorage.setItem(PENDING_OAUTH_STATE_KEY, state);
+      await AsyncStorage.setItem(PENDING_OAUTH_REDIRECT_KEY, redirectUri);
+      console.log('📱 Saved pending OAuth state to AsyncStorage');
+    } catch (e) {
+      console.error('📱 Failed to save pending OAuth state:', e);
+    }
+  };
+
+  /**
+   * Get pending OAuth state from AsyncStorage
+   */
+  const getPendingOAuthState = async (): Promise<{ state: string | null; redirectUri: string | null }> => {
+    try {
+      const state = await AsyncStorage.getItem(PENDING_OAUTH_STATE_KEY);
+      const redirectUri = await AsyncStorage.getItem(PENDING_OAUTH_REDIRECT_KEY);
+      return { state, redirectUri };
+    } catch (e) {
+      console.error('📱 Failed to get pending OAuth state:', e);
+      return { state: null, redirectUri: null };
+    }
+  };
+
+  /**
+   * Clear pending OAuth state from AsyncStorage
+   */
+  const clearPendingOAuthState = async () => {
+    try {
+      await AsyncStorage.removeItem(PENDING_OAUTH_STATE_KEY);
+      await AsyncStorage.removeItem(PENDING_OAUTH_REDIRECT_KEY);
+      console.log('📱 Cleared pending OAuth state from AsyncStorage');
+    } catch (e) {
+      console.error('📱 Failed to clear pending OAuth state:', e);
+    }
+  };
+
+  /**
    * Try to exchange code and complete connection
    */
   const tryExchangeCode = async (state: string, redirectUri: string): Promise<boolean> => {
@@ -223,6 +269,7 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
       console.log('📱 Exchange response:', exchangeResponse.data);
 
       if (exchangeResponse.data.is_connected) {
+        await clearPendingOAuthState();
         await refreshStatus();
         Alert.alert(
           'Calendario conectado',
@@ -238,6 +285,74 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
     
     return false;
   };
+
+  /**
+   * Try to complete a pending OAuth connection
+   * This is useful when the user closed the browser manually and needs to verify
+   */
+  const tryCompleteConnection = useCallback(async (): Promise<boolean> => {
+    console.log('📱 Trying to complete pending OAuth connection...');
+    
+    try {
+      setIsLoading(true);
+      
+      // First, check if already connected
+      const statusCheck = await calendarApi.getStatus();
+      if (statusCheck.data.is_connected) {
+        console.log('📱 Already connected!');
+        setStatus(statusCheck.data);
+        await clearPendingOAuthState();
+        Alert.alert(
+          'Calendario conectado',
+          'Tu Google Calendar ya está conectado.',
+          [{ text: 'OK' }]
+        );
+        return true;
+      }
+      
+      // Try to get pending OAuth state from AsyncStorage
+      const { state, redirectUri } = await getPendingOAuthState();
+      
+      if (!state) {
+        console.log('📱 No pending OAuth state found');
+        Alert.alert(
+          'Sin conexión pendiente',
+          'No hay una conexión pendiente. Inicia el proceso presionando "Conectar con Google".',
+          [{ text: 'OK' }]
+        );
+        return false;
+      }
+      
+      console.log('📱 Found pending OAuth state, attempting to complete...');
+      
+      // Try to exchange the code
+      const mobileRedirectUri = redirectUri || getRedirectUri();
+      
+      if (await tryExchangeCode(state, mobileRedirectUri)) {
+        return true;
+      }
+      
+      // If exchange failed, show message
+      Alert.alert(
+        'No se pudo conectar',
+        '¿Completaste el proceso de autorización en Google?\n\nSi es así, el código pudo haber expirado. Intenta conectar de nuevo.',
+        [
+          { text: 'Conectar de nuevo', onPress: () => {
+            clearPendingOAuthState();
+            connectGoogleCalendar();
+          }},
+          { text: 'OK', style: 'cancel' }
+        ]
+      );
+      
+      return false;
+    } catch (err) {
+      console.error('📱 Error completing connection:', err);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   /**
    * Check if calendar is already connected (fallback for when exchange fails)
@@ -315,8 +430,9 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
         throw new Error('No auth URL received from server');
       }
       
-      // Store state for deep link handling
+      // Store state for deep link handling AND in AsyncStorage for persistence
       pendingOAuthState.current = state;
+      await savePendingOAuthState(state, mobileRedirectUri);
 
       // Show a helpful message for Expo Go users
       if (isExpoGo) {
@@ -424,11 +540,11 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
           
           // Poll more aggressively for Expo Go
           const maxAttempts = isExpoGo ? 15 : 8;
-          
+            
           if (await pollForConnection(state, mobileRedirectUri, maxAttempts)) {
-            pendingOAuthState.current = null;
-            return true;
-          }
+                pendingOAuthState.current = null;
+                return true;
+              }
           
           // If still not connected, show a helpful message
           Alert.alert(
@@ -586,6 +702,7 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
     connectGoogleCalendar,
     disconnectGoogleCalendar,
     refreshStatus,
+    tryCompleteConnection,
     syncAvailability,
     getBusyTimes,
   };
