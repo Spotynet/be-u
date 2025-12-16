@@ -24,11 +24,13 @@ class ServiceInPlaceSerializer(serializers.ModelSerializer):
     place_name = serializers.CharField(source='place.name', read_only=True)
     professional_name = serializers.SerializerMethodField()
     duration_minutes = serializers.SerializerMethodField()
+    name = serializers.CharField(source='service.name', read_only=True)
+    service_type_id = serializers.IntegerField(source='service.id', read_only=True)
     
     class Meta:
         model = ServiceInPlace
         fields = [
-            'id', 'place', 'place_name', 'service', 'service_details',
+            'id', 'place', 'place_name', 'service', 'service_details', 'name', 'service_type_id',
             'professional', 'professional_name', 'description', 
             'time', 'duration_minutes', 'price', 'is_active',
             'created_at', 'updated_at'
@@ -50,11 +52,13 @@ class ProfessionalServiceSerializer(serializers.ModelSerializer):
     service_details = ServicesTypeSerializer(source='service', read_only=True)
     professional_name = serializers.SerializerMethodField()
     duration_minutes = serializers.SerializerMethodField()
+    name = serializers.CharField(source='service.name', read_only=True)
+    service_type_id = serializers.IntegerField(source='service.id', read_only=True)
     
     class Meta:
         model = ProfessionalService
         fields = [
-            'id', 'professional', 'professional_name', 'service', 'service_details',
+            'id', 'professional', 'professional_name', 'service', 'service_details', 'name', 'service_type_id',
             'description', 'time', 'duration_minutes', 'price', 'is_active',
             'created_at', 'updated_at'
         ]

@@ -4,9 +4,10 @@ import {TimeSlot, AvailableSlotsResponse} from "@/types/global";
 import {Alert} from "react-native";
 
 interface ServiceSelection {
-  serviceId: number;
+  serviceInstanceId: number;
+  serviceTypeId: number;
   serviceName: string;
-  serviceType: "place" | "professional";
+  serviceType: string;
   providerId: number;
   providerName: string;
   price: number;
@@ -51,9 +52,9 @@ export const useReservationFlow = () => {
 
       // Fetch available slots for this date
       const response = await serviceApi.getAvailableSlots({
-        service_id: state.service.serviceId,
+        service_id: state.service.serviceInstanceId,
         date,
-        service_type: state.service.serviceType,
+        service_type: state.service.serviceType as "place" | "professional",
       });
 
       setState({
@@ -97,13 +98,10 @@ export const useReservationFlow = () => {
       setIsLoading(true);
       setError(null);
 
+      // Simplified reservation data structure
       const reservationData = {
-        service: state.service.serviceId,
-        provider_type: state.service.serviceType,
-        provider_id: state.service.providerId,
-        service_instance_type:
-          state.service.serviceType === "place" ? "place_service" : "professional_service",
-        service_instance_id: state.service.serviceId,
+        service_instance_id: state.service.serviceInstanceId,
+        service_instance_type: state.service.serviceType,
         date: state.date,
         time: state.timeSlot.time,
         notes: state.notes,

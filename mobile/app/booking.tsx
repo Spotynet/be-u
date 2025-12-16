@@ -31,7 +31,8 @@ export default function BookingScreen() {
   const {goBack} = useNavigation();
   const {user, isAuthenticated} = useAuth();
   const params = useLocalSearchParams<{
-    serviceId?: string;
+    serviceInstanceId?: string;
+    serviceTypeId?: string;
     serviceName?: string;
     serviceType?: string;
     providerId?: string;
@@ -50,20 +51,21 @@ export default function BookingScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reservationSuccess, setReservationSuccess] = useState(false);
 
-  // Initialize service from params
-  const normalizedServiceType =
-    params.serviceType === "place_service"
-      ? "place"
-      : params.serviceType === "professional_service"
-        ? "professional"
-        : ((params.serviceType as "place" | "professional") || "place");
+  // Service info from params - all data comes directly from navigation
+  // Parse and validate required params
+  const parsedServiceInstanceId = params.serviceInstanceId ? parseInt(params.serviceInstanceId) : 0;
+  const parsedServiceTypeId = params.serviceTypeId ? parseInt(params.serviceTypeId) : 0;
+  
+  const hasRequiredParams = parsedServiceInstanceId > 0 && parsedServiceTypeId > 0;
 
-  const serviceInfo = params.serviceId
+  const serviceInfo = hasRequiredParams
     ? {
-        serviceId: parseInt(params.serviceId),
+        serviceInstanceId: parsedServiceInstanceId,
+        serviceTypeId: parsedServiceTypeId,
         serviceName: params.serviceName || "Servicio",
-        serviceType: normalizedServiceType,
+        serviceType: params.serviceType || "place_service",
         providerId: parseInt(params.providerId || "0"),
         providerName: params.providerName || "Proveedor",
         price: parseFloat(params.price || "0"),
@@ -76,7 +78,7 @@ export default function BookingScreen() {
     if (serviceInfo && !state.service) {
       selectService(serviceInfo);
     }
-  }, [serviceInfo?.serviceId]);
+  }, [serviceInfo?.serviceInstanceId]);
 
   const handleDateSelect = (date: string) => {
     const dateObj = new Date(date);
@@ -144,14 +146,10 @@ export default function BookingScreen() {
       // Set the date and time in the flow
       const dateStr = selectedDate.toISOString().split("T")[0];
       
-      // Create reservation directly
+      // Create reservation with simplified data structure
       const reservationData = {
-        service: serviceInfo.serviceId,
-        provider_type: serviceInfo.serviceType,
-        provider_id: serviceInfo.providerId,
-        service_instance_type:
-          serviceInfo.serviceType === "place" ? "place_service" : "professional_service",
-        service_instance_id: serviceInfo.serviceId,
+        service_instance_id: serviceInfo.serviceInstanceId,
+        service_instance_type: serviceInfo.serviceType,
         date: dateStr,
         time: timeSlot.time,
         notes: localNotes,
@@ -160,24 +158,67 @@ export default function BookingScreen() {
       const {reservationApi} = await import("@/lib/api");
       const response = await reservationApi.createReservation(reservationData as any);
       
+      console.log("Reservation created successfully:", response.data);
+      
+      // Set success state for visual feedback
+      setReservationSuccess(true);
+      
+      // Show success feedback briefly, then redirect automatically
       Alert.alert(
         "¡Solicitud Enviada!",
-        "Tu solicitud de reserva ha sido enviada y está pendiente de confirmación por parte del proveedor. Te notificaremos cuando sea aceptada o rechazada.",
+        "Tu solicitud de reserva ha sido enviada y está pendiente de confirmación por parte del proveedor. Te notificaremos cuando sea aceptada o rechazada.\n\nRedirigiendo a tus reservas...",
         [
           {
             text: "Ver Mis Reservas",
-            onPress: () => router.push("/(tabs)/perfil"),
+            onPress: () => {
+              router.push("/(tabs)/perfil");
+            },
           },
-          {
-            text: "OK",
-            onPress: () => router.back(),
-          },
-        ]
+        ],
+        { cancelable: false }
       );
+      
+      // Auto-redirect to profile/reservations page after showing success message
+      // Give user time to see the success message (2 seconds)
+      setTimeout(() => {
+        router.push("/(tabs)/perfil");
+      }, 2000);
     } catch (err: any) {
       console.error("Error creating reservation:", err);
-      const errorMessage = err?.response?.data?.error || err?.message || "No se pudo crear la reserva";
-      Alert.alert("Error", errorMessage);
+      console.error("Error response data:", err?.response?.data);
+      
+      // Handle Django REST Framework validation errors
+      let errorMessage = "No se pudo crear la reserva";
+      
+      if (err?.response?.data) {
+        const errorData = err.response.data;
+        
+        // Check for validation errors (field-specific errors like {service: ["Invalid pk..."]})
+        const fieldErrors: string[] = [];
+        for (const [field, errors] of Object.entries(errorData)) {
+          if (Array.isArray(errors)) {
+            fieldErrors.push(`${field}: ${errors.join(", ")}`);
+          } else if (typeof errors === "string") {
+            fieldErrors.push(`${field}: ${errors}`);
+          }
+        }
+        
+        if (fieldErrors.length > 0) {
+          errorMessage = fieldErrors.join("\n");
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } else {
+        // Use errorUtils for other error types
+        const {errorUtils} = await import("@/lib/api");
+        errorMessage = errorUtils.getErrorMessage(err);
+      }
+      
+      Alert.alert("Error al crear la reserva", errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -198,6 +239,14 @@ export default function BookingScreen() {
   }
 
   if (!serviceInfo) {
+    // Debug: log what params we received
+    console.log('Booking page params:', params);
+    console.log('Parsed values:', { 
+      parsedServiceInstanceId, 
+      parsedServiceTypeId, 
+      hasRequiredParams 
+    });
+    
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
         <View style={styles.centeredContainer}>
@@ -205,6 +254,12 @@ export default function BookingScreen() {
           <Text style={[styles.errorTitle, {color: colors.foreground}]}>Error</Text>
           <Text style={[styles.errorText, {color: colors.mutedForeground}]}>
             Información de servicio no disponible
+          </Text>
+          <Text style={[styles.errorText, {color: colors.mutedForeground, marginTop: 8, fontSize: 12}]}>
+            serviceInstanceId: {params.serviceInstanceId || 'missing'}
+          </Text>
+          <Text style={[styles.errorText, {color: colors.mutedForeground, fontSize: 12}]}>
+            serviceTypeId: {params.serviceTypeId || 'missing'}
           </Text>
         </View>
       </View>
@@ -558,28 +613,50 @@ export default function BookingScreen() {
               />
             </View>
 
+            {/* Success Message */}
+            {reservationSuccess && (
+              <View style={[styles.successCard, {backgroundColor: "#10b981" + "20", borderColor: "#10b981"}]}>
+                <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+                <View style={styles.successTextContainer}>
+                  <Text style={[styles.successTitle, {color: "#10b981"}]}>
+                    ¡Solicitud Enviada Exitosamente!
+                  </Text>
+                  <Text style={[styles.successText, {color: colors.foreground}]}>
+                    Tu solicitud de reserva ha sido enviada y está pendiente de confirmación por parte del proveedor.
+                  </Text>
+                </View>
+              </View>
+            )}
+
             {/* Info */}
-            <View style={[styles.infoCard, {backgroundColor: "#3b82f6" + "10"}]}>
-              <Ionicons name="information-circle" size={20} color="#3b82f6" />
-              <Text style={[styles.infoText, {color: "#3b82f6"}]}>
-                Tu solicitud será enviada al proveedor. Te notificaremos cuando la acepte o rechace.
-              </Text>
-            </View>
+            {!reservationSuccess && (
+              <View style={[styles.infoCard, {backgroundColor: "#3b82f6" + "10"}]}>
+                <Ionicons name="information-circle" size={20} color="#3b82f6" />
+                <Text style={[styles.infoText, {color: "#3b82f6"}]}>
+                  Tu solicitud será enviada al proveedor. Te notificaremos cuando la acepte o rechace.
+                </Text>
+              </View>
+            )}
 
             {/* Confirm Button */}
             <TouchableOpacity
               style={[
                 styles.confirmButton,
                 {
-                  backgroundColor: isSubmitting ? colors.muted : colors.primary,
-                  opacity: isSubmitting ? 0.6 : 1,
+                  backgroundColor: (isSubmitting || reservationSuccess) ? colors.muted : colors.primary,
+                  opacity: (isSubmitting || reservationSuccess) ? 0.6 : 1,
                 },
               ]}
               onPress={handleConfirmBooking}
-              disabled={isSubmitting}
+              disabled={isSubmitting || reservationSuccess}
               activeOpacity={0.9}>
               {isSubmitting ? (
                 <ActivityIndicator color="#ffffff" />
+              ) : reservationSuccess ? (
+                <>
+                  <Ionicons name="checkmark-circle" size={22} color="#ffffff" />
+                  <Text style={styles.confirmButtonText}>Solicitud Enviada</Text>
+                </>
               ) : (
                 <>
                   <Ionicons name="checkmark-circle" size={22} color="#ffffff" />
@@ -763,6 +840,28 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     lineHeight: 18,
+    fontWeight: "500",
+  },
+  successCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    gap: 12,
+    marginBottom: 20,
+  },
+  successTextContainer: {
+    flex: 1,
+  },
+  successTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  successText: {
+    fontSize: 14,
+    lineHeight: 20,
     fontWeight: "500",
   },
   confirmButton: {

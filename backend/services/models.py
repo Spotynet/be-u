@@ -87,6 +87,16 @@ class ServiceInPlace(models.Model):
 
     def __str__(self):
         return f"{self.service.name} at {self.place.name}"
+    
+    @property
+    def display_name(self):
+        """Get the service type name for display"""
+        return self.service.name
+    
+    @property
+    def service_type_id(self):
+        """Get the ServicesType ID"""
+        return self.service.id
 
 
 class ProfessionalService(models.Model):
@@ -105,6 +115,16 @@ class ProfessionalService(models.Model):
 
     def __str__(self):
         return f"{self.service.name} by {self.professional.name}"
+    
+    @property
+    def display_name(self):
+        """Get the service type name for display"""
+        return self.service.name
+    
+    @property
+    def service_type_id(self):
+        """Get the ServicesType ID"""
+        return self.service.id
 
 
 # ======================

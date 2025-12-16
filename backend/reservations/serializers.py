@@ -121,15 +121,19 @@ class ReservationSerializer(serializers.ModelSerializer):
 
 class ReservationCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating reservations with validation"""
-    provider_type = serializers.ChoiceField(choices=['professional', 'place'], write_only=True)
-    provider_id = serializers.IntegerField(write_only=True)
-    service_instance_type = serializers.ChoiceField(choices=['place_service', 'professional_service'], write_only=True, required=False)
-    service_instance_id = serializers.IntegerField(write_only=True, required=False)
+    service_instance_type = serializers.ChoiceField(
+        choices=['place_service', 'professional_service'], 
+        write_only=True,
+        help_text="Type of service instance (place_service or professional_service)"
+    )
+    service_instance_id = serializers.IntegerField(
+        write_only=True,
+        help_text="ID of the ServiceInPlace or ProfessionalService"
+    )
     
     class Meta:
         model = Reservation
         fields = [
-            'service', 'provider_type', 'provider_id',
             'service_instance_type', 'service_instance_id',
             'date', 'time', 'notes'
         ]
@@ -139,109 +143,69 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
         if attrs['date'] < datetime.now().date():
             raise serializers.ValidationError("Cannot book appointments in the past")
         
-        # Validate provider exists
-        # provider_id can be:
-        # 1. ProfessionalProfile/PlaceProfile ID (direct)
-        # 2. User ID (get profile from user)
-        # 3. PublicProfile ID (get user from public profile, then get profile)
-        provider_type = attrs['provider_type']
-        provider_id = attrs['provider_id']
+        # Validate and extract data from service instance
+        service_instance_type = attrs['service_instance_type']
+        service_instance_id = attrs['service_instance_id']
         
-        if provider_type == 'professional':
-            provider = None
-            try:
-                # First try to get by profile ID
-                provider = ProfessionalProfile.objects.get(id=provider_id)
-            except ProfessionalProfile.DoesNotExist:
-                try:
-                    # If not found, try to get by user ID
-                    from users.models import User
-                    user = User.objects.get(id=provider_id)
-                    if hasattr(user, 'professional_profile'):
-                        provider = user.professional_profile
-                except (User.DoesNotExist, AttributeError):
-                    try:
-                        # If still not found, try to get by public profile ID
-                        from users.models import PublicProfile
-                        public_profile = PublicProfile.objects.get(id=provider_id, profile_type='PROFESSIONAL')
-                        if hasattr(public_profile.user, 'professional_profile'):
-                            provider = public_profile.user.professional_profile
-                    except (PublicProfile.DoesNotExist, AttributeError):
-                        pass
-            
-            if not provider:
-                raise serializers.ValidationError("Professional not found")
-            
-            attrs['provider_content_type'] = ContentType.objects.get_for_model(ProfessionalProfile)
-            attrs['provider_object_id'] = provider.id
-        elif provider_type == 'place':
-            provider = None
-            try:
-                # First try to get by profile ID
-                provider = PlaceProfile.objects.get(id=provider_id)
-            except PlaceProfile.DoesNotExist:
-                try:
-                    # If not found, try to get by user ID
-                    from users.models import User
-                    user = User.objects.get(id=provider_id)
-                    if hasattr(user, 'place_profile'):
-                        provider = user.place_profile
-                except (User.DoesNotExist, AttributeError):
-                    try:
-                        # If still not found, try to get by public profile ID
-                        from users.models import PublicProfile
-                        public_profile = PublicProfile.objects.get(id=provider_id, profile_type='PLACE')
-                        if hasattr(public_profile.user, 'place_profile'):
-                            provider = public_profile.user.place_profile
-                    except (PublicProfile.DoesNotExist, AttributeError):
-                        pass
-            
-            if not provider:
-                raise serializers.ValidationError("Place not found")
-            
-            attrs['provider_content_type'] = ContentType.objects.get_for_model(PlaceProfile)
-            attrs['provider_object_id'] = provider.id
-        
-        # Get service duration
-        service = attrs['service']
+        service_instance = None
+        provider = None
+        service_type = None
         duration = None
         
-        # Try to get duration from service instance
-        if 'service_instance_type' in attrs and 'service_instance_id' in attrs:
-            if attrs['service_instance_type'] == 'place_service':
-                try:
-                    service_instance = ServiceInPlace.objects.get(id=attrs['service_instance_id'])
-                    duration = service_instance.time
-                    attrs['_service_instance_content_type'] = ContentType.objects.get_for_model(ServiceInPlace)
-                    attrs['_service_instance_object_id'] = service_instance.id
-                except ServiceInPlace.DoesNotExist:
-                    pass
-            elif attrs['service_instance_type'] == 'professional_service':
-                try:
-                    service_instance = ProfessionalService.objects.get(id=attrs['service_instance_id'])
-                    duration = service_instance.time
-                    attrs['_service_instance_content_type'] = ContentType.objects.get_for_model(ProfessionalService)
-                    attrs['_service_instance_object_id'] = service_instance.id
-                except ProfessionalService.DoesNotExist:
-                    pass
+        # Get service instance and extract all necessary data
+        if service_instance_type == 'place_service':
+            try:
+                service_instance = ServiceInPlace.objects.select_related('service', 'place').get(id=service_instance_id)
+                provider = service_instance.place
+                service_type = service_instance.service
+                duration = service_instance.time
+                
+                # Set provider info
+                attrs['provider_content_type'] = ContentType.objects.get_for_model(PlaceProfile)
+                attrs['provider_object_id'] = provider.id
+                
+            except ServiceInPlace.DoesNotExist:
+                raise serializers.ValidationError(f"Service instance with ID {service_instance_id} not found")
+                
+        elif service_instance_type == 'professional_service':
+            try:
+                service_instance = ProfessionalService.objects.select_related('service', 'professional').get(id=service_instance_id)
+                provider = service_instance.professional
+                service_type = service_instance.service
+                duration = service_instance.time
+                
+                # Set provider info
+                attrs['provider_content_type'] = ContentType.objects.get_for_model(ProfessionalProfile)
+                attrs['provider_object_id'] = provider.id
+                
+            except ProfessionalService.DoesNotExist:
+                raise serializers.ValidationError(f"Service instance with ID {service_instance_id} not found")
+        else:
+            raise serializers.ValidationError("Invalid service_instance_type")
         
+        # Set extracted data
+        attrs['_service'] = service_type
         attrs['_duration'] = duration
+        attrs['_service_instance_content_type'] = ContentType.objects.get_for_model(type(service_instance))
+        attrs['_service_instance_object_id'] = service_instance.id
         
         return attrs
     
     def create(self, validated_data):
-        # Extract custom fields
-        validated_data.pop('provider_type')
-        validated_data.pop('provider_id')
+        # Extract custom fields from validation
         validated_data.pop('service_instance_type', None)
         validated_data.pop('service_instance_id', None)
+        
+        # Set service (ServicesType)
+        service = validated_data.pop('_service')
+        validated_data['service'] = service
         
         # Set duration
         duration = validated_data.pop('_duration', None)
         if duration:
             validated_data['duration'] = duration
         
-        # Set service instance if available
+        # Set service instance reference
         service_instance_ct = validated_data.pop('_service_instance_content_type', None)
         service_instance_id = validated_data.pop('_service_instance_object_id', None)
         if service_instance_ct and service_instance_id:
@@ -249,7 +213,6 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
             validated_data['service_instance_id'] = service_instance_id
         
         # Get or create client profile from request user
-        # Any user can make reservations, so we ensure they have a ClientProfile
         user = self.context['request'].user
         try:
             client_profile = user.client_profile

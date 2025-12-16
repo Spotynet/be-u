@@ -35,18 +35,46 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
   const router = useRouter();
 
   const handleBookNow = () => {
-    onClose(); // Close modal first
+    // Extract the correct service data
+    const serviceInstanceId = service.id;
+    const serviceTypeId = service.service_type_id || service.service || (service.service_details?.id);
+    const serviceName = service.name || service.service_details?.name || 'Servicio';
+    const durationMinutes = service.duration_minutes || service.duration || service.time || 60;
+    
+    // Debug log
+    console.log('ServiceDetailModal - Navigating with:', {
+      serviceInstanceId,
+      serviceTypeId,
+      serviceName,
+      service,
+    });
+    
+    // Validate required fields before closing modal
+    if (!serviceInstanceId || !serviceTypeId) {
+      console.error('❌ Missing required service data:', { 
+        serviceInstanceId, 
+        serviceTypeId, 
+        service 
+      });
+      // Don't navigate if data is missing
+      alert('Error: No se pudo obtener la información del servicio');
+      return;
+    }
+    
+    onClose(); // Close modal only after validation
+    
     // Navigate to booking screen with service info
     router.push({
       pathname: '/booking',
       params: {
-        serviceId: service.id.toString(),
-        serviceName: service.name,
+        serviceInstanceId: serviceInstanceId.toString(),
+        serviceTypeId: serviceTypeId.toString(),
+        serviceName: serviceName,
         serviceType: providerType === 'place' ? 'place_service' : 'professional_service',
-        providerId: providerId.toString(),
+        providerId: providerId?.toString() || '0',
         providerName: providerName || '',
         price: service.price?.toString() || '0',
-        duration: (service.duration_minutes || service.duration || service.time || 60).toString(),
+        duration: durationMinutes?.toString() || '60',
       },
     });
   };
