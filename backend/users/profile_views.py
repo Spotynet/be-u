@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from datetime import datetime, timedelta, time as dt_time
 from .models import ProfessionalProfile, PlaceProfile
-from .profile_models import ProfileImage, CustomService, AvailabilitySchedule, TimeSlot
+from .profile_models import ProfileImage, CustomService, AvailabilitySchedule, TimeSlot, BreakTime
 from .profile_serializers import (
     ProfileImageSerializer, CustomServiceSerializer, 
     AvailabilityScheduleSerializer, TimeSlotSerializer
@@ -26,6 +26,9 @@ def get_profile_instance(user):
                 'last_name': user.last_name or 'User'
             }
         )
+        # Ensure profile is saved and has an ID
+        if not profile.id:
+            profile.save()
         return profile
     elif user.role == 'PLACE':
         profile, created = PlaceProfile.objects.get_or_create(
@@ -37,6 +40,9 @@ def get_profile_instance(user):
                 'owner': user
             }
         )
+        # Ensure profile is saved and has an ID
+        if not profile.id:
+            profile.save()
         return profile
     else:
         return None
@@ -247,7 +253,18 @@ def availability_schedule_view(request):
             status=status.HTTP_403_FORBIDDEN
         )
     
+    # Ensure profile has an ID (save if needed)
+    if not profile.id:
+        profile.save()
+    
     content_type, object_id = get_content_type_and_id(profile)
+    
+    # Validate that we have valid content_type and object_id
+    if not content_type or object_id is None:
+        return Response(
+            {"error": "Could not determine profile type or ID"}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
     
     if request.method == 'GET':
         schedules = AvailabilitySchedule.objects.filter(
@@ -261,7 +278,14 @@ def availability_schedule_view(request):
         # Handle bulk update of availability schedule
         data = request.data
         
-        # Clear existing schedule
+        # Ensure data is a list
+        if not isinstance(data, list):
+            return Response(
+                {"error": "Expected a list of schedule objects"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Clear existing schedule (this will cascade delete time_slots and breaks)
         AvailabilitySchedule.objects.filter(
             content_type=content_type, 
             object_id=object_id
@@ -270,23 +294,26 @@ def availability_schedule_view(request):
         # Create new schedule
         created_schedules = []
         for day_data in data:
-            day_data['content_type'] = content_type.id
-            day_data['object_id'] = object_id
-            
-            # Create the schedule
-            schedule_serializer = AvailabilityScheduleSerializer(data=day_data)
+            # Create the schedule (time_slots will be created automatically by serializer)
+            # Pass content_type and object_id via context
+            schedule_serializer = AvailabilityScheduleSerializer(
+                data=day_data,
+                context={'content_type': content_type, 'object_id': object_id}
+            )
             if schedule_serializer.is_valid():
-                schedule = schedule_serializer.save()
-                created_schedules.append(schedule)
-                
-                # Create time slots if provided
-                time_slots_data = day_data.get('time_slots', [])
-                for slot_data in time_slots_data:
-                    slot_data['schedule'] = schedule.id
-                    slot_serializer = TimeSlotSerializer(data=slot_data)
-                    if slot_serializer.is_valid():
-                        slot_serializer.save()
+                try:
+                    schedule = schedule_serializer.save()
+                    created_schedules.append(schedule)
+                except Exception as e:
+                    import traceback
+                    print(f"Error creating schedule: {e}")
+                    print(traceback.format_exc())
+                    return Response(
+                        {"error": f"Error creating schedule: {str(e)}"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
             else:
+                print(f"Serializer errors: {schedule_serializer.errors}")
                 return Response(schedule_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         # Return the created schedules

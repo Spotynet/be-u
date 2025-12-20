@@ -80,6 +80,12 @@ export default function AvailabilityScreen() {
   const [schedule, setSchedule] = useState<WeeklySchedule>({});
   const [hasChanges, setHasChanges] = useState(false);
 
+  // Debug: log schedule changes
+  useEffect(() => {
+    console.log("Schedule state updated:", schedule);
+    console.log("Has changes:", hasChanges);
+  }, [schedule, hasChanges]);
+
   // 7-day window for events (today -> 6 días)
   const {rangeStartISO, rangeEndISO, dayLabels} = useMemo(() => {
     const start = new Date();
@@ -172,13 +178,13 @@ export default function AvailabilityScreen() {
     } else if (!isLoading && availability.length === 0 && providerId) {
       // Default schedule (Monday-Friday, 9AM-6PM) - only set if we've already fetched
       setSchedule({
-        0: {enabled: true, start_time: "09:00", end_time: "18:00"},
-        1: {enabled: true, start_time: "09:00", end_time: "18:00"},
-        2: {enabled: true, start_time: "09:00", end_time: "18:00"},
-        3: {enabled: true, start_time: "09:00", end_time: "18:00"},
-        4: {enabled: true, start_time: "09:00", end_time: "18:00"},
-        5: {enabled: false, start_time: "09:00", end_time: "18:00"},
-        6: {enabled: false, start_time: "09:00", end_time: "18:00"},
+        0: {enabled: true, start_time: "09:00", end_time: "18:00", breaks: []},
+        1: {enabled: true, start_time: "09:00", end_time: "18:00", breaks: []},
+        2: {enabled: true, start_time: "09:00", end_time: "18:00", breaks: []},
+        3: {enabled: true, start_time: "09:00", end_time: "18:00", breaks: []},
+        4: {enabled: true, start_time: "09:00", end_time: "18:00", breaks: []},
+        5: {enabled: false, start_time: "09:00", end_time: "18:00", breaks: []},
+        6: {enabled: false, start_time: "09:00", end_time: "18:00", breaks: []},
       });
     }
   }, [availability, isLoading, providerId]);
@@ -189,13 +195,19 @@ export default function AvailabilityScreen() {
   };
 
   const handleSave = async () => {
+    console.log("handleSave called", { schedule, providerId, providerType });
     try {
+      if (!schedule || Object.keys(schedule).length === 0) {
+        Alert.alert("Error", "No hay cambios para guardar");
+        return;
+      }
       await updateAvailability(schedule);
       setHasChanges(false);
-      // Refresh availability after save
+      // Refresh availability after save (already done in hook, but ensure state is updated)
       await fetchAvailability();
     } catch (err) {
-      // Error already handled in hook
+      // Error already handled in hook with Alert
+      console.error("Error saving availability:", err);
     }
   };
 
@@ -261,6 +273,40 @@ export default function AvailabilityScreen() {
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
+      {/* Save Button - Fixed at bottom */}
+      {hasChanges && (
+        <View
+          style={[
+            styles.saveContainer,
+            {
+              backgroundColor: colors.background,
+              borderTopColor: colors.border,
+              paddingBottom: insets.bottom + 16,
+            },
+          ]}>
+          <TouchableOpacity
+            style={[
+              styles.saveButton, 
+              {backgroundColor: colors.primary},
+              isLoading && {opacity: 0.6}
+            ]}
+            onPress={() => {
+              console.log("Save button pressed");
+              handleSave();
+            }}
+            disabled={isLoading}
+            activeOpacity={0.9}>
+            {isLoading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle" size={22} color="#ffffff" />
+                <Text style={styles.saveButtonText}>Guardar Horario</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
       {/* Header */}
       <View
         style={[
@@ -292,7 +338,10 @@ export default function AvailabilityScreen() {
           </Text>
         </View>
       ) : (
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={styles.scrollView} 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}>
           <View style={[styles.infoCard, {backgroundColor: colors.primary + "10"}]}>
             <Ionicons name="information-circle" size={24} color={colors.primary} />
             <Text style={[styles.infoText, {color: colors.primary}]}>
@@ -301,195 +350,157 @@ export default function AvailabilityScreen() {
             </Text>
           </View>
 
-          {/* Google Calendar Integration Notice */}
+          {/* Google Calendar Integration - Unified Section */}
           <View style={[styles.calendarCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
             <View style={styles.calendarCardHeader}>
               <View style={styles.calendarCardLeft}>
                 <Ionicons name="calendar" size={20} color={colors.primary} />
                 <Text style={[styles.calendarCardTitle, {color: colors.foreground}]}>
-                  Sincronización con Google Calendar
+                  Google Calendar
                 </Text>
               </View>
-              <CalendarStatusBadge
-                isConnected={calendarStatus?.is_connected || false}
-                hasCalendar={true}
-                size="small"
-                showLabel={false}
-              />
+              <View style={styles.calendarCardRight}>
+                <CalendarStatusBadge
+                  isConnected={calendarStatus?.is_connected || false}
+                  hasCalendar={true}
+                  size="small"
+                  showLabel={false}
+                />
+                {calendarStatus?.is_connected && (
+                  <TouchableOpacity
+                    style={styles.refreshButton}
+                    onPress={() => fetchEvents(rangeStartISO, rangeEndISO, 100)}
+                    disabled={loadingEvents}
+                    activeOpacity={0.7}>
+                    {loadingEvents ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <Ionicons name="refresh" size={18} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
+            
             <Text style={[styles.calendarCardText, {color: colors.mutedForeground}]}>
               {calendarStatus?.is_connected
                 ? "Tu Google Calendar está conectado. Los eventos de tu calendario se mostrarán como no disponibles automáticamente."
                 : "Conecta tu Google Calendar para sincronizar automáticamente tu disponibilidad. Los horarios ocupados en tu calendario personal se reflejarán aquí."}
             </Text>
+
+            {/* Events Preview - Only show if connected */}
+            {calendarStatus?.is_connected && (
+              <View style={styles.eventsPreview}>
+                {loadingEvents && events.length === 0 ? (
+                  <View style={styles.eventsLoading}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={[styles.eventsLoadingText, {color: colors.mutedForeground}]}>
+                      Cargando eventos...
+                    </Text>
+                  </View>
+                ) : Object.keys(groupedEvents).length === 0 ? (
+                  <View style={styles.eventsEmpty}>
+                    <Ionicons name="calendar-outline" size={32} color={colors.mutedForeground} />
+                    <Text style={[styles.eventsEmptyTitle, {color: colors.foreground}]}>
+                      Sin eventos esta semana
+                    </Text>
+                    <Text style={[styles.eventsEmptyText, {color: colors.mutedForeground}]}>
+                      Los eventos de tu Google Calendar aparecerán aquí.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.eventsList}>
+                    {Object.keys(groupedEvents)
+                      .sort()
+                      .slice(0, 3) // Show only first 3 days
+                      .map((dayKey) => {
+                        const dayEvents = groupedEvents[dayKey];
+                        const labels = dayLabels[dayKey] || {label: dayKey, shortLabel: dayKey};
+                        return (
+                          <View key={dayKey} style={[styles.dayGroup, {borderColor: colors.border}]}>
+                            <View style={styles.dayGroupHeader}>
+                              <Text style={[styles.dayGroupLabel, {color: colors.foreground}]}>
+                                {labels.shortLabel}
+                              </Text>
+                              <Text style={[styles.dayGroupCount, {color: colors.mutedForeground}]}>
+                                {dayEvents.length} {dayEvents.length === 1 ? "evento" : "eventos"}
+                              </Text>
+                            </View>
+                            {dayEvents.slice(0, 2).map((evt) => (
+                              <View
+                                key={evt.id}
+                                style={[
+                                  styles.eventItem,
+                                  {backgroundColor: colors.background, borderColor: colors.border},
+                                ]}>
+                                <View style={styles.eventItemHeader}>
+                                  <Text
+                                    style={[styles.eventTitle, {color: colors.foreground}]}
+                                    numberOfLines={1}>
+                                    {evt.summary || "Sin título"}
+                                  </Text>
+                                  <Ionicons name="ellipse" size={8} color={colors.primary} />
+                                </View>
+                                <Text style={[styles.eventTime, {color: colors.mutedForeground}]}>
+                                  {formatEventTime(evt.start, evt.end, (evt as any).is_all_day)}
+                                </Text>
+                              </View>
+                            ))}
+                            {dayEvents.length > 2 && (
+                              <Text style={[styles.moreEventsText, {color: colors.mutedForeground}]}>
+                                +{dayEvents.length - 2} más
+                              </Text>
+                            )}
+                          </View>
+                        );
+                      })}
+                  </View>
+                )}
+
+                {eventsError && (
+                  <View style={[styles.eventsError, {backgroundColor: "#FEE8E7"}]}>
+                    <Ionicons name="warning" size={16} color="#C62828" />
+                    <Text style={[styles.eventsErrorText, {color: "#C62828"}]}>
+                      {eventsError}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Action Buttons */}
             <View style={styles.calendarActions}>
-              {!calendarStatus?.is_connected && (
+              {!calendarStatus?.is_connected ? (
                 <TouchableOpacity
                   style={[styles.calendarLinkButton, {borderColor: colors.primary}]}
-                  onPress={() => {
-                    router.push("/settings");
-                  }}>
+                  onPress={() => router.push("/settings")}>
                   <Text style={[styles.calendarLinkText, {color: colors.primary}]}>
                     Conectar Google Calendar →
                   </Text>
                 </TouchableOpacity>
-              )}
-              {calendarStatus?.is_connected && (
+              ) : (
                 <TouchableOpacity
                   style={[styles.calendarLinkButton, {borderColor: colors.primary, backgroundColor: colors.primary + "10"}]}
-                  onPress={() => {
-                    router.push("/agenda");
-                  }}>
+                  onPress={() => router.push("/agenda")}>
                   <Ionicons name="calendar-outline" size={16} color={colors.primary} />
                   <Text style={[styles.calendarLinkText, {color: colors.primary}]}>
-                    Ver Mi Agenda
+                    Ver agenda completa →
                   </Text>
                 </TouchableOpacity>
               )}
             </View>
           </View>
 
-          {/* Google Calendar events preview */}
-          {calendarStatus?.is_connected && (
-            <View style={[styles.eventsCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-              <View style={styles.eventsHeader}>
-                <View style={styles.eventsHeaderLeft}>
-                  <Ionicons name="list-circle" size={22} color={colors.primary} />
-                  <View>
-                    <Text style={[styles.eventsTitle, {color: colors.foreground}]}>
-                      Próximos eventos (7 días)
-                    </Text>
-                    <Text style={[styles.eventsSubtitle, {color: colors.mutedForeground}]}>
-                      Tus eventos de Google Calendar se muestran aquí
-                    </Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  style={styles.refreshButton}
-                  onPress={() => fetchEvents(rangeStartISO, rangeEndISO, 100)}
-                  disabled={loadingEvents}
-                  activeOpacity={0.7}>
-                  {loadingEvents ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : (
-                    <Ionicons name="refresh" size={18} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              {loadingEvents && events.length === 0 ? (
-                <View style={styles.eventsLoading}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={[styles.eventsLoadingText, {color: colors.mutedForeground}]}>
-                    Cargando eventos...
-                  </Text>
-                </View>
-              ) : Object.keys(groupedEvents).length === 0 ? (
-                <View style={styles.eventsEmpty}>
-                  <Ionicons name="calendar-outline" size={40} color={colors.mutedForeground} />
-                  <Text style={[styles.eventsEmptyTitle, {color: colors.foreground}]}>
-                    Sin eventos esta semana
-                  </Text>
-                  <Text style={[styles.eventsEmptyText, {color: colors.mutedForeground}]}>
-                    Los eventos de tu Google Calendar aparecerán aquí.
-                  </Text>
-                </View>
-              ) : (
-                Object.keys(groupedEvents)
-                  .sort()
-                  .map((dayKey) => {
-                    const dayEvents = groupedEvents[dayKey];
-                    const labels = dayLabels[dayKey] || {label: dayKey, shortLabel: dayKey};
-                    return (
-                      <View key={dayKey} style={[styles.dayGroup, {borderColor: colors.border}]}>
-                        <View style={styles.dayGroupHeader}>
-                          <Text style={[styles.dayGroupLabel, {color: colors.foreground}]}>
-                            {labels.label}
-                          </Text>
-                          <Text style={[styles.dayGroupCount, {color: colors.mutedForeground}]}>
-                            {dayEvents.length} {dayEvents.length === 1 ? "evento" : "eventos"}
-                          </Text>
-                        </View>
-                        {dayEvents.map((evt) => (
-                          <View
-                            key={evt.id}
-                            style={[
-                              styles.eventItem,
-                              {backgroundColor: colors.background, borderColor: colors.border},
-                            ]}>
-                            <View style={styles.eventItemHeader}>
-                              <Text
-                                style={[styles.eventTitle, {color: colors.foreground}]}
-                                numberOfLines={1}>
-                                {evt.summary || "Sin título"}
-                              </Text>
-                              <Ionicons name="ellipse" size={10} color={colors.primary} />
-                            </View>
-                            <Text style={[styles.eventTime, {color: colors.mutedForeground}]}>
-                              {formatEventTime(evt.start, evt.end, (evt as any).is_all_day)}
-                            </Text>
-                            {evt.location ? (
-                              <Text style={[styles.eventLocation, {color: colors.mutedForeground}]}>
-                                {evt.location}
-                              </Text>
-                            ) : null}
-                          </View>
-                        ))}
-                      </View>
-                    );
-                  })
-              )}
-
-              {eventsError && (
-                <View style={[styles.eventsError, {backgroundColor: "#FEE8E7"}]}>
-                  <Ionicons name="warning" size={16} color="#C62828" />
-                  <Text style={[styles.eventsErrorText, {color: "#C62828"}]}>
-                    {eventsError}
-                  </Text>
-                </View>
-              )}
-
-              <TouchableOpacity
-                style={[styles.fullAgendaButton, {borderColor: colors.primary}]}
-                onPress={() => router.push("/agenda")}>
-                <Text style={[styles.fullAgendaText, {color: colors.primary}]}>
-                  Ver agenda completa →
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <AvailabilityEditor schedule={schedule} onChange={handleScheduleChange} />
+          <AvailabilityEditor 
+            schedule={schedule} 
+            onChange={(newSchedule) => {
+              console.log("Schedule changed:", newSchedule);
+              handleScheduleChange(newSchedule);
+            }} 
+          />
         </ScrollView>
       )}
 
-      {/* Save Button */}
-      {hasChanges && (
-        <View
-          style={[
-            styles.saveContainer,
-            {
-              backgroundColor: colors.background,
-              borderTopColor: colors.border,
-              paddingBottom: insets.bottom + 16,
-            },
-          ]}>
-          <TouchableOpacity
-            style={[styles.saveButton, {backgroundColor: colors.primary}]}
-            onPress={handleSave}
-            disabled={isLoading}
-            activeOpacity={0.9}>
-            {isLoading ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-circle" size={22} color="#ffffff" />
-                <Text style={styles.saveButtonText}>Guardar Horario</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
     </View>
   );
 }
@@ -518,6 +529,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100, // Space for save button
   },
   loadingContainer: {
     flex: 1,
@@ -559,9 +573,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   saveContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     padding: 16,
     paddingBottom: 16,
     borderTopWidth: 1,
+    zIndex: 10,
+    elevation: 10, // For Android
+    shadowColor: '#000', // For iOS
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   saveButton: {
     flexDirection: "row",
@@ -595,6 +619,11 @@ const styles = StyleSheet.create({
     gap: 8,
     flex: 1,
   },
+  calendarCardRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   calendarCardTitle: {
     fontSize: 15,
     fontWeight: "600",
@@ -604,10 +633,18 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 12,
   },
+  eventsPreview: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  eventsList: {
+    gap: 12,
+  },
   calendarActions: {
     flexDirection: "row",
     gap: 8,
     flexWrap: "wrap",
+    marginTop: 4,
   },
   calendarLinkButton: {
     flexDirection: "row",
@@ -623,33 +660,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  eventsCard: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 12,
-  },
-  eventsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
-  },
-  eventsHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flex: 1,
-  },
-  eventsTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  eventsSubtitle: {
+  moreEventsText: {
     fontSize: 12,
-    marginTop: 2,
+    fontStyle: "italic",
+    marginTop: 4,
+    textAlign: "right",
   },
   refreshButton: {
     padding: 8,
@@ -669,7 +684,7 @@ const styles = StyleSheet.create({
   eventsEmpty: {
     alignItems: "center",
     gap: 6,
-    paddingVertical: 6,
+    paddingVertical: 12,
   },
   eventsEmptyTitle: {
     fontSize: 15,
@@ -681,9 +696,9 @@ const styles = StyleSheet.create({
   },
   dayGroup: {
     borderTopWidth: 1,
-    paddingTop: 10,
-    marginTop: 10,
-    gap: 8,
+    paddingTop: 8,
+    marginTop: 8,
+    gap: 6,
   },
   dayGroupHeader: {
     flexDirection: "row",
@@ -701,9 +716,10 @@ const styles = StyleSheet.create({
   },
   eventItem: {
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    gap: 6,
+    borderRadius: 8,
+    padding: 10,
+    gap: 4,
+    marginTop: 6,
   },
   eventItemHeader: {
     flexDirection: "row",
@@ -733,18 +749,6 @@ const styles = StyleSheet.create({
   eventsErrorText: {
     fontSize: 13,
     flex: 1,
-  },
-  fullAgendaButton: {
-    marginTop: 4,
-    alignSelf: "flex-start",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  fullAgendaText: {
-    fontSize: 14,
-    fontWeight: "700",
   },
 });
 

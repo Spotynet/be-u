@@ -13,9 +13,33 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     user_last_name = serializers.CharField(source='user.last_name', read_only=True)
     user_phone = serializers.CharField(source='user.phone', read_only=True)
     user_country = serializers.CharField(source='user.country', read_only=True)
-    user_image = serializers.ImageField(source='user.image', read_only=True)
+    user_image = serializers.SerializerMethodField()
     display_name = serializers.CharField(read_only=True)
     availability = serializers.SerializerMethodField()
+    
+    def get_user_image(self, obj):
+        """Get user image URL with proper absolute URL handling"""
+        if obj.user and obj.user.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.user.image.url)
+            # Fallback: if no request context, try to build URL manually
+            from django.conf import settings
+            if hasattr(settings, 'USE_S3') and settings.USE_S3:
+                # S3 URL - should already be absolute
+                return obj.user.image.url if obj.user.image.url.startswith('http') else f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{obj.user.image.name}"
+            else:
+                # Local storage - build absolute URL
+                media_url = settings.MEDIA_URL
+                if not media_url.startswith('http'):
+                    # Need to construct full URL
+                    # Try to get domain from request if available
+                    if request:
+                        scheme = request.scheme
+                        host = request.get_host()
+                        return f"{scheme}://{host}{media_url}{obj.user.image.name}"
+                return obj.user.image.url
+        return None
     
     class Meta:
         model = PublicProfile
@@ -114,7 +138,8 @@ class PublicProfileCreateSerializer(serializers.ModelSerializer):
 
 class PublicProfileUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating PublicProfile"""
-    photo = serializers.ImageField(write_only=True, required=False, help_text="Profile photo (updates user.image)")
+    photo = serializers.ImageField(write_only=True, required=False, allow_null=True, help_text="Profile photo (updates user.image). Send null/empty to delete.")
+    delete_photo = serializers.BooleanField(write_only=True, required=False, help_text="Set to true to delete the profile photo")
     
     class Meta:
         model = PublicProfile
@@ -122,22 +147,38 @@ class PublicProfileUpdateSerializer(serializers.ModelSerializer):
             'name', 'description', 'category', 'sub_categories',
             'images', 'linked_pros_place', 'has_calendar',
             'street', 'number_ext', 'number_int', 'postal_code', 'city', 'country',
-            'last_name', 'bio', 'latitude', 'longitude', 'photo'
+            'last_name', 'bio', 'latitude', 'longitude', 'photo', 'delete_photo'
         ]
     
     def update(self, instance, validated_data):
-        """Update profile and handle photo upload to user.image"""
+        """Update profile and handle photo upload/delete to user.image"""
         photo = validated_data.pop('photo', None)
+        delete_photo = validated_data.pop('delete_photo', False)
         
         # Update PublicProfile fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
         
-        # Update user.image if photo provided
-        if photo:
-            instance.user.image = photo
+        # Handle photo deletion
+        if delete_photo:
+            if instance.user.image:
+                instance.user.image.delete(save=False)
+            instance.user.image = None
             instance.user.save(update_fields=['image'])
+        # Handle photo update
+        elif photo is not None:
+            # Check if photo is an empty string or None (deletion request via empty file)
+            if photo == '' or (hasattr(photo, 'name') and not photo.name):
+                # Delete the photo
+                if instance.user.image:
+                    instance.user.image.delete(save=False)
+                instance.user.image = None
+                instance.user.save(update_fields=['image'])
+            else:
+                # Update with new photo
+                instance.user.image = photo
+                instance.user.save(update_fields=['image'])
         
         return instance
 

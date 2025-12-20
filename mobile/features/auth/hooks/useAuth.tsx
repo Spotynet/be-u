@@ -145,11 +145,21 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
 
   const refreshToken = async () => {
     try {
-      // Check if still authenticated
-      await checkAuthStatus();
+      // Refresh user data by fetching latest profile
+      const response = await authApi.getProfile();
+      setState((prev) => ({
+        ...prev,
+        user: response.data.user, // Update user with latest data including username
+        isLoading: false,
+      }));
     } catch (error) {
-      // If refresh fails, logout user
-      logout();
+      // If refresh fails, try to check auth status
+      try {
+        await checkAuthStatus();
+      } catch (e) {
+        // If that also fails, logout user
+        logout();
+      }
     }
   };
 

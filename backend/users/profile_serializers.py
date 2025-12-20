@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .profile_models import (
-    ProfileImage, CustomService, AvailabilitySchedule, TimeSlot,
+    ProfileImage, CustomService, AvailabilitySchedule, TimeSlot, BreakTime,
     PlaceProfessionalLink, LinkedAvailabilitySchedule, LinkedTimeSlot
 )
 from .models import ProfessionalProfile, PlaceProfile, User
@@ -14,13 +14,63 @@ class TimeSlotSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 
+class BreakTimeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BreakTime
+        fields = ['id', 'start_time', 'end_time', 'label', 'is_active']
+        read_only_fields = ['id']
+
+
 class AvailabilityScheduleSerializer(serializers.ModelSerializer):
-    time_slots = TimeSlotSerializer(many=True, read_only=True)
+    time_slots = TimeSlotSerializer(many=True, required=False)
+    breaks = BreakTimeSerializer(many=True, required=False)
     
     class Meta:
         model = AvailabilitySchedule
-        fields = ['id', 'day_of_week', 'is_available', 'time_slots']
+        fields = ['id', 'day_of_week', 'is_available', 'time_slots', 'breaks']
         read_only_fields = ['id']
+    
+    def create(self, validated_data):
+        time_slots_data = validated_data.pop('time_slots', [])
+        breaks_data = validated_data.pop('breaks', [])
+        
+        # Get content_type and object_id from context (passed when creating serializer)
+        content_type = None
+        object_id = None
+        if hasattr(self, 'context') and self.context:
+            content_type = self.context.get('content_type')
+            object_id = self.context.get('object_id')
+        
+        # Debug logging
+        print(f"Creating AvailabilitySchedule with content_type={content_type}, object_id={object_id}")
+        print(f"Validated data: {validated_data}")
+        
+        if not content_type or object_id is None:
+            raise serializers.ValidationError(
+                f"content_type and object_id are required to create AvailabilitySchedule. Got content_type={content_type}, object_id={object_id}"
+            )
+        
+        # Create schedule with content_type and object_id
+        schedule_data = {
+            'content_type': content_type,
+            'object_id': object_id,
+            'day_of_week': validated_data.get('day_of_week'),
+            'is_available': validated_data.get('is_available', False),
+        }
+        
+        print(f"Creating schedule with data: {schedule_data}")
+        schedule = AvailabilitySchedule.objects.create(**schedule_data)
+        print(f"Created schedule: {schedule.id}")
+        
+        # Create time slots if provided
+        for slot_data in time_slots_data:
+            TimeSlot.objects.create(schedule=schedule, **slot_data)
+        
+        # Create breaks if provided
+        for break_data in breaks_data:
+            BreakTime.objects.create(schedule=schedule, **break_data)
+        
+        return schedule
 
 
 class ProfileImageSerializer(serializers.ModelSerializer):

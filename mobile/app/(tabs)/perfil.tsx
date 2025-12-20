@@ -352,7 +352,13 @@ export default function Perfil() {
                 activeOpacity={0.7}>
                 <View style={[styles.headerAvatar, {backgroundColor: avatarColor}]}> 
                 {(publicProfile?.user_image || (user as any)?.image || (profile as any)?.photo) ? (
-                  <Image source={{uri: publicProfile?.user_image || (user as any)?.image || (profile as any).photo}} style={styles.headerAvatarImage} />
+                  <Image 
+                    source={{uri: publicProfile?.user_image || (user as any)?.image || (profile as any).photo}} 
+                    style={styles.headerAvatarImage}
+                    onError={(error) => {
+                      console.error("Error loading profile image:", publicProfile?.user_image || (user as any)?.image || (profile as any)?.photo, error);
+                    }}
+                  />
               ) : (
               <Text style={styles.headerAvatarText}>
                 {getInitials(user?.firstName, user?.lastName, user?.firstName, user?.role, (profile as any)?.name)}

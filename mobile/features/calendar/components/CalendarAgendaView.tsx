@@ -77,26 +77,42 @@ interface CalendarAgendaViewProps {
   startDate?: Date;
   endDate?: Date;
   showReservations?: boolean;
+  hideWeekSelector?: boolean; // Hide week selector for day view
 }
 
 export const CalendarAgendaView: React.FC<CalendarAgendaViewProps> = ({
   startDate,
   endDate,
   showReservations = true,
+  hideWeekSelector = false,
 }) => {
   const { colors } = useThemeVariant();
   const [selectedDate, setSelectedDate] = useState<Date>(startDate || new Date());
   
-  // Calculate date range (default to current week)
-  const weekStart = startDate || startOfWeek(new Date(), { weekStartsOn: 1 });
-  const weekEnd = endDate || endOfWeek(new Date(), { weekStartsOn: 1 });
+  // Calculate initial date range (default to current week)
+  const initialWeekStart = startDate || startOfWeek(new Date(), { weekStartsOn: 1 });
+  const initialWeekEnd = endDate || endOfWeek(new Date(), { weekStartsOn: 1 });
+  
+  // Use state for week range so it updates when user navigates
+  const [weekStart, setWeekStart] = useState<Date>(initialWeekStart);
+  const [weekEnd, setWeekEnd] = useState<Date>(initialWeekEnd);
+  
+  // Update week range when props change
+  useEffect(() => {
+    if (startDate) {
+      setWeekStart(startDate);
+    }
+    if (endDate) {
+      setWeekEnd(endDate);
+    }
+  }, [startDate, endDate]);
   
   const startISO = weekStart.toISOString();
   const endISO = weekEnd.toISOString();
 
   const { events, isLoading, error, hasCalendar, fetchEvents } = useCalendarEvents();
   const { reservations, isLoading: loadingReservations, refreshReservations } = useReservations();
-
+  
   // Fetch events and reservations on mount
   useEffect(() => {
     fetchEvents(startISO, endISO);
@@ -104,6 +120,11 @@ export const CalendarAgendaView: React.FC<CalendarAgendaViewProps> = ({
       refreshReservations();
     }
   }, [startISO, endISO]);
+
+  // Helper to check if date is before a reference date
+  const isBeforeDate = (date1: Date, date2: Date): boolean => {
+    return date1.getTime() < date2.getTime();
+  };
 
   // Combine events and reservations
   const getEventsForDate = (date: Date): Array<CalendarEvent & { type: 'google' | 'reservation' }> => {
@@ -158,6 +179,109 @@ export const CalendarAgendaView: React.FC<CalendarAgendaViewProps> = ({
       }
     });
   };
+
+  // Get all events grouped by date
+  const getAllEventsGrouped = (): Record<string, Array<CalendarEvent & { type: 'google' | 'reservation' }>> => {
+    const grouped: Record<string, Array<CalendarEvent & { type: 'google' | 'reservation' }>> = {};
+
+    // Process Google Calendar events
+    events.forEach(event => {
+      try {
+        const eventDate = parseISO(event.start);
+        const dateKey = eventDate.toISOString().split('T')[0];
+        if (!grouped[dateKey]) {
+          grouped[dateKey] = [];
+        }
+        grouped[dateKey].push({ ...event, type: 'google' });
+      } catch (e) {
+        console.error('Error parsing event date:', e);
+      }
+    });
+
+    // Process reservations
+    if (showReservations && reservations && Array.isArray(reservations)) {
+      reservations.forEach((reservation: any) => {
+        try {
+          const resDate = new Date(reservation.date);
+          const dateKey = resDate.toISOString().split('T')[0];
+          if (!grouped[dateKey]) {
+            grouped[dateKey] = [];
+          }
+          const startTime = reservation.time || '00:00';
+          const endTime = reservation.end_time || startTime;
+          grouped[dateKey].push({
+            id: `reservation-${reservation.id}`,
+            summary: `Reserva: ${reservation.service?.name || reservation.service_name || 'Servicio'}`,
+            description: reservation.notes || '',
+            location: reservation.location || '',
+            start: `${reservation.date}T${startTime}`,
+            end: `${reservation.date}T${endTime}`,
+            htmlLink: '',
+            status: reservation.status,
+            attendees: [],
+            type: 'reservation',
+          });
+        } catch (e) {
+          console.error('Error processing reservation:', e);
+        }
+      });
+    }
+
+    // Sort events within each day
+    Object.keys(grouped).forEach(dateKey => {
+      grouped[dateKey].sort((a, b) => {
+        try {
+          const timeA = parseISO(a.start).getTime();
+          const timeB = parseISO(b.start).getTime();
+          return timeA - timeB;
+        } catch {
+          return 0;
+        }
+      });
+    });
+
+    return grouped;
+  };
+
+  // Separate events into current period: past events (before today) and future/present events
+  const allEventsGrouped = getAllEventsGrouped();
+  const currentPeriodEvents: Record<string, Array<CalendarEvent & { type: 'google' | 'reservation' }>> = {};
+  const pastEventsInPeriod: Array<{ date: Date; events: Array<CalendarEvent & { type: 'google' | 'reservation' }> }> = [];
+  
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const weekStartNormalized = new Date(weekStart);
+  weekStartNormalized.setHours(0, 0, 0, 0);
+  const weekEndNormalized = new Date(weekEnd);
+  weekEndNormalized.setHours(23, 59, 59, 999);
+
+  Object.keys(allEventsGrouped).forEach(dateKey => {
+    try {
+      const eventDate = new Date(dateKey + 'T00:00:00');
+      eventDate.setHours(0, 0, 0, 0);
+      
+      // Only process events within the current period
+      if (eventDate >= weekStartNormalized && eventDate <= weekEndNormalized) {
+        // Check if event is in the past (before today)
+        if (eventDate < todayStart) {
+          // Event is in the past but within the selected period
+          pastEventsInPeriod.push({
+            date: eventDate,
+            events: allEventsGrouped[dateKey],
+          });
+        } else {
+          // Event is today or in the future, within the selected period
+          currentPeriodEvents[dateKey] = allEventsGrouped[dateKey];
+        }
+      }
+      // Ignore events outside the current period
+    } catch (e) {
+      console.error('Error processing date key:', dateKey, e);
+    }
+  });
+
+  // Sort past events by date (most recent first)
+  pastEventsInPeriod.sort((a, b) => b.date.getTime() - a.date.getTime());
 
   const openGoogleEvent = (htmlLink: string) => {
     if (htmlLink) {
@@ -237,40 +361,51 @@ export const CalendarAgendaView: React.FC<CalendarAgendaViewProps> = ({
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Week selector */}
-      <View style={[styles.weekSelector, { backgroundColor: colors.card }]}>
-        <TouchableOpacity
-          style={styles.weekNavButton}
-          onPress={() => {
-            const newStart = new Date(weekStart);
-            newStart.setDate(newStart.getDate() - 7);
-            const newEnd = new Date(weekEnd);
-            newEnd.setDate(newEnd.getDate() - 7);
-            fetchEvents(newStart.toISOString(), newEnd.toISOString());
-          }}>
-          <Ionicons name="chevron-back" size={24} color={colors.foreground} />
-        </TouchableOpacity>
-        
-        <Text style={[styles.weekText, { color: colors.foreground }]}>
-          {formatDate(weekStart, 'd MMM')} - {formatDate(weekEnd, 'd MMM yyyy')}
-        </Text>
-        
-        <TouchableOpacity
-          style={styles.weekNavButton}
-          onPress={() => {
-            const newStart = new Date(weekStart);
-            newStart.setDate(newStart.getDate() + 7);
-            const newEnd = new Date(weekEnd);
-            newEnd.setDate(newEnd.getDate() + 7);
-            fetchEvents(newStart.toISOString(), newEnd.toISOString());
-          }}>
-          <Ionicons name="chevron-forward" size={24} color={colors.foreground} />
-        </TouchableOpacity>
-      </View>
+      {/* Week selector - only show if not in day view */}
+      {!hideWeekSelector && (
+        <View style={[styles.weekSelector, { backgroundColor: colors.card }]}>
+          <TouchableOpacity
+            style={styles.weekNavButton}
+            onPress={() => {
+              const newStart = new Date(weekStart);
+              newStart.setDate(newStart.getDate() - 7);
+              const newEnd = new Date(weekEnd);
+              newEnd.setDate(newEnd.getDate() - 7);
+              // Update state to reflect new period
+              setWeekStart(newStart);
+              setWeekEnd(newEnd);
+              // Fetch events for new period
+              fetchEvents(newStart.toISOString(), newEnd.toISOString());
+            }}>
+            <Ionicons name="chevron-back" size={24} color={colors.foreground} />
+          </TouchableOpacity>
+          
+          <Text style={[styles.weekText, { color: colors.foreground }]}>
+            {formatDate(weekStart, 'd MMM')} - {formatDate(weekEnd, 'd MMM yyyy')}
+          </Text>
+          
+          <TouchableOpacity
+            style={styles.weekNavButton}
+            onPress={() => {
+              const newStart = new Date(weekStart);
+              newStart.setDate(newStart.getDate() + 7);
+              const newEnd = new Date(weekEnd);
+              newEnd.setDate(newEnd.getDate() + 7);
+              // Update state to reflect new period
+              setWeekStart(newStart);
+              setWeekEnd(newEnd);
+              // Fetch events for new period
+              fetchEvents(newStart.toISOString(), newEnd.toISOString());
+            }}>
+            <Ionicons name="chevron-forward" size={24} color={colors.foreground} />
+          </TouchableOpacity>
+        </View>
+      )}
 
-      {/* Events by day */}
+      {/* Events by day - Current Period */}
       {days.map((day) => {
-        const dayEvents = getEventsForDate(day);
+        const dayKey = day.toISOString().split('T')[0];
+        const dayEvents = currentPeriodEvents[dayKey] || [];
         const isToday = isSameDay(day, new Date());
         const isSelected = isSameDay(day, selectedDate);
 
@@ -376,7 +511,11 @@ export const CalendarAgendaView: React.FC<CalendarAgendaViewProps> = ({
         );
       })}
 
-      {days.every(day => getEventsForDate(day).length === 0) && (
+      {/* Empty state for current period */}
+      {days.every(day => {
+        const dayKey = day.toISOString().split('T')[0];
+        return !currentPeriodEvents[dayKey] || currentPeriodEvents[dayKey].length === 0;
+      }) && pastEventsInPeriod.length === 0 && (
         <View style={[styles.emptyContainer, { backgroundColor: colors.card }]}>
           <Ionicons name="calendar-outline" size={64} color={colors.mutedForeground} />
           <Text style={[styles.emptyText, { color: colors.foreground }]}>
@@ -387,6 +526,116 @@ export const CalendarAgendaView: React.FC<CalendarAgendaViewProps> = ({
               ? 'No tienes eventos de Google Calendar ni reservas en estas fechas'
               : 'Conecta tu Google Calendar para ver tus eventos aquí'}
           </Text>
+        </View>
+      )}
+
+      {/* Past Events Section - Events from the selected period that are in the past */}
+      {pastEventsInPeriod.length > 0 && (
+        <View style={[styles.pastEventsSection, { backgroundColor: colors.background }]}>
+          <View style={[styles.pastEventsHeader, { backgroundColor: colors.card }]}>
+            <Ionicons name="time-outline" size={20} color={colors.mutedForeground} />
+            <Text style={[styles.pastEventsTitle, { color: colors.foreground }]}>
+              Eventos Pasados
+            </Text>
+          </View>
+          
+          {pastEventsInPeriod.map((pastEventGroup) => {
+            const dayKey = pastEventGroup.date.toISOString().split('T')[0];
+            const dayEvents = pastEventGroup.events;
+            const isToday = isSameDay(pastEventGroup.date, new Date());
+
+            return (
+              <View key={dayKey} style={[styles.daySection, { backgroundColor: colors.background }]}>
+                {/* Day header */}
+                <View style={[styles.dayHeader, { backgroundColor: colors.card, opacity: 0.7 }]}>
+                  <View style={styles.dayHeaderLeft}>
+                    <Text style={[styles.dayName, { color: colors.mutedForeground }]}>
+                      {formatDate(pastEventGroup.date, 'EEEE')}
+                    </Text>
+                    <Text style={[styles.dayDate, { color: colors.mutedForeground }]}>
+                      {formatDate(pastEventGroup.date, 'd MMM yyyy')}
+                    </Text>
+                  </View>
+                  <Text style={[styles.eventCount, { color: colors.mutedForeground }]}>
+                    {dayEvents.length} {dayEvents.length === 1 ? 'evento' : 'eventos'}
+                  </Text>
+                </View>
+
+                {/* Events list */}
+                {dayEvents.map((event) => (
+                  <TouchableOpacity
+                    key={event.id}
+                    style={[styles.eventCard, { backgroundColor: colors.card, borderLeftColor: event.type === 'google' ? '#4285F4' : getStatusColor(event.status), opacity: 0.8 }]}
+                    onPress={() => {
+                      if (event.type === 'google' && event.htmlLink) {
+                        openGoogleEvent(event.htmlLink);
+                      }
+                    }}
+                    activeOpacity={0.7}>
+                    <View style={styles.eventContent}>
+                      <View style={styles.eventHeader}>
+                        <View style={styles.eventIconContainer}>
+                          <Ionicons
+                            name={event.type === 'google' ? 'calendar' : 'time'}
+                            size={20}
+                            color={event.type === 'google' ? '#4285F4' : getStatusColor(event.status)}
+                          />
+                        </View>
+                        <View style={styles.eventTitleContainer}>
+                          <Text style={[styles.eventTitle, { color: colors.mutedForeground }]} numberOfLines={1}>
+                            {event.summary}
+                          </Text>
+                          {event.type === 'reservation' && (
+                            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(event.status) + '20' }]}>
+                              <Text style={[styles.statusText, { color: getStatusColor(event.status) }]}>
+                                {getStatusText(event.status)}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        {event.type === 'google' && event.htmlLink && (
+                          <Ionicons name="open-outline" size={18} color={colors.mutedForeground} />
+                        )}
+                      </View>
+
+                      <View style={styles.eventDetails}>
+                        <View style={styles.eventDetailRow}>
+                          <Ionicons name="time-outline" size={14} color={colors.mutedForeground} />
+                          <Text style={[styles.eventDetailText, { color: colors.mutedForeground }]}>
+                            {formatEventTime(event.start, event.end)}
+                          </Text>
+                        </View>
+
+                        {event.location && (
+                          <View style={styles.eventDetailRow}>
+                            <Ionicons name="location-outline" size={14} color={colors.mutedForeground} />
+                            <Text style={[styles.eventDetailText, { color: colors.mutedForeground }]} numberOfLines={1}>
+                              {event.location}
+                            </Text>
+                          </View>
+                        )}
+
+                        {event.description && (
+                          <Text style={[styles.eventDescription, { color: colors.mutedForeground }]} numberOfLines={2}>
+                            {event.description}
+                          </Text>
+                        )}
+
+                        {event.attendees && event.attendees.length > 0 && (
+                          <View style={styles.eventDetailRow}>
+                            <Ionicons name="people-outline" size={14} color={colors.mutedForeground} />
+                            <Text style={[styles.eventDetailText, { color: colors.mutedForeground }]}>
+                              {event.attendees.length} {event.attendees.length === 1 ? 'invitado' : 'invitados'}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            );
+          })}
         </View>
       )}
 
@@ -558,6 +807,25 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     fontSize: 13,
+  },
+  pastEventsSection: {
+    marginTop: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  pastEventsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    marginHorizontal: 16,
+  },
+  pastEventsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

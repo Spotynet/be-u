@@ -723,7 +723,13 @@ export default function ProfileDetailScreen() {
                   },
                 ]}>
                 {profile.user_image ? (
-                  <Image source={{uri: profile.user_image}} style={styles.profileAvatarImage} />
+                  <Image 
+                    source={{uri: profile.user_image}} 
+                    style={styles.profileAvatarImage}
+                    onError={(error) => {
+                      console.error("Error loading profile image:", profile.user_image, error);
+                    }}
+                  />
                 ) : (
                   <Text style={styles.profileAvatarText}>
                     {(profile.name || "U").charAt(0).toUpperCase()}

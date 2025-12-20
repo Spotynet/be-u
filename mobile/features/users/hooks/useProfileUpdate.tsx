@@ -30,6 +30,7 @@ interface UpdateUserData {
   lastName?: string;
   email?: string;
   phone?: string;
+  username?: string;
 }
 
 export const useProfileUpdate = (userId: number, userRole: string) => {
@@ -123,6 +124,19 @@ export const useProfileUpdate = (userId: number, userRole: string) => {
       const result = await authApi.updateProfile(combinedData);
       
       console.log("Profile update response:", result.data);
+      
+      // Update user in auth context if available
+      if (result.data?.user) {
+        // Try to update the auth context user
+        try {
+          const {useAuth} = await import("@/features/auth/hooks/useAuth");
+          // Note: This won't work directly as useAuth is a hook
+          // We'll need to refresh the auth status instead
+        } catch (e) {
+          // Ignore if can't import
+        }
+      }
+      
       Alert.alert("Éxito", "Perfil actualizado correctamente");
 
       return result;

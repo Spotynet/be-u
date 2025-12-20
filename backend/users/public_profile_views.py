@@ -100,7 +100,12 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         
-        # Return full profile data
+        # Refresh instance from database to get updated image URL
+        instance.refresh_from_db()
+        if instance.user:
+            instance.user.refresh_from_db()
+        
+        # Return full profile data with updated image URL
         return Response(PublicProfileSerializer(instance, context={'request': request}).data)
     
     def partial_update(self, request, *args, **kwargs):

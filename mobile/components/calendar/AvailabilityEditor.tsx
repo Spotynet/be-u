@@ -1,5 +1,5 @@
 import React, {useState} from "react";
-import {View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform} from "react-native";
+import {View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, TextInput} from "react-native";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {WeeklySchedule, DayOfWeek} from "@/types/global";
 import {Ionicons} from "@expo/vector-icons";
@@ -26,6 +26,11 @@ export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps
     day: number;
     type: "start" | "end";
   } | null>(null);
+  const [showBreakPicker, setShowBreakPicker] = useState<{
+    day: number;
+    breakIndex?: number;
+    type: "start" | "end";
+  } | null>(null);
 
   const toggleDay = (dayId: number) => {
     const newSchedule = {...schedule};
@@ -36,6 +41,7 @@ export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps
         enabled: true,
         start_time: "09:00",
         end_time: "18:00",
+        breaks: [],
       };
     }
     onChange(newSchedule);
@@ -48,6 +54,7 @@ export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps
         enabled: true,
         start_time: "09:00",
         end_time: "18:00",
+        breaks: [],
       };
     }
 
@@ -60,23 +67,84 @@ export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps
     onChange(newSchedule);
   };
 
+  const addBreak = (dayId: number) => {
+    const newSchedule = {...schedule};
+    if (!newSchedule[dayId] || !newSchedule[dayId].enabled) return;
+    
+    if (!newSchedule[dayId].breaks) {
+      newSchedule[dayId].breaks = [];
+    }
+    
+    // Add a default break (12:00 - 13:00)
+    newSchedule[dayId].breaks.push({
+      start_time: "12:00",
+      end_time: "13:00",
+      label: "Almuerzo",
+      is_active: true,
+    });
+    
+    onChange(newSchedule);
+  };
+
+  const removeBreak = (dayId: number, breakIndex: number) => {
+    const newSchedule = {...schedule};
+    if (!newSchedule[dayId] || !newSchedule[dayId].breaks) return;
+    
+    newSchedule[dayId].breaks = newSchedule[dayId].breaks.filter((_, idx) => idx !== breakIndex);
+    onChange(newSchedule);
+  };
+
+  const updateBreakTime = (dayId: number, breakIndex: number, type: "start" | "end", time: string) => {
+    const newSchedule = {...schedule};
+    if (!newSchedule[dayId] || !newSchedule[dayId].breaks) return;
+    
+    if (newSchedule[dayId].breaks[breakIndex]) {
+      if (type === "start") {
+        newSchedule[dayId].breaks[breakIndex].start_time = time;
+      } else {
+        newSchedule[dayId].breaks[breakIndex].end_time = time;
+      }
+    }
+    
+    onChange(newSchedule);
+  };
+
+  const updateBreakLabel = (dayId: number, breakIndex: number, label: string) => {
+    const newSchedule = {...schedule};
+    if (!newSchedule[dayId] || !newSchedule[dayId].breaks) return;
+    
+    if (newSchedule[dayId].breaks[breakIndex]) {
+      newSchedule[dayId].breaks[breakIndex].label = label;
+    }
+    
+    onChange(newSchedule);
+  };
+
   const handleTimeChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === "android") {
       setShowTimePicker(null);
+      setShowBreakPicker(null);
     }
 
-    if (event.type === "set" && selectedDate && showTimePicker) {
+    if (event.type === "set" && selectedDate) {
       const hours = selectedDate.getHours().toString().padStart(2, "0");
       const minutes = selectedDate.getMinutes().toString().padStart(2, "0");
       const timeString = `${hours}:${minutes}`;
 
-      updateTime(showTimePicker.day, showTimePicker.type, timeString);
-
-      if (Platform.OS === "ios") {
-        setShowTimePicker(null);
+      if (showTimePicker) {
+        updateTime(showTimePicker.day, showTimePicker.type, timeString);
+        if (Platform.OS === "ios") {
+          setShowTimePicker(null);
+        }
+      } else if (showBreakPicker && showBreakPicker.breakIndex !== undefined) {
+        updateBreakTime(showBreakPicker.day, showBreakPicker.breakIndex, showBreakPicker.type, timeString);
+        if (Platform.OS === "ios") {
+          setShowBreakPicker(null);
+        }
       }
     } else if (event.type === "dismissed") {
       setShowTimePicker(null);
+      setShowBreakPicker(null);
     }
   };
 
@@ -142,30 +210,104 @@ export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps
               </View>
 
               {isEnabled && daySchedule && (
-                <View style={styles.timeSection}>
-                  <TouchableOpacity
-                    style={[styles.timeButton, {backgroundColor: colors.muted}]}
-                    onPress={() => setShowTimePicker({day: day.id, type: "start"})}
-                    activeOpacity={0.7}>
-                    <Ionicons name="time-outline" size={18} color={colors.primary} />
-                    <Text style={[styles.timeLabel, {color: colors.mutedForeground}]}>Inicio:</Text>
-                    <Text style={[styles.timeValue, {color: colors.foreground}]}>
-                      {daySchedule.start_time}
-                    </Text>
-                  </TouchableOpacity>
+                <View style={styles.timeSectionContainer}>
+                  {/* Working Hours */}
+                  <View style={styles.timeSection}>
+                    <TouchableOpacity
+                      style={[styles.timeButton, {backgroundColor: colors.muted}]}
+                      onPress={() => setShowTimePicker({day: day.id, type: "start"})}
+                      activeOpacity={0.7}>
+                      <Ionicons name="time-outline" size={18} color={colors.primary} />
+                      <Text style={[styles.timeLabel, {color: colors.mutedForeground}]}>Inicio:</Text>
+                      <Text style={[styles.timeValue, {color: colors.foreground}]}>
+                        {daySchedule.start_time}
+                      </Text>
+                    </TouchableOpacity>
 
-                  <Text style={[styles.timeSeparator, {color: colors.mutedForeground}]}>—</Text>
+                    <Text style={[styles.timeSeparator, {color: colors.mutedForeground}]}>—</Text>
 
-                  <TouchableOpacity
-                    style={[styles.timeButton, {backgroundColor: colors.muted}]}
-                    onPress={() => setShowTimePicker({day: day.id, type: "end"})}
-                    activeOpacity={0.7}>
-                    <Ionicons name="time-outline" size={18} color={colors.primary} />
-                    <Text style={[styles.timeLabel, {color: colors.mutedForeground}]}>Fin:</Text>
-                    <Text style={[styles.timeValue, {color: colors.foreground}]}>
-                      {daySchedule.end_time}
-                    </Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.timeButton, {backgroundColor: colors.muted}]}
+                      onPress={() => setShowTimePicker({day: day.id, type: "end"})}
+                      activeOpacity={0.7}>
+                      <Ionicons name="time-outline" size={18} color={colors.primary} />
+                      <Text style={[styles.timeLabel, {color: colors.mutedForeground}]}>Fin:</Text>
+                      <Text style={[styles.timeValue, {color: colors.foreground}]}>
+                        {daySchedule.end_time}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Breaks Section */}
+                  <View style={styles.breaksSection}>
+                    <View style={styles.breaksHeader}>
+                      <Text style={[styles.breaksTitle, {color: colors.foreground}]}>
+                        Horarios de Descanso
+                      </Text>
+                      <TouchableOpacity
+                        style={[styles.addBreakButton, {backgroundColor: colors.primary + "20"}]}
+                        onPress={() => addBreak(day.id)}
+                        activeOpacity={0.7}>
+                        <Ionicons name="add" size={18} color={colors.primary} />
+                        <Text style={[styles.addBreakText, {color: colors.primary}]}>Agregar</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {daySchedule.breaks && daySchedule.breaks.length > 0 && (
+                      <View style={styles.breaksList}>
+                        {daySchedule.breaks.map((breakTime, breakIndex) => (
+                          <View
+                            key={breakIndex}
+                            style={[styles.breakCard, {backgroundColor: colors.background, borderColor: colors.border}]}>
+                            <View style={styles.breakHeader}>
+                              <View style={styles.breakTimeRow}>
+                                <TouchableOpacity
+                                  style={[styles.breakTimeButton, {backgroundColor: colors.muted}]}
+                                  onPress={() => setShowBreakPicker({day: day.id, breakIndex, type: "start"})}
+                                  activeOpacity={0.7}>
+                                  <Ionicons name="time-outline" size={14} color={colors.primary} />
+                                  <Text style={[styles.breakTimeText, {color: colors.foreground}]}>
+                                    {breakTime.start_time}
+                                  </Text>
+                                </TouchableOpacity>
+
+                                <Text style={[styles.timeSeparator, {color: colors.mutedForeground}]}>—</Text>
+
+                                <TouchableOpacity
+                                  style={[styles.breakTimeButton, {backgroundColor: colors.muted}]}
+                                  onPress={() => setShowBreakPicker({day: day.id, breakIndex, type: "end"})}
+                                  activeOpacity={0.7}>
+                                  <Ionicons name="time-outline" size={14} color={colors.primary} />
+                                  <Text style={[styles.breakTimeText, {color: colors.foreground}]}>
+                                    {breakTime.end_time}
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+
+                              <TouchableOpacity
+                                style={styles.removeBreakButton}
+                                onPress={() => removeBreak(day.id, breakIndex)}
+                                activeOpacity={0.7}>
+                                <Ionicons name="close-circle" size={20} color={colors.mutedForeground} />
+                              </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.breakLabelRow}>
+                              <Ionicons name="restaurant-outline" size={14} color={colors.mutedForeground} />
+                              <TextInput
+                                style={[styles.breakLabelInput, {color: colors.foreground, borderColor: colors.border}]}
+                                value={breakTime.label || ""}
+                                placeholder="Descanso (ej: Almuerzo)"
+                                placeholderTextColor={colors.mutedForeground}
+                                onChangeText={(text) => updateBreakLabel(day.id, breakIndex, text)}
+                                maxLength={30}
+                              />
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
                 </View>
               )}
             </View>
@@ -174,16 +316,28 @@ export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps
       </View>
 
       {/* Time Picker */}
-      {showTimePicker && Platform.OS !== "web" && (
+      {(showTimePicker || showBreakPicker) && Platform.OS !== "web" && (
         <DateTimePicker
           value={(() => {
-            const daySchedule = schedule[showTimePicker.day];
-            const timeStr =
-              showTimePicker.type === "start" ? daySchedule?.start_time : daySchedule?.end_time;
-            const [hours, minutes] = (timeStr || "09:00").split(":");
-            const date = new Date();
-            date.setHours(parseInt(hours), parseInt(minutes));
-            return date;
+            if (showTimePicker) {
+              const daySchedule = schedule[showTimePicker.day];
+              const timeStr =
+                showTimePicker.type === "start" ? daySchedule?.start_time : daySchedule?.end_time;
+              const [hours, minutes] = (timeStr || "09:00").split(":");
+              const date = new Date();
+              date.setHours(parseInt(hours), parseInt(minutes));
+              return date;
+            } else if (showBreakPicker && showBreakPicker.breakIndex !== undefined) {
+              const daySchedule = schedule[showBreakPicker.day];
+              const breakTime = daySchedule?.breaks?.[showBreakPicker.breakIndex];
+              const timeStr =
+                showBreakPicker.type === "start" ? breakTime?.start_time : breakTime?.end_time;
+              const [hours, minutes] = (timeStr || "12:00").split(":");
+              const date = new Date();
+              date.setHours(parseInt(hours), parseInt(minutes));
+              return date;
+            }
+            return new Date();
           })()}
           mode="time"
           is24Hour={true}
@@ -259,10 +413,13 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
   },
+  timeSectionContainer: {
+    marginTop: 16,
+    gap: 16,
+  },
   timeSection: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 16,
     gap: 8,
   },
   timeButton: {
@@ -285,6 +442,80 @@ const styles = StyleSheet.create({
   timeSeparator: {
     fontSize: 18,
     fontWeight: "700",
+  },
+  breaksSection: {
+    gap: 12,
+  },
+  breaksHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  breaksTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  addBreakButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    gap: 4,
+  },
+  addBreakText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  breaksList: {
+    gap: 8,
+  },
+  breakCard: {
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 8,
+  },
+  breakHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  breakTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+  },
+  breakTimeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    gap: 4,
+  },
+  breakTimeText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  removeBreakButton: {
+    padding: 4,
+  },
+  breakLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  breakLabelInput: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "500",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    minHeight: 28,
   },
 });
 

@@ -156,7 +156,8 @@ def profile_view(request):
         # Debug: Log received data
         print(f"🔧 Profile update request data: {request.data}")
         print(f"🔧 Phone in request.data: {request.data.get('phone', 'NOT FOUND')}")
-        print(f"🔧 User before update - phone: {user.phone}")
+        print(f"🔧 Username in request.data: {request.data.get('username', 'NOT FOUND')}")
+        print(f"🔧 User before update - phone: {user.phone}, username: {user.username}")
         
         # Extract user-specific fields from request.data
         user_fields = {
@@ -164,6 +165,7 @@ def profile_view(request):
             'phone': request.data.get('phone'),
             'firstName': request.data.get('firstName'),
             'lastName': request.data.get('lastName'),
+            'username': request.data.get('username'),
         }
         # Remove None values to avoid overwriting with None
         user_fields = {k: v for k, v in user_fields.items() if v is not None}
@@ -176,7 +178,7 @@ def profile_view(request):
             user_serializer.save()
             # Refresh user from database to get updated values
             user.refresh_from_db()
-            print(f"🔧 User after update - phone: {user.phone}")
+            print(f"🔧 User after update - phone: {user.phone}, username: {user.username}")
         else:
             print(f"🔧 UserSerializer validation errors: {user_serializer.errors}")
             return Response({

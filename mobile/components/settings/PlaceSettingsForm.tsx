@@ -65,8 +65,23 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
 
   const [email, setEmail] = useState(user.email);
   const [phone, setPhone] = useState(user.phone || "");
+  const [username, setUsername] = useState(user.username || "");
   const [name, setName] = useState(profile?.name || "");
   const [displayName, setDisplayName] = useState("");
+  
+  // Format username: remove spaces and ensure @ prefix
+  const formatUsername = (text: string): string => {
+    // Remove all spaces
+    let formatted = text.replace(/\s/g, '');
+    // Remove @ if user types it (we'll add it back)
+    formatted = formatted.replace(/^@+/, '');
+    return formatted;
+  };
+  
+  const handleUsernameChange = (text: string) => {
+    const formatted = formatUsername(text);
+    setUsername(formatted);
+  };
   const [bio, setBio] = useState(profile?.bio || "");
   const [street, setStreet] = useState(profile?.street || "");
   const [numberExt, setNumberExt] = useState(profile?.number_ext || "");
@@ -79,6 +94,7 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
   const [isLoadingPublicProfile, setIsLoadingPublicProfile] = useState(true);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   // Load public profile to get categories and subcategories
   useEffect(() => {
@@ -167,6 +183,7 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
         const response = await profileCustomizationApi.uploadProfilePhoto(formData);
         if (response.data.user_image) {
           setProfilePhoto(response.data.user_image);
+          setImageError(false);
           Alert.alert("Éxito", "Foto de perfil actualizada correctamente");
         }
       } catch (error) {
@@ -176,6 +193,40 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
         setUploadingPhoto(false);
       }
     }
+  };
+
+  const deletePhoto = async () => {
+    Alert.alert(
+      "Eliminar foto de perfil",
+      "¿Estás seguro de que deseas eliminar tu foto de perfil?",
+      [
+        {text: "Cancelar", style: "cancel"},
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            setUploadingPhoto(true);
+            try {
+              const profileResponse = await profileCustomizationApi.getProfileImages();
+              const profileId = profileResponse.data.id;
+              
+              const response = await profileCustomizationApi.updatePublicProfile({
+                delete_photo: true,
+              });
+              
+              setProfilePhoto(null);
+              setImageError(false);
+              Alert.alert("Éxito", "Foto de perfil eliminada correctamente");
+            } catch (error) {
+              console.error("Error deleting profile photo:", error);
+              Alert.alert("Error", "No se pudo eliminar la foto de perfil. Inténtalo de nuevo.");
+            } finally {
+              setUploadingPhoto(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   useEffect(() => {
@@ -206,6 +257,7 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
     const userData = {
       email,
       phone: phone || "", // Always include phone, even if empty
+      username: username.trim(), // Ensure username is trimmed and saved
     };
 
     const profileData = {
@@ -253,25 +305,41 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
         </View>
 
         <View style={styles.photoContainer}>
-          <TouchableOpacity
-            style={[styles.photoButton, {backgroundColor: colors.card, borderColor: colors.border}]}
-            onPress={pickImage}
-            disabled={uploadingPhoto}>
-            {uploadingPhoto ? (
-              <ActivityIndicator color={colors.primary} size="large" />
-            ) : profilePhoto ? (
-              <Image source={{uri: profilePhoto}} style={styles.profilePhoto} />
-            ) : (
-              <View style={styles.photoPlaceholder}>
-                <Ionicons name="storefront" color={colors.mutedForeground} size={40} />
-                <Text style={[styles.photoPlaceholderText, {color: colors.mutedForeground}]}>
-                  Agregar foto
-                </Text>
-              </View>
+          <View style={styles.photoWrapper}>
+            <TouchableOpacity
+              style={[styles.photoButton, {backgroundColor: colors.card, borderColor: colors.border}]}
+              onPress={pickImage}
+              disabled={uploadingPhoto}>
+              {uploadingPhoto ? (
+                <ActivityIndicator color={colors.primary} size="large" />
+              ) : profilePhoto && !imageError ? (
+                <Image 
+                  source={{uri: profilePhoto}} 
+                  style={styles.profilePhoto}
+                  onError={() => {
+                    console.error("Error loading profile photo:", profilePhoto);
+                    setImageError(true);
+                  }}
+                />
+              ) : (
+                <View style={styles.photoPlaceholder}>
+                  <Ionicons name="storefront" color={colors.mutedForeground} size={40} />
+                  <Text style={[styles.photoPlaceholderText, {color: colors.mutedForeground}]}>
+                    Agregar foto
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            {profilePhoto && !uploadingPhoto && (
+              <TouchableOpacity
+                style={[styles.deletePhotoButton, {backgroundColor: colors.background}]}
+                onPress={deletePhoto}>
+                <Ionicons name="trash-outline" color="#ef4444" size={20} />
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+          </View>
           <Text style={[styles.helperText, {color: colors.mutedForeground}]}>
-            Toca la imagen para cambiar tu foto de perfil
+            {profilePhoto ? "Toca la imagen para cambiar tu foto de perfil" : "Toca para agregar una foto de perfil"}
           </Text>
         </View>
       </View>
@@ -304,23 +372,52 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
         </View>
 
         <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Nombre de Usuario</Text>
+          <View
+            style={[
+              styles.inputContainer,
+              {backgroundColor: colors.card, borderColor: colors.border},
+            ]}>
+            <Text style={[styles.atSymbol, {color: colors.mutedForeground}]}>@</Text>
+            <TextInput
+              style={[styles.input, {color: colors.foreground}]}
+              value={username}
+              onChangeText={handleUsernameChange}
+              placeholder="nombreusuario"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+          <Text style={[styles.helperText, {color: colors.mutedForeground}]}>
+            Sin espacios. Solo letras, números y guiones bajos
+          </Text>
+        </View>
+
+        <View style={styles.formGroup}>
           <Text style={[styles.label, {color: colors.foreground}]}>Nombre para mostrar</Text>
           <View
             style={[
               styles.inputContainer,
               {backgroundColor: colors.card, borderColor: colors.border},
             ]}>
-            <Ionicons name="at-outline" color={colors.mutedForeground} size={18} />
+            <Ionicons name="text-outline" color={colors.mutedForeground} size={18} />
             <TextInput
               style={[styles.input, {color: colors.foreground}]}
               value={displayName}
-              onChangeText={setDisplayName}
+              onChangeText={(text) => {
+                // Limit to 50 characters
+                if (text.length <= 50) {
+                  setDisplayName(text);
+                }
+              }}
               placeholder="Nombre que se mostrará en tu perfil público"
               placeholderTextColor={colors.mutedForeground}
+              maxLength={50}
             />
           </View>
           <Text style={[styles.helperText, {color: colors.mutedForeground}]}>
-            Este es el nombre que verán otros usuarios en tu perfil público
+            Este es el nombre que verán otros usuarios en tu perfil público (máximo 50 caracteres)
           </Text>
         </View>
 
@@ -592,6 +689,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 15,
   },
+  atSymbol: {
+    fontSize: 15,
+    fontWeight: "600",
+    marginRight: 4,
+  },
   textAreaContainer: {
     alignItems: "flex-start",
     paddingVertical: 12,
@@ -626,6 +728,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
+  photoWrapper: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   photoButton: {
     width: 120,
     height: 120,
@@ -649,5 +756,22 @@ const styles = StyleSheet.create({
   photoPlaceholderText: {
     fontSize: 12,
     textAlign: "center",
+  },
+  deletePhotoButton: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#ef4444",
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });

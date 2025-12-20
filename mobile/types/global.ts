@@ -191,11 +191,20 @@ export interface ProviderAvailability {
   updated_at: string;
 }
 
+export interface BreakTime {
+  id?: number;
+  start_time: string;
+  end_time: string;
+  label?: string;
+  is_active?: boolean;
+}
+
 export interface WeeklySchedule {
   [key: number]: {
     enabled: boolean;
     start_time: string;
     end_time: string;
+    breaks?: BreakTime[];
   };
 }
 

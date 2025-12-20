@@ -1,5 +1,5 @@
 import {useState, useCallback} from "react";
-import {availabilityApi, serviceApi, errorUtils} from "@/lib/api";
+import {availabilityApi, serviceApi, errorUtils, profileCustomizationApi} from "@/lib/api";
 import {
   ProviderAvailability,
   TimeSlotBlock,
@@ -21,11 +21,11 @@ export const useAvailability = (providerId?: number, providerType?: ProviderType
     try {
       setIsLoading(true);
       setError(null);
-      const response = await availabilityApi.getAvailability({
-        provider_type: providerType,
-        provider_id: providerId,
-      });
-      setAvailability(response.data.results || []);
+      // Use the correct endpoint: /profile/availability/
+      const response = await profileCustomizationApi.getAvailabilitySchedule();
+      // Backend returns array of schedules with time_slots
+      const schedules = response.data || [];
+      setAvailability(schedules);
     } catch (err) {
       const message = errorUtils.getErrorMessage(err);
       setError(message);
@@ -52,37 +52,49 @@ export const useAvailability = (providerId?: number, providerType?: ProviderType
   }, []);
 
   const updateAvailability = async (schedule: WeeklySchedule) => {
-    if (!providerId || !providerType) {
-      Alert.alert("Error", "Provider information is missing");
-      return;
-    }
-
     try {
       setIsLoading(true);
       setError(null);
 
-      // Convert schedule to API format
-      const schedules = Object.entries(schedule)
-        .filter(([_, daySchedule]) => daySchedule.enabled)
-        .map(([day, daySchedule]) => ({
-          day_of_week: parseInt(day),
-          start_time: daySchedule.start_time,
-          end_time: daySchedule.end_time,
-          is_active: true,
-        }));
+      // Convert schedule to API format expected by backend
+      // Backend expects: day_of_week, is_available, time_slots (array with start_time and end_time), breaks (array with start_time, end_time, label)
+      const schedules = Object.entries(schedule).map(([day, daySchedule]) => ({
+        day_of_week: parseInt(day),
+        is_available: daySchedule.enabled,
+        time_slots: daySchedule.enabled
+          ? [
+              {
+                start_time: daySchedule.start_time,
+                end_time: daySchedule.end_time,
+                is_active: true,
+              },
+            ]
+          : [],
+        breaks: daySchedule.enabled && daySchedule.breaks && daySchedule.breaks.length > 0
+          ? daySchedule.breaks.map(breakTime => ({
+              start_time: breakTime.start_time,
+              end_time: breakTime.end_time,
+              label: breakTime.label || '',
+              is_active: breakTime.is_active !== false,
+            }))
+          : [],
+      }));
 
-      await availabilityApi.bulkUpdateAvailability({
-        provider_type: providerType,
-        provider_id: providerId,
-        schedules,
-      });
+      console.log("Saving availability schedule:", JSON.stringify(schedules, null, 2));
+
+      // Use the correct endpoint: /profile/availability/
+      // This endpoint uses the authenticated user's profile, so no providerId/providerType needed
+      const response = await profileCustomizationApi.updateAvailabilitySchedule(schedules);
+      
+      console.log("Availability saved successfully:", response.data);
 
       Alert.alert("Éxito", "Disponibilidad actualizada correctamente");
       await fetchAvailability();
-    } catch (err) {
+    } catch (err: any) {
+      console.error("Error saving availability:", err);
       const message = errorUtils.getErrorMessage(err);
       setError(message);
-      Alert.alert("Error", message);
+      Alert.alert("Error", message || "No se pudo guardar la disponibilidad");
       throw err;
     } finally {
       setIsLoading(false);
@@ -154,7 +166,7 @@ export const useAvailability = (providerId?: number, providerType?: ProviderType
   };
 
   // Convert availability array to weekly schedule format
-  const availabilityToSchedule = (availabilities: ProviderAvailability[]): WeeklySchedule => {
+  const availabilityToSchedule = (availabilities: any[]): WeeklySchedule => {
     const schedule: WeeklySchedule = {};
 
     availabilities.forEach((avail) => {
@@ -169,10 +181,28 @@ export const useAvailability = (providerId?: number, providerType?: ProviderType
         return timeStr;
       };
 
+      // Backend returns schedules with time_slots array
+      // Get the first time slot (or use defaults)
+      const timeSlot = avail.time_slots && avail.time_slots.length > 0 
+        ? avail.time_slots[0] 
+        : { start_time: "09:00", end_time: "18:00" };
+
+      // Get breaks from backend
+      const breaks = avail.breaks && avail.breaks.length > 0
+        ? avail.breaks.map((br: any) => ({
+            id: br.id,
+            start_time: formatTime(br.start_time),
+            end_time: formatTime(br.end_time),
+            label: br.label || '',
+            is_active: br.is_active !== false,
+          }))
+        : [];
+
       schedule[avail.day_of_week] = {
-        enabled: avail.is_active,
-        start_time: formatTime(avail.start_time),
-        end_time: formatTime(avail.end_time),
+        enabled: avail.is_available || false,
+        start_time: formatTime(timeSlot.start_time),
+        end_time: formatTime(timeSlot.end_time),
+        breaks: breaks || [],
       };
     });
 

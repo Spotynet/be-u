@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import User, ClientProfile, ProfessionalProfile, PlaceProfile, PublicProfile
-from .profile_models import ProfileImage, CustomService, AvailabilitySchedule, TimeSlot
+from .profile_models import ProfileImage, CustomService, AvailabilitySchedule, TimeSlot, BreakTime
 
 
 @admin.register(User)
@@ -116,6 +116,14 @@ class CustomServiceAdmin(admin.ModelAdmin):
             return f"{obj.content_type.model} (ID: {obj.object_id})"
         return "No profile"
     get_profile_type.short_description = "Profile Type"
+
+
+@admin.register(BreakTime)
+class BreakTimeAdmin(admin.ModelAdmin):
+    list_display = ('schedule', 'start_time', 'end_time', 'label', 'is_active', 'created_at')
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('label', 'schedule__day_of_week')
+    raw_id_fields = ('schedule',)
 
 
 @admin.register(AvailabilitySchedule)

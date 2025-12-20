@@ -24,8 +24,24 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
   const [lastName, setLastName] = useState((user as any).lastName || (user as any).last_name);
   const [email, setEmail] = useState(user.email);
   const [phone, setPhone] = useState(user.phone || "");
+  const [username, setUsername] = useState(user.username || "");
+  const [displayName, setDisplayName] = useState("");
   const [profilePhoto, setProfilePhoto] = useState<string | null>((user as any).image || null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  
+  // Format username: remove spaces and ensure @ prefix
+  const formatUsername = (text: string): string => {
+    // Remove all spaces
+    let formatted = text.replace(/\s/g, '');
+    // Remove @ if user types it (we'll add it back)
+    formatted = formatted.replace(/^@+/, '');
+    return formatted;
+  };
+  
+  const handleUsernameChange = (text: string) => {
+    const formatted = formatUsername(text);
+    setUsername(formatted);
+  };
 
   useEffect(() => {
     setFirstName((user as any).firstName || (user as any).first_name);
@@ -110,6 +126,7 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
       lastName,
       email,
       phone,
+      username: username.trim(), // Ensure username is trimmed and saved
     };
 
     const profileData = {};
@@ -237,6 +254,56 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
             />
           </View>
         </View>
+
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Nombre de Usuario</Text>
+          <View
+            style={[
+              styles.inputContainer,
+              {backgroundColor: colors.card, borderColor: colors.border},
+            ]}>
+            <Text style={[styles.atSymbol, {color: colors.mutedForeground}]}>@</Text>
+            <TextInput
+              style={[styles.input, {color: colors.foreground}]}
+              value={username}
+              onChangeText={handleUsernameChange}
+              placeholder="nombreusuario"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+          <Text style={[styles.helperText, {color: colors.mutedForeground}]}>
+            Sin espacios. Solo letras, números y guiones bajos
+          </Text>
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Nombre para mostrar</Text>
+          <View
+            style={[
+              styles.inputContainer,
+              {backgroundColor: colors.card, borderColor: colors.border},
+            ]}>
+            <Ionicons name="text-outline" color={colors.mutedForeground} size={18} />
+            <TextInput
+              style={[styles.input, {color: colors.foreground}]}
+              value={displayName}
+              onChangeText={(text) => {
+                // Limit to 50 characters
+                if (text.length <= 50) {
+                  setDisplayName(text);
+                }
+              }}
+              placeholder="Ej: Juan Pérez"
+              placeholderTextColor={colors.mutedForeground}
+              maxLength={50}
+            />
+          </View>
+          <Text style={[styles.helperText, {color: colors.mutedForeground}]}>
+            Este es el nombre que verán otros usuarios en tu perfil público (máximo 50 caracteres)
+          </Text>
+        </View>
       </View>
 
     </View>
@@ -295,6 +362,11 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     fontSize: 15,
+  },
+  atSymbol: {
+    fontSize: 15,
+    fontWeight: "600",
+    marginRight: 4,
   },
   saveButton: {
     flexDirection: "row",

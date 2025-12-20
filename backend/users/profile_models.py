@@ -126,6 +126,26 @@ class TimeSlot(models.Model):
         return f"{self.schedule.get_day_of_week_display()}: {self.start_time} - {self.end_time}"
 
 
+class BreakTime(models.Model):
+    """Break times (lunch, rest periods) for each day of availability"""
+    
+    schedule = models.ForeignKey(AvailabilitySchedule, on_delete=models.CASCADE, related_name="breaks")
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    label = models.CharField(max_length=100, blank=True, null=True, help_text="Optional label (e.g., 'Almuerzo', 'Descanso')")
+    is_active = models.BooleanField(default=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['start_time']
+    
+    def __str__(self):
+        label_text = f" ({self.label})" if self.label else ""
+        return f"{self.schedule.get_day_of_week_display()}: {self.start_time} - {self.end_time}{label_text}"
+
+
 
 class PlaceProfessionalLink(models.Model):
     """Association between a Place and a Professional with invite workflow"""

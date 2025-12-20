@@ -31,7 +31,7 @@ export default function Settings() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const {goBack} = useNavigation();
-  const {user, isAuthenticated, logout} = useAuth();
+  const {user, isAuthenticated, logout, refreshToken} = useAuth();
   const {profile, isLoading: profileLoading, refreshProfile} = useUserProfile();
   const {updateProfile, isLoading: updating} = useProfileUpdate(user?.id || 0, user?.role || "");
   const formRef = useRef<{save: () => Promise<void>} | null>(null);
@@ -44,9 +44,13 @@ export default function Settings() {
 
   const handleSave = async (userData: any, profileData: any) => {
     try {
-      await updateProfile(profileData, userData);
+      const result = await updateProfile(profileData, userData);
       // Refresh profile data after successful update
       refreshProfile();
+      // Refresh auth token to get updated user data (including username)
+      if (refreshToken) {
+        await refreshToken();
+      }
     } catch (error) {
       // Error is already handled in the hook
       console.error("Error updating profile:", error);
