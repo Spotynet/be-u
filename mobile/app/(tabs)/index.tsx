@@ -753,6 +753,20 @@ export default function Home() {
               {post.comments_count || 0}
             </Text>
           </TouchableOpacity>
+          {/* Reservar Button */}
+          <TouchableOpacity
+            style={[styles.reserveButton, {backgroundColor: colors.primary}]}
+            activeOpacity={0.8}
+            onPress={() => {
+              const profileId = post.author_public_profile_id || post.author_profile_id;
+              if (profileId) {
+                router.push(`/profile/${profileId}` as any);
+              } else {
+                console.warn('No profile ID found for navigation');
+              }
+            }}>
+            <Text style={styles.reserveButtonText}>Reservar</Text>
+          </TouchableOpacity>
         </View>
         {openCommentFor === post.id && (
           <View style={{flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 8}}>
@@ -2365,6 +2379,19 @@ const styles = StyleSheet.create({
   },
   postActionText: {
     fontSize: 14,
+    fontWeight: "700",
+  },
+  reserveButton: {
+    marginLeft: "auto",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reserveButtonText: {
+    color: "#ffffff",
+    fontSize: 13,
     fontWeight: "700",
   },
   postActionCta: {

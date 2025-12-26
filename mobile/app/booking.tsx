@@ -193,6 +193,18 @@ export default function BookingScreen() {
       if (err?.response?.data) {
         const errorData = err.response.data;
         
+        // Check for specific error about service instance not found (CustomService case)
+        if (errorData.non_field_errors && Array.isArray(errorData.non_field_errors)) {
+          const serviceNotFoundError = errorData.non_field_errors.find((msg: string) => 
+            msg.includes("Service instance with ID") && msg.includes("not found")
+          );
+          if (serviceNotFoundError) {
+            errorMessage = "Este servicio no puede ser reservado a través de la aplicación. Por favor, contacta directamente al proveedor para coordinar tu cita.";
+            Alert.alert("Servicio no disponible para reservas", errorMessage);
+            return;
+          }
+        }
+        
         // Check for validation errors (field-specific errors like {service: ["Invalid pk..."]})
         const fieldErrors: string[] = [];
         for (const [field, errors] of Object.entries(errorData)) {

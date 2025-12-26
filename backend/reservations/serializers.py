@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from .models import Reservation
-from services.models import ServicesType, ServiceInPlace, ProfessionalService
+from services.models import ServicesType, ServiceInPlace, ProfessionalService, ServicesCategory
 from users.models import ClientProfile, ProfessionalProfile, PlaceProfile
+from users.profile_models import CustomService
 from users.serializers import UserSerializer
 from services.serializers import ServicesTypeSerializer
 from django.contrib.contenttypes.models import ContentType
@@ -122,13 +123,13 @@ class ReservationSerializer(serializers.ModelSerializer):
 class ReservationCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating reservations with validation"""
     service_instance_type = serializers.ChoiceField(
-        choices=['place_service', 'professional_service'], 
+        choices=['place_service', 'professional_service', 'custom_service'], 
         write_only=True,
-        help_text="Type of service instance (place_service or professional_service)"
+        help_text="Type of service instance (place_service, professional_service, or custom_service)"
     )
     service_instance_id = serializers.IntegerField(
         write_only=True,
-        help_text="ID of the ServiceInPlace or ProfessionalService"
+        help_text="ID of the ServiceInPlace, ProfessionalService, or CustomService"
     )
     
     class Meta:
@@ -165,7 +166,33 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
                 attrs['provider_object_id'] = provider.id
                 
             except ServiceInPlace.DoesNotExist:
-                raise serializers.ValidationError(f"Service instance with ID {service_instance_id} not found")
+                # Fallback: Check if it's a CustomService (for backwards compatibility)
+                try:
+                    custom_service = CustomService.objects.select_related('content_type').get(id=service_instance_id)
+                    provider = custom_service.provider
+                    # Convert duration_minutes to timedelta
+                    duration = timedelta(minutes=custom_service.duration_minutes)
+                    
+                    # Get or create a placeholder ServicesType for custom services
+                    category, _ = ServicesCategory.objects.get_or_create(
+                        name='Personalizado',
+                        defaults={'description': 'Servicios personalizados'}
+                    )
+                    service_type, _ = ServicesType.objects.get_or_create(
+                        category=category,
+                        name=custom_service.name,
+                        defaults={
+                            'description': custom_service.description or f'Servicio personalizado: {custom_service.name}'
+                        }
+                    )
+                    
+                    # Set provider info based on content type
+                    attrs['provider_content_type'] = custom_service.content_type
+                    attrs['provider_object_id'] = custom_service.object_id
+                    service_instance = custom_service
+                    
+                except CustomService.DoesNotExist:
+                    raise serializers.ValidationError(f"Service instance with ID {service_instance_id} not found")
                 
         elif service_instance_type == 'professional_service':
             try:
@@ -179,6 +206,60 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
                 attrs['provider_object_id'] = provider.id
                 
             except ProfessionalService.DoesNotExist:
+                # Fallback: Check if it's a CustomService (for backwards compatibility)
+                try:
+                    custom_service = CustomService.objects.select_related('content_type').get(id=service_instance_id)
+                    provider = custom_service.provider
+                    # Convert duration_minutes to timedelta
+                    duration = timedelta(minutes=custom_service.duration_minutes)
+                    
+                    # Get or create a placeholder ServicesType for custom services
+                    category, _ = ServicesCategory.objects.get_or_create(
+                        name='Personalizado',
+                        defaults={'description': 'Servicios personalizados'}
+                    )
+                    service_type, _ = ServicesType.objects.get_or_create(
+                        category=category,
+                        name=custom_service.name,
+                        defaults={
+                            'description': custom_service.description or f'Servicio personalizado: {custom_service.name}'
+                        }
+                    )
+                    
+                    # Set provider info based on content type
+                    attrs['provider_content_type'] = custom_service.content_type
+                    attrs['provider_object_id'] = custom_service.object_id
+                    service_instance = custom_service
+                    
+                except CustomService.DoesNotExist:
+                    raise serializers.ValidationError(f"Service instance with ID {service_instance_id} not found")
+                
+        elif service_instance_type == 'custom_service':
+            try:
+                service_instance = CustomService.objects.select_related('content_type').get(id=service_instance_id)
+                provider = service_instance.provider
+                # Convert duration_minutes to timedelta
+                duration = timedelta(minutes=service_instance.duration_minutes)
+                
+                # Get or create a placeholder ServicesType for custom services
+                # Since CustomService doesn't have a ServicesType, we create/get a generic one
+                category, _ = ServicesCategory.objects.get_or_create(
+                    name='Personalizado',
+                    defaults={'description': 'Servicios personalizados'}
+                )
+                service_type, _ = ServicesType.objects.get_or_create(
+                    category=category,
+                    name=service_instance.name,
+                    defaults={
+                        'description': service_instance.description or f'Servicio personalizado: {service_instance.name}'
+                    }
+                )
+                
+                # Set provider info based on content type
+                attrs['provider_content_type'] = service_instance.content_type
+                attrs['provider_object_id'] = service_instance.object_id
+                
+            except CustomService.DoesNotExist:
                 raise serializers.ValidationError(f"Service instance with ID {service_instance_id} not found")
         else:
             raise serializers.ValidationError("Invalid service_instance_type")

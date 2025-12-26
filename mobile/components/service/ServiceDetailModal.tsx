@@ -37,7 +37,9 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
   const handleBookNow = () => {
     // Extract the correct service data
     const serviceInstanceId = service.id;
-    const serviceTypeId = service.service_type_id || service.service || (service.service_details?.id);
+    // For CustomService, there's no service_type_id, so we use the service.id as serviceTypeId
+    // For ProfessionalService/PlaceService, use the service_type_id
+    const serviceTypeId = service.service_type_id || service.service || (service.service_details?.id) || service.id;
     const serviceName = service.name || service.service_details?.name || 'Servicio';
     const durationMinutes = service.duration_minutes || service.duration || service.time || 60;
     
@@ -50,7 +52,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
     });
     
     // Validate required fields before closing modal
-    if (!serviceInstanceId || !serviceTypeId) {
+    if (!serviceInstanceId) {
       console.error('❌ Missing required service data:', { 
         serviceInstanceId, 
         serviceTypeId, 
