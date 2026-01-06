@@ -561,13 +561,10 @@ export const reservationApi = {
 
   // Create new reservation
   createReservation: (data: {
-    service: number;
-    provider_type: "professional" | "place";
-    provider_id: number;
-    service_instance_type?: "place_service" | "professional_service";
-    service_instance_id?: number;
-    date: string;
-    time: string;
+    service_instance_type: "place_service" | "professional_service" | "custom_service";
+    service_instance_id: number;
+    date: string;  // YYYY-MM-DD
+    time: string;  // HH:MM
     notes?: string;
   }) => api.post<any>("/reservations/", data),
 
@@ -609,6 +606,26 @@ export const reservationApi = {
   // Get calendar view
   getCalendarView: (params: {start_date: string; end_date: string}) =>
     api.get<Record<string, any[]>>("/reservations/calendar/", {params}),
+
+  // Check availability for a time slot
+  checkAvailability: (data: {
+    provider_type: "professional" | "place";
+    provider_id: number;
+    date: string;
+    time: string;
+    duration_minutes: number;
+  }) => api.post<{available: boolean; reason?: string}>("/reservations/check-availability/", data),
+
+  // Get provider schedule for a specific date
+  getProviderSchedule: (params: {
+    provider_type: "professional" | "place";
+    provider_id: number;
+    date: string;
+  }) => api.get<{
+    working_hours: {start: string; end: string} | null;
+    booked_slots: {start: string; end: string}[];
+    break_times: {start: string; end: string}[];
+  }>("/services/availability/schedule/", {params}),
 };
 
 const REVIEW_ENDPOINT = "/reviews/reviews/";

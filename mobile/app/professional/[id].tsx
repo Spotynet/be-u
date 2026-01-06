@@ -173,8 +173,10 @@ export default function ProfessionalDetailScreen() {
         distance: "0.5 km",
         services: servicesResponse.data.results.map((service: any) => ({
           id: service.id,
+          service_type_id: service.service_type_id || service.service?.id || service.id,
           name: service.service_name || service.name,
           duration: service.time || "1 hr",
+          duration_minutes: service.duration_minutes,
           price: service.price,
           description: service.description || "Servicio profesional",
         })),
@@ -748,17 +750,24 @@ export default function ProfessionalDetailScreen() {
                       <TouchableOpacity
                         style={[styles.reserveButton, {backgroundColor: colors.primary}]}
                         onPress={() => {
+                          // Get the correct provider ID (professional_profile_id if available, otherwise use numericId)
+                          // The numericId might be PublicProfile.id, but we need ProfessionalProfile.id for availability
+                          const providerId = professionalData.professional_profile_id 
+                            ? professionalData.professional_profile_id.toString() 
+                            : numericId || "";
+                          
                           // Navigate directly to booking screen with service info
                           router.push({
                             pathname: "/booking",
                             params: {
-                              serviceId: service.id.toString(),
+                              serviceInstanceId: service.id.toString(),
+                              serviceTypeId: service.service_type_id?.toString() || service.id.toString(),
                               serviceName: service.name,
                               serviceType: "professional_service",
-                              providerId: numericId || "",
+                              providerId: providerId,
                               providerName: professional ? `${professional.name} ${professional.last_name}` : "",
                               price: service.price.toString(),
-                              duration: service.time?.toString() || service.duration?.toString() || "60",
+                              duration: service.duration_minutes?.toString() || service.time?.toString() || service.duration?.toString() || "60",
                             },
                           });
                         }}

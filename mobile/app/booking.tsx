@@ -9,6 +9,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
@@ -52,6 +53,14 @@ export default function BookingScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reservationSuccess, setReservationSuccess] = useState(false);
+  const [scheduleData, setScheduleData] = useState<{
+    working_hours: {start: string; end: string} | null;
+    booked_slots: {start: string; end: string}[];
+    break_times: {start: string; end: string}[];
+  } | null>(null);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const [dateAvailabilityError, setDateAvailabilityError] = useState<string | null>(null);
+  const [timeAvailabilityError, setTimeAvailabilityError] = useState<string | null>(null);
 
   // Service info from params - all data comes directly from navigation
   // Parse and validate required params
@@ -80,26 +89,161 @@ export default function BookingScreen() {
     }
   }, [serviceInfo?.serviceInstanceId]);
 
-  const handleDateSelect = (date: string) => {
+  const handleDateSelect = async (date: string) => {
     const dateObj = new Date(date);
-    setSelectedDate(dateObj);
+    setSelectedTime(null); // Reset time when date changes
+    setTimeAvailabilityError(null);
+    setDateAvailabilityError(null);
     setShowDatePicker(false);
+    
+    // Fetch provider schedule for selected date
+    if (serviceInfo && serviceInfo.providerId > 0) {
+      setLoadingSchedule(true);
+      try {
+        const {reservationApi, profileCustomizationApi} = await import("@/lib/api");
+        const providerType = serviceInfo.serviceType === "professional_service" ? "professional" : "place";
+
+        // Helper: convert JS getDay (0=Sun) to backend (0=Mon)
+        const getBackendDayOfWeek = (d: Date) => {
+          const jsDay = d.getDay(); // 0=Sun ... 6=Sat
+          return (jsDay + 6) % 7;   // 0=Mon ... 6=Sun
+        };
+
+        // Helper: trim HH:MM:SS -> HH:MM
+        const trimTime = (t: string) => t.slice(0, 5);
+
+        // 1) Try public availability (same data shown in profile screen)
+        let computedSchedule: {
+          working_hours: {start: string; end: string} | null;
+          booked_slots: {start: string; end: string}[];
+          break_times: {start: string; end: string}[];
+        } | null = null;
+
+        try {
+          const publicResp = await profileCustomizationApi.getPublicAvailability(
+            providerType as "professional" | "place",
+            serviceInfo.providerId
+          );
+
+          const schedules = publicResp.data || [];
+          const targetDay = getBackendDayOfWeek(dateObj);
+          const daySchedule = schedules.find(
+            (s: any) =>
+              s.day_of_week === targetDay &&
+              s.is_available &&
+              Array.isArray(s.time_slots) &&
+              s.time_slots.length > 0
+          );
+
+          if (daySchedule) {
+            const slots = daySchedule.time_slots;
+            const firstSlot = slots[0];
+            const lastSlot = slots[slots.length - 1];
+            computedSchedule = {
+              working_hours: {
+                start: trimTime(firstSlot.start_time),
+                end: trimTime(lastSlot.end_time),
+              },
+              booked_slots: [],
+              break_times: [],
+            };
+          } else if (schedules.length === 0) {
+            // No availability configured at all
+            computedSchedule = {
+              working_hours: null,
+              booked_slots: [],
+              break_times: [],
+            };
+            setDateAvailabilityError(
+              "Este proveedor aún no ha configurado sus horarios de disponibilidad. Por favor contacta al proveedor directamente o intenta con otro proveedor."
+            );
+            setSelectedDate(null);
+            setScheduleData(computedSchedule);
+            return;
+          }
+        } catch (publicErr) {
+          // Ignore and fallback to reservations endpoint
+          console.warn("Fallo getPublicAvailability, probando schedule endpoint", publicErr);
+        }
+
+        // 2) Fallback to dedicated schedule endpoint (includes blocked slots)
+        if (!computedSchedule) {
+          const response = await reservationApi.getProviderSchedule({
+            provider_type: providerType as "professional" | "place",
+            provider_id: serviceInfo.providerId,
+            date: date,
+          });
+          computedSchedule = response.data;
+        }
+
+        setScheduleData(computedSchedule);
+
+        // Check if provider is available on this day
+        if (!computedSchedule?.working_hours) {
+          // Check if provider has any availability configured at all
+          const hasAnyAvailability =
+            (computedSchedule?.booked_slots?.length ?? 0) > 0 ||
+            (computedSchedule?.break_times?.length ?? 0) > 0;
+
+          if (!hasAnyAvailability) {
+            // Provider hasn't configured their schedule yet
+            setDateAvailabilityError(
+              "Este proveedor aún no ha configurado sus horarios de disponibilidad. Por favor contacta al proveedor directamente o intenta con otro proveedor."
+            );
+          } else {
+            // Provider has schedule but not available on this specific day
+            setDateAvailabilityError(
+              "El proveedor no está disponible en este día. Por favor selecciona otra fecha."
+            );
+          }
+          setSelectedDate(null);
+          return;
+        }
+
+        // Date is available, set it
+        setSelectedDate(dateObj);
+      } catch (err: any) {
+        console.error("Error fetching schedule:", err);
+        const errorMessage =
+          err?.response?.data?.error ||
+          err?.response?.data?.detail ||
+          "No se pudo verificar la disponibilidad. Por favor intenta de nuevo.";
+        setDateAvailabilityError(errorMessage);
+        setScheduleData(null);
+        setSelectedDate(null);
+      } finally {
+        setLoadingSchedule(false);
+      }
+    } else {
+      // If no service info, just set the date
+      setSelectedDate(dateObj);
+    }
   };
 
   const handleTimeChange = (event: any, date?: Date) => {
     if (Platform.OS === "android") {
-      // Android shows a modal, so close it after selection
+      // Android shows a native modal, so close it after selection
       setShowTimePicker(false);
       if (event.type === "set" && date) {
-        setSelectedTime(date);
+        // Validate availability before setting
+        if (isTimeSlotAvailable(date)) {
+          setSelectedTime(date);
+          setTimeAvailabilityError(null);
+        } else {
+          setTimeAvailabilityError("Esta hora no está disponible. Por favor selecciona otra hora.");
+        }
       }
     } else {
-      // iOS shows inline spinner
+      // iOS: Update time as user scrolls (wheels mode)
+      // The "Listo" button in the modal will close it
       if (event.type === "set" && date) {
-        setSelectedTime(date);
-        // Keep picker open on iOS spinner mode
-      } else if (event.type === "dismissed") {
-        setShowTimePicker(false);
+        // Validate availability before setting
+        if (isTimeSlotAvailable(date)) {
+          setSelectedTime(date);
+          setTimeAvailabilityError(null);
+        } else {
+          setTimeAvailabilityError("Esta hora no está disponible. Por favor selecciona otra hora.");
+        }
       }
     }
   };
@@ -114,6 +258,56 @@ export default function BookingScreen() {
     const endTime = new Date(startTime);
     endTime.setMinutes(endTime.getMinutes() + durationMinutes);
     return endTime;
+  };
+
+  const isTimeSlotAvailable = (time: Date): boolean => {
+    // If no schedule data or no working hours, time is not available
+    if (!scheduleData || !scheduleData.working_hours || !serviceInfo) {
+      return false;
+    }
+
+    const timeStr = formatTime(time);
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    const timeMinutes = hours * 60 + minutes;
+    
+    // Check if time is within working hours
+    const [workStartHours, workStartMins] = scheduleData.working_hours.start.split(":").map(Number);
+    const [workEndHours, workEndMins] = scheduleData.working_hours.end.split(":").map(Number);
+    const workStartMinutes = workStartHours * 60 + workStartMins;
+    const workEndMinutes = workEndHours * 60 + workEndMins;
+    const endTimeMinutes = timeMinutes + serviceInfo.duration;
+
+    if (timeMinutes < workStartMinutes || endTimeMinutes > workEndMinutes) {
+      return false;
+    }
+
+    // Check if time conflicts with booked slots
+    for (const slot of scheduleData.booked_slots) {
+      const [slotStartHours, slotStartMins] = slot.start.split(":").map(Number);
+      const [slotEndHours, slotEndMins] = slot.end.split(":").map(Number);
+      const slotStartMinutes = slotStartHours * 60 + slotStartMins;
+      const slotEndMinutes = slotEndHours * 60 + slotEndMins;
+
+      // Check for overlap
+      if (timeMinutes < slotEndMinutes && endTimeMinutes > slotStartMinutes) {
+        return false;
+      }
+    }
+
+    // Check if time conflicts with break times
+    for (const breakTime of scheduleData.break_times) {
+      const [breakStartHours, breakStartMins] = breakTime.start.split(":").map(Number);
+      const [breakEndHours, breakEndMins] = breakTime.end.split(":").map(Number);
+      const breakStartMinutes = breakStartHours * 60 + breakStartMins;
+      const breakEndMinutes = breakEndHours * 60 + breakEndMins;
+
+      // Check for overlap
+      if (timeMinutes < breakEndMinutes && endTimeMinutes > breakStartMinutes) {
+        return false;
+      }
+    }
+
+    return true;
   };
 
   const handleConfirmBooking = async () => {
@@ -134,6 +328,15 @@ export default function BookingScreen() {
       return;
     }
 
+    // Final availability check before submission
+    if (!isTimeSlotAvailable(selectedTime)) {
+      Alert.alert(
+        "Hora no disponible",
+        "La hora seleccionada ya no está disponible. Por favor selecciona otra hora."
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
@@ -148,15 +351,15 @@ export default function BookingScreen() {
       
       // Create reservation with simplified data structure
       const reservationData = {
+        service_instance_type: serviceInfo.serviceType as "place_service" | "professional_service" | "custom_service",
         service_instance_id: serviceInfo.serviceInstanceId,
-        service_instance_type: serviceInfo.serviceType,
         date: dateStr,
         time: timeSlot.time,
         notes: localNotes,
       };
 
       const {reservationApi} = await import("@/lib/api");
-      const response = await reservationApi.createReservation(reservationData as any);
+      const response = await reservationApi.createReservation(reservationData);
       
       console.log("Reservation created successfully:", response.data);
       
@@ -193,8 +396,30 @@ export default function BookingScreen() {
       if (err?.response?.data) {
         const errorData = err.response.data;
         
-        // Check for specific error about service instance not found (CustomService case)
+        // Check for availability errors
         if (errorData.non_field_errors && Array.isArray(errorData.non_field_errors)) {
+          const availabilityError = errorData.non_field_errors.find((msg: string) => 
+            msg.includes("not available") || 
+            msg.includes("no disponible") ||
+            msg.includes("outside") ||
+            msg.includes("conflicts")
+          );
+          if (availabilityError) {
+            errorMessage = availabilityError;
+            Alert.alert("Hora no disponible", errorMessage, [
+              {
+                text: "Seleccionar otra fecha/hora",
+                onPress: () => {
+                  setSelectedDate(null);
+                  setSelectedTime(null);
+                  setScheduleData(null);
+                }
+              },
+              { text: "OK" }
+            ]);
+            return;
+          }
+          
           const serviceNotFoundError = errorData.non_field_errors.find((msg: string) => 
             msg.includes("Service instance with ID") && msg.includes("not found")
           );
@@ -418,18 +643,54 @@ export default function BookingScreen() {
         {!selectedDate ? (
           <View style={styles.stepContent}>
             <Text style={[styles.stepTitle, {color: colors.foreground}]}>Selecciona una fecha</Text>
+            {dateAvailabilityError && (
+              <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "20", borderColor: "#ef4444"}]}>
+                <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                <Text style={[styles.errorCardText, {color: "#ef4444"}]}>
+                  {dateAvailabilityError}
+                </Text>
+              </View>
+            )}
             <CalendarView
               reservations={[]}
               onDayPress={(date) => handleDateSelect(date)}
-              selectedDate={selectedDate?.toISOString().split("T")[0]}
+              selectedDate={undefined}
               minDate={new Date().toISOString().split("T")[0]}
             />
+          </View>
+        ) : !scheduleData || !scheduleData.working_hours ? (
+          // Date selected but not available
+          <View style={styles.stepContent}>
+            <View style={styles.stepHeader}>
+              <TouchableOpacity onPress={() => {
+                setSelectedDate(null);
+                setScheduleData(null);
+                setDateAvailabilityError(null);
+              }} activeOpacity={0.7}>
+                <Ionicons name="chevron-back" size={24} color={colors.primary} />
+              </TouchableOpacity>
+              <Text style={[styles.stepTitle, {color: colors.foreground}]}>
+                Fecha no disponible
+              </Text>
+              <View style={styles.placeholder} />
+            </View>
+            <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "20", borderColor: "#ef4444"}]}>
+              <Ionicons name="alert-circle" size={20} color="#ef4444" />
+              <Text style={[styles.errorCardText, {color: "#ef4444"}]}>
+                El proveedor no está disponible en este día. Por favor selecciona otra fecha.
+              </Text>
+            </View>
           </View>
         ) : !selectedTime ? (
           // Step 2: Time Selection
           <View style={styles.stepContent}>
             <View style={styles.stepHeader}>
-              <TouchableOpacity onPress={() => setSelectedDate(null)} activeOpacity={0.7}>
+              <TouchableOpacity onPress={() => {
+                setSelectedDate(null);
+                setSelectedTime(null);
+                setScheduleData(null);
+                setTimeAvailabilityError(null);
+              }} activeOpacity={0.7}>
                 <Ionicons name="chevron-back" size={24} color={colors.primary} />
               </TouchableOpacity>
               <Text style={[styles.stepTitle, {color: colors.foreground}]}>
@@ -446,6 +707,15 @@ export default function BookingScreen() {
                   month: "long",
                 })}
               </Text>
+              
+              {timeAvailabilityError && (
+                <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "20", borderColor: "#ef4444"}]}>
+                  <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                  <Text style={[styles.errorCardText, {color: "#ef4444"}]}>
+                    {timeAvailabilityError}
+                  </Text>
+                </View>
+              )}
               
               {Platform.OS === "web" ? (
                 <View style={styles.timeInputContainer}>
@@ -486,9 +756,17 @@ export default function BookingScreen() {
                         const [hours, minutes] = formatted.split(":").map(Number);
                         const date = new Date();
                         date.setHours(hours, minutes, 0, 0);
-                        setSelectedTime(date);
+                        const timeToCheck = new Date(date);
+                        // Validate availability before setting
+                        if (isTimeSlotAvailable(timeToCheck)) {
+                          setSelectedTime(timeToCheck);
+                          setTimeAvailabilityError(null);
+                        } else {
+                          setTimeAvailabilityError("Esta hora no está disponible. Por favor selecciona otra hora dentro del horario de trabajo del proveedor.");
+                        }
                       } else if (formatted === "") {
                         setSelectedTime(null);
+                        setTimeAvailabilityError(null);
                       }
                     }}
                     keyboardType="numeric"
@@ -511,18 +789,125 @@ export default function BookingScreen() {
                     <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
                   </TouchableOpacity>
 
-                  {showTimePicker && (
-                    <DateTimePicker
-                      value={selectedTime || new Date()}
-                      mode="time"
-                      is24Hour={true}
-                      display={Platform.OS === "ios" ? "spinner" : "default"}
-                      onChange={handleTimeChange}
-                      minimumDate={selectedDate || new Date()}
-                    />
+                  {Platform.OS === "ios" ? (
+                    <Modal
+                      visible={showTimePicker}
+                      transparent={true}
+                      animationType="slide"
+                      onRequestClose={() => setShowTimePicker(false)}>
+                      <View style={styles.timePickerModalContainer}>
+                        <View style={[styles.timePickerModalContent, {backgroundColor: colors.background}]}>
+                          <View style={styles.timePickerModalHeader}>
+                            <TouchableOpacity
+                              onPress={() => setShowTimePicker(false)}
+                              style={styles.timePickerModalCancel}>
+                              <Text style={[styles.timePickerModalButtonText, {color: colors.primary}]}>
+                                Cancelar
+                              </Text>
+                            </TouchableOpacity>
+                            <Text style={[styles.timePickerModalTitle, {color: colors.foreground}]}>
+                              Seleccionar hora
+                            </Text>
+                            <TouchableOpacity
+                              onPress={() => {
+                                setShowTimePicker(false);
+                              }}
+                              style={styles.timePickerModalDone}>
+                              <Text style={[styles.timePickerModalButtonText, {color: colors.primary}]}>
+                                Listo
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                          <DateTimePicker
+                            value={selectedTime || new Date()}
+                            mode="time"
+                            is24Hour={true}
+                            display="spinner"
+                            onChange={(event, date) => {
+                              if (event.type === "set" && date) {
+                                // Validate availability before setting
+                                if (isTimeSlotAvailable(date)) {
+                                  setTimeAvailabilityError(null);
+                                  handleTimeChange(event, date);
+                                } else {
+                                  setTimeAvailabilityError("Esta hora no está disponible. Por favor selecciona otra hora dentro del horario de trabajo del proveedor.");
+                                }
+                              } else {
+                                handleTimeChange(event, date);
+                              }
+                            }}
+                            textColor={colors.foreground}
+                            style={styles.iosTimePicker}
+                          />
+                        </View>
+                      </View>
+                    </Modal>
+                  ) : (
+                    showTimePicker && (
+                      <DateTimePicker
+                        value={selectedTime || new Date()}
+                        mode="time"
+                        is24Hour={true}
+                        display="default"
+                        onChange={(event, date) => {
+                          if (event.type === "set" && date) {
+                            // Validate availability before setting
+                            if (isTimeSlotAvailable(date)) {
+                              setTimeAvailabilityError(null);
+                              handleTimeChange(event, date);
+                            } else {
+                              setTimeAvailabilityError("Esta hora no está disponible. Por favor selecciona otra hora dentro del horario de trabajo del proveedor.");
+                            }
+                          } else {
+                            handleTimeChange(event, date);
+                          }
+                        }}
+                      />
+                    )
                   )}
                 </>
               )}
+
+              {loadingSchedule ? (
+                <View style={styles.loadingSchedule}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.loadingScheduleText, {color: colors.mutedForeground}]}>
+                    Cargando horarios disponibles...
+                  </Text>
+                </View>
+              ) : !scheduleData || !scheduleData.working_hours ? (
+                <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "20", borderColor: "#ef4444"}]}>
+                  <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                  <Text style={[styles.errorCardText, {color: "#ef4444"}]}>
+                    El proveedor no está disponible en este día. Por favor selecciona otra fecha.
+                  </Text>
+                </View>
+              ) : scheduleData && scheduleData.working_hours ? (
+                <View style={[styles.scheduleInfo, {backgroundColor: colors.card + "50"}]}>
+                  <View style={styles.scheduleRow}>
+                    <Ionicons name="time-outline" size={16} color={colors.mutedForeground} />
+                    <Text style={[styles.scheduleText, {color: colors.mutedForeground}]}>
+                      Horario: {scheduleData.working_hours.start} - {scheduleData.working_hours.end}
+                    </Text>
+                  </View>
+                  {scheduleData.booked_slots.length > 0 && (
+                    <View style={styles.scheduleRow}>
+                      <Ionicons name="calendar-outline" size={16} color={colors.mutedForeground} />
+                      <Text style={[styles.scheduleText, {color: colors.mutedForeground}]}>
+                        {scheduleData.booked_slots.length} reserva(s) existente(s)
+                      </Text>
+                    </View>
+                  )}
+                  {scheduleData.break_times.length > 0 && (
+                    <View style={styles.scheduleRow}>
+                      <Ionicons name="cafe-outline" size={16} color={colors.mutedForeground} />
+                      <Text style={[styles.scheduleText, {color: colors.mutedForeground}]}>
+                        {scheduleData.break_times.length} descanso(s) programado(s)
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ) : null}
 
               <View style={[styles.infoCard, {backgroundColor: colors.primary + "10"}]}>
                 <Ionicons name="information-circle" size={20} color={colors.primary} />
@@ -941,5 +1326,83 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     textAlign: "center",
+  },
+  timePickerModalContainer: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  timePickerModalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+  },
+  timePickerModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0, 0, 0, 0.1)",
+  },
+  timePickerModalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    flex: 1,
+    textAlign: "center",
+  },
+  timePickerModalCancel: {
+    padding: 8,
+  },
+  timePickerModalDone: {
+    padding: 8,
+  },
+  timePickerModalButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  iosTimePicker: {
+    width: "100%",
+    height: 200,
+  },
+  loadingSchedule: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    gap: 8,
+  },
+  loadingScheduleText: {
+    fontSize: 14,
+  },
+  scheduleInfo: {
+    padding: 12,
+    borderRadius: 12,
+    gap: 8,
+    marginBottom: 12,
+  },
+  scheduleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  scheduleText: {
+    fontSize: 13,
+  },
+  errorCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+    marginBottom: 12,
+  },
+  errorCardText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
   },
 });

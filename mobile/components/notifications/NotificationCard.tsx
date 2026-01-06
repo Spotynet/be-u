@@ -1,5 +1,5 @@
 import React from "react";
-import {View, Text, TouchableOpacity, StyleSheet, Alert} from "react-native";
+import {View, Text, TouchableOpacity, StyleSheet, Alert, Platform} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
@@ -251,6 +251,11 @@ export const NotificationCard = ({
                 },
               ]}
               onPress={() => {
+                // On web, Alert buttons can be blocked; call directly there
+                if (Platform.OS === "web") {
+                  onRejectReservation(reservationId);
+                  return;
+                }
                 Alert.alert(
                   "Rechazar Reserva",
                   "¿Estás seguro de que deseas rechazar esta solicitud de reserva?",
@@ -279,6 +284,11 @@ export const NotificationCard = ({
                 },
               ]}
               onPress={() => {
+                // On web, Alert buttons can be blocked; call directly there
+                if (Platform.OS === "web") {
+                  onConfirmReservation(reservationId);
+                  return;
+                }
                 Alert.alert(
                   "Confirmar Reserva",
                   "¿Confirmar esta solicitud de reserva?",

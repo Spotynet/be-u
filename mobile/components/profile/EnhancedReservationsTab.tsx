@@ -17,7 +17,7 @@ import {useAuth} from "@/features/auth";
 import {useReservations, useIncomingReservations} from "@/features/reservations";
 import {CalendarView, ReservationCard} from "@/components/calendar";
 import {Reservation} from "@/types/global";
-import {Alert} from "react-native";
+import {Alert, Platform} from "react-native";
 
 interface EnhancedReservationsTabProps {
   userRole: "CLIENT" | "PROFESSIONAL" | "PLACE";
@@ -77,6 +77,16 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
   };
 
   const handleConfirm = async (id: number) => {
+    // On web, fall back to immediate action because Alert buttons can be blocked by the browser
+    if (Platform.OS === "web") {
+      try {
+        await confirmReservation(id);
+      } catch (err) {
+        // Error handled in hook
+      }
+      return;
+    }
+
     Alert.alert("Confirmar Reserva", "¿Confirmar esta reserva?", [
       {text: "Cancelar", style: "cancel"},
       {
@@ -93,6 +103,16 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
   };
 
   const handleReject = async (id: number) => {
+    // Alert.prompt is not supported on web; use a simple confirm flow there
+    if (Platform.OS === "web") {
+      try {
+        await rejectReservation(id, "");
+      } catch (err) {
+        // Error handled in hook
+      }
+      return;
+    }
+
     Alert.prompt(
       "Rechazar Reserva",
       "¿Por qué rechazas esta reserva?",

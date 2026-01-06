@@ -14,6 +14,7 @@ from .serializers import (
 from .permissions import IsReservationClient, IsReservationProvider, CanViewReservation
 from users.models import ProfessionalProfile, PlaceProfile
 from services.models import TimeSlotBlock
+from reservations.availability import check_slot_availability
 
 # Google Calendar integration
 from calendar_integration.event_helpers import (
@@ -176,9 +177,9 @@ class ReservationViewSet(viewsets.ModelViewSet):
         
         reservations = self.get_queryset()
         
-        # Filter by status (default to pending)
-        status_filter = request.query_params.get('status', 'PENDING')
-        if status_filter:
+        # Filter by status when provided; if not provided, return all statuses
+        status_filter = request.query_params.get('status')
+        if status_filter and status_filter.lower() != 'all':
             reservations = reservations.filter(status=status_filter.upper())
         
         serializer = ReservationSerializer(reservations, many=True)
@@ -382,3 +383,52 @@ class ReservationViewSet(viewsets.ModelViewSet):
             'message': 'Reservation marked as complete',
             'reservation': serializer.data
         })
+    
+    @action(detail=False, methods=['post'], url_path='check-availability')
+    def check_availability(self, request):
+        """Check if a time slot is available for booking"""
+        provider_type = request.data.get('provider_type')
+        provider_id = request.data.get('provider_id')
+        date_str = request.data.get('date')
+        time_str = request.data.get('time')
+        duration_minutes = request.data.get('duration_minutes', 60)
+        
+        if not all([provider_type, provider_id, date_str, time_str]):
+            return Response(
+                {"error": "provider_type, provider_id, date, and time are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            time = datetime.strptime(time_str, '%H:%M').time()
+            duration = timedelta(minutes=int(duration_minutes))
+        except (ValueError, TypeError) as e:
+            return Response(
+                {"error": f"Invalid date/time format: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get content type
+        if provider_type == 'professional':
+            ct = ContentType.objects.get_for_model(ProfessionalProfile)
+        elif provider_type == 'place':
+            ct = ContentType.objects.get_for_model(PlaceProfile)
+        else:
+            return Response(
+                {"error": "Invalid provider_type. Use 'professional' or 'place'"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            is_available, reason = check_slot_availability(ct, int(provider_id), date, time, duration)
+            return Response({
+                'available': is_available,
+                'reason': reason
+            })
+        except Exception as e:
+            logger.error(f"Error checking availability: {e}", exc_info=True)
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

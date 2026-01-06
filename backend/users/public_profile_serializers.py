@@ -16,6 +16,8 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     user_image = serializers.SerializerMethodField()
     display_name = serializers.CharField(read_only=True)
     availability = serializers.SerializerMethodField()
+    professional_profile_id = serializers.SerializerMethodField()
+    place_profile_id = serializers.SerializerMethodField()
     
     def get_user_image(self, obj):
         """Get user image URL with proper absolute URL handling"""
@@ -50,6 +52,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
             'images', 'linked_pros_place', 'has_calendar',
             'street', 'number_ext', 'number_int', 'postal_code', 'city', 'country',
             'last_name', 'bio', 'rating', 'display_name', 'availability',
+            'professional_profile_id', 'place_profile_id',
             'latitude', 'longitude',
             'created_at', 'updated_at'
         ]
@@ -113,6 +116,24 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         except Exception as e:
             # Return empty list if there's any error
             return []
+    
+    def get_professional_profile_id(self, obj):
+        """Get the ProfessionalProfile ID if this is a professional profile"""
+        if obj.profile_type == 'PROFESSIONAL':
+            try:
+                return obj.user.professional_profile.id
+            except (ProfessionalProfile.DoesNotExist, AttributeError):
+                return None
+        return None
+    
+    def get_place_profile_id(self, obj):
+        """Get the PlaceProfile ID if this is a place profile"""
+        if obj.profile_type == 'PLACE':
+            try:
+                return obj.user.place_profile.id
+            except (PlaceProfile.DoesNotExist, AttributeError):
+                return None
+        return None
 
 
 class PublicProfileCreateSerializer(serializers.ModelSerializer):

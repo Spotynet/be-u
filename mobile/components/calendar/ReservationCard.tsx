@@ -28,6 +28,10 @@ export const ReservationCard = ({
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
 
+  // Use a touchable wrapper only when a press handler is provided so that
+  // action buttons inside the card remain interactive.
+  const Wrapper: React.ElementType = onPress ? TouchableOpacity : View;
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "CONFIRMED":
@@ -47,12 +51,17 @@ export const ReservationCard = ({
 
   const statusColor = getStatusColor(reservation.status);
 
+  const wrapperProps = onPress
+    ? {
+        onPress: () => onPress(reservation),
+        activeOpacity: 0.7,
+      }
+    : {};
+
   return (
-    <TouchableOpacity
+    <Wrapper
       style={[styles.card, {backgroundColor: colors.card, borderLeftColor: statusColor}]}
-      onPress={() => onPress?.(reservation)}
-      activeOpacity={0.7}
-      disabled={!onPress}>
+      {...(wrapperProps as any)}>
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
@@ -185,7 +194,7 @@ export const ReservationCard = ({
           )}
         </View>
       )}
-    </TouchableOpacity>
+    </Wrapper>
   );
 };
 

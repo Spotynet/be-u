@@ -7,6 +7,7 @@ from users.serializers import UserSerializer
 from services.serializers import ServicesTypeSerializer
 from django.contrib.contenttypes.models import ContentType
 from datetime import datetime, timedelta, time as dt_time
+from reservations.availability import check_slot_availability
 
 
 class ReservationSerializer(serializers.ModelSerializer):
@@ -269,6 +270,16 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
         attrs['_duration'] = duration
         attrs['_service_instance_content_type'] = ContentType.objects.get_for_model(type(service_instance))
         attrs['_service_instance_object_id'] = service_instance.id
+        
+        # Check availability
+        provider_ct = attrs['provider_content_type']
+        provider_id = attrs['provider_object_id']
+        date = attrs['date']
+        time = attrs['time']
+        
+        is_available, reason = check_slot_availability(provider_ct, provider_id, date, time, duration)
+        if not is_available:
+            raise serializers.ValidationError(reason or "Time slot is not available")
         
         return attrs
     

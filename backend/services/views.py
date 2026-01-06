@@ -1,3 +1,4 @@
+import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -16,7 +17,10 @@ from .serializers import (
 )
 from .permissions import IsPlaceOwner, IsProfessional, IsServiceOwner, CanManageAvailability
 from reservations.models import Reservation
+from reservations.availability import get_provider_schedule_for_date
 from users.models import ProfessionalProfile, PlaceProfile
+
+logger = logging.getLogger(__name__)
 
 
 class ServicesCategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -272,6 +276,180 @@ class ProviderAvailabilityViewSet(viewsets.ModelViewSet):
         
         serializer = ProviderAvailabilitySerializer(created_schedules, many=True)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['get'], url_path='schedule', permission_classes=[AllowAny])
+    def get_schedule(self, request):
+        """Get provider's schedule for a specific date (public endpoint)"""
+        # Ensure logger is available (it's defined at module level)
+        global logger
+        
+        provider_type = request.query_params.get('provider_type')
+        provider_id = request.query_params.get('provider_id')
+        date_str = request.query_params.get('date')
+        
+        if not all([provider_type, provider_id, date_str]):
+            return Response(
+                {"error": "provider_type, provider_id, and date are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {"error": "Invalid date format. Use YYYY-MM-DD"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get content type and resolve provider ID
+        # The provider_id might be a PublicProfile ID, so we need to resolve it
+        # Use print for immediate visibility in development
+        print(f"[SCHEDULE] Getting schedule for provider_type={provider_type}, provider_id={provider_id}, date={date}, day_of_week={date.weekday()}")
+        logger.info(f"Getting schedule for provider_type={provider_type}, provider_id={provider_id}, date={date}, day_of_week={date.weekday()}")
+        
+        resolved_provider_id = None
+        provider = None
+        
+        if provider_type == 'professional':
+            ct = ContentType.objects.get_for_model(ProfessionalProfile)
+            
+            # First try to get ProfessionalProfile directly
+            try:
+                provider = ProfessionalProfile.objects.get(id=int(provider_id))
+                resolved_provider_id = provider.id
+                logger.info(f"Found ProfessionalProfile directly: {provider.id}, user_id={provider.user.id if provider.user else None}")
+            except ProfessionalProfile.DoesNotExist:
+                # Try to find via PublicProfile
+                try:
+                    from users.models import PublicProfile
+                    public_profile = PublicProfile.objects.get(id=int(provider_id), profile_type='PROFESSIONAL')
+                    if public_profile.user and hasattr(public_profile.user, 'professional_profile'):
+                        provider = public_profile.user.professional_profile
+                        resolved_provider_id = provider.id
+                        logger.info(f"Found ProfessionalProfile via PublicProfile: PublicProfile.id={provider_id}, ProfessionalProfile.id={provider.id}")
+                    else:
+                        return Response(
+                            {"error": f"Professional profile not found for PublicProfile ID {provider_id}"},
+                            status=status.HTTP_404_NOT_FOUND
+                        )
+                except PublicProfile.DoesNotExist:
+                    return Response(
+                        {"error": f"Professional with ID {provider_id} not found"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+        elif provider_type == 'place':
+            ct = ContentType.objects.get_for_model(PlaceProfile)
+            
+            # First try to get PlaceProfile directly
+            try:
+                provider = PlaceProfile.objects.get(id=int(provider_id))
+                resolved_provider_id = provider.id
+                logger.info(f"Found PlaceProfile directly: {provider.id}, user_id={provider.user.id if provider.user else None}")
+            except PlaceProfile.DoesNotExist:
+                # Try to find via PublicProfile
+                try:
+                    from users.models import PublicProfile
+                    public_profile = PublicProfile.objects.get(id=int(provider_id), profile_type='PLACE')
+                    if public_profile.user and hasattr(public_profile.user, 'place_profile'):
+                        provider = public_profile.user.place_profile
+                        resolved_provider_id = provider.id
+                        logger.info(f"Found PlaceProfile via PublicProfile: PublicProfile.id={provider_id}, PlaceProfile.id={provider.id}")
+                    else:
+                        return Response(
+                            {"error": f"Place profile not found for PublicProfile ID {provider_id}"},
+                            status=status.HTTP_404_NOT_FOUND
+                        )
+                except PublicProfile.DoesNotExist:
+                    return Response(
+                        {"error": f"Place with ID {provider_id} not found"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+        else:
+            return Response(
+                {"error": "Invalid provider_type. Use 'professional' or 'place'"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            print(f"[SCHEDULE] Using ContentType: {ct}, model={ct.model}, app_label={ct.app_label}, resolved_provider_id={resolved_provider_id}")
+            logger.info(f"Using ContentType: {ct}, model={ct.model}, app_label={ct.app_label}, resolved_provider_id={resolved_provider_id}")
+            
+            # Debug: Check all ProviderAvailability records for this provider (any day)
+            all_availability = ProviderAvailability.objects.filter(
+                content_type=ct,
+                object_id=resolved_provider_id
+            )
+            availability_count = all_availability.count()
+            print(f"[SCHEDULE] Total ProviderAvailability records for provider {resolved_provider_id} (all days): {availability_count}")
+            logger.info(f"Total ProviderAvailability records for this provider (all days): {availability_count}")
+            if availability_count > 0:
+                for av in all_availability:
+                    print(f"[SCHEDULE]   - Day {av.day_of_week}: {av.start_time} - {av.end_time}, is_active={av.is_active}")
+                    logger.info(f"  - Day {av.day_of_week}: {av.start_time} - {av.end_time}, is_active={av.is_active}")
+            
+            # Also check AvailabilitySchedule
+            from users.profile_models import AvailabilitySchedule
+            all_schedules = AvailabilitySchedule.objects.filter(
+                content_type=ct,
+                object_id=resolved_provider_id
+            )
+            schedule_count = all_schedules.count()
+            print(f"[SCHEDULE] Total AvailabilitySchedule records for provider {resolved_provider_id} (all days): {schedule_count}")
+            logger.info(f"Total AvailabilitySchedule records for this provider (all days): {schedule_count}")
+            if schedule_count > 0:
+                for sched in all_schedules:
+                    print(f"[SCHEDULE]   - Day {sched.day_of_week}: is_available={sched.is_available}")
+                    logger.info(f"  - Day {sched.day_of_week}: is_available={sched.is_available}")
+            
+            # Check specific day
+            day_of_week = date.weekday()
+            day_availability = ProviderAvailability.objects.filter(
+                content_type=ct,
+                object_id=resolved_provider_id,
+                day_of_week=day_of_week,
+                is_active=True
+            )
+            day_avail_count = day_availability.count()
+            print(f"[SCHEDULE] ProviderAvailability for day_of_week={day_of_week} (date={date}): {day_avail_count} records")
+            logger.info(f"ProviderAvailability for day_of_week={day_of_week}: {day_avail_count} records")
+            if day_availability.exists():
+                for av in day_availability:
+                    print(f"[SCHEDULE]   Found: {av.start_time} - {av.end_time}")
+                    logger.info(f"  Found: {av.start_time} - {av.end_time}")
+            
+            day_schedule = AvailabilitySchedule.objects.filter(
+                content_type=ct,
+                object_id=resolved_provider_id,
+                day_of_week=day_of_week,
+                is_available=True
+            )
+            day_sched_count = day_schedule.count()
+            print(f"[SCHEDULE] AvailabilitySchedule for day_of_week={day_of_week} (date={date}): {day_sched_count} records")
+            logger.info(f"AvailabilitySchedule for day_of_week={day_of_week}: {day_sched_count} records")
+            if day_schedule.exists():
+                for sched in day_schedule:
+                    from users.profile_models import TimeSlot
+                    time_slots = TimeSlot.objects.filter(schedule=sched, is_active=True)
+                    ts_count = time_slots.count()
+                    print(f"[SCHEDULE]   Found schedule id={sched.id}, time_slots={ts_count}")
+                    logger.info(f"  Found schedule id={sched.id}, time_slots={ts_count}")
+                    for ts in time_slots:
+                        print(f"[SCHEDULE]     TimeSlot: {ts.start_time} - {ts.end_time}")
+                        logger.info(f"    TimeSlot: {ts.start_time} - {ts.end_time}")
+            
+            schedule_data = get_provider_schedule_for_date(ct, resolved_provider_id, date)
+            print(f"[SCHEDULE] Final schedule data: working_hours={schedule_data.get('working_hours')}, booked_slots={len(schedule_data.get('booked_slots', []))}, break_times={len(schedule_data.get('break_times', []))}")
+            logger.info(f"Final schedule data: {schedule_data}")
+            return Response(schedule_data)
+        except Exception as e:
+            logger.error(f"Error getting schedule: {e}", exc_info=True)
+            print(f"[SCHEDULE] ERROR: {e}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class TimeSlotBlockViewSet(viewsets.ModelViewSet):
