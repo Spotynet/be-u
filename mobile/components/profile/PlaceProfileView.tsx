@@ -150,15 +150,12 @@ export const PlaceProfileView = ({
             </View>
           </View>
 
-          {/* Rating */}
+          {/* Rating (reviews not implemented yet) */}
           <View style={[styles.ratingContainer, {backgroundColor: colors.card}]}>
             <View style={styles.ratingContent}>
               <Ionicons name="star" color="#fbbf24" size={20} />
               <Text style={[styles.ratingText, {color: colors.foreground}]}>4.8</Text>
             </View>
-            <Text style={[styles.reviewsCount, {color: colors.mutedForeground}]}>
-              ({stats.reviews || 0} reseñas)
-            </Text>
           </View>
           {/* Category and Subcategory */}
           {(profile?.category || (profile?.sub_categories && profile.sub_categories.length > 0)) && (

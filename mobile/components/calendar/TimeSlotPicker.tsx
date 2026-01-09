@@ -5,6 +5,7 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {TimeSlot} from "@/types/global";
 import {Ionicons} from "@expo/vector-icons";
+import {parseISODateAsLocal} from "@/lib/dateUtils";
 
 interface TimeSlotPickerProps {
   slots: TimeSlot[];
@@ -22,7 +23,7 @@ export const TimeSlotPicker = ({slots, selectedTime, onSelectTime, date}: TimeSl
       <View style={styles.header}>
         <Text style={[styles.title, {color: colors.foreground}]}>Horarios Disponibles</Text>
         <Text style={[styles.subtitle, {color: colors.mutedForeground}]}>
-          {new Date(date).toLocaleDateString("es-MX", {
+          {parseISODateAsLocal(date).toLocaleDateString("es-MX", {
             weekday: "long",
             day: "numeric",
             month: "long",

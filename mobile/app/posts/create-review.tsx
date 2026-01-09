@@ -25,12 +25,12 @@ export default function CreateReviewScreen() {
 
   const [selectedProvider, setSelectedProvider] = useState<any>(null);
   const [providerType, setProviderType] = useState<"professional" | "place" | null>(null);
-  const [rating, setRating] = useState(0);
+  const [rating, setRating] = useState(5);
   const [aspectRatings, setAspectRatings] = useState({
-    quality: 0,
-    cleanliness: 0,
-    attention: 0,
-    value: 0,
+    quality: 5,
+    cleanliness: 5,
+    attention: 5,
+    value: 5,
   });
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
@@ -88,6 +88,15 @@ export default function CreateReviewScreen() {
     ...professionals.map((p) => ({...p, type: "professional"})),
     ...places.map((p) => ({...p, type: "place"})),
   ];
+
+  // Auto-pick a provider since we're hiding provider selection UI for now.
+  useEffect(() => {
+    if (!isLoading && !error && !selectedProvider && allProviders.length > 0) {
+      setSelectedProvider(allProviders[0]);
+      setProviderType(allProviders[0]?.type || null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, error, allProviders.length]);
 
   const renderStarRating = (currentRating: number, onPress: (rating: number) => void) => (
     <View style={styles.starContainer}>
@@ -154,16 +163,6 @@ export default function CreateReviewScreen() {
   );
 
   const handlePublish = () => {
-    if (!selectedProvider) {
-      Alert.alert("Error", "Selecciona un profesional o lugar");
-      return;
-    }
-
-    if (rating === 0) {
-      Alert.alert("Error", "Agrega una calificación");
-      return;
-    }
-
     if (!description.trim()) {
       Alert.alert("Error", "Agrega una descripción de tu experiencia");
       return;
@@ -217,66 +216,6 @@ export default function CreateReviewScreen() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          {/* Provider Selection */}
-          <View style={[styles.section, {backgroundColor: colors.card}]}>
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-              ¿Sobre quién es tu reseña?
-            </Text>
-            <View style={styles.providersList}>
-              {allProviders.slice(0, 6).map(renderProviderCard)}
-            </View>
-          </View>
-
-          {/* Overall Rating */}
-          <View style={[styles.section, {backgroundColor: colors.card}]}>
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-              Calificación General
-            </Text>
-            <View style={styles.ratingSection}>
-              {renderStarRating(rating, setRating)}
-              <Text style={[styles.ratingText, {color: colors.mutedForeground}]}>
-                {rating === 0 ? "Selecciona una calificación" : `${rating} de 5 estrellas`}
-              </Text>
-            </View>
-          </View>
-
-          {/* Aspect Ratings */}
-          <View style={[styles.section, {backgroundColor: colors.card}]}>
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-              Detalles de la Calificación
-            </Text>
-
-            <View style={styles.aspectRating}>
-              <Text style={[styles.aspectLabel, {color: colors.foreground}]}>
-                Calidad del servicio
-              </Text>
-              {renderStarRating(aspectRatings.quality, (rating) =>
-                setAspectRatings({...aspectRatings, quality: rating})
-              )}
-            </View>
-
-            <View style={styles.aspectRating}>
-              <Text style={[styles.aspectLabel, {color: colors.foreground}]}>Limpieza</Text>
-              {renderStarRating(aspectRatings.cleanliness, (rating) =>
-                setAspectRatings({...aspectRatings, cleanliness: rating})
-              )}
-            </View>
-
-            <View style={styles.aspectRating}>
-              <Text style={[styles.aspectLabel, {color: colors.foreground}]}>Atención</Text>
-              {renderStarRating(aspectRatings.attention, (rating) =>
-                setAspectRatings({...aspectRatings, attention: rating})
-              )}
-            </View>
-
-            <View style={styles.aspectRating}>
-              <Text style={[styles.aspectLabel, {color: colors.foreground}]}>Precio/Valor</Text>
-              {renderStarRating(aspectRatings.value, (rating) =>
-                setAspectRatings({...aspectRatings, value: rating})
-              )}
-            </View>
-          </View>
-
           {/* Photos */}
           <View style={[styles.section, {backgroundColor: colors.card}]}>
             <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Fotos (Opcional)</Text>
@@ -310,33 +249,6 @@ export default function CreateReviewScreen() {
               onChangeText={setDescription}
               textAlignVertical="top"
             />
-          </View>
-
-          {/* Recommendation */}
-          <View style={[styles.section, {backgroundColor: colors.card}]}>
-            <TouchableOpacity
-              style={styles.recommendationRow}
-              onPress={() => setWouldRecommend(!wouldRecommend)}
-              activeOpacity={0.7}>
-              <View style={styles.recommendationLeft}>
-                <Ionicons name="heart" color={colors.primary} size={20} />
-                <Text style={[styles.recommendationText, {color: colors.foreground}]}>
-                  ¿Recomendarías este lugar/profesional?
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.toggle,
-                  wouldRecommend ? styles.toggleActive : styles.toggleInactive,
-                ]}>
-                <View
-                  style={[
-                    styles.toggleCircle,
-                    wouldRecommend ? styles.toggleCircleActive : styles.toggleCircleInactive,
-                  ]}
-                />
-              </View>
-            </TouchableOpacity>
           </View>
 
           {/* Publish Button */}

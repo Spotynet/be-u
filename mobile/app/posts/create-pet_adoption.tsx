@@ -23,11 +23,7 @@ export default function CreatePetAdoptionScreen() {
   const router = useRouter();
 
   const [photos, setPhotos] = useState<string[]>([]);
-  const [petName, setPetName] = useState("");
-  const [petAge, setPetAge] = useState("");
-  const [petBreed, setPetBreed] = useState("");
-  const [petDescription, setPetDescription] = useState("");
-  const [contactInfo, setContactInfo] = useState("");
+  const [description, setDescription] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
   const handlePublish = async () => {
@@ -36,18 +32,8 @@ export default function CreatePetAdoptionScreen() {
       return;
     }
 
-    if (!petName.trim()) {
-      Alert.alert("Error", "Ingresa el nombre de la mascota");
-      return;
-    }
-
-    if (!petDescription.trim()) {
-      Alert.alert("Error", "Agrega una descripción de la mascota");
-      return;
-    }
-
-    if (!contactInfo.trim()) {
-      Alert.alert("Error", "Agrega información de contacto");
+    if (!description.trim()) {
+      Alert.alert("Error", "Agrega una descripción");
       return;
     }
 
@@ -57,18 +43,8 @@ export default function CreatePetAdoptionScreen() {
       // Create FormData for file upload
       const formData = new FormData();
       
-      // Build content with pet information
-      const contentParts = [
-        `🐾 ${petName}`,
-        petAge ? `Edad: ${petAge}` : "",
-        petBreed ? `Raza: ${petBreed}` : "",
-        "",
-        petDescription,
-        "",
-        `📞 Contacto: ${contactInfo}`,
-      ].filter(Boolean);
-      
-      formData.append("content", contentParts.join("\n"));
+      // Minimal content (media + description only)
+      formData.append("content", description.trim());
       formData.append("post_type", "pet_adoption");
 
       // Add photos to FormData
@@ -151,104 +127,28 @@ export default function CreatePetAdoptionScreen() {
           />
         </View>
 
-        {/* Pet Information */}
+        {/* Description */}
         <View style={[styles.section, {backgroundColor: colors.card}]}>
           <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-            Información de la Mascota
+            Descripción
           </Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, {color: colors.foreground}]}>Nombre *</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                  color: colors.foreground,
-                },
-              ]}
-              placeholder="Ej: Max, Luna..."
-              placeholderTextColor={colors.mutedForeground}
-              value={petName}
-              onChangeText={setPetName}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, {color: colors.foreground}]}>Edad (Opcional)</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                  color: colors.foreground,
-                },
-              ]}
-              placeholder="Ej: 2 años, 6 meses..."
-              placeholderTextColor={colors.mutedForeground}
-              value={petAge}
-              onChangeText={setPetAge}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, {color: colors.foreground}]}>Raza (Opcional)</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                  color: colors.foreground,
-                },
-              ]}
-              placeholder="Ej: Golden Retriever, Siames..."
-              placeholderTextColor={colors.mutedForeground}
-              value={petBreed}
-              onChangeText={setPetBreed}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, {color: colors.foreground}]}>Descripción *</Text>
-            <TextInput
-              style={[
-                styles.textArea,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                  color: colors.foreground,
-                },
-              ]}
-              placeholder="Describe la mascota, su personalidad, necesidades especiales..."
-              placeholderTextColor={colors.mutedForeground}
-              value={petDescription}
-              onChangeText={setPetDescription}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, {color: colors.foreground}]}>Información de Contacto *</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                  color: colors.foreground,
-                },
-              ]}
-              placeholder="Teléfono, email o WhatsApp"
-              placeholderTextColor={colors.mutedForeground}
-              value={contactInfo}
-              onChangeText={setContactInfo}
-            />
-          </View>
+          <TextInput
+            style={[
+              styles.textArea,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+                color: colors.foreground,
+              },
+            ]}
+            placeholder="Describe la mascota..."
+            placeholderTextColor={colors.mutedForeground}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={5}
+            textAlignVertical="top"
+          />
         </View>
 
         {/* Publish Button (Bottom) */}
@@ -256,14 +156,14 @@ export default function CreatePetAdoptionScreen() {
           style={[
             styles.publishButtonLarge,
             {
-              backgroundColor: isUploading || photos.length === 0 || !petName.trim() || !petDescription.trim() || !contactInfo.trim()
+              backgroundColor: isUploading || photos.length === 0 || !description.trim()
                 ? colors.muted
                 : colors.primary,
             },
           ]}
           onPress={handlePublish}
           activeOpacity={0.8}
-          disabled={isUploading || photos.length === 0 || !petName.trim() || !petDescription.trim() || !contactInfo.trim()}>
+          disabled={isUploading || photos.length === 0 || !description.trim()}>
           {isUploading ? (
             <ActivityIndicator size="small" color="#ffffff" />
           ) : (

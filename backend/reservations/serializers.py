@@ -8,6 +8,9 @@ from services.serializers import ServicesTypeSerializer
 from django.contrib.contenttypes.models import ContentType
 from datetime import datetime, timedelta, time as dt_time
 from reservations.availability import check_slot_availability
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ReservationSerializer(serializers.ModelSerializer):
@@ -132,11 +135,26 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
         write_only=True,
         help_text="ID of the ServiceInPlace, ProfessionalService, or CustomService"
     )
+    # Optional: allow client to provide provider context (used for ID resolution consistency)
+    provider_type = serializers.ChoiceField(
+        choices=['professional', 'place'],
+        write_only=True,
+        required=False,
+        allow_null=True,
+        help_text="Optional provider type for resolving provider/service instance (professional or place)"
+    )
+    provider_id = serializers.IntegerField(
+        write_only=True,
+        required=False,
+        allow_null=True,
+        help_text="Optional provider id (ProfessionalProfile/PlaceProfile or PublicProfile id) for resolving provider/service instance"
+    )
     
     class Meta:
         model = Reservation
         fields = [
             'service_instance_type', 'service_instance_id',
+            'provider_type', 'provider_id',
             'date', 'time', 'notes'
         ]
     
@@ -148,25 +166,91 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
         # Validate and extract data from service instance
         service_instance_type = attrs['service_instance_type']
         service_instance_id = attrs['service_instance_id']
+        req_provider_type = attrs.get('provider_type')
+        req_provider_id = attrs.get('provider_id')
+        
+        # Log incoming request data
+        logger.info(
+            f"Reservation creation request: service_instance_type={service_instance_type}, "
+            f"service_instance_id={service_instance_id}, provider_type={req_provider_type}, provider_id={req_provider_id}, "
+            f"date={attrs.get('date')}, time={attrs.get('time')}"
+        )
         
         service_instance = None
         provider = None
         service_type = None
         duration = None
+
+        def resolve_provider_profile_id(provider_type: str | None, provider_id: int | None):
+            """
+            Accept either a real provider profile id or a PublicProfile id and resolve to provider profile id.
+            Mirrors logic from /services/availability/schedule.
+            """
+            if not provider_type or not provider_id:
+                return None
+            try:
+                pid = int(provider_id)
+            except (TypeError, ValueError):
+                return None
+
+            if provider_type == 'professional':
+                try:
+                    prof = ProfessionalProfile.objects.get(id=pid)
+                    return prof.id
+                except ProfessionalProfile.DoesNotExist:
+                    try:
+                        from users.models import PublicProfile
+                        public_profile = PublicProfile.objects.get(id=pid, profile_type='PROFESSIONAL')
+                        if public_profile.user and hasattr(public_profile.user, 'professional_profile'):
+                            return public_profile.user.professional_profile.id
+                    except Exception:
+                        return None
+            elif provider_type == 'place':
+                try:
+                    place = PlaceProfile.objects.get(id=pid)
+                    return place.id
+                except PlaceProfile.DoesNotExist:
+                    try:
+                        from users.models import PublicProfile
+                        public_profile = PublicProfile.objects.get(id=pid, profile_type='PLACE')
+                        if public_profile.user and hasattr(public_profile.user, 'place_profile'):
+                            return public_profile.user.place_profile.id
+                    except Exception:
+                        return None
+            return None
+
+        resolved_provider_profile_id = resolve_provider_profile_id(req_provider_type, req_provider_id)
         
         # Get service instance and extract all necessary data
         if service_instance_type == 'place_service':
             try:
-                service_instance = ServiceInPlace.objects.select_related('service', 'place').get(id=service_instance_id)
-                provider = service_instance.place
-                service_type = service_instance.service
-                duration = service_instance.time
-                
+                # Prefer resolving by (provider_id, service_id) when provider context is provided.
+                # This matches the frontend flow which validates availability using provider_id.
+                if resolved_provider_profile_id and (req_provider_type == 'place'):
+                    service_instance = ServiceInPlace.objects.select_related('service', 'place').get(
+                        place_id=resolved_provider_profile_id,
+                        service_id=service_instance_id
+                    )
+                    provider = service_instance.place
+                    service_type = service_instance.service
+                    duration = service_instance.time
+                    logger.info(
+                        f"Resolved ServiceInPlace via (place_id, service_id): place_id={resolved_provider_profile_id}, "
+                        f"service_id={service_instance_id}, instance_id={service_instance.id}"
+                    )
+                else:
+                    # Backwards compatible: treat service_instance_id as ServiceInPlace.id
+                    service_instance = ServiceInPlace.objects.select_related('service', 'place').get(id=service_instance_id)
+                    provider = service_instance.place
+                    service_type = service_instance.service
+                    duration = service_instance.time
+
                 # Set provider info
                 attrs['provider_content_type'] = ContentType.objects.get_for_model(PlaceProfile)
                 attrs['provider_object_id'] = provider.id
                 
             except ServiceInPlace.DoesNotExist:
+                # If we couldn't resolve either way, continue with CustomService fallback.
                 # Fallback: Check if it's a CustomService (for backwards compatibility)
                 try:
                     custom_service = CustomService.objects.select_related('content_type').get(id=service_instance_id)
@@ -197,16 +281,39 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
                 
         elif service_instance_type == 'professional_service':
             try:
-                service_instance = ProfessionalService.objects.select_related('service', 'professional').get(id=service_instance_id)
-                provider = service_instance.professional
-                service_type = service_instance.service
-                duration = service_instance.time
+                # Prefer resolving by (provider_id, service_id) when provider context is provided.
+                # This matches the frontend flow which validates availability using provider_id.
+                if resolved_provider_profile_id and (req_provider_type == 'professional'):
+                    service_instance = ProfessionalService.objects.select_related('service', 'professional').get(
+                        professional_id=resolved_provider_profile_id,
+                        service_id=service_instance_id
+                    )
+                    provider = service_instance.professional
+                    service_type = service_instance.service
+                    duration = service_instance.time
+                    logger.info(
+                        f"Resolved ProfessionalService via (professional_id, service_id): professional_id={resolved_provider_profile_id}, "
+                        f"service_id={service_instance_id}, instance_id={service_instance.id}"
+                    )
+                else:
+                    # Backwards compatible: treat service_instance_id as ProfessionalService.id
+                    service_instance = ProfessionalService.objects.select_related('service', 'professional').get(id=service_instance_id)
+                    provider = service_instance.professional
+                    service_type = service_instance.service
+                    duration = service_instance.time
                 
-                # Set provider info
+                # Log for debugging - this should match what frontend uses
+                logger.info(
+                    f"Resolving provider from ProfessionalService: service_instance_id={service_instance_id}, "
+                    f"professional_id={provider.id}, professional_name={provider.name}"
+                )
+                
+                # Set provider info - use the same ID that frontend uses (from service_instance.professional)
                 attrs['provider_content_type'] = ContentType.objects.get_for_model(ProfessionalProfile)
                 attrs['provider_object_id'] = provider.id
                 
             except ProfessionalService.DoesNotExist:
+                # If we couldn't resolve either way, continue with CustomService fallback.
                 # Fallback: Check if it's a CustomService (for backwards compatibility)
                 try:
                     custom_service = CustomService.objects.select_related('content_type').get(id=service_instance_id)
@@ -277,9 +384,24 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
         date = attrs['date']
         time = attrs['time']
         
+        logger.info(
+            f"Reservation validation: service_instance_type={service_instance_type}, "
+            f"service_instance_id={service_instance_id}, provider_ct={provider_ct}, "
+            f"provider_id={provider_id}, date={date}, time={time}, duration={duration}"
+        )
+        
         is_available, reason = check_slot_availability(provider_ct, provider_id, date, time, duration)
         if not is_available:
-            raise serializers.ValidationError(reason or "Time slot is not available")
+            # Add more context to the error message
+            error_msg = reason or "Time slot is not available"
+            logger.error(
+                f"Availability check failed: service_instance_type={service_instance_type}, "
+                f"service_instance_id={service_instance_id}, provider_ct={provider_ct}, "
+                f"provider_id={provider_id}, date={date} (day_of_week={date.weekday()}), "
+                f"time={time}, duration={duration}, reason={reason}"
+            )
+            # Return error in non_field_errors format to match frontend expectations
+            raise serializers.ValidationError({"non_field_errors": [error_msg]})
         
         return attrs
     
@@ -287,6 +409,9 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
         # Extract custom fields from validation
         validated_data.pop('service_instance_type', None)
         validated_data.pop('service_instance_id', None)
+        # Provider context is only for resolution/validation; it is not a Reservation model field.
+        validated_data.pop('provider_type', None)
+        validated_data.pop('provider_id', None)
         
         # Set service (ServicesType)
         service = validated_data.pop('_service')
@@ -318,6 +443,9 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
                 }
             )
         validated_data['client'] = client_profile
+
+        # New requirement: reservations are confirmed immediately (no PENDING state)
+        validated_data['status'] = Reservation.Status.CONFIRMED
         
         return super().create(validated_data)
 

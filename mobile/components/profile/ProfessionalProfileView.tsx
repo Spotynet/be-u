@@ -152,7 +152,7 @@ export const ProfessionalProfileView = ({
             </View>
           </View>
 
-          {/* Rating */}
+          {/* Rating (reviews not implemented yet) */}
           <View style={[styles.ratingCard, {backgroundColor: isDark ? "#1e293b" : "#ffffff"}]}>
             <View style={styles.ratingStars}>
               {[1, 2, 3, 4, 5].map((star) => (
@@ -166,9 +166,6 @@ export const ProfessionalProfileView = ({
             </View>
             <Text style={[styles.ratingText, {color: colors.foreground}]}>
               {profile?.rating?.toFixed(1) || "0.0"}
-            </Text>
-            <Text style={[styles.reviewsCount, {color: colors.mutedForeground}]}>
-              {stats.reviews || 0} reseñas
             </Text>
           </View>
 

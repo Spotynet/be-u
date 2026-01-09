@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeVariant } from '@/contexts/ThemeVariantContext';
 import { useCalendarEvents, CalendarEvent } from '../hooks/useCalendarEvents';
 import { useReservations } from '@/features/reservations';
+import { parseISODateAsLocal } from '@/lib/dateUtils';
 // Simple date utilities (date-fns not installed, using native Date)
 const formatDate = (date: Date, formatStr: string): string => {
   const day = date.getDate();
@@ -146,7 +147,7 @@ export const CalendarAgendaView: React.FC<CalendarAgendaViewProps> = ({
     if (showReservations && reservations && Array.isArray(reservations)) {
       reservations.forEach((reservation: any) => {
         try {
-          const resDate = new Date(reservation.date);
+          const resDate = parseISODateAsLocal(reservation.date);
           if (isSameDay(resDate, date)) {
             const startTime = reservation.time || '00:00';
             const endTime = reservation.end_time || startTime;
@@ -202,8 +203,11 @@ export const CalendarAgendaView: React.FC<CalendarAgendaViewProps> = ({
     if (showReservations && reservations && Array.isArray(reservations)) {
       reservations.forEach((reservation: any) => {
         try {
-          const resDate = new Date(reservation.date);
-          const dateKey = resDate.toISOString().split('T')[0];
+          const resDate = parseISODateAsLocal(reservation.date);
+          const dateKey =
+            typeof reservation.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(reservation.date)
+              ? reservation.date
+              : resDate.toISOString().split('T')[0];
           if (!grouped[dateKey]) {
             grouped[dateKey] = [];
           }

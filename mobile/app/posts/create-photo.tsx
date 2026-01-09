@@ -24,7 +24,6 @@ export default function CreatePhotoPostScreen() {
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [description, setDescription] = useState("");
-  const [location, setLocation] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
   const handlePublish = async () => {
@@ -141,45 +140,6 @@ export default function CreatePhotoPostScreen() {
             onChangeText={setDescription}
             textAlignVertical="top"
           />
-        </View>
-
-        {/* Location (Optional) */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Ubicación</Text>
-            <Text style={[styles.optionalBadge, {color: colors.mutedForeground}]}>Opcional</Text>
-          </View>
-          <View
-            style={[
-              styles.inputContainer,
-              {backgroundColor: colors.inputBackground, borderColor: colors.border},
-            ]}>
-            <Ionicons name="location-outline" color={colors.mutedForeground} size={20} />
-            <TextInput
-              style={[styles.input, {color: colors.foreground}]}
-              placeholder="Agrega una ubicación"
-              placeholderTextColor={colors.mutedForeground}
-              value={location}
-              onChangeText={setLocation}
-            />
-          </View>
-        </View>
-
-        {/* Settings */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Configuración</Text>
-
-          <TouchableOpacity style={styles.settingRow} activeOpacity={0.7}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="chatbubble-outline" color={colors.foreground} size={20} />
-              <Text style={[styles.settingText, {color: colors.foreground}]}>
-                Permitir comentarios
-              </Text>
-            </View>
-            <View style={[styles.toggle, styles.toggleActive, {backgroundColor: colors.primary}]}>
-              <View style={[styles.toggleCircle, styles.toggleCircleActive]} />
-            </View>
-          </TouchableOpacity>
         </View>
 
         {/* Publish Button (Bottom) */}

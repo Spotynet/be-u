@@ -35,6 +35,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explore"
         options={{
+          // Hidden for now: remove from navbar + disable linking
+          href: null,
           title: "Explorar",
           tabBarIcon: ({color, focused}) => (
             <Ionicons name={focused ? "search" : "search-outline"} color={color} size={24} />
@@ -44,6 +46,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="be-u"
         options={{
+          // Hidden for now: remove from navbar + disable linking
+          href: null,
           title: "",
           tabBarIcon: ({color, focused}) => (
             <View

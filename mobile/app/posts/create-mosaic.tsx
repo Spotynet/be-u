@@ -142,23 +142,6 @@ export default function CreateMosaicPostScreen() {
           />
         </View>
 
-        {/* Settings */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Configuración</Text>
-
-          <TouchableOpacity style={styles.settingRow} activeOpacity={0.7}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="chatbubble-outline" color={colors.foreground} size={20} />
-              <Text style={[styles.settingText, {color: colors.foreground}]}>
-                Permitir comentarios
-              </Text>
-            </View>
-            <View style={[styles.toggle, styles.toggleActive, {backgroundColor: colors.primary}]}>
-              <View style={[styles.toggleCircle, styles.toggleCircleActive]} />
-            </View>
-          </TouchableOpacity>
-        </View>
-
         {/* Publish Button (Bottom) */}
         <TouchableOpacity
           style={[

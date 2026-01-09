@@ -156,11 +156,16 @@ class TimeSlotSerializer(serializers.ModelSerializer):
 
 
 class AvailabilityScheduleSerializer(serializers.ModelSerializer):
-    time_slots = TimeSlotSerializer(many=True, read_only=True)
+    time_slots = serializers.SerializerMethodField()
     
     class Meta:
         model = AvailabilitySchedule
         fields = ['id', 'day_of_week', 'is_available', 'time_slots']
+    
+    def get_time_slots(self, obj):
+        # Only return active time slots for public availability
+        active_slots = obj.time_slots.filter(is_active=True) if hasattr(obj, 'time_slots') else TimeSlot.objects.none()
+        return TimeSlotSerializer(active_slots, many=True).data
 
 
 class ProfileImageSerializer(serializers.ModelSerializer):

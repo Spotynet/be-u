@@ -9,6 +9,7 @@ import {
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
+import {parseISODateAsLocal} from "@/lib/dateUtils";
 import {useState, useEffect} from "react";
 import {useRouter} from "expo-router";
 
@@ -190,7 +191,7 @@ export function ReservationsTab({userRole}: ReservationsTabProps) {
                 <View style={styles.infoRow}>
                   <Ionicons name="calendar" color={colors.mutedForeground} size={16} />
                   <Text style={[styles.infoText, {color: colors.mutedForeground}]}>
-                    {new Date(reservation.date).toLocaleDateString()} - {reservation.time}
+                    {parseISODateAsLocal(reservation.date).toLocaleDateString()} - {reservation.time}
                   </Text>
                 </View>
                 <View style={styles.infoRow}>

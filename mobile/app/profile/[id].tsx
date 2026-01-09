@@ -17,7 +17,7 @@ import {useState, useEffect, useRef} from "react";
 import {useRouter, useLocalSearchParams} from "expo-router";
 import {useNavigation} from "@/hooks/useNavigation";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
-import {providerApi, postApi, reviewApi, serviceApi, linkApi, profileCustomizationApi, PlaceProfessionalLink, api} from "@/lib/api";
+import {providerApi, postApi, serviceApi, linkApi, profileCustomizationApi, PlaceProfessionalLink, api} from "@/lib/api";
 import {BookingFlow} from "@/components/booking/BookingFlow";
 import {errorUtils} from "@/lib/api";
 import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from "@/constants/categories";
@@ -36,16 +36,16 @@ export default function ProfileDetailScreen() {
 
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [linkedProfessionals, setLinkedProfessionals] = useState<PlaceProfessionalLink[]>([]);
   const [linkedProfessionalsDetails, setLinkedProfessionalsDetails] = useState<any[]>([]);
   const [linkedPlaces, setLinkedPlaces] = useState<PlaceProfessionalLink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"services" | "reviews" | "posts">("services");
+  const [activeTab, setActiveTab] = useState<"services" | "posts">("services");
   const [showBooking, setShowBooking] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   
@@ -87,9 +87,6 @@ export default function ProfileDetailScreen() {
       console.log("📋 Bio exists?", !!profileData.bio);
       setProfile(profileData);
 
-      // Fetch reviews (same for all profile types)
-      const reviewsResponse = await reviewApi.getReviews({to_public_profile: Number(id)}).catch(() => ({data: {results: []}}));
-
       // Fetch services using the SAME endpoint as settings page
       let servicesData: any[] = [];
       
@@ -105,7 +102,6 @@ export default function ProfileDetailScreen() {
         servicesData = [];
       }
 
-      setReviews(reviewsResponse.data.results || []);
       setServices(servicesData);
 
       console.log("📋 ========== LOADING POSTS ==========");
@@ -184,6 +180,7 @@ export default function ProfileDetailScreen() {
                         ...link,
                         public_profile_id: publicProfileId,
                         user_id: profResponse.data?.user || profResponse.data?.user_id || null,
+                        user_image: profResponse.data?.user_image || null,
                         category: profResponse.data?.category,
                         sub_categories: profResponse.data?.sub_categories || [],
                       };
@@ -193,6 +190,7 @@ export default function ProfileDetailScreen() {
                         ...link,
                         public_profile_id: publicProfileId,
                         user_id: null,
+                        user_image: null,
                         category: null,
                         sub_categories: [],
                       };
@@ -532,53 +530,7 @@ export default function ProfileDetailScreen() {
     );
   };
 
-  const renderReviews = () => {
-    if (reviews.length === 0) {
-      return (
-        <View style={styles.noContentContainer}>
-          <Ionicons name="star-outline" size={60} color={colors.mutedForeground} />
-          <Text style={[styles.noContentText, {color: colors.mutedForeground}]}>
-            No hay reseñas disponibles
-          </Text>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.reviewsContainer}>
-        {reviews.map((review, index) => (
-          <View
-            key={review.id || index}
-            style={[
-              styles.reviewCard,
-              {backgroundColor: colors.background, borderColor: colors.border},
-            ]}>
-            <View style={styles.reviewHeader}>
-              <View style={[styles.reviewerAvatar, {backgroundColor: colors.muted + "20"}]}>
-                <Text style={[styles.reviewerInitial, {color: colors.mutedForeground}]}>
-                  {(review.from_user_name || "U").charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.reviewInfo}>
-                <Text style={[styles.reviewerName, {color: colors.foreground}]}>
-                  {review.from_user_name || "Usuario"}
-                </Text>
-                <View style={styles.reviewRating}>{renderStars(review.rating)}</View>
-              </View>
-            </View>
-            {review.message && (
-              <Text style={[styles.reviewMessage, {color: colors.mutedForeground}]}>
-                {review.message}
-              </Text>
-            )}
-            <Text style={[styles.reviewDate, {color: colors.mutedForeground}]}>
-              {new Date(review.created_at).toLocaleDateString()}
-            </Text>
-          </View>
-        ))}
-      </View>
-    );
-  };
+  // Reseñas no implementadas todavía
 
   if (isLoading) {
     return (
@@ -699,13 +651,7 @@ export default function ProfileDetailScreen() {
               </View>
             )}
 
-            {/* Rating Badge */}
-            <View style={[styles.ratingBadge, {backgroundColor: colors.card}]}>
-              <Ionicons name="star" color="#FF6B6B" size={16} />
-              <Text style={[styles.ratingText, {color: colors.foreground}]}>
-                {(Number(profile.rating) || 0).toFixed(1)}
-              </Text>
-            </View>
+            {/* Rating badge hidden (reseñas/calificaciones no implementadas todavía) */}
           </View>
 
           {/* Profile Info */}
@@ -807,6 +753,38 @@ export default function ProfileDetailScreen() {
                     </Text>
                   </View>
                 )}
+
+                {/* Schedule (Collapsible) */}
+                {profile.availability && Array.isArray(profile.availability) && (
+                  <View
+                    style={[
+                      styles.scheduleAccordion,
+                      {backgroundColor: colors.card, borderColor: colors.border},
+                    ]}>
+                    <TouchableOpacity
+                      style={styles.scheduleHeader}
+                      onPress={() => setIsScheduleExpanded((v) => !v)}
+                      activeOpacity={0.8}>
+                      <View style={styles.scheduleHeaderLeft}>
+                        <Ionicons name="calendar-outline" color={colors.primary} size={18} />
+                        <Text style={[styles.scheduleTitle, {color: colors.foreground}]}>
+                          Horarios
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name={isScheduleExpanded ? "chevron-up" : "chevron-down"}
+                        color={colors.mutedForeground}
+                        size={18}
+                      />
+                    </TouchableOpacity>
+
+                    {isScheduleExpanded && (
+                      <View style={styles.scheduleContent}>
+                        <AvailabilityDisplay availability={profile.availability} />
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
             </View>
 
@@ -844,9 +822,16 @@ export default function ProfileDetailScreen() {
                       }}>
                       <View style={[styles.teamStoryRing, {borderColor: borderColor}]}>
                         <View style={[styles.teamStoryAvatar, {backgroundColor: borderColor}]}>
-                          <Text style={styles.teamStoryAvatarText}>
-                            {getInitials(linkDetail.professional_name)}
-                          </Text>
+                          {linkDetail.user_image ? (
+                            <Image
+                              source={{uri: linkDetail.user_image}}
+                              style={styles.teamStoryAvatarImage}
+                            />
+                          ) : (
+                            <Text style={styles.teamStoryAvatarText}>
+                              {getInitials(linkDetail.professional_name)}
+                            </Text>
+                          )}
                         </View>
                       </View>
                       <Text style={[styles.teamStoryName, {color: colors.foreground}]} numberOfLines={1}>
@@ -913,64 +898,53 @@ export default function ProfileDetailScreen() {
             </View>
           )}
 
-          {/* Tab Navigation */}
-          <View style={styles.tabsWrapper}>
-            <View style={[styles.tabsContainer, {backgroundColor: colors.muted + "20"}]}>
-              <TouchableOpacity
-                style={[
-                  styles.tab,
-                  activeTab === "services" && [
-                    styles.activeTab,
-                    {backgroundColor: colors.background},
-                  ],
-                ]}
-                onPress={() => setActiveTab("services")}>
-                <Ionicons
-                  name="briefcase-outline"
-                  size={24}
-                  color={activeTab === "services" ? colors.foreground : colors.mutedForeground}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.tab,
-                  activeTab === "reviews" && [styles.activeTab, {backgroundColor: colors.background}],
-                ]}
-                onPress={() => setActiveTab("reviews")}>
-                <Ionicons
-                  name="star-outline"
-                  size={24}
-                  color={activeTab === "reviews" ? colors.foreground : colors.mutedForeground}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.tab,
-                  activeTab === "posts" && [styles.activeTab, {backgroundColor: colors.background}],
-                ]}
-                onPress={() => setActiveTab("posts")}>
-                <Ionicons
-                  name="images-outline"
-                  size={24}
-                  color={activeTab === "posts" ? colors.foreground : colors.mutedForeground}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
+          {/* Tabs + content (hide for places; show only basic info + linked users) */}
+          {profile.profile_type !== "PLACE" && (
+            <>
+              {/* Tab Navigation */}
+              <View style={styles.tabsWrapper}>
+                <View style={[styles.tabsContainer, {backgroundColor: colors.muted + "20"}]}>
+                  <TouchableOpacity
+                    style={[
+                      styles.tab,
+                      activeTab === "services" && [
+                        styles.activeTab,
+                        {backgroundColor: colors.background},
+                      ],
+                    ]}
+                    onPress={() => setActiveTab("services")}>
+                    <Ionicons
+                      name="briefcase-outline"
+                      size={24}
+                      color={activeTab === "services" ? colors.foreground : colors.mutedForeground}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.tab,
+                      activeTab === "posts" && [
+                        styles.activeTab,
+                        {backgroundColor: colors.background},
+                      ],
+                    ]}
+                    onPress={() => setActiveTab("posts")}>
+                    <Ionicons
+                      name="images-outline"
+                      size={24}
+                      color={activeTab === "posts" ? colors.foreground : colors.mutedForeground}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-          {/* Tab Content */}
-          <View style={styles.tabContent}>
-            {activeTab === "services" && renderServices()}
-            {activeTab === "reviews" && renderReviews()}
-            {activeTab === "posts" && renderPosts()}
-          </View>
-
-          {/* Availability Section */}
-          {profile.availability && Array.isArray(profile.availability) && (
-            <View style={styles.availabilitySection}>
-              <AvailabilityDisplay availability={profile.availability} />
-            </View>
+              {/* Tab Content */}
+              <View style={styles.tabContent}>
+                {activeTab === "services" && renderServices()}
+                {activeTab === "posts" && renderPosts()}
+              </View>
+            </>
           )}
+
         </Animated.View>
       </ScrollView>
 
@@ -1160,21 +1134,7 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-  ratingBadge: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 4,
-  },
-  ratingText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  // ratingBadge/ratingText removed (reseñas/calificaciones no implementadas todavía)
   profileInfo: {
     padding: 20,
     paddingTop: 24,
@@ -1251,6 +1211,32 @@ const styles = StyleSheet.create({
   profilePhone: {
     fontSize: 14,
     fontWeight: "400",
+  },
+  scheduleAccordion: {
+    marginTop: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  scheduleHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  scheduleHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  scheduleTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  scheduleContent: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
   },
   profileRowActions: {
     flexDirection: "row",
@@ -1578,6 +1564,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 3,
     borderColor: "#ffffff",
+    overflow: "hidden",
+  },
+  teamStoryAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 32,
+    resizeMode: "cover",
   },
   teamStoryAvatarText: {
     color: "#ffffff",

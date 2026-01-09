@@ -219,13 +219,15 @@ export default function Perfil() {
     }
   };
 
-  const displayName = user
-    ? user.role === "CLIENT"
-      ? `${user.firstName || "Usuario"} ${user.lastName || ""}`.trim()
-      : user.role === "PLACE"
-      ? (profile as any)?.name || user.firstName || "Usuario"
-      : user.firstName || "Usuario"
-    : "Usuario";
+  const displayName =
+    (publicProfile?.display_name && String(publicProfile.display_name).trim()) ||
+    (user
+      ? user.role === "CLIENT"
+        ? `${user.firstName || "Usuario"} ${user.lastName || ""}`.trim()
+        : user.role === "PLACE"
+          ? (profile as any)?.name || user.firstName || "Usuario"
+          : user.firstName || "Usuario"
+      : "Usuario");
 
   // Get avatar color based on subcategory, fallback to primary color
   const avatarColor =

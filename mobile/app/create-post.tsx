@@ -15,6 +15,8 @@ export default function CreatePostScreen() {
   // Filter post formats based on user role
   const availableFormats = postFormats.filter((format) => {
     if (!user) return false;
+    // Hide formats we don't want exposed right now
+    if (format.id === "video" || format.id === "pet_adoption") return false;
     return format.roles.includes(user.role);
   });
 

@@ -15,6 +15,7 @@ from .permissions import IsReservationClient, IsReservationProvider, CanViewRese
 from users.models import ProfessionalProfile, PlaceProfile
 from services.models import TimeSlotBlock
 from reservations.availability import check_slot_availability
+from users.profile_models import PlaceProfessionalLink
 
 # Google Calendar integration
 from calendar_integration.event_helpers import (
@@ -187,6 +188,86 @@ class ReservationViewSet(viewsets.ModelViewSet):
             'results': serializer.data,
             'count': reservations.count()
         })
+
+    @action(detail=False, methods=['get'], url_path='team')
+    def team_reservations(self, request):
+        """
+        For PLACE users: get reservations for the place itself + all ACCEPTED linked professionals.
+
+        Optional query params:
+        - provider_type: 'professional' | 'place'
+        - provider_id: integer (ProfessionalProfile.id or PlaceProfile.id)
+        - status: reservation status or 'all'
+        - start_date / end_date: YYYY-MM-DD
+        """
+        user = request.user
+        if user.role != 'PLACE' or not hasattr(user, 'place_profile'):
+            return Response(
+                {"error": "Only place users can access this endpoint"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        place_profile = user.place_profile
+        place_ct = ContentType.objects.get_for_model(PlaceProfile)
+        prof_ct = ContentType.objects.get_for_model(ProfessionalProfile)
+
+        linked_professional_ids = list(
+            PlaceProfessionalLink.objects.filter(
+                place=place_profile,
+                status=PlaceProfessionalLink.Status.ACCEPTED
+            ).values_list('professional_id', flat=True)
+        )
+
+        reservations = Reservation.objects.select_related(
+            'client__user', 'service', 'professional', 'place'
+        ).filter(
+            Q(provider_content_type=place_ct, provider_object_id=place_profile.id) |
+            Q(provider_content_type=prof_ct, provider_object_id__in=linked_professional_ids)
+        )
+
+        # Filter by status when provided; if not provided, return all statuses
+        status_filter = request.query_params.get('status')
+        if status_filter and status_filter.lower() != 'all':
+            reservations = reservations.filter(status=status_filter.upper())
+
+        # Filter by date range
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        if start_date:
+            reservations = reservations.filter(date__gte=start_date)
+        if end_date:
+            reservations = reservations.filter(date__lte=end_date)
+
+        # Optional filter by provider
+        provider_type = (request.query_params.get('provider_type') or '').lower()
+        provider_id = request.query_params.get('provider_id')
+        if provider_type and provider_id:
+            try:
+                pid = int(provider_id)
+            except (TypeError, ValueError):
+                pid = None
+
+            if pid is not None:
+                if provider_type == 'professional':
+                    if pid not in linked_professional_ids:
+                        # Not part of this place's team
+                        reservations = reservations.none()
+                    else:
+                        reservations = reservations.filter(provider_content_type=prof_ct, provider_object_id=pid)
+                elif provider_type == 'place':
+                    # Only allow filtering to this place
+                    if pid != place_profile.id:
+                        reservations = reservations.none()
+                    else:
+                        reservations = reservations.filter(provider_content_type=place_ct, provider_object_id=place_profile.id)
+
+        reservations = reservations.order_by('-date', '-time')
+
+        serializer = ReservationSerializer(reservations, many=True)
+        return Response({
+            'results': serializer.data,
+            'count': reservations.count()
+        })
     
     @action(detail=False, methods=['get'], url_path='calendar')
     def calendar_view(self, request):
@@ -235,6 +316,15 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
+        # Idempotent: if already confirmed, return success.
+        if reservation.status == 'CONFIRMED':
+            serializer = ReservationSerializer(reservation)
+            return Response({
+                'message': 'Reservation already confirmed',
+                'reservation': serializer.data,
+                'calendar_event_created': getattr(reservation, 'calendar_event', None) is not None
+            })
+
         if reservation.status != 'PENDING':
             return Response(
                 {"error": f"Cannot confirm reservation with status {reservation.status}"},

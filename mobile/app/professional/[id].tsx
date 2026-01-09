@@ -21,13 +21,11 @@ import {useState, useEffect, useRef} from "react";
 import {useRouter, useLocalSearchParams} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {useNavigation} from "@/hooks/useNavigation";
-import {providerApi, postApi, reviewApi, serviceApi, profileCustomizationApi} from "@/lib/api";
+import {providerApi, postApi, serviceApi, profileCustomizationApi} from "@/lib/api";
 import {ProfessionalProfile} from "@/types/global";
 import {BookingFlow} from "@/components/booking/BookingFlow";
 import {errorUtils} from "@/lib/api";
 import {getSubCategoryById, MAIN_CATEGORIES} from "@/constants/categories";
-import {useAuth} from "@/features/auth";
-import {MediaUploader} from "@/components/posts/MediaUploader";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -76,7 +74,7 @@ export default function ProfessionalDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showBookingFlow, setShowBookingFlow] = useState(false);
   const [selectedService, setSelectedService] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"servicios" | "opiniones" | "posts" | "personalizar">(
+  const [activeTab, setActiveTab] = useState<"servicios" | "posts" | "personalizar">(
     "servicios"
   );
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -90,17 +88,6 @@ export default function ProfessionalDetailScreen() {
 
   // Posts data - will be fetched from API in real implementation
   const [professionalPosts, setProfessionalPosts] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [reviewsCount, setReviewsCount] = useState(0);
-  const [loadingReviews, setLoadingReviews] = useState(false);
-  const [reviewModalVisible, setReviewModalVisible] = useState(false);
-  const [reviewRating, setReviewRating] = useState(0);
-  const [reviewMessage, setReviewMessage] = useState("");
-  const [reviewPhotos, setReviewPhotos] = useState<string[]>([]);
-  const [submittingReview, setSubmittingReview] = useState(false);
-
-  const {user, isAuthenticated} = useAuth();
-  const canSubmitReview = isAuthenticated && user?.role === "CLIENT";
 
   useEffect(() => {
     const fetchProfessionalPosts = async () => {
@@ -121,10 +108,6 @@ export default function ProfessionalDetailScreen() {
 
   useEffect(() => {
     fetchProfessionalDetails();
-  }, [numericId]);
-
-  useEffect(() => {
-    loadReviews();
   }, [numericId]);
 
   useEffect(() => {
@@ -207,141 +190,6 @@ export default function ProfessionalDetailScreen() {
     }
   };
 
-  const loadReviews = async () => {
-    try {
-      setLoadingReviews(true);
-      const response = await reviewApi.getReviews({public_profile: Number(numericId)});
-      const data = response.data;
-      const resultList = Array.isArray(data) ? data : data.results || [];
-      const total = data.count ?? resultList.length ?? 0;
-      setReviews(resultList);
-      setReviewsCount(total);
-    } catch (err) {
-      console.error("Error fetching reviews:", err);
-    } finally {
-      setLoadingReviews(false);
-    }
-  };
-
-  const resetReviewForm = () => {
-    setReviewRating(0);
-    setReviewMessage("");
-    setReviewPhotos([]);
-  };
-
-  const refreshProfessionalRating = async () => {
-    try {
-      const response = await providerApi.getProfessionalProfile(Number(numericId));
-      const latestRating = response.data?.rating ?? professional?.rating;
-      setProfessional((prev) =>
-        prev ? {...prev, rating: latestRating ?? prev.rating} : prev
-      );
-    } catch (err) {
-      console.error("Error refreshing rating:", err);
-    }
-  };
-
-  const handleSubmitReview = async () => {
-    if (!canSubmitReview) {
-      Alert.alert("Inicia sesión", "Necesitas ser cliente para dejar una reseña.");
-      return;
-    }
-
-    if (reviewRating === 0) {
-      Alert.alert("Calificación requerida", "Selecciona una calificación para tu reseña.");
-      return;
-    }
-
-    try {
-      setSubmittingReview(true);
-
-      const formData = new FormData();
-      formData.append("to_public_profile", String(numericId));
-      formData.append("rating", String(reviewRating));
-      if (reviewMessage.trim()) {
-        formData.append("message", reviewMessage.trim());
-      }
-
-      if (reviewPhotos.length > 0) {
-        if (Platform.OS === "web") {
-          await Promise.all(
-            reviewPhotos.map(async (uri, index) => {
-              const res = await fetch(uri);
-              const blob = await res.blob();
-              const mimeType = blob.type || "image/jpeg";
-              const ext = (mimeType.split("/")[1] || "jpg").replace("jpeg", "jpg");
-              const file = new File([blob], `review_${Date.now()}_${index}.${ext}`, {
-                type: mimeType,
-              });
-              formData.append("images", file);
-            })
-          );
-        } else {
-          reviewPhotos.forEach((uri, index) => {
-            const extension = uri.split(".").pop() || "jpg";
-            const file = {
-              uri,
-              type: `image/${extension === "jpg" ? "jpeg" : extension}`,
-              name: `review_${Date.now()}_${index}.${extension}`,
-            } as any;
-            formData.append("images", file);
-          });
-        }
-      }
-
-      await reviewApi.createReview(formData);
-
-      Alert.alert("¡Gracias!", "Tu reseña se publicó exitosamente.");
-      setReviewModalVisible(false);
-      resetReviewForm();
-      await loadReviews();
-      await refreshProfessionalRating();
-    } catch (err: any) {
-      console.error("Error creating review:", err);
-      Alert.alert(
-        "Error",
-        errorUtils.getErrorMessage?.(err) || "No se pudo publicar tu reseña. Intenta de nuevo."
-      );
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
-
-  const renderRatingStars = (rating: number) => (
-    <View style={styles.reviewRating}>
-      {[...Array(5)].map((_, index) => (
-        <Ionicons
-          key={index}
-          name={index < rating ? "star" : "star-outline"}
-          color="#FFD700"
-          size={16}
-        />
-      ))}
-    </View>
-  );
-
-  const renderSelectableStars = () => (
-    <View style={styles.selectableStarsRow}>
-      {[1, 2, 3, 4, 5].map((value) => (
-        <TouchableOpacity key={value} onPress={() => setReviewRating(value)} activeOpacity={0.7}>
-          <Ionicons
-            name={value <= reviewRating ? "star" : "star-outline"}
-            size={28}
-            color={value <= reviewRating ? colors.primary : colors.mutedForeground}
-          />
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-
-  const handleOpenReviewModal = () => {
-    if (!canSubmitReview) {
-      Alert.alert("Solo clientes", "Debes iniciar sesión como cliente para reseñar.");
-      return;
-    }
-    resetReviewForm();
-    setReviewModalVisible(true);
-  };
 
   // Portfolio images - would come from API in real implementation
   const [portfolioImages, setPortfolioImages] = useState<any[]>([
@@ -667,23 +515,6 @@ export default function ProfessionalDetailScreen() {
             <TouchableOpacity
               style={[
                 styles.tab,
-                activeTab === "opiniones" && [
-                  styles.activeTab,
-                  {borderBottomColor: colors.primary},
-                ],
-              ]}
-              onPress={() => setActiveTab("opiniones")}>
-              <Text
-                style={[
-                  styles.tabText,
-                  {color: activeTab === "opiniones" ? colors.primary : colors.mutedForeground},
-                ]}>
-                Opiniones
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.tab,
                 activeTab === "personalizar" && [
                   styles.activeTab,
                   {borderBottomColor: colors.primary},
@@ -807,95 +638,6 @@ export default function ProfessionalDetailScreen() {
             </View>
           )}
 
-          {activeTab === "opiniones" && (
-            <View style={[styles.reviewsSection, {backgroundColor: colors.card}]}> 
-              <View style={styles.reviewsHeader}>
-                <Text style={[styles.reviewsTitle, {color: colors.foreground}]}> 
-                  Reseñas ({reviewsCount})
-                </Text>
-                {canSubmitReview && (
-                  <TouchableOpacity
-                    style={[styles.addReviewButton, {backgroundColor: colors.primary}]}
-                    onPress={handleOpenReviewModal}
-                    activeOpacity={0.85}>
-                    <Ionicons name="create" size={16} color="#ffffff" />
-                    <Text style={styles.addReviewButtonText}>Escribir reseña</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {loadingReviews ? (
-                <View style={styles.loadingReviews}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                </View>
-              ) : reviews.length > 0 ? (
-                reviews.map((review: any) => {
-                  const createdAt = review.created_at ? new Date(review.created_at) : null;
-                  const imageUrls = Array.isArray(review.images)
-                    ? review.images.map((img: any) => (typeof img === "string" ? img : img.url))
-                    : [];
-
-                  return (
-                    <View
-                      key={review.id}
-                      style={[styles.reviewCard, {borderBottomColor: colors.border}]}> 
-                      <View style={styles.reviewHeader}>
-                        <View style={styles.reviewAuthor}>
-                          <View style={[styles.reviewAvatar, {backgroundColor: colors.primary}]}> 
-                            <Text style={styles.reviewAvatarText}>
-                              {(review.reviewer_name || "C")
-                                .toString()
-                                .charAt(0)
-                                .toUpperCase()}
-                            </Text>
-                          </View>
-                          <View style={styles.reviewAuthorInfo}>
-                            <Text style={[styles.reviewAuthorName, {color: colors.foreground}]}> 
-                              {review.reviewer_name || "Cliente"}
-                            </Text>
-                            {renderRatingStars(review.rating || 0)}
-                          </View>
-                        </View>
-                        {createdAt && (
-                          <Text style={[styles.reviewDate, {color: colors.mutedForeground}]}> 
-                            {createdAt.toLocaleDateString("es-MX")}
-                          </Text>
-                        )}
-                      </View>
-                      {review.message ? (
-                        <Text style={[styles.reviewComment, {color: colors.foreground}]}> 
-                          {review.message}
-                        </Text>
-                      ) : null}
-
-                      {imageUrls.length > 0 && (
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.reviewImagesRow}>
-                          {imageUrls.map((uri: string, index: number) => (
-                            <Image
-                              key={`${review.id}-img-${index}`}
-                              source={{uri}}
-                              style={styles.reviewImageThumb}
-                            />
-                          ))}
-                        </ScrollView>
-                      )}
-                    </View>
-                  );
-                })
-              ) : (
-                <View style={styles.emptyState}>
-                  <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={48} />
-                  <Text style={[styles.emptyText, {color: colors.mutedForeground}]}> 
-                    No hay reseñas disponibles
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
-
           {activeTab === "personalizar" && (
             <View style={[styles.personalizarSection, {backgroundColor: colors.card}]}>
               <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
@@ -996,63 +738,7 @@ export default function ProfessionalDetailScreen() {
         />
       )}
 
-      <Modal
-        visible={reviewModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setReviewModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.reviewModalContainer, {backgroundColor: colors.card}]}> 
-            <View style={styles.reviewModalHeader}>
-              <Text style={[styles.reviewModalTitle, {color: colors.foreground}]}> 
-                Escribir reseña
-              </Text>
-              <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
-                <Ionicons name="close" size={22} color={colors.mutedForeground} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={[styles.reviewModalSubtitle, {color: colors.mutedForeground}]}> 
-              ¿Cómo fue tu experiencia?
-            </Text>
-
-            {renderSelectableStars()}
-
-            <TextInput
-              style={[styles.reviewInput, {borderColor: colors.border, color: colors.foreground}]}
-              placeholder="Comparte detalles que puedan ayudar a otros clientes"
-              placeholderTextColor={colors.mutedForeground}
-              multiline
-              numberOfLines={4}
-              value={reviewMessage}
-              onChangeText={setReviewMessage}
-              textAlignVertical="top"
-            />
-
-            <MediaUploader
-              mediaType="photo"
-              maxFiles={4}
-              selectedMedia={reviewPhotos}
-              onMediaSelected={setReviewPhotos}
-            />
-
-            <TouchableOpacity
-              style={[styles.submitReviewButton, {backgroundColor: colors.primary}]}
-              onPress={handleSubmitReview}
-              disabled={submittingReview}
-              activeOpacity={0.85}>
-              {submittingReview ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <>
-                  <Ionicons name="send" size={16} color="#ffffff" />
-                  <Text style={styles.submitReviewButtonText}>Enviar reseña</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {/* Reseñas no implementadas todavía */}
     </View>
   );
 }

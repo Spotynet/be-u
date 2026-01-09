@@ -28,11 +28,10 @@ export const EnhancedPlaceProfile = ({placeId, onClose}: EnhancedPlaceProfilePro
 
   const [profile, setProfile] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
   const [images, setImages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"servicios" | "opiniones">("servicios");
+  const [activeTab, setActiveTab] = useState<"servicios">("servicios");
 
   useEffect(() => {
     loadPlaceData();
@@ -58,16 +57,6 @@ export const EnhancedPlaceProfile = ({placeId, onClose}: EnhancedPlaceProfilePro
         console.log("Customization data not available:", customizationError);
       }
 
-      // Mock reviews data - replace with actual API call
-      setReviews([
-        {id: 1, name: "Eric Cruz", rating: 5, comment: "Excelente Servicio"},
-        {id: 2, name: "David Perez", rating: 5, comment: "Gracias"},
-        {id: 3, name: "Alejandra Erazo", rating: 5, comment: "La atencion fue muy buena"},
-        {id: 4, name: "Maria Navarro", rating: 5, comment: "Me atendieron tarde"},
-        {id: 5, name: "Soraya Duarte", rating: 5, comment: "No me gusto"},
-        {id: 6, name: "Sergio Lopez", rating: 5, comment: "Muy buena experiencia"},
-        {id: 7, name: "Ingrid Tobar", rating: 5, comment: "Recomendado"},
-      ]);
     } catch (err: any) {
       console.error("Error loading place data:", err);
       setError("Error al cargar el perfil del establecimiento");
@@ -185,20 +174,6 @@ export const EnhancedPlaceProfile = ({placeId, onClose}: EnhancedPlaceProfilePro
               <View style={[styles.tabIndicator, {backgroundColor: colors.primary}]} />
             )}
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "opiniones" && styles.activeTab]}
-            onPress={() => setActiveTab("opiniones")}>
-            <Text
-              style={[
-                styles.tabText,
-                {color: activeTab === "opiniones" ? colors.primary : colors.mutedForeground},
-              ]}>
-              Opiniones
-            </Text>
-            {activeTab === "opiniones" && (
-              <View style={[styles.tabIndicator, {backgroundColor: colors.primary}]} />
-            )}
-          </TouchableOpacity>
         </View>
 
         {/* Operating Hours */}
@@ -269,40 +244,7 @@ export const EnhancedPlaceProfile = ({placeId, onClose}: EnhancedPlaceProfilePro
           </View>
         )}
 
-        {activeTab === "opiniones" && (
-          <View style={styles.reviewsContainer}>
-            {reviews.map((review) => (
-              <View key={review.id} style={[styles.reviewCard, {backgroundColor: colors.card}]}>
-                <View style={styles.reviewHeader}>
-                  <View style={[styles.reviewAvatar, {backgroundColor: colors.primary}]}>
-                    <Text style={styles.reviewAvatarText}>{getInitials(review.name)}</Text>
-                  </View>
-                  <View style={styles.reviewInfo}>
-                    <Text style={[styles.reviewName, {color: colors.foreground}]}>
-                      {review.name}
-                    </Text>
-                    <View style={styles.reviewStars}>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Ionicons
-                          key={star}
-                          name={star <= review.rating ? "star" : "star-outline"}
-                          color="#fbbf24"
-                          size={16}
-                        />
-                      ))}
-                    </View>
-                  </View>
-                  <TouchableOpacity style={styles.reviewAction}>
-                    <Ionicons name="ellipsis-horizontal" color={colors.mutedForeground} size={16} />
-                  </TouchableOpacity>
-                </View>
-                <Text style={[styles.reviewComment, {color: colors.foreground}]}>
-                  {review.comment}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
+        {/* Reseñas no implementadas todavía */}
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>

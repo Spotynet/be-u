@@ -26,6 +26,24 @@ export const MultiCategorySelector: React.FC<MultiCategorySelectorProps> = ({
 }) => {
   const {colors} = useThemeVariant();
   const {subcategoriesByMainCategory} = useCategory();
+  const HIDDEN_MAIN_CATEGORIES = useMemo(() => new Set(["todos", "mascotas"]), []);
+
+  // If stored profile data contains hidden categories, strip them out.
+  useEffect(() => {
+    const hasHidden = selectedCategories.some((c) => HIDDEN_MAIN_CATEGORIES.has(c));
+    if (!hasHidden) return;
+
+    const hiddenCats = selectedCategories.filter((c) => HIDDEN_MAIN_CATEGORIES.has(c));
+    const hiddenSubIds = hiddenCats.flatMap((catId) =>
+      (subcategoriesByMainCategory[catId] || []).map((s) => s.id)
+    );
+
+    onCategoriesChange(selectedCategories.filter((c) => !HIDDEN_MAIN_CATEGORIES.has(c)));
+    if (hiddenSubIds.length > 0) {
+      onSubCategoriesChange(selectedSubCategories.filter((id) => !hiddenSubIds.includes(id)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategories, selectedSubCategories, subcategoriesByMainCategory]);
 
   // Toggle category selection
   const toggleCategory = (categoryId: string) => {
@@ -83,7 +101,7 @@ export const MultiCategorySelector: React.FC<MultiCategorySelectorProps> = ({
 
       {/* Main Categories */}
       <View style={styles.categoriesContainer}>
-        {MAIN_CATEGORIES.map((category) => {
+        {MAIN_CATEGORIES.filter((c) => !HIDDEN_MAIN_CATEGORIES.has(c.id)).map((category) => {
           const isSelected = selectedCategories.includes(category.id);
           return (
             <TouchableOpacity

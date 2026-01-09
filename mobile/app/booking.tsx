@@ -58,9 +58,12 @@ export default function BookingScreen() {
     booked_slots: {start: string; end: string}[];
     break_times: {start: string; end: string}[];
   } | null>(null);
+  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [dateAvailabilityError, setDateAvailabilityError] = useState<string | null>(null);
   const [timeAvailabilityError, setTimeAvailabilityError] = useState<string | null>(null);
+  const [disabledDaysIndexes, setDisabledDaysIndexes] = useState<number[] | undefined>(undefined);
+  const [resolvedProviderId, setResolvedProviderId] = useState<number | null>(null);
 
   // Service info from params - all data comes directly from navigation
   // Parse and validate required params
@@ -82,6 +85,10 @@ export default function BookingScreen() {
       }
     : null;
 
+  const providerTypeForAvailability =
+    serviceInfo?.serviceType === "professional_service" ? "professional" : "place";
+  const providerIdForAvailability = resolvedProviderId ?? serviceInfo?.providerId ?? 0;
+
   // Initialize the service in the hook when component mounts
   useEffect(() => {
     if (serviceInfo && !state.service) {
@@ -89,19 +96,200 @@ export default function BookingScreen() {
     }
   }, [serviceInfo?.serviceInstanceId]);
 
+  // Resolve the provider profile ID from the service instance (source of truth).
+  // This avoids mismatches where the URL param providerId is a User/PublicProfile id.
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!serviceInfo?.serviceInstanceId) {
+        setResolvedProviderId(null);
+        return;
+      }
+      try {
+        const {serviceApi} = await import("@/lib/api");
+        if (serviceInfo.serviceType === "professional_service") {
+          const resp = await serviceApi.getProfessionalService(serviceInfo.serviceInstanceId);
+          const professionalId = resp.data?.professional;
+          if (!cancelled) setResolvedProviderId(Number.isFinite(professionalId) ? professionalId : null);
+        } else if (serviceInfo.serviceType === "place_service") {
+          const resp = await serviceApi.getPlaceService(serviceInfo.serviceInstanceId);
+          const placeId = resp.data?.place;
+          if (!cancelled) setResolvedProviderId(Number.isFinite(placeId) ? placeId : null);
+        } else {
+          if (!cancelled) setResolvedProviderId(null);
+        }
+      } catch {
+        if (!cancelled) setResolvedProviderId(null);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [serviceInfo?.serviceInstanceId, serviceInfo?.serviceType]);
+
+  // Preload weekly availability to disable non-working weekdays in Step 1
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!serviceInfo || providerIdForAvailability <= 0) {
+        setDisabledDaysIndexes(undefined);
+        return;
+      }
+
+      try {
+        const {profileCustomizationApi} = await import("@/lib/api");
+        const providerType = providerTypeForAvailability;
+
+        const publicResp = await profileCustomizationApi.getPublicAvailability(
+          providerType as "professional" | "place",
+          providerIdForAvailability
+        );
+
+        if (cancelled) return;
+
+        const schedules = publicResp.data || [];
+        if (!Array.isArray(schedules) || schedules.length === 0) {
+          // No availability configured -> disable all weekdays to prevent clicks
+          setDisabledDaysIndexes([0, 1, 2, 3, 4, 5, 6]);
+          setDateAvailabilityError(
+            "Este proveedor aún no ha configurado sus horarios de disponibilidad. Por favor contacta al proveedor directamente o intenta con otro proveedor."
+          );
+          return;
+        }
+
+        setDateAvailabilityError(null);
+
+        const availableDays = new Set<number>();
+        schedules.forEach((s: any) => {
+          if (s.is_available && Array.isArray(s.time_slots) && s.time_slots.length > 0) {
+            // backend 0=Mon, RN Calendar 0=Sun -> shift +1 mod 7
+            const rnIndex = (s.day_of_week + 1) % 7;
+            availableDays.add(rnIndex);
+          }
+        });
+
+        const disabled = [0, 1, 2, 3, 4, 5, 6].filter((d) => !availableDays.has(d));
+        // If nothing is available, also disable all weekdays
+        setDisabledDaysIndexes(
+          availableDays.size === 0 ? [0, 1, 2, 3, 4, 5, 6] : disabled.length === 7 ? undefined : disabled
+        );
+      } catch (e) {
+        if (cancelled) return;
+        // If we can't preload availability, don't block the user
+        setDisabledDaysIndexes(undefined);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [serviceInfo?.serviceType, providerIdForAvailability]);
+
+  // Derive current step for the visual indicator
+  const currentStep = !selectedDate ? 1 : !selectedTime ? 2 : 3;
+
+  // Color helpers for step indicator
+  const getStepColors = (step: number) => {
+    if (step === currentStep) {
+      return {
+        bg: colors.primary,
+        text: "#ffffff",
+        label: colors.primary,
+      };
+    }
+    if (step < currentStep) {
+      return {
+        bg: colors.primary + "33", // low opacity for completed
+        text: colors.primary,
+        label: colors.primary,
+      };
+    }
+    return {
+      bg: colors.muted,
+      text: colors.mutedForeground,
+      label: colors.mutedForeground,
+    };
+  };
+
+  // Compute available time slots (15m increments) that fit duration and avoid conflicts
+  const computeAvailableTimes = (
+    schedule: NonNullable<typeof scheduleData>,
+    durationMinutes: number
+  ): string[] => {
+    if (!schedule.working_hours) return [];
+
+    const toMinutes = (hhmm: string) => {
+      const [h, m] = hhmm.split(":").map(Number);
+      return h * 60 + m;
+    };
+
+    const workStart = toMinutes(schedule.working_hours.start);
+    const workEnd = toMinutes(schedule.working_hours.end);
+
+    const overlaps = (start: number, end: number, a: number, b: number) => start < b && end > a;
+
+    const isFree = (start: number) => {
+      const end = start + durationMinutes;
+      if (start < workStart || end > workEnd) return false;
+
+      for (const slot of schedule.booked_slots) {
+        const [sh, sm] = slot.start.split(":").map(Number);
+        const [eh, em] = slot.end.split(":").map(Number);
+        if (overlaps(start, end, sh * 60 + sm, eh * 60 + em)) return false;
+      }
+
+      for (const br of schedule.break_times) {
+        const [bh, bm] = br.start.split(":").map(Number);
+        const [eh, em] = br.end.split(":").map(Number);
+        if (overlaps(start, end, bh * 60 + bm, eh * 60 + em)) return false;
+      }
+
+      return true;
+    };
+
+    const result: string[] = [];
+    for (let t = workStart; t + durationMinutes <= workEnd; t += 15) {
+      if (isFree(t)) {
+        const hh = Math.floor(t / 60)
+          .toString()
+          .padStart(2, "0");
+        const mm = (t % 60).toString().padStart(2, "0");
+        result.push(`${hh}:${mm}`);
+      }
+    }
+    return result;
+  };
+
+  // Parse YYYY-MM-DD as a *local* date (avoids timezone shifting to previous day)
+  const parseLocalDate = (ymd: string): Date => {
+    const [y, m, d] = ymd.split("-").map(Number);
+    return new Date(y, (m || 1) - 1, d || 1);
+  };
+
+  const formatLocalDate = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
   const handleDateSelect = async (date: string) => {
-    const dateObj = new Date(date);
+    const dateObj = parseLocalDate(date);
     setSelectedTime(null); // Reset time when date changes
     setTimeAvailabilityError(null);
     setDateAvailabilityError(null);
+    setAvailableTimes([]);
     setShowDatePicker(false);
     
     // Fetch provider schedule for selected date
-    if (serviceInfo && serviceInfo.providerId > 0) {
+    if (serviceInfo && providerIdForAvailability > 0) {
       setLoadingSchedule(true);
       try {
         const {reservationApi, profileCustomizationApi} = await import("@/lib/api");
-        const providerType = serviceInfo.serviceType === "professional_service" ? "professional" : "place";
+        const providerType = providerTypeForAvailability;
 
         // Helper: convert JS getDay (0=Sun) to backend (0=Mon)
         const getBackendDayOfWeek = (d: Date) => {
@@ -118,14 +306,29 @@ export default function BookingScreen() {
           booked_slots: {start: string; end: string}[];
           break_times: {start: string; end: string}[];
         } | null = null;
+        let hasPublicWorkingHours = false;
 
         try {
           const publicResp = await profileCustomizationApi.getPublicAvailability(
             providerType as "professional" | "place",
-            serviceInfo.providerId
+            providerIdForAvailability
           );
 
           const schedules = publicResp.data || [];
+          // Compute disabled weekdays from availability (backend 0=Mon -> RN 0=Sun)
+          if (schedules.length > 0) {
+            const availableDays = new Set<number>();
+            schedules.forEach((s: any) => {
+              if (s.is_available && Array.isArray(s.time_slots) && s.time_slots.length > 0) {
+                const rnIndex = (s.day_of_week + 1) % 7;
+                availableDays.add(rnIndex);
+              }
+            });
+            const disabled = [0, 1, 2, 3, 4, 5, 6].filter((d) => !availableDays.has(d));
+            setDisabledDaysIndexes(availableDays.size === 0 ? [0, 1, 2, 3, 4, 5, 6] : disabled);
+          } else {
+            setDisabledDaysIndexes(undefined);
+          }
           const targetDay = getBackendDayOfWeek(dateObj);
           const daySchedule = schedules.find(
             (s: any) =>
@@ -147,6 +350,7 @@ export default function BookingScreen() {
               booked_slots: [],
               break_times: [],
             };
+            hasPublicWorkingHours = true;
           } else if (schedules.length === 0) {
             // No availability configured at all
             computedSchedule = {
@@ -159,6 +363,8 @@ export default function BookingScreen() {
             );
             setSelectedDate(null);
             setScheduleData(computedSchedule);
+            // Disable all weekdays in calendar to avoid clicks
+            setDisabledDaysIndexes([0, 1, 2, 3, 4, 5, 6]);
             return;
           }
         } catch (publicErr) {
@@ -166,17 +372,36 @@ export default function BookingScreen() {
           console.warn("Fallo getPublicAvailability, probando schedule endpoint", publicErr);
         }
 
-        // 2) Fallback to dedicated schedule endpoint (includes blocked slots)
-        if (!computedSchedule) {
+        // 2) Always fetch per-date schedule to get breaks and booked slots (source of truth)
+        try {
           const response = await reservationApi.getProviderSchedule({
             provider_type: providerType as "professional" | "place",
-            provider_id: serviceInfo.providerId,
+            provider_id: providerIdForAvailability,
             date: date,
           });
-          computedSchedule = response.data;
+          const scheduleFromApi = response.data;
+
+          // Merge with public working hours if needed (public availability can exist even if schedule endpoint has null hours)
+          if (computedSchedule?.working_hours && hasPublicWorkingHours) {
+            computedSchedule = {
+              working_hours: computedSchedule.working_hours,
+              booked_slots: scheduleFromApi?.booked_slots || [],
+              break_times: scheduleFromApi?.break_times || [],
+            };
+          } else {
+            computedSchedule = scheduleFromApi;
+          }
+        } catch (e) {
+          // If schedule endpoint fails, keep what we have from public availability
+          if (!computedSchedule) {
+            computedSchedule = {working_hours: null, booked_slots: [], break_times: []};
+          }
         }
 
         setScheduleData(computedSchedule);
+        setAvailableTimes(
+          computeAvailableTimes(computedSchedule, serviceInfo.duration)
+        );
 
         // Check if provider is available on this day
         if (!computedSchedule?.working_hours) {
@@ -210,6 +435,8 @@ export default function BookingScreen() {
           "No se pudo verificar la disponibilidad. Por favor intenta de nuevo.";
         setDateAvailabilityError(errorMessage);
         setScheduleData(null);
+        setAvailableTimes([]);
+        setDisabledDaysIndexes(undefined);
         setSelectedDate(null);
       } finally {
         setLoadingSchedule(false);
@@ -267,10 +494,16 @@ export default function BookingScreen() {
     }
 
     const timeStr = formatTime(time);
+
+    // Require membership in precomputed availability when present
+    if (availableTimes.length > 0 && !availableTimes.includes(timeStr)) {
+      return false;
+    }
+
     const [hours, minutes] = timeStr.split(":").map(Number);
     const timeMinutes = hours * 60 + minutes;
     
-    // Check if time is within working hours
+    // Check if time is within working hours and fits duration
     const [workStartHours, workStartMins] = scheduleData.working_hours.start.split(":").map(Number);
     const [workEndHours, workEndMins] = scheduleData.working_hours.end.split(":").map(Number);
     const workStartMinutes = workStartHours * 60 + workStartMins;
@@ -347,12 +580,15 @@ export default function BookingScreen() {
       };
 
       // Set the date and time in the flow
-      const dateStr = selectedDate.toISOString().split("T")[0];
+      const dateStr = formatLocalDate(selectedDate);
       
       // Create reservation with simplified data structure
       const reservationData = {
         service_instance_type: serviceInfo.serviceType as "place_service" | "professional_service" | "custom_service",
         service_instance_id: serviceInfo.serviceInstanceId,
+        // Provide provider context so backend can resolve IDs consistently with availability endpoints
+        provider_type: providerTypeForAvailability,
+        provider_id: providerIdForAvailability,
         date: dateStr,
         time: timeSlot.time,
         notes: localNotes,
@@ -559,13 +795,13 @@ export default function BookingScreen() {
             style={[
               styles.stepNumber,
               {
-                backgroundColor: selectedDate ? colors.primary : colors.muted,
+                backgroundColor: getStepColors(1).bg,
               },
             ]}>
             <Text
               style={[
                 styles.stepNumberText,
-                {color: selectedDate ? "#ffffff" : colors.mutedForeground},
+                {color: getStepColors(1).text},
               ]}>
               1
             </Text>
@@ -573,7 +809,7 @@ export default function BookingScreen() {
           <Text
             style={[
               styles.stepLabel,
-              {color: selectedDate ? colors.primary : colors.mutedForeground},
+              {color: getStepColors(1).label},
             ]}>
             Fecha
           </Text>
@@ -586,13 +822,13 @@ export default function BookingScreen() {
             style={[
               styles.stepNumber,
               {
-                backgroundColor: selectedTime ? colors.primary : colors.muted,
+                backgroundColor: getStepColors(2).bg,
               },
             ]}>
             <Text
               style={[
                 styles.stepNumberText,
-                {color: selectedTime ? "#ffffff" : colors.mutedForeground},
+                {color: getStepColors(2).text},
               ]}>
               2
             </Text>
@@ -600,7 +836,7 @@ export default function BookingScreen() {
           <Text
             style={[
               styles.stepLabel,
-              {color: selectedTime ? colors.primary : colors.mutedForeground},
+              {color: getStepColors(2).label},
             ]}>
             Hora
           </Text>
@@ -613,13 +849,13 @@ export default function BookingScreen() {
             style={[
               styles.stepNumber,
               {
-                backgroundColor: selectedDate && selectedTime ? colors.primary : colors.muted,
+                backgroundColor: getStepColors(3).bg,
               },
             ]}>
             <Text
               style={[
                 styles.stepNumberText,
-                {color: selectedDate && selectedTime ? "#ffffff" : colors.mutedForeground},
+                {color: getStepColors(3).text},
               ]}>
               3
             </Text>
@@ -627,7 +863,7 @@ export default function BookingScreen() {
           <Text
             style={[
               styles.stepLabel,
-              {color: selectedDate && selectedTime ? colors.primary : colors.mutedForeground},
+              {color: getStepColors(3).label},
             ]}>
             Confirmar
           </Text>
@@ -655,7 +891,8 @@ export default function BookingScreen() {
               reservations={[]}
               onDayPress={(date) => handleDateSelect(date)}
               selectedDate={undefined}
-              minDate={new Date().toISOString().split("T")[0]}
+              minDate={formatLocalDate(new Date())}
+              disabledDaysIndexes={disabledDaysIndexes}
             />
           </View>
         ) : !scheduleData || !scheduleData.working_hours ? (
@@ -717,156 +954,7 @@ export default function BookingScreen() {
                 </View>
               )}
               
-              {Platform.OS === "web" ? (
-                <View style={styles.timeInputContainer}>
-                  <Ionicons name="time-outline" size={24} color={colors.primary} />
-                  <TextInput
-                    style={[
-                      styles.timeInput,
-                      {
-                        backgroundColor: colors.card,
-                        color: colors.foreground,
-                        borderColor: colors.border,
-                      },
-                    ]}
-                    value={timeInputText || (selectedTime ? formatTime(selectedTime) : "")}
-                    placeholder="HH:MM (ej: 14:30)"
-                    placeholderTextColor={colors.mutedForeground}
-                    onChangeText={(text) => {
-                      // Allow typing and format as user types
-                      // Remove non-numeric characters except colon
-                      let formatted = text.replace(/[^0-9:]/g, '');
-                      
-                      // Auto-format with colon after 2 digits
-                      if (formatted.length === 2 && !formatted.includes(':')) {
-                        formatted = formatted + ':';
-                      }
-                      
-                      // Limit length
-                      if (formatted.length > 5) {
-                        formatted = formatted.substring(0, 5);
-                      }
-                      
-                      // Update input text immediately
-                      setTimeInputText(formatted);
-                      
-                      // Try to parse and set time if valid format
-                      const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
-                      if (timeRegex.test(formatted) && formatted.length === 5) {
-                        const [hours, minutes] = formatted.split(":").map(Number);
-                        const date = new Date();
-                        date.setHours(hours, minutes, 0, 0);
-                        const timeToCheck = new Date(date);
-                        // Validate availability before setting
-                        if (isTimeSlotAvailable(timeToCheck)) {
-                          setSelectedTime(timeToCheck);
-                          setTimeAvailabilityError(null);
-                        } else {
-                          setTimeAvailabilityError("Esta hora no está disponible. Por favor selecciona otra hora dentro del horario de trabajo del proveedor.");
-                        }
-                      } else if (formatted === "") {
-                        setSelectedTime(null);
-                        setTimeAvailabilityError(null);
-                      }
-                    }}
-                    keyboardType="numeric"
-                    maxLength={5}
-                    editable={true}
-                  />
-                </View>
-              ) : (
-                <>
-                  <TouchableOpacity
-                    style={[styles.timePickerButton, {backgroundColor: colors.card, borderColor: colors.border}]}
-                    onPress={() => {
-                      setShowTimePicker(true);
-                    }}
-                    activeOpacity={0.7}>
-                    <Ionicons name="time-outline" size={24} color={colors.primary} />
-                    <Text style={[styles.timePickerText, {color: colors.foreground}]}>
-                      {selectedTime ? formatTime(selectedTime) : "Seleccionar hora"}
-                    </Text>
-                    <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
-                  </TouchableOpacity>
-
-                  {Platform.OS === "ios" ? (
-                    <Modal
-                      visible={showTimePicker}
-                      transparent={true}
-                      animationType="slide"
-                      onRequestClose={() => setShowTimePicker(false)}>
-                      <View style={styles.timePickerModalContainer}>
-                        <View style={[styles.timePickerModalContent, {backgroundColor: colors.background}]}>
-                          <View style={styles.timePickerModalHeader}>
-                            <TouchableOpacity
-                              onPress={() => setShowTimePicker(false)}
-                              style={styles.timePickerModalCancel}>
-                              <Text style={[styles.timePickerModalButtonText, {color: colors.primary}]}>
-                                Cancelar
-                              </Text>
-                            </TouchableOpacity>
-                            <Text style={[styles.timePickerModalTitle, {color: colors.foreground}]}>
-                              Seleccionar hora
-                            </Text>
-                            <TouchableOpacity
-                              onPress={() => {
-                                setShowTimePicker(false);
-                              }}
-                              style={styles.timePickerModalDone}>
-                              <Text style={[styles.timePickerModalButtonText, {color: colors.primary}]}>
-                                Listo
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
-                          <DateTimePicker
-                            value={selectedTime || new Date()}
-                            mode="time"
-                            is24Hour={true}
-                            display="spinner"
-                            onChange={(event, date) => {
-                              if (event.type === "set" && date) {
-                                // Validate availability before setting
-                                if (isTimeSlotAvailable(date)) {
-                                  setTimeAvailabilityError(null);
-                                  handleTimeChange(event, date);
-                                } else {
-                                  setTimeAvailabilityError("Esta hora no está disponible. Por favor selecciona otra hora dentro del horario de trabajo del proveedor.");
-                                }
-                              } else {
-                                handleTimeChange(event, date);
-                              }
-                            }}
-                            textColor={colors.foreground}
-                            style={styles.iosTimePicker}
-                          />
-                        </View>
-                      </View>
-                    </Modal>
-                  ) : (
-                    showTimePicker && (
-                      <DateTimePicker
-                        value={selectedTime || new Date()}
-                        mode="time"
-                        is24Hour={true}
-                        display="default"
-                        onChange={(event, date) => {
-                          if (event.type === "set" && date) {
-                            // Validate availability before setting
-                            if (isTimeSlotAvailable(date)) {
-                              setTimeAvailabilityError(null);
-                              handleTimeChange(event, date);
-                            } else {
-                              setTimeAvailabilityError("Esta hora no está disponible. Por favor selecciona otra hora dentro del horario de trabajo del proveedor.");
-                            }
-                          } else {
-                            handleTimeChange(event, date);
-                          }
-                        }}
-                      />
-                    )
-                  )}
-                </>
-              )}
+              {/* Time selection is now only via dynamic chips below */}
 
               {loadingSchedule ? (
                 <View style={styles.loadingSchedule}>
@@ -899,15 +987,91 @@ export default function BookingScreen() {
                     </View>
                   )}
                   {scheduleData.break_times.length > 0 && (
-                    <View style={styles.scheduleRow}>
-                      <Ionicons name="cafe-outline" size={16} color={colors.mutedForeground} />
-                      <Text style={[styles.scheduleText, {color: colors.mutedForeground}]}>
-                        {scheduleData.break_times.length} descanso(s) programado(s)
-                      </Text>
+                    <View style={styles.breaksContainer}>
+                      <View style={styles.scheduleRow}>
+                        <Ionicons name="cafe-outline" size={16} color={colors.mutedForeground} />
+                        <Text style={[styles.scheduleText, {color: colors.mutedForeground}]}>
+                          Descansos programados
+                        </Text>
+                      </View>
+                      <View style={styles.breakChips}>
+                        {scheduleData.break_times.map((br, idx) => (
+                          <View
+                            key={`${br.start}-${br.end}-${idx}`}
+                            style={[
+                              styles.breakChip,
+                              {
+                                backgroundColor: colors.card,
+                                borderColor: colors.border,
+                              },
+                            ]}>
+                            <Text style={[styles.breakChipText, {color: colors.mutedForeground}]}>
+                              {br.start} - {br.end}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
                     </View>
                   )}
                 </View>
               ) : null}
+
+              {scheduleData?.working_hours && (
+                <View style={styles.availableTimesContainer}>
+                  <Text style={[styles.availableTimesTitle, {color: colors.foreground}]}>
+                    Horarios disponibles
+                  </Text>
+                  {availableTimes.length === 0 ? (
+                    <Text style={[styles.availableTimesEmpty, {color: colors.mutedForeground}]}>
+                      No hay horarios que cumplan con la duración y disponibilidad.
+                    </Text>
+                  ) : (
+                    <View style={styles.availableTimesList}>
+                      {availableTimes.map((t) => (
+                        <TouchableOpacity
+                          key={t}
+                          style={[
+                            styles.availableTimeChip,
+                            {
+                              backgroundColor:
+                                selectedTime && formatTime(selectedTime) === t
+                                  ? colors.primary
+                                  : colors.card,
+                              borderColor:
+                                selectedTime && formatTime(selectedTime) === t
+                                  ? colors.primary
+                                  : colors.border,
+                            },
+                          ]}
+                          onPress={() => {
+                            const [h, m] = t.split(":").map(Number);
+                            const d = new Date(selectedDate || new Date());
+                            d.setHours(h, m, 0, 0);
+                            if (isTimeSlotAvailable(d)) {
+                              setSelectedTime(d);
+                              setTimeAvailabilityError(null);
+                              setTimeInputText(t);
+                            }
+                          }}
+                          activeOpacity={0.8}>
+                          <Text
+                            style={[
+                              styles.availableTimeText,
+                              {
+                                color:
+                                  selectedTime && formatTime(selectedTime) === t
+                                    ? "#ffffff"
+                                    : colors.foreground,
+                              },
+                            ]}>
+                            {t}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
 
               <View style={[styles.infoCard, {backgroundColor: colors.primary + "10"}]}>
                 <Ionicons name="information-circle" size={20} color={colors.primary} />
@@ -1382,10 +1546,57 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
   },
+  availableTimesContainer: {
+    marginTop: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  availableTimesTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  availableTimesEmpty: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  availableTimesList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  availableTimeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  availableTimeText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
   scheduleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  breaksContainer: {
+    marginTop: 4,
+    gap: 6,
+  },
+  breakChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  breakChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  breakChipText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
   scheduleText: {
     fontSize: 13,

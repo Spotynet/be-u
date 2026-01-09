@@ -5,6 +5,7 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Reservation} from "@/types/global";
 import {Ionicons} from "@expo/vector-icons";
+import {parseISODateAsLocal} from "@/lib/dateUtils";
 
 interface ReservationCardProps {
   reservation: Reservation;
@@ -85,7 +86,7 @@ export const ReservationCard = ({
           <View style={styles.infoItem}>
             <Ionicons name="calendar" size={16} color={colors.primary} />
             <Text style={[styles.infoText, {color: colors.foreground}]}>
-              {new Date(reservation.date).toLocaleDateString("es-MX", {
+              {parseISODateAsLocal(reservation.date).toLocaleDateString("es-MX", {
                 weekday: "short",
                 month: "short",
                 day: "numeric",

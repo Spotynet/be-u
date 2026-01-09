@@ -134,6 +134,8 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
   }, []);
 
   const requestPermissions = async () => {
+    // Web doesn't require media library permissions.
+    if (Platform.OS === "web") return true;
     const {status} = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permisos requeridos", "Necesitamos acceso a tu galería para subir imágenes.", [
@@ -182,7 +184,9 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
 
         const response = await profileCustomizationApi.uploadProfilePhoto(formData);
         if (response.data.user_image) {
-          setProfilePhoto(response.data.user_image);
+          const url = response.data.user_image as string;
+          // Bust cache so the new photo shows immediately.
+          setProfilePhoto(url ? `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}` : url);
           setImageError(false);
           Alert.alert("Éxito", "Foto de perfil actualizada correctamente");
         }

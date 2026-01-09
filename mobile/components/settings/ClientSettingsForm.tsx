@@ -60,6 +60,8 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
   ]);
 
   const requestPermissions = async () => {
+    // Web doesn't require media library permissions.
+    if (Platform.OS === "web") return true;
     const {status} = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permisos requeridos", "Necesitamos acceso a tu galería para subir imágenes.", [
@@ -108,7 +110,9 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
 
         const response = await profileCustomizationApi.uploadProfilePhoto(formData);
         if (response.data.user_image) {
-          setProfilePhoto(response.data.user_image);
+          const url = response.data.user_image as string;
+          // Bust cache so the new photo shows immediately.
+          setProfilePhoto(url ? `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}` : url);
           Alert.alert("Éxito", "Foto de perfil actualizada correctamente");
         }
       } catch (error) {
@@ -118,6 +122,33 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
         setUploadingPhoto(false);
       }
     }
+  };
+
+  const deletePhoto = async () => {
+    Alert.alert(
+      "Eliminar foto de perfil",
+      "¿Estás seguro de que deseas eliminar tu foto de perfil?",
+      [
+        {text: "Cancelar", style: "cancel"},
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            setUploadingPhoto(true);
+            try {
+              await profileCustomizationApi.updatePublicProfile({delete_photo: true});
+              setProfilePhoto(null);
+              Alert.alert("Éxito", "Foto de perfil eliminada correctamente");
+            } catch (error) {
+              console.error("Error deleting profile photo:", error);
+              Alert.alert("Error", "No se pudo eliminar la foto de perfil. Inténtalo de nuevo.");
+            } finally {
+              setUploadingPhoto(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSave = async () => {
@@ -148,23 +179,32 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
         </View>
 
         <View style={styles.photoContainer}>
-          <TouchableOpacity
-            style={[styles.photoButton, {backgroundColor: colors.card, borderColor: colors.border}]}
-            onPress={pickImage}
-            disabled={uploadingPhoto}>
-            {uploadingPhoto ? (
-              <ActivityIndicator color={colors.primary} size="large" />
-            ) : profilePhoto ? (
-              <Image source={{uri: profilePhoto}} style={styles.profilePhoto} />
-            ) : (
-              <View style={styles.photoPlaceholder}>
-                <Ionicons name="person" color={colors.mutedForeground} size={40} />
-                <Text style={[styles.photoPlaceholderText, {color: colors.mutedForeground}]}>
-                  Agregar foto
-                </Text>
-              </View>
+          <View style={styles.photoWrapper}>
+            <TouchableOpacity
+              style={[styles.photoButton, {backgroundColor: colors.card, borderColor: colors.border}]}
+              onPress={pickImage}
+              disabled={uploadingPhoto}>
+              {uploadingPhoto ? (
+                <ActivityIndicator color={colors.primary} size="large" />
+              ) : profilePhoto ? (
+                <Image source={{uri: profilePhoto}} style={styles.profilePhoto} />
+              ) : (
+                <View style={styles.photoPlaceholder}>
+                  <Ionicons name="person" color={colors.mutedForeground} size={40} />
+                  <Text style={[styles.photoPlaceholderText, {color: colors.mutedForeground}]}>
+                    Agregar foto
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            {profilePhoto && !uploadingPhoto && (
+              <TouchableOpacity
+                style={[styles.deletePhotoButton, {backgroundColor: colors.background}]}
+                onPress={deletePhoto}>
+                <Ionicons name="trash-outline" color="#ef4444" size={20} />
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+          </View>
           <Text style={[styles.helperText, {color: colors.mutedForeground}]}>
             Toca la imagen para cambiar tu foto de perfil
           </Text>
@@ -386,6 +426,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
+  photoWrapper: {
+    position: "relative",
+    marginBottom: 8,
+  },
   photoButton: {
     width: 120,
     height: 120,
@@ -394,7 +438,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
-    marginBottom: 8,
+  },
+  deletePhotoButton: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   profilePhoto: {
     width: "100%",

@@ -5,12 +5,11 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useState, useRef, useEffect} from "react";
 import {Ionicons} from "@expo/vector-icons";
 import {EnhancedReservationsTab} from "./EnhancedReservationsTab";
-import {ReviewsTab} from "./ReviewsTab";
 import {FavoritesTab} from "./FavoritesTab";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
-type TabName = "reservations" | "reviews" | "favorites";
+type TabName = "reservations" | "favorites";
 
 interface ProfileTabsProps {
   userRole: "CLIENT" | "PROFESSIONAL" | "PLACE";
@@ -22,9 +21,8 @@ export function ProfileTabs({userRole}: ProfileTabsProps) {
   const [activeTab, setActiveTab] = useState<TabName>("reservations");
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  const tabs: {key: TabName; label: string; icon: string}[] = [
+  const tabs: {key: Exclude<TabName, "reviews">; label: string; icon: string}[] = [
     {key: "reservations", label: "Reservas", icon: "calendar-outline"},
-    {key: "reviews", label: "Reseñas", icon: "star-outline"},
     {key: "favorites", label: "Guardados", icon: "heart-outline"},
   ];
 
@@ -42,14 +40,18 @@ export function ProfileTabs({userRole}: ProfileTabsProps) {
     switch (activeTab) {
       case "reservations":
         return <EnhancedReservationsTab userRole={userRole} />;
-      case "reviews":
-        return <ReviewsTab userRole={userRole} />;
       case "favorites":
         return <FavoritesTab />;
       default:
         return null;
     }
   };
+
+  // Derived layout (supports any tab count)
+  const tabCount = tabs.length;
+  const indicatorWidth = SCREEN_WIDTH / tabCount;
+  const inputRange = tabs.map((_, i) => i);
+  const outputRange = tabs.map((_, i) => i * indicatorWidth);
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
@@ -86,12 +88,12 @@ export function ProfileTabs({userRole}: ProfileTabsProps) {
               transform: [
                 {
                   translateX: slideAnim.interpolate({
-                    inputRange: [0, 1, 2],
-                    outputRange: [0, SCREEN_WIDTH / 3, (SCREEN_WIDTH / 3) * 2],
+                    inputRange,
+                    outputRange,
                   }),
                 },
               ],
-              width: SCREEN_WIDTH / 3,
+              width: indicatorWidth,
             },
           ]}
         />

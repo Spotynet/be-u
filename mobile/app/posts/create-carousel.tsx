@@ -8,7 +8,6 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
-  Switch,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
@@ -25,7 +24,6 @@ export default function CreateCarouselScreen() {
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [description, setDescription] = useState("");
-  const [allowComments, setAllowComments] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
 
   const handlePublish = async () => {
@@ -48,7 +46,8 @@ export default function CreateCarouselScreen() {
         formData.append("content", description);
       }
       formData.append("post_type", "carousel");
-      formData.append("allow_comments", allowComments ? "true" : "false");
+      // Hidden setting: default to allow comments
+      formData.append("allow_comments", "true");
 
       // Add photos to FormData
       if (Platform.OS === "web") {
@@ -160,27 +159,6 @@ export default function CreateCarouselScreen() {
             numberOfLines={4}
             textAlignVertical="top"
           />
-        </View>
-
-        {/* Allow Comments */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <View style={styles.switchRow}>
-            <View style={styles.switchContent}>
-              <Text style={[styles.switchLabel, {color: colors.foreground}]}>
-                Permitir comentarios
-              </Text>
-              <Text style={[styles.switchDescription, {color: colors.mutedForeground}]}>
-                Los usuarios podrán comentar en tu publicación
-              </Text>
-            </View>
-            <Switch
-              value={allowComments}
-              onValueChange={setAllowComments}
-              trackColor={{false: colors.muted, true: colors.primary}}
-              thumbColor="#ffffff"
-              ios_backgroundColor={colors.muted}
-            />
-          </View>
         </View>
       </ScrollView>
 

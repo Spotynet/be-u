@@ -13,6 +13,7 @@ interface CalendarViewProps {
   selectedDate?: string;
   minDate?: string;
   maxDate?: string;
+  disabledDaysIndexes?: number[];
 }
 
 export const CalendarView = ({
@@ -21,9 +22,27 @@ export const CalendarView = ({
   selectedDate,
   minDate,
   maxDate,
+  disabledDaysIndexes,
 }: CalendarViewProps) => {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
+
+  const getStatusColor = (status: ReservationStatus) => {
+    switch (status) {
+      case "CONFIRMED":
+        return "#10b981"; // Green
+      case "PENDING":
+        return "#f59e0b"; // Orange
+      case "COMPLETED":
+        return "#6b7280"; // Gray
+      case "CANCELLED":
+        return "#ef4444"; // Red
+      case "REJECTED":
+        return "#dc2626"; // Dark red
+      default:
+        return colors.primary;
+    }
+  };
 
   // Group reservations by date
   const markedDates: any = {};
@@ -57,23 +76,6 @@ export const CalendarView = ({
     };
   }
 
-  const getStatusColor = (status: ReservationStatus) => {
-    switch (status) {
-      case "CONFIRMED":
-        return "#10b981"; // Green
-      case "PENDING":
-        return "#f59e0b"; // Orange
-      case "COMPLETED":
-        return "#6b7280"; // Gray
-      case "CANCELLED":
-        return "#ef4444"; // Red
-      case "REJECTED":
-        return "#dc2626"; // Dark red
-      default:
-        return colors.primary;
-    }
-  };
-
   return (
     <View style={styles.container}>
       <Calendar
@@ -82,6 +84,8 @@ export const CalendarView = ({
         onDayPress={(day: DateData) => onDayPress(day.dateString)}
         minDate={minDate}
         maxDate={maxDate}
+        disabledDaysIndexes={disabledDaysIndexes}
+        disableAllTouchEventsForDisabledDays
         theme={{
           backgroundColor: colors.background,
           calendarBackground: colors.background,

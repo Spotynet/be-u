@@ -109,11 +109,16 @@ def create_provider_notification_for_new_reservation(instance, provider_user, pr
         
         logger.info(f"Creating provider notification for user {provider_user.id} ({provider_user.email}) - Reservation: {instance.code}")
         
+        is_confirmed = instance.status == Reservation.Status.CONFIRMED
         notification = _create_notification(
             user=provider_user,
             type=Notification.NotificationType.RESERVATION,
-            title="Nueva solicitud de reserva",
-            message=f"{client_name} solicita una reserva para {service_name} el {instance.date.strftime('%d/%m/%Y')} a las {instance.time.strftime('%H:%M')}",
+            title="Nueva reserva confirmada" if is_confirmed else "Nueva solicitud de reserva",
+            message=(
+                f"{client_name} confirmó una reserva para {service_name} el {instance.date.strftime('%d/%m/%Y')} a las {instance.time.strftime('%H:%M')}"
+                if is_confirmed
+                else f"{client_name} solicita una reserva para {service_name} el {instance.date.strftime('%d/%m/%Y')} a las {instance.time.strftime('%H:%M')}"
+            ),
             content_object=instance,
             metadata={
                 'reservation_code': instance.code,
@@ -126,7 +131,7 @@ def create_provider_notification_for_new_reservation(instance, provider_user, pr
                 'time': str(instance.time),
                 'status': instance.status,
                 'notes': instance.notes or '',
-                'action_required': True,
+                'action_required': False if is_confirmed else True,
             }
         )
         
@@ -149,11 +154,16 @@ def create_client_notification_for_new_reservation(instance, provider_name):
         
         logger.info(f"Creating client notification for reservation {instance.code}")
         
+        is_confirmed = instance.status == Reservation.Status.CONFIRMED
         notification = _create_notification(
             user=instance.client.user,
             type=Notification.NotificationType.RESERVATION,
-            title="Solicitud de reserva enviada",
-            message=f"Tu solicitud de reserva para {service_name} ha sido enviada. El proveedor te notificará cuando la confirme o rechace.",
+            title="Reserva confirmada" if is_confirmed else "Solicitud de reserva enviada",
+            message=(
+                f"Tu reserva para {service_name} ha sido confirmada."
+                if is_confirmed
+                else f"Tu solicitud de reserva para {service_name} ha sido enviada. El proveedor te notificará cuando la confirme o rechace."
+            ),
             content_object=instance,
             metadata={
                 'reservation_code': instance.code,
@@ -199,6 +209,30 @@ def create_reservation_notification(sender, instance, created, **kwargs):
         
         # Create client notification
         client_notif_created = create_client_notification_for_new_reservation(instance, provider_name)
+
+        # If reservations are created already CONFIRMED, also create Google Calendar event immediately
+        if instance.status == Reservation.Status.CONFIRMED:
+            try:
+                from calendar_integration.event_helpers import create_reservation_event
+                calendar_event = create_reservation_event(instance)
+                if calendar_event and provider_user:
+                    _create_notification(
+                        user=provider_user,
+                        type=Notification.NotificationType.RESERVATION,
+                        title="Evento creado en Google Calendar",
+                        message=f"Se creó un evento en tu Google Calendar para la reserva {instance.code}",
+                        content_object=instance,
+                        metadata={
+                            'reservation_code': instance.code,
+                            'service_name': instance.service.name,
+                            'client_name': get_client_name_from_reservation(instance),
+                            'calendar_event_id': calendar_event.google_event_id,
+                            'calendar_event_link': calendar_event.event_link,
+                            'status': instance.status,
+                        }
+                    )
+            except Exception as e:
+                logger.warning(f"Could not create calendar event for reservation {instance.code}: {e}")
         
         # Log summary
         if provider_notif_created and client_notif_created:

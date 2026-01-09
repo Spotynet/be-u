@@ -43,11 +43,22 @@ export default function Explore() {
   const [isListExpanded, setIsListExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const categories = [
+  // Keep Mascotas logic in codebase, but hide it from the UI for now.
+  const ALL_CATEGORIES = [
     {id: "belleza", name: "Belleza"},
     {id: "bienestar", name: "Bienestar"},
     {id: "mascotas", name: "Mascotas"},
-  ];
+  ] as const;
+  const categories = ALL_CATEGORIES.filter((c) => c.id !== "mascotas");
+
+  useEffect(() => {
+    // If user had Mascotas selected previously, force a visible category.
+    if (selectedMainCategory === "mascotas") {
+      setSelectedMainCategory("belleza");
+      setSelectedSubCategory("todos");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getCategoryIcon = (id: string, color: string, size: number = 24) => {
     switch (id) {
@@ -324,11 +335,18 @@ export default function Explore() {
                     selectedMainCategory === category.id ? colors.primary : colors.mutedForeground,
                     24
                   )}
-                  {selectedMainCategory === category.id && (
-                    <Text style={[styles.expandedCategoryText, {color: colors.primary}]}>
-                      {category.name}
-                    </Text>
-                  )}
+                  <Text
+                    style={[
+                      styles.expandedCategoryText,
+                      {
+                        color:
+                          selectedMainCategory === category.id
+                            ? colors.primary
+                            : colors.mutedForeground,
+                      },
+                    ]}>
+                    {category.name}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -803,7 +821,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   selectedCategoryOption: {
-    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    backgroundColor: "transparent",
   },
   expandedCategoryEmoji: {
     fontSize: 16,

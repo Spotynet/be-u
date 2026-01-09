@@ -1,5 +1,5 @@
-import React, {useState} from "react";
-import {View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, TextInput} from "react-native";
+import React, {useMemo, useState, useRef, useEffect} from "react";
+import {View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, TextInput, Modal} from "react-native";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {WeeklySchedule, DayOfWeek} from "@/types/global";
 import {Ionicons} from "@expo/vector-icons";
@@ -31,6 +31,16 @@ export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps
     breakIndex?: number;
     type: "start" | "end";
   } | null>(null);
+  const [iosTempDate, setIosTempDate] = useState<Date | null>(null);
+  // Local state for web text inputs - allows free editing
+  // Use ref to persist across re-renders caused by parent schedule updates
+  const webTimeInputsRef = useRef<Record<string, string>>({});
+  const [webTimeInputs, setWebTimeInputs] = useState<Record<string, string>>({});
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    webTimeInputsRef.current = webTimeInputs;
+  }, [webTimeInputs]);
 
   const toggleDay = (dayId: number) => {
     const newSchedule = {...schedule};
@@ -65,6 +75,134 @@ export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps
     }
 
     onChange(newSchedule);
+  };
+
+  const normalizeTimeInput = (text: string): string => {
+    // Allow empty string for deletion - don't restrict it
+    if (text === "") return "";
+    
+    // Remove non-digit and non-colon characters, but allow partial input
+    let cleaned = text.replace(/[^0-9:]/g, "");
+    // Limit length to 5 (HH:MM) but allow shorter inputs
+    if (cleaned.length > 5) cleaned = cleaned.slice(0, 5);
+    
+    // Don't auto-insert colon - let user type naturally
+    // They can type "09:00" or "0900" and we'll format on blur if needed
+    return cleaned;
+  };
+
+  const isValidTimeFormat = (time: string): boolean => {
+    // Must match HH:MM format where HH is 00-23 and MM is 00-59
+    if (!time || time.length === 0) return false;
+    return /^([0-1][0-9]|2[0-3]):([0-5][0-9])$/.test(time);
+  };
+
+  const getWebInputKey = (dayId: number, type: "start" | "end", breakIndex?: number): string => {
+    if (breakIndex !== undefined) {
+      return `break_${dayId}_${breakIndex}_${type}`;
+    }
+    return `work_${dayId}_${type}`;
+  };
+
+  const handleWebTimeChange = (
+    dayId: number,
+    type: "start" | "end",
+    text: string,
+    breakIndex?: number
+  ) => {
+    const key = getWebInputKey(dayId, type, breakIndex);
+    const normalized = normalizeTimeInput(text);
+    
+    // Always update local state immediately for responsive UI
+    // This allows free editing including deletion
+    setWebTimeInputs((prev) => {
+      const next = {...prev};
+      if (normalized === "") {
+        // Keep empty string in state to allow deletion
+        next[key] = "";
+      } else {
+        next[key] = normalized;
+      }
+      return next;
+    });
+
+    // Only update schedule if format is valid (don't update on partial input)
+    if (isValidTimeFormat(normalized)) {
+      if (breakIndex !== undefined) {
+        updateBreakTime(dayId, breakIndex, type, normalized);
+      } else {
+        updateTime(dayId, type, normalized);
+      }
+    }
+  };
+
+  const formatTimeString = (input: string): string | null => {
+    if (!input || input.length === 0) return null;
+    
+    // Remove all non-digits
+    const digits = input.replace(/\D/g, "");
+    
+    // If we have 3-4 digits, try to format as HH:MM
+    if (digits.length >= 3) {
+      const hours = digits.slice(0, 2);
+      const minutes = digits.slice(2, 4).padEnd(2, "0");
+      const formatted = `${hours}:${minutes}`;
+      if (isValidTimeFormat(formatted)) {
+        return formatted;
+      }
+    }
+    
+    // If already in HH:MM format, validate it
+    if (input.includes(":") && isValidTimeFormat(input)) {
+      return input;
+    }
+    
+    return null;
+  };
+
+  const handleWebTimeBlur = (
+    dayId: number,
+    type: "start" | "end",
+    scheduleValue: string,
+    breakIndex?: number
+  ) => {
+    const key = getWebInputKey(dayId, type, breakIndex);
+    // Use ref to get the most current value
+    const currentValue = webTimeInputsRef.current[key];
+    
+    // Try to format the input if it's not already in HH:MM format
+    const formattedValue = currentValue ? formatTimeString(currentValue) : null;
+    
+    // On blur, validate and commit if valid, otherwise revert to schedule value
+    if (formattedValue && isValidTimeFormat(formattedValue)) {
+      if (breakIndex !== undefined) {
+        updateBreakTime(dayId, breakIndex, type, formattedValue);
+      } else {
+        updateTime(dayId, type, formattedValue);
+      }
+    }
+    
+    // Always clear draft after blur (will show schedule value on next render)
+    setWebTimeInputs((prev) => {
+      const next = {...prev};
+      delete next[key];
+      return next;
+    });
+  };
+
+  const getWebTimeValue = (
+    dayId: number,
+    type: "start" | "end",
+    scheduleValue: string,
+    breakIndex?: number
+  ): string => {
+    const key = getWebInputKey(dayId, type, breakIndex);
+    // If there's a draft value (including empty string), use it
+    if (key in webTimeInputs) {
+      return webTimeInputs[key];
+    }
+    // Otherwise use the schedule value
+    return scheduleValue || "";
   };
 
   const addBreak = (dayId: number) => {
@@ -126,6 +264,13 @@ export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps
       setShowBreakPicker(null);
     }
 
+    // On iOS, the spinner fires "set" continuously while scrolling.
+    // We don't commit immediately; we store the temp selection and commit on "Done".
+    if (Platform.OS === "ios") {
+      if (selectedDate) setIosTempDate(selectedDate);
+      return;
+    }
+
     if (event.type === "set" && selectedDate) {
       const hours = selectedDate.getHours().toString().padStart(2, "0");
       const minutes = selectedDate.getMinutes().toString().padStart(2, "0");
@@ -133,19 +278,59 @@ export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps
 
       if (showTimePicker) {
         updateTime(showTimePicker.day, showTimePicker.type, timeString);
-        if (Platform.OS === "ios") {
-          setShowTimePicker(null);
-        }
       } else if (showBreakPicker && showBreakPicker.breakIndex !== undefined) {
         updateBreakTime(showBreakPicker.day, showBreakPicker.breakIndex, showBreakPicker.type, timeString);
-        if (Platform.OS === "ios") {
-          setShowBreakPicker(null);
-        }
       }
     } else if (event.type === "dismissed") {
       setShowTimePicker(null);
       setShowBreakPicker(null);
     }
+  };
+
+  const iosPickerVisible = Platform.OS === "ios" && (showTimePicker || showBreakPicker);
+
+  const iosInitialDate = useMemo(() => {
+    if (showTimePicker) {
+      const daySchedule = schedule[showTimePicker.day];
+      const timeStr = showTimePicker.type === "start" ? daySchedule?.start_time : daySchedule?.end_time;
+      const [hours, minutes] = (timeStr || "09:00").split(":");
+      const d = new Date();
+      d.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      return d;
+    }
+    if (showBreakPicker && showBreakPicker.breakIndex !== undefined) {
+      const daySchedule = schedule[showBreakPicker.day];
+      const breakTime = daySchedule?.breaks?.[showBreakPicker.breakIndex];
+      const timeStr = showBreakPicker.type === "start" ? breakTime?.start_time : breakTime?.end_time;
+      const [hours, minutes] = (timeStr || "12:00").split(":");
+      const d = new Date();
+      d.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      return d;
+    }
+    const d = new Date();
+    d.setHours(9, 0, 0, 0);
+    return d;
+  }, [showTimePicker, showBreakPicker, schedule]);
+
+  const closeIosPicker = () => {
+    setShowTimePicker(null);
+    setShowBreakPicker(null);
+    setIosTempDate(null);
+  };
+
+  const commitIosPicker = () => {
+    const selected = iosTempDate || iosInitialDate;
+    const hours = selected.getHours().toString().padStart(2, "0");
+    const minutes = selected.getMinutes().toString().padStart(2, "0");
+    const timeString = `${hours}:${minutes}`;
+
+    if (showTimePicker) {
+      updateTime(showTimePicker.day, showTimePicker.type, timeString);
+    } else if (showBreakPicker && showBreakPicker.breakIndex !== undefined) {
+      updateBreakTime(showBreakPicker.day, showBreakPicker.breakIndex, showBreakPicker.type, timeString);
+    }
+
+    closeIosPicker();
   };
 
   return (
@@ -213,29 +398,71 @@ export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps
                 <View style={styles.timeSectionContainer}>
                   {/* Working Hours */}
                   <View style={styles.timeSection}>
-                    <TouchableOpacity
-                      style={[styles.timeButton, {backgroundColor: colors.muted}]}
-                      onPress={() => setShowTimePicker({day: day.id, type: "start"})}
-                      activeOpacity={0.7}>
-                      <Ionicons name="time-outline" size={18} color={colors.primary} />
-                      <Text style={[styles.timeLabel, {color: colors.mutedForeground}]}>Inicio:</Text>
-                      <Text style={[styles.timeValue, {color: colors.foreground}]}>
-                        {daySchedule.start_time}
-                      </Text>
-                    </TouchableOpacity>
+                    {Platform.OS === "web" ? (
+                      <View style={styles.webTimeButton}>
+                        <Ionicons name="time-outline" size={18} color={colors.primary} />
+                        <Text style={[styles.timeLabel, {color: colors.mutedForeground}]}>Inicio:</Text>
+                        <TextInput
+                          style={[
+                            styles.webTimeInput,
+                            {color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card},
+                          ]}
+                          value={getWebTimeValue(day.id, "start", daySchedule.start_time)}
+                          placeholder="HH:MM"
+                          placeholderTextColor={colors.mutedForeground}
+                          onChangeText={(text) => handleWebTimeChange(day.id, "start", text)}
+                          onBlur={() => handleWebTimeBlur(day.id, "start", daySchedule.start_time)}
+                          maxLength={5}
+                          editable={true}
+                          keyboardType="numeric"
+                        />
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={[styles.timeButton, {backgroundColor: colors.muted}]}
+                        onPress={() => setShowTimePicker({day: day.id, type: "start"})}
+                        activeOpacity={0.7}>
+                        <Ionicons name="time-outline" size={18} color={colors.primary} />
+                        <Text style={[styles.timeLabel, {color: colors.mutedForeground}]}>Inicio:</Text>
+                        <Text style={[styles.timeValue, {color: colors.foreground}]}>
+                          {daySchedule.start_time}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
 
                     <Text style={[styles.timeSeparator, {color: colors.mutedForeground}]}>—</Text>
 
-                    <TouchableOpacity
-                      style={[styles.timeButton, {backgroundColor: colors.muted}]}
-                      onPress={() => setShowTimePicker({day: day.id, type: "end"})}
-                      activeOpacity={0.7}>
-                      <Ionicons name="time-outline" size={18} color={colors.primary} />
-                      <Text style={[styles.timeLabel, {color: colors.mutedForeground}]}>Fin:</Text>
-                      <Text style={[styles.timeValue, {color: colors.foreground}]}>
-                        {daySchedule.end_time}
-                      </Text>
-                    </TouchableOpacity>
+                    {Platform.OS === "web" ? (
+                      <View style={styles.webTimeButton}>
+                        <Ionicons name="time-outline" size={18} color={colors.primary} />
+                        <Text style={[styles.timeLabel, {color: colors.mutedForeground}]}>Fin:</Text>
+                        <TextInput
+                          style={[
+                            styles.webTimeInput,
+                            {color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card},
+                          ]}
+                          value={getWebTimeValue(day.id, "end", daySchedule.end_time)}
+                          placeholder="HH:MM"
+                          placeholderTextColor={colors.mutedForeground}
+                          onChangeText={(text) => handleWebTimeChange(day.id, "end", text)}
+                          onBlur={() => handleWebTimeBlur(day.id, "end", daySchedule.end_time)}
+                          maxLength={5}
+                          editable={true}
+                          keyboardType="numeric"
+                        />
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={[styles.timeButton, {backgroundColor: colors.muted}]}
+                        onPress={() => setShowTimePicker({day: day.id, type: "end"})}
+                        activeOpacity={0.7}>
+                        <Ionicons name="time-outline" size={18} color={colors.primary} />
+                        <Text style={[styles.timeLabel, {color: colors.mutedForeground}]}>Fin:</Text>
+                        <Text style={[styles.timeValue, {color: colors.foreground}]}>
+                          {daySchedule.end_time}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
 
                   {/* Breaks Section */}
@@ -261,41 +488,82 @@ export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps
                             style={[styles.breakCard, {backgroundColor: colors.background, borderColor: colors.border}]}>
                             <View style={styles.breakHeader}>
                               <View style={styles.breakTimeRow}>
-                                <TouchableOpacity
-                                  style={[styles.breakTimeButton, {backgroundColor: colors.muted}]}
-                                  onPress={() => setShowBreakPicker({day: day.id, breakIndex, type: "start"})}
-                                  activeOpacity={0.7}>
-                                  <Ionicons name="time-outline" size={14} color={colors.primary} />
-                                  <Text style={[styles.breakTimeText, {color: colors.foreground}]}>
-                                    {breakTime.start_time}
-                                  </Text>
-                                </TouchableOpacity>
+                                {Platform.OS === "web" ? (
+                                  <View style={styles.breakTimeInputContainer}>
+                                    <TextInput
+                                      style={[
+                                        styles.webBreakTimeInput,
+                                        {color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card},
+                                      ]}
+                                      value={getWebTimeValue(day.id, "start", breakTime.start_time, breakIndex)}
+                                      placeholder="HH:MM"
+                                      placeholderTextColor={colors.mutedForeground}
+                                      onChangeText={(text) => handleWebTimeChange(day.id, "start", text, breakIndex)}
+                                      onBlur={() => handleWebTimeBlur(day.id, "start", breakTime.start_time, breakIndex)}
+                                      maxLength={5}
+                                      editable={true}
+                                      keyboardType="numeric"
+                                    />
+                                  </View>
+                                ) : (
+                                  <TouchableOpacity
+                                    style={[styles.breakTimeButton, {backgroundColor: colors.muted}]}
+                                    onPress={() => setShowBreakPicker({day: day.id, breakIndex, type: "start"})}
+                                    activeOpacity={0.7}>
+                                    <Ionicons name="time-outline" size={16} color={colors.primary} />
+                                    <Text style={[styles.breakTimeText, {color: colors.foreground}]}>
+                                      {breakTime.start_time}
+                                    </Text>
+                                  </TouchableOpacity>
+                                )}
 
                                 <Text style={[styles.timeSeparator, {color: colors.mutedForeground}]}>—</Text>
 
-                                <TouchableOpacity
-                                  style={[styles.breakTimeButton, {backgroundColor: colors.muted}]}
-                                  onPress={() => setShowBreakPicker({day: day.id, breakIndex, type: "end"})}
-                                  activeOpacity={0.7}>
-                                  <Ionicons name="time-outline" size={14} color={colors.primary} />
-                                  <Text style={[styles.breakTimeText, {color: colors.foreground}]}>
-                                    {breakTime.end_time}
-                                  </Text>
-                                </TouchableOpacity>
+                                {Platform.OS === "web" ? (
+                                  <View style={styles.breakTimeInputContainer}>
+                                    <TextInput
+                                      style={[
+                                        styles.webBreakTimeInput,
+                                        {color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card},
+                                      ]}
+                                      value={getWebTimeValue(day.id, "end", breakTime.end_time, breakIndex)}
+                                      placeholder="HH:MM"
+                                      placeholderTextColor={colors.mutedForeground}
+                                      onChangeText={(text) => handleWebTimeChange(day.id, "end", text, breakIndex)}
+                                      onBlur={() => handleWebTimeBlur(day.id, "end", breakTime.end_time, breakIndex)}
+                                      maxLength={5}
+                                      editable={true}
+                                      keyboardType="numeric"
+                                    />
+                                  </View>
+                                ) : (
+                                  <TouchableOpacity
+                                    style={[styles.breakTimeButton, {backgroundColor: colors.muted}]}
+                                    onPress={() => setShowBreakPicker({day: day.id, breakIndex, type: "end"})}
+                                    activeOpacity={0.7}>
+                                    <Ionicons name="time-outline" size={16} color={colors.primary} />
+                                    <Text style={[styles.breakTimeText, {color: colors.foreground}]}>
+                                      {breakTime.end_time}
+                                    </Text>
+                                  </TouchableOpacity>
+                                )}
                               </View>
 
                               <TouchableOpacity
                                 style={styles.removeBreakButton}
                                 onPress={() => removeBreak(day.id, breakIndex)}
                                 activeOpacity={0.7}>
-                                <Ionicons name="close-circle" size={20} color={colors.mutedForeground} />
+                                <Ionicons name="close-circle" size={22} color={colors.mutedForeground} />
                               </TouchableOpacity>
                             </View>
 
                             <View style={styles.breakLabelRow}>
-                              <Ionicons name="restaurant-outline" size={14} color={colors.mutedForeground} />
+                              <Ionicons name="restaurant-outline" size={16} color={colors.mutedForeground} />
                               <TextInput
-                                style={[styles.breakLabelInput, {color: colors.foreground, borderColor: colors.border}]}
+                                style={[
+                                  styles.breakLabelInput,
+                                  {color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card},
+                                ]}
                                 value={breakTime.label || ""}
                                 placeholder="Descanso (ej: Almuerzo)"
                                 placeholderTextColor={colors.mutedForeground}
@@ -316,34 +584,45 @@ export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps
       </View>
 
       {/* Time Picker */}
-      {(showTimePicker || showBreakPicker) && Platform.OS !== "web" && (
+      {Platform.OS === "android" && (showTimePicker || showBreakPicker) && (
         <DateTimePicker
-          value={(() => {
-            if (showTimePicker) {
-              const daySchedule = schedule[showTimePicker.day];
-              const timeStr =
-                showTimePicker.type === "start" ? daySchedule?.start_time : daySchedule?.end_time;
-              const [hours, minutes] = (timeStr || "09:00").split(":");
-              const date = new Date();
-              date.setHours(parseInt(hours), parseInt(minutes));
-              return date;
-            } else if (showBreakPicker && showBreakPicker.breakIndex !== undefined) {
-              const daySchedule = schedule[showBreakPicker.day];
-              const breakTime = daySchedule?.breaks?.[showBreakPicker.breakIndex];
-              const timeStr =
-                showBreakPicker.type === "start" ? breakTime?.start_time : breakTime?.end_time;
-              const [hours, minutes] = (timeStr || "12:00").split(":");
-              const date = new Date();
-              date.setHours(parseInt(hours), parseInt(minutes));
-              return date;
-            }
-            return new Date();
-          })()}
+          value={iosInitialDate}
           mode="time"
           is24Hour={true}
-          display={Platform.OS === "ios" ? "spinner" : "default"}
+          display="default"
           onChange={handleTimeChange}
         />
+      )}
+
+      {iosPickerVisible && (
+        <Modal
+          visible={true}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={closeIosPicker}>
+          <View style={styles.iosModalBackdrop}>
+            <View style={[styles.iosModalContent, {backgroundColor: colors.background}]}>
+              <View style={styles.iosModalHeader}>
+                <TouchableOpacity onPress={closeIosPicker} style={styles.iosModalBtn}>
+                  <Text style={[styles.iosModalBtnText, {color: colors.primary}]}>Cancelar</Text>
+                </TouchableOpacity>
+                <Text style={[styles.iosModalTitle, {color: colors.foreground}]}>Seleccionar hora</Text>
+                <TouchableOpacity onPress={commitIosPicker} style={styles.iosModalBtn}>
+                  <Text style={[styles.iosModalBtnText, {color: colors.primary}]}>Listo</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={iosTempDate || iosInitialDate}
+                mode="time"
+                is24Hour={true}
+                display="spinner"
+                onChange={handleTimeChange}
+                textColor={colors.foreground}
+                style={styles.iosTimePicker}
+              />
+            </View>
+          </View>
+        </Modal>
       )}
     </ScrollView>
   );
@@ -431,6 +710,25 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 6,
   },
+  webTimeButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  webTimeInput: {
+    minWidth: 74,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+  },
   timeLabel: {
     fontSize: 13,
     fontWeight: "500",
@@ -440,16 +738,20 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   timeSeparator: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
+    flexShrink: 0,
+    marginHorizontal: 2,
   },
   breaksSection: {
+    marginTop: 4,
     gap: 12,
   },
   breaksHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 4,
   },
   breaksTitle: {
     fontSize: 14,
@@ -458,42 +760,64 @@ const styles = StyleSheet.create({
   addBreakButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
-    gap: 4,
+    gap: 6,
   },
   addBreakText: {
     fontSize: 13,
     fontWeight: "600",
   },
   breaksList: {
-    gap: 8,
+    gap: 10,
   },
   breakCard: {
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    gap: 8,
+    gap: 10,
+    width: "100%",
   },
   breakHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 4,
+    width: "100%",
   },
   breakTimeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     flex: 1,
+    flexShrink: 1,
+    marginRight: 8,
   },
   breakTimeButton: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 6,
     paddingHorizontal: 8,
-    borderRadius: 6,
+    borderRadius: 8,
     gap: 4,
+    minHeight: 32,
+    flexShrink: 1,
+  },
+  breakTimeInputContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 1,
+  },
+  webBreakTimeInput: {
+    width: 70,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
   },
   breakTimeText: {
     fontSize: 13,
@@ -501,21 +825,63 @@ const styles = StyleSheet.create({
   },
   removeBreakButton: {
     padding: 4,
+    borderRadius: 6,
+    flexShrink: 0,
   },
   breakLabelRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
+    marginTop: 4,
+    width: "100%",
   },
   breakLabelInput: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "500",
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
     borderWidth: 1,
-    minHeight: 28,
+    minHeight: 32,
+    flexShrink: 1,
+  },
+  iosModalBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+  },
+  iosModalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 24,
+  },
+  iosModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.08)",
+  },
+  iosModalTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  iosModalBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    minWidth: 80,
+  },
+  iosModalBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  iosTimePicker: {
+    width: "100%",
+    height: 200,
   },
 });
 

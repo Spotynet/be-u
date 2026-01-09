@@ -229,7 +229,11 @@ export default function Notificaciones() {
         </View>
 
         {/* Filter Tabs */}
-        <View style={styles.filterTabs}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterTabs}
+          style={styles.filterTabsScroll}>
           <TouchableOpacity
             style={[
               styles.filterTab,
@@ -311,7 +315,7 @@ export default function Notificaciones() {
               <View style={[styles.filterTabIndicator, {backgroundColor: "#ffffff"}]} />
             )}
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
 
       {/* Content */}
@@ -453,6 +457,10 @@ const styles = StyleSheet.create({
   filterTabs: {
     flexDirection: "row",
     gap: 8,
+    paddingRight: 8,
+  },
+  filterTabsScroll: {
+    flexGrow: 0,
   },
   filterTab: {
     paddingHorizontal: 16,

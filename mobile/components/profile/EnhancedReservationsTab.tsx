@@ -18,6 +18,9 @@ import {useReservations, useIncomingReservations} from "@/features/reservations"
 import {CalendarView, ReservationCard} from "@/components/calendar";
 import {Reservation} from "@/types/global";
 import {Alert, Platform} from "react-native";
+import {parseISODateAsLocal} from "@/lib/dateUtils";
+import {linkApi, providerApi, reservationApi} from "@/lib/api";
+import {Image} from "react-native";
 
 interface EnhancedReservationsTabProps {
   userRole: "CLIENT" | "PROFESSIONAL" | "PLACE";
@@ -31,6 +34,12 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
 
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | undefined>();
+  const [timeTab, setTimeTab] = useState<"upcoming" | "history">("upcoming");
+  const [teamLinks, setTeamLinks] = useState<any[]>([]);
+  const [teamFilterProfessionalId, setTeamFilterProfessionalId] = useState<number | "all">("all");
+  const [teamReservations, setTeamReservations] = useState<Reservation[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamError, setTeamError] = useState<string | null>(null);
 
   // For clients
   const {
@@ -56,21 +65,86 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
 
   const isClient = userRole === "CLIENT";
   const isProvider = userRole === "PROFESSIONAL" || userRole === "PLACE";
+  const isPlace = userRole === "PLACE";
+  const canManageAsProvider = userRole === "PROFESSIONAL";
+
+  const fetchTeamLinks = async () => {
+    try {
+      const res = await linkApi.listMyLinks({status: "ACCEPTED"});
+      const links = Array.isArray(res.data) ? res.data : [];
+      const enriched = await Promise.all(
+        links.map(async (l: any) => {
+          const publicId = l.professional_public_profile_id || l.professional_id;
+          try {
+            const prof = await providerApi.getPublicProfile(Number(publicId));
+            return {
+              ...l,
+              user_image: prof.data?.user_image || null,
+            };
+          } catch {
+            return {
+              ...l,
+              user_image: null,
+            };
+          }
+        })
+      );
+      setTeamLinks(enriched);
+    } catch (e) {
+      // non-fatal; still show place's own reservations
+      setTeamLinks([]);
+    }
+  };
+
+  const fetchTeamReservations = async () => {
+    try {
+      setTeamLoading(true);
+      setTeamError(null);
+
+      const params: any = {status: "all"};
+      if (teamFilterProfessionalId !== "all") {
+        params.provider_type = "professional";
+        params.provider_id = teamFilterProfessionalId;
+      }
+
+      const res = await reservationApi.getTeamReservations(params);
+      setTeamReservations(res.data?.results || []);
+    } catch (e: any) {
+      const msg = (e?.response?.data?.error || e?.message || "Error al cargar reservas del equipo").toString();
+      setTeamError(msg);
+    } finally {
+      setTeamLoading(false);
+    }
+  };
 
   // Use real data from API
-  const reservations = isClient ? clientReservations : providerReservations;
-  const isLoading = isClient ? clientLoading : providerLoading;
-  const error = isClient ? clientError : providerError;
+  const reservations = isClient ? clientReservations : isPlace ? teamReservations : providerReservations;
+  const isLoading = isClient ? clientLoading : isPlace ? teamLoading : providerLoading;
+  const error = isClient ? clientError : isPlace ? teamError : providerError;
+  const refresh = isClient ? refreshClient : isPlace ? fetchTeamReservations : refreshProvider;
 
   useEffect(() => {
     if (isAuthenticated) {
       if (isClient) {
         refreshClient();
       } else if (isProvider) {
-        refreshProvider();
+        if (isPlace) {
+          fetchTeamLinks();
+          fetchTeamReservations();
+        } else {
+          // Ensure we fetch all statuses; UI splits into Próximas/Historial.
+          setFilter("all" as any);
+          refreshProvider();
+        }
       }
     }
   }, [isAuthenticated, userRole]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (!isPlace) return;
+    fetchTeamReservations();
+  }, [isAuthenticated, isPlace, teamFilterProfessionalId]);
 
   const handleDayPress = (date: string) => {
     setSelectedDate(date);
@@ -164,6 +238,8 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
         onPress: async () => {
           try {
             await completeReservation(id);
+            // Immediately switch to Historial so the user sees it moved.
+            setTimeTab("history");
           } catch (err) {
             // Error already handled
           }
@@ -172,11 +248,36 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
     ]);
   };
 
-  // Filter reservations
-  const filteredReservations = reservations.filter((r) => {
+  const toHHMM = (t?: string) => (t || "").slice(0, 5);
+
+  const parseReservationDateTime = (dateStr: string, timeStr?: string): Date => {
+    const d = parseISODateAsLocal(dateStr);
+    const hhmm = toHHMM(timeStr);
+    const [h, m] = hhmm.split(":").map((n) => parseInt(n, 10));
+    if (Number.isFinite(h) && Number.isFinite(m)) {
+      d.setHours(h, m, 0, 0);
+    } else {
+      d.setHours(0, 0, 0, 0);
+    }
+    return d;
+  };
+
+  const isHistoryReservation = (r: any) => {
+    const status = String(r.status || "").toUpperCase();
+    // If marked as completed/finished, always treat as history so it moves tabs immediately.
+    if (status === "COMPLETED" || status === "FINISHED") return true;
+
+    const now = new Date();
+    const end = r.end_time
+      ? parseReservationDateTime(r.date, r.end_time)
+      : parseReservationDateTime(r.date, r.time);
+    return end.getTime() < now.getTime();
+  };
+
+  // Filter reservations by selected date and Próximas/Historial
+  const filteredReservations = reservations.filter((r: any) => {
     if (selectedDate && r.date !== selectedDate) return false;
-    if (filter !== "all" && r.status !== filter) return false;
-    return true;
+    return timeTab === "upcoming" ? !isHistoryReservation(r) : isHistoryReservation(r);
   });
 
   // Show loading state
@@ -202,7 +303,7 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
         <Text style={[styles.emptySubtitle, {color: colors.mutedForeground}]}>{error}</Text>
         <TouchableOpacity
           style={[styles.retryButton, {backgroundColor: colors.primary}]}
-          onPress={isClient ? refreshClient : refreshProvider}
+          onPress={refresh}
           activeOpacity={0.9}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
@@ -283,58 +384,125 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
         </View>
       )}
 
-      {/* Status Filter Tabs (for providers) */}
-      {isProvider && (
-        <View
+      {/* Tabs: Próximas / Historial */}
+      <View
+        style={[
+          styles.filterTabs,
+          {backgroundColor: colors.background, borderBottomColor: colors.border},
+        ]}>
+        <TouchableOpacity
           style={[
-            styles.filterTabs,
-            {backgroundColor: colors.background, borderBottomColor: colors.border},
-          ]}>
-          <TouchableOpacity
+            styles.filterTab,
+            timeTab === "upcoming" && [styles.filterTabActive, {borderBottomColor: colors.primary}],
+          ]}
+          onPress={() => setTimeTab("upcoming")}
+          activeOpacity={0.8}>
+          <Text
             style={[
-              styles.filterTab,
-              filter === "all" && [styles.filterTabActive, {borderBottomColor: colors.primary}],
-            ]}
-            onPress={() => setFilter("all")}>
-            <Text
-              style={[
-                styles.filterTabText,
-                {color: filter === "all" ? colors.primary : colors.mutedForeground},
-              ]}>
-              Todas
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+              styles.filterTabText,
+              {color: timeTab === "upcoming" ? colors.primary : colors.mutedForeground},
+            ]}>
+            Próximas
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterTab,
+            timeTab === "history" && [styles.filterTabActive, {borderBottomColor: colors.primary}],
+          ]}
+          onPress={() => setTimeTab("history")}
+          activeOpacity={0.8}>
+          <Text
             style={[
-              styles.filterTab,
-              filter === "PENDING" && [styles.filterTabActive, {borderBottomColor: colors.primary}],
-            ]}
-            onPress={() => setFilter("PENDING")}>
-            <Text
-              style={[
-                styles.filterTabText,
-                {color: filter === "PENDING" ? colors.primary : colors.mutedForeground},
-              ]}>
-              Pendientes
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterTab,
-              filter === "CONFIRMED" && [
-                styles.filterTabActive,
-                {borderBottomColor: colors.primary},
-              ],
-            ]}
-            onPress={() => setFilter("CONFIRMED")}>
-            <Text
-              style={[
-                styles.filterTabText,
-                {color: filter === "CONFIRMED" ? colors.primary : colors.mutedForeground},
-              ]}>
-              Confirmadas
-            </Text>
-          </TouchableOpacity>
+              styles.filterTabText,
+              {color: timeTab === "history" ? colors.primary : colors.mutedForeground},
+            ]}>
+            Historial
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Place: filter by linked professional */}
+      {isPlace && (
+        <View style={styles.teamFilterWrapper}>
+          <ScrollView
+            style={styles.teamFilterScroll}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.teamFilterRow}>
+            {/* Todos */}
+            <TouchableOpacity
+              style={styles.teamFilterItem}
+              onPress={() => setTeamFilterProfessionalId("all")}
+              activeOpacity={0.8}>
+              <View
+                style={[
+                  styles.teamFilterAvatarRing,
+                  {borderColor: teamFilterProfessionalId === "all" ? colors.primary : colors.border},
+                ]}>
+                <View
+                  style={[
+                    styles.teamFilterAvatar,
+                    {backgroundColor: colors.card, borderColor: colors.background},
+                  ]}>
+                  <Ionicons
+                    name="people-outline"
+                    size={20}
+                    color={teamFilterProfessionalId === "all" ? colors.primary : colors.mutedForeground}
+                  />
+                </View>
+              </View>
+              <Text
+                style={[
+                  styles.teamFilterName,
+                  {color: teamFilterProfessionalId === "all" ? colors.primary : colors.mutedForeground},
+                ]}
+                numberOfLines={1}>
+                Todos
+              </Text>
+            </TouchableOpacity>
+
+            {/* Profesionales */}
+            {teamLinks.map((l: any) => {
+              const selected = teamFilterProfessionalId === l.professional_id;
+              const label = String(l.professional_name || "Profesional").split(" ")[0];
+              return (
+                <TouchableOpacity
+                  key={String(l.id)}
+                  style={styles.teamFilterItem}
+                  onPress={() => setTeamFilterProfessionalId(l.professional_id)}
+                  activeOpacity={0.8}>
+                  <View
+                    style={[
+                      styles.teamFilterAvatarRing,
+                      {borderColor: selected ? colors.primary : colors.border},
+                    ]}>
+                    <View
+                      style={[
+                        styles.teamFilterAvatar,
+                        {backgroundColor: colors.card, borderColor: colors.background},
+                      ]}>
+                      {l.user_image ? (
+                        <Image source={{uri: l.user_image}} style={styles.teamFilterAvatarImage} />
+                      ) : (
+                        <Text style={[styles.teamFilterAvatarText, {color: colors.foreground}]}>
+                          {label.charAt(0).toUpperCase()}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  <Text
+                    style={[
+                      styles.teamFilterName,
+                      {color: selected ? colors.primary : colors.mutedForeground},
+                    ]}
+                    numberOfLines={1}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
       )}
 
@@ -351,11 +519,11 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
           renderItem={({item}) => (
             <ReservationCard
               reservation={item}
-              showActions={isProvider}
-              onConfirm={isProvider ? handleConfirm : undefined}
-              onReject={isProvider ? handleReject : undefined}
+              showActions={canManageAsProvider}
+              onConfirm={canManageAsProvider ? handleConfirm : undefined}
+              onReject={canManageAsProvider ? handleReject : undefined}
               onCancel={isClient ? handleCancel : undefined}
-              onComplete={isProvider ? handleComplete : undefined}
+              onComplete={canManageAsProvider ? handleComplete : undefined}
             />
           )}
         />
@@ -424,6 +592,54 @@ const styles = StyleSheet.create({
   filterTabText: {
     fontSize: 15,
     fontWeight: "600",
+  },
+  teamFilterWrapper: {
+    // Prevent vertical stretching on web and avoid huge whitespace.
+    maxHeight: 92,
+  },
+  teamFilterScroll: {
+    flexGrow: 0,
+  },
+  teamFilterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 12,
+  },
+  teamFilterItem: {
+    alignItems: "center",
+    width: 64,
+  },
+  teamFilterAvatarRing: {
+    padding: 2,
+    borderRadius: 999,
+    borderWidth: 2,
+    marginBottom: 6,
+  },
+  teamFilterAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    overflow: "hidden",
+  },
+  teamFilterAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 26,
+    resizeMode: "cover",
+  },
+  teamFilterAvatarText: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  teamFilterName: {
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
   },
   content: {
     flex: 1,

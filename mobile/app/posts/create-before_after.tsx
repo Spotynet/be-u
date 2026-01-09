@@ -25,9 +25,6 @@ export default function CreateBeforeAfterScreen() {
   const [beforePhoto, setBeforePhoto] = useState<string | null>(null);
   const [afterPhoto, setAfterPhoto] = useState<string | null>(null);
   const [description, setDescription] = useState("");
-  const [treatment, setTreatment] = useState("");
-  const [duration, setDuration] = useState("");
-  const [products, setProducts] = useState("");
 
   const pickImage = async (type: "before" | "after") => {
     try {
@@ -94,9 +91,6 @@ export default function CreateBeforeAfterScreen() {
       form.append("before", beforeFile as any);
       form.append("after", afterFile as any);
       form.append("caption", description);
-      if (treatment) form.append("treatment", treatment);
-      if (duration) form.append("duration", duration);
-      if (products) form.append("products", products);
 
       await postApi.createBeforeAfterPost(form);
 
@@ -194,69 +188,6 @@ export default function CreateBeforeAfterScreen() {
             onChangeText={setDescription}
             textAlignVertical="top"
           />
-        </View>
-
-        {/* Treatment Details */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-            Detalles del Tratamiento
-          </Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, {color: colors.mutedForeground}]}>Tratamiento</Text>
-            <View
-              style={[
-                styles.inputContainer,
-                {backgroundColor: colors.inputBackground, borderColor: colors.border},
-              ]}>
-              <Ionicons name="cut-outline" color={colors.mutedForeground} size={20} />
-              <TextInput
-                style={[styles.input, {color: colors.foreground}]}
-                placeholder="Ej: Balayage + Corte"
-                placeholderTextColor={colors.mutedForeground}
-                value={treatment}
-                onChangeText={setTreatment}
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, {color: colors.mutedForeground}]}>Duración</Text>
-            <View
-              style={[
-                styles.inputContainer,
-                {backgroundColor: colors.inputBackground, borderColor: colors.border},
-              ]}>
-              <Ionicons name="time-outline" color={colors.mutedForeground} size={20} />
-              <TextInput
-                style={[styles.input, {color: colors.foreground}]}
-                placeholder="Ej: 3 horas"
-                placeholderTextColor={colors.mutedForeground}
-                value={duration}
-                onChangeText={setDuration}
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, {color: colors.mutedForeground}]}>
-              Productos Usados
-            </Text>
-            <View
-              style={[
-                styles.inputContainer,
-                {backgroundColor: colors.inputBackground, borderColor: colors.border},
-              ]}>
-              <Ionicons name="flask-outline" color={colors.mutedForeground} size={20} />
-              <TextInput
-                style={[styles.input, {color: colors.foreground}]}
-                placeholder="Ej: Olaplex, Matizador"
-                placeholderTextColor={colors.mutedForeground}
-                value={products}
-                onChangeText={setProducts}
-              />
-            </View>
-          </View>
         </View>
 
         {/* Publish Button */}

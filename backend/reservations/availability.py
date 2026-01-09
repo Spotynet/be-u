@@ -1,6 +1,7 @@
 """
 Availability checking utilities for reservations
 """
+import logging
 from datetime import datetime, timedelta, time as dt_time
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
@@ -13,6 +14,8 @@ except ImportError:
     AvailabilitySchedule = None
     TimeSlot = None
     BreakTime = None
+
+logger = logging.getLogger(__name__)
 
 
 def check_slot_availability(provider_ct, provider_id, date, start_time, duration):
@@ -56,28 +59,61 @@ def check_slot_availability(provider_ct, provider_id, date, start_time, duration
     
     # If not found, try AvailabilitySchedule model
     if not availability and AvailabilitySchedule:
+        # Find schedule for this day (don't filter by is_available - if it has active slots, it's available)
         schedule = AvailabilitySchedule.objects.filter(
             content_type=provider_ct,
             object_id=provider_id,
-            day_of_week=day_of_week,
-            is_available=True
+            day_of_week=day_of_week
         ).first()
         
         if schedule:
             # Check if time falls within any active time slot
+            # This matches frontend logic: if schedule has active time slots, it's available
             time_slots = TimeSlot.objects.filter(
                 schedule=schedule,
                 is_active=True
             )
+            
+            logger.info(
+                f"Schedule found: id={schedule.id}, is_available={schedule.is_available}, "
+                f"active_time_slots={time_slots.count()}"
+            )
+            
+            if not time_slots.exists():
+                logger.warning(
+                    f"No active time slots found for schedule_id={schedule.id}, "
+                    f"provider_id={provider_id}, day_of_week={day_of_week}"
+                )
+                return False, "Provider is not available on this day"
+            
+            # Check if requested time fits within any active time slot
             time_fits = False
             for slot in time_slots:
                 if start_time >= slot.start_time and end_time <= slot.end_time:
                     time_fits = True
+                    logger.info(
+                        f"Time {start_time}-{end_time} fits in slot: {slot.start_time} - {slot.end_time}"
+                    )
                     break
             
             if not time_fits:
+                logger.warning(
+                    f"Time {start_time}-{end_time} does not fit in any active time slot. "
+                    f"Available slots: {[(s.start_time, s.end_time) for s in time_slots]}"
+                )
                 return False, "Requested time is outside provider's working hours"
         else:
+            # No schedule found for this day
+            all_schedules = AvailabilitySchedule.objects.filter(
+                content_type=provider_ct,
+                object_id=provider_id
+            )
+            other_days = all_schedules.values_list('day_of_week', flat=True).distinct()
+            logger.warning(
+                f"No AvailabilitySchedule found for provider_id={provider_id}, "
+                f"day_of_week={day_of_week} (date={date}), content_type={provider_ct}. "
+                f"Provider has schedules for days: {list(other_days)}"
+            )
             return False, "Provider is not available on this day"
     elif not availability:
         return False, "Provider is not available on this day"
@@ -317,10 +353,21 @@ def get_provider_schedule_for_date(provider_ct, provider_id, date):
             'start': res_start,
             'end': res_end
         })
+
+    # Deduplicate booked slots (they can appear both as TimeSlotBlock and as Reservation)
+    # Keep original order.
+    seen = set()
+    deduped_booked_slots = []
+    for slot in booked_slots:
+        key = (slot.get('start'), slot.get('end'))
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped_booked_slots.append(slot)
     
     return {
         'working_hours': working_hours,
-        'booked_slots': booked_slots,
+        'booked_slots': deduped_booked_slots,
         'break_times': break_times
     }
 

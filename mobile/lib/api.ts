@@ -22,8 +22,8 @@ export interface ApiError {
 
 // API Configuration - HARDCODED for testing
 
-//const API_BASE_URL = "http://127.0.0.1:8000/api";
-const API_BASE_URL = "https://stg.be-u.ai/api";
+const API_BASE_URL = "http://127.0.0.1:8000/api";
+//const API_BASE_URL = "https://stg.be-u.ai/api";
 
 console.log("🔧 HARDCODED API URL:", API_BASE_URL);
 const AUTH_TOKEN_KEY = "@auth_token";
@@ -373,7 +373,16 @@ export const profileCustomizationApi = {
     const profileResponse = await profileCustomizationApi.getProfileImages();
     const profileId = profileResponse.data.id;
     return api.patch<any>(`/public-profiles/${profileId}/`, data, {
+      // Let Axios set the correct multipart boundary (esp. on web).
       headers: {"Content-Type": "multipart/form-data"},
+      transformRequest: (formData, headers) => {
+        // Axios will automatically add the correct boundary when Content-Type is unset.
+        // Setting it manually often breaks uploads in browsers.
+        if (headers) {
+          delete (headers as any)["Content-Type"];
+        }
+        return formData;
+      },
     });
   },
 };
@@ -466,6 +475,8 @@ export const serviceApi = {
   getPlaceServices: (params?: {place?: number; user?: number; is_active?: boolean}) =>
     api.get<{results: any[]; count: number}>("/services/place-services/", {params}),
 
+  getPlaceService: (id: number) => api.get<any>(`/services/place-services/${id}/`),
+
   createPlaceService: (data: {
     service: number;
     description?: string;
@@ -483,6 +494,8 @@ export const serviceApi = {
   // Professional services
   getProfessionalServices: (params?: {professional?: number; user?: number; is_active?: boolean}) =>
     api.get<{results: any[]; count: number}>("/services/professional-services/", {params}),
+
+  getProfessionalService: (id: number) => api.get<any>(`/services/professional-services/${id}/`),
 
   createProfessionalService: (data: {
     service: number;
@@ -602,6 +615,16 @@ export const reservationApi = {
   // Get incoming reservations (for providers)
   getIncomingReservations: (params?: {page?: number; status?: string}) =>
     api.get<{results: any[]; count: number}>("/reservations/incoming/", {params}),
+
+  // Get team reservations (for PLACE: includes linked professionals)
+  getTeamReservations: (params?: {
+    page?: number;
+    status?: string;
+    provider_type?: "professional" | "place";
+    provider_id?: number;
+    start_date?: string;
+    end_date?: string;
+  }) => api.get<{results: any[]; count: number}>("/reservations/team/", {params}),
 
   // Get calendar view
   getCalendarView: (params: {start_date: string; end_date: string}) =>

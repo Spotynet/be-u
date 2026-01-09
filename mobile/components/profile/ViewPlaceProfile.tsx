@@ -215,7 +215,7 @@ export const ViewPlaceProfile = ({placeId, onClose}: ViewPlaceProfileProps) => {
             </View>
           </View>
 
-          {/* Rating */}
+          {/* Rating (reviews not implemented yet) */}
           <View style={[styles.ratingContainer, {backgroundColor: colors.card}]}>
             <View style={styles.ratingContent}>
               <Ionicons name="star" color="#fbbf24" size={20} />
@@ -223,9 +223,6 @@ export const ViewPlaceProfile = ({placeId, onClose}: ViewPlaceProfileProps) => {
                 {profile?.rating?.toFixed(1) || "0.0"}
               </Text>
             </View>
-            <Text style={[styles.reviewsCount, {color: colors.mutedForeground}]}>
-              ({profile?.reviews_count || 0} reseñas)
-            </Text>
           </View>
 
           {/* Action Buttons */}

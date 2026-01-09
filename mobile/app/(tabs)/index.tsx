@@ -218,11 +218,22 @@ export default function Home() {
 
   // Mock categories and stories (keep UI)
 
-  const categories = [
+  // Keep Mascotas logic in codebase, but hide it from the UI for now.
+  const ALL_CATEGORIES = [
     {id: "belleza", name: "Belleza"},
     {id: "bienestar", name: "Bienestar"},
     {id: "mascotas", name: "Mascotas"},
-  ];
+  ] as const;
+  const categories = ALL_CATEGORIES.filter((c) => c.id !== "mascotas");
+
+  useEffect(() => {
+    // If user had Mascotas selected previously, force a visible category.
+    if (selectedMainCategory === "mascotas") {
+      setSelectedMainCategory("belleza");
+      setSelectedSubCategory("todos");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getCategoryIcon = (id: string, color: string, size: number = 24) => {
     switch (id) {
@@ -576,10 +587,6 @@ export default function Home() {
       post.author_category,
       post.author_sub_categories
     );
-    const authorRating =
-      post.author_rating !== null && post.author_rating !== undefined
-        ? Number(post.author_rating)
-        : null;
     const authorProfileId = post.author_profile_id;
     const authorProfileType = post.author_profile_type;
 
@@ -654,14 +661,6 @@ export default function Home() {
             </View>
           </TouchableOpacity>
           <View style={styles.postHeaderRight}>
-            {authorRating !== null && !Number.isNaN(authorRating) ? (
-              <View style={[styles.ratingBadge, {backgroundColor: `${colors.primary}15`}]}>
-                <Ionicons name="star" color={colors.primary} size={14} />
-                <Text style={[styles.ratingText, {color: colors.primary}]}>
-                  {authorRating.toFixed(1)}
-                </Text>
-              </View>
-            ) : null}
             {/* Only show menu for post author (professionals and places) */}
             {user && post.author?.id === user.id && (user.role === "PROFESSIONAL" || user.role === "PLACE") && (
               <TouchableOpacity style={styles.postMoreButton}>
@@ -1496,18 +1495,27 @@ export default function Home() {
                     selectedMainCategory === category.id ? colors.primary : colors.mutedForeground,
                     24
                   )}
-                  {selectedMainCategory === category.id && (
-                    <Text style={[styles.expandedCategoryText, {color: colors.primary}]}>
-                      {category.name}
-                    </Text>
-                  )}
+                  <Text
+                    style={[
+                      styles.expandedCategoryText,
+                      {
+                        color:
+                          selectedMainCategory === category.id
+                            ? colors.primary
+                            : colors.mutedForeground,
+                      },
+                    ]}>
+                    {category.name}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
-          <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/create-post")}>
-            <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
-          </TouchableOpacity>
+          {user?.role !== "CLIENT" && (
+            <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/create-post")}>
+              <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -1690,7 +1698,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   selectedCategoryOption: {
-    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    backgroundColor: "transparent",
   },
   expandedCategoryEmoji: {
     fontSize: 16,
@@ -1876,18 +1884,7 @@ const styles = StyleSheet.create({
     minWidth: 28,
     alignItems: "center",
   },
-  ratingBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
+  // ratingBadge/ratingText removed (reseñas no implementadas todavía)
   postTitle: {
     fontSize: 18,
     fontWeight: "800",

@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  TextInput,
   Alert,
   Platform,
   ActivityIndicator,
@@ -22,6 +23,7 @@ export default function CreateVideoPostScreen() {
   const router = useRouter();
 
   const [videos, setVideos] = useState<string[]>([]);
+  const [description, setDescription] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
   const handlePublish = async () => {
@@ -38,6 +40,11 @@ export default function CreateVideoPostScreen() {
 
       // Add post_type field (required by backend)
       formData.append("post_type", "video");
+
+      // Description (optional)
+      if (description.trim()) {
+        formData.append("content", description.trim());
+      }
 
       // Add video to FormData
       if (Platform.OS === "web") {
@@ -62,7 +69,7 @@ export default function CreateVideoPostScreen() {
         formData.append("media", rnFile);
       }
 
-      // Call the API - video posts don't have content/description
+      // Call the API
       const response = await postApi.createVideoPost(formData);
 
       // Navigate back to home/feed upon success
@@ -114,37 +121,22 @@ export default function CreateVideoPostScreen() {
           />
         </View>
 
-        {/* Expiration Notice */}
+        {/* Description */}
         <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <View style={styles.expirationNotice}>
-            <Ionicons name="time-outline" color="#FF6B6B" size={24} />
-            <View style={styles.expirationTextContainer}>
-              <Text style={[styles.expirationTitle, {color: colors.foreground}]}>
-                Expira en 24 horas
-              </Text>
-              <Text style={[styles.expirationDescription, {color: colors.mutedForeground}]}>
-                Este video desaparecerá del feed después de 24 horas, similar a las stories de
-                Instagram.
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Settings */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Configuración</Text>
-
-          <TouchableOpacity style={styles.settingRow} activeOpacity={0.7}>
-            <View style={styles.settingLeft}>
-              <Ionicons name="chatbubble-outline" color={colors.foreground} size={20} />
-              <Text style={[styles.settingText, {color: colors.foreground}]}>
-                Permitir comentarios
-              </Text>
-            </View>
-            <View style={[styles.toggle, styles.toggleActive, {backgroundColor: colors.primary}]}>
-              <View style={[styles.toggleCircle, styles.toggleCircleActive]} />
-            </View>
-          </TouchableOpacity>
+          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Descripción</Text>
+          <TextInput
+            style={[
+              styles.textArea,
+              {backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground},
+            ]}
+            placeholder="Escribe una descripción..."
+            placeholderTextColor={colors.mutedForeground}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={5}
+            textAlignVertical="top"
+          />
         </View>
 
         {/* Publish Button (Bottom) */}
@@ -227,59 +219,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 16,
   },
-  expirationNotice: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    padding: 16,
+  textArea: {
+    borderWidth: 1,
     borderRadius: 12,
-    backgroundColor: "rgba(255, 107, 107, 0.1)",
-  },
-  expirationTextContainer: {
-    flex: 1,
-    gap: 4,
-  },
-  expirationTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  expirationDescription: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  settingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-  },
-  settingLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  settingText: {
+    padding: 16,
     fontSize: 15,
-  },
-  toggle: {
-    width: 52,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#ccc",
-    justifyContent: "center",
-    paddingHorizontal: 3,
-  },
-  toggleActive: {
-    backgroundColor: "#FF6B6B",
-  },
-  toggleCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#ffffff",
-  },
-  toggleCircleActive: {
-    alignSelf: "flex-end",
+    minHeight: 110,
   },
   publishButtonLarge: {
     flexDirection: "row",

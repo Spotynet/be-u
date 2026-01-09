@@ -4,6 +4,7 @@ import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Reservation} from "@/types/global";
 import {Ionicons} from "@expo/vector-icons";
+import {parseISODateAsLocal} from "@/lib/dateUtils";
 
 interface DayScheduleProps {
   date: string;
@@ -52,7 +53,7 @@ export const DaySchedule = ({date, reservations, onReservationPress}: DaySchedul
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       <View style={[styles.header, {borderBottomColor: colors.border}]}>
         <Text style={[styles.dateText, {color: colors.foreground}]}>
-          {new Date(date).toLocaleDateString("es-MX", {
+          {parseISODateAsLocal(date).toLocaleDateString("es-MX", {
             weekday: "long",
             year: "numeric",
             month: "long",
