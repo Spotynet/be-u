@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-t+roqsej)7g3t9t#@t1s&)b%i-7euhxd7_do1wjtz#6hpv20uc'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'stg.be-u.ai', 'be-u.ai', '*.be-u.ai']
 CORS_ALLOW_ALL_ORIGINS = True
@@ -241,7 +242,6 @@ SIMPLE_JWT = {
 
 # AWS S3 Configuration
 # In production/staging (DEBUG=False) we default to S3 unless explicitly disabled.
-import os
 _use_s3_env = os.environ.get('USE_S3')
 if _use_s3_env is None:
     USE_S3 = not DEBUG
