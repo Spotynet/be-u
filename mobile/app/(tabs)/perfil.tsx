@@ -223,7 +223,7 @@ export default function Perfil() {
     (publicProfile?.display_name && String(publicProfile.display_name).trim()) ||
     (user
       ? user.role === "CLIENT"
-        ? `${user.firstName || "Usuario"} ${user.lastName || ""}`.trim()
+        ? `${(user as any).firstName || (user as any).first_name || "Usuario"} ${(user as any).lastName || (user as any).last_name || ""}`.trim()
         : user.role === "PLACE"
           ? (profile as any)?.name || user.firstName || "Usuario"
           : user.firstName || "Usuario"
@@ -379,6 +379,11 @@ export default function Perfil() {
             <View style={styles.headerTitleRow}>
               <Text style={[styles.headerTitle, {color: colors.foreground}]}>{displayName}</Text>
             </View>
+            {!!user?.username && (
+              <Text style={[styles.headerUsername, {color: colors.mutedForeground}]} numberOfLines={1}>
+                @{user.username}
+              </Text>
+            )}
             <Text style={[styles.headerRole, {color: colors.mutedForeground}]}>
               {user?.role === "PROFESSIONAL"
                 ? "Profesional"
@@ -830,6 +835,11 @@ const styles = StyleSheet.create({
   headerRole: {
     fontSize: 14,
     fontWeight: "400",
+    marginTop: 2,
+  },
+  headerUsername: {
+    fontSize: 13,
+    fontWeight: "500",
     marginTop: 2,
   },
   headerCategoryContainer: {

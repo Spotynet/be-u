@@ -46,7 +46,9 @@ export default function BookingScreen() {
     useReservationFlow();
 
   const [localNotes, setLocalNotes] = useState("");
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const UNAVAILABLE_MSG = "EL profesional no esta disponible en la fecha seleccionada";
+
+  const [selectedDate, setSelectedDate] = useState<Date | null>(() => new Date());
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
   const [timeInputText, setTimeInputText] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -95,6 +97,17 @@ export default function BookingScreen() {
       selectService(serviceInfo);
     }
   }, [serviceInfo?.serviceInstanceId]);
+
+  // Auto-select today on first load and prefetch times for today (once provider is resolved).
+  useEffect(() => {
+    if (!serviceInfo || providerIdForAvailability <= 0) return;
+    if (!selectedDate) return;
+    // If schedule already loaded for the current selected date, do nothing.
+    if (scheduleData) return;
+
+    handleDateSelect(formatLocalDate(selectedDate));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceInfo?.serviceInstanceId, providerIdForAvailability]);
 
   // Resolve the provider profile ID from the service instance (source of truth).
   // This avoids mismatches where the URL param providerId is a User/PublicProfile id.
@@ -153,9 +166,7 @@ export default function BookingScreen() {
         if (!Array.isArray(schedules) || schedules.length === 0) {
           // No availability configured -> disable all weekdays to prevent clicks
           setDisabledDaysIndexes([0, 1, 2, 3, 4, 5, 6]);
-          setDateAvailabilityError(
-            "Este proveedor aún no ha configurado sus horarios de disponibilidad. Por favor contacta al proveedor directamente o intenta con otro proveedor."
-          );
+          setDateAvailabilityError(UNAVAILABLE_MSG);
           return;
         }
 
@@ -278,6 +289,7 @@ export default function BookingScreen() {
 
   const handleDateSelect = async (date: string) => {
     const dateObj = parseLocalDate(date);
+    setSelectedDate(dateObj); // Keep the date selected even if unavailable
     setSelectedTime(null); // Reset time when date changes
     setTimeAvailabilityError(null);
     setDateAvailabilityError(null);
@@ -358,10 +370,7 @@ export default function BookingScreen() {
               booked_slots: [],
               break_times: [],
             };
-            setDateAvailabilityError(
-              "Este proveedor aún no ha configurado sus horarios de disponibilidad. Por favor contacta al proveedor directamente o intenta con otro proveedor."
-            );
-            setSelectedDate(null);
+            setDateAvailabilityError(UNAVAILABLE_MSG);
             setScheduleData(computedSchedule);
             // Disable all weekdays in calendar to avoid clicks
             setDisabledDaysIndexes([0, 1, 2, 3, 4, 5, 6]);
@@ -405,39 +414,19 @@ export default function BookingScreen() {
 
         // Check if provider is available on this day
         if (!computedSchedule?.working_hours) {
-          // Check if provider has any availability configured at all
-          const hasAnyAvailability =
-            (computedSchedule?.booked_slots?.length ?? 0) > 0 ||
-            (computedSchedule?.break_times?.length ?? 0) > 0;
-
-          if (!hasAnyAvailability) {
-            // Provider hasn't configured their schedule yet
-            setDateAvailabilityError(
-              "Este proveedor aún no ha configurado sus horarios de disponibilidad. Por favor contacta al proveedor directamente o intenta con otro proveedor."
-            );
-          } else {
-            // Provider has schedule but not available on this specific day
-            setDateAvailabilityError(
-              "El proveedor no está disponible en este día. Por favor selecciona otra fecha."
-            );
-          }
-          setSelectedDate(null);
+          setDateAvailabilityError(UNAVAILABLE_MSG);
           return;
         }
 
-        // Date is available, set it
+        // Date is available, keep it
         setSelectedDate(dateObj);
       } catch (err: any) {
         console.error("Error fetching schedule:", err);
-        const errorMessage =
-          err?.response?.data?.error ||
-          err?.response?.data?.detail ||
-          "No se pudo verificar la disponibilidad. Por favor intenta de nuevo.";
-        setDateAvailabilityError(errorMessage);
+        setDateAvailabilityError(UNAVAILABLE_MSG);
         setScheduleData(null);
         setAvailableTimes([]);
         setDisabledDaysIndexes(undefined);
-        setSelectedDate(null);
+        // Keep date selected for UI consistency
       } finally {
         setLoadingSchedule(false);
       }
@@ -457,7 +446,7 @@ export default function BookingScreen() {
           setSelectedTime(date);
           setTimeAvailabilityError(null);
         } else {
-          setTimeAvailabilityError("Esta hora no está disponible. Por favor selecciona otra hora.");
+          setTimeAvailabilityError(UNAVAILABLE_MSG);
         }
       }
     } else {
@@ -469,7 +458,7 @@ export default function BookingScreen() {
           setSelectedTime(date);
           setTimeAvailabilityError(null);
         } else {
-          setTimeAvailabilityError("Esta hora no está disponible. Por favor selecciona otra hora.");
+          setTimeAvailabilityError(UNAVAILABLE_MSG);
         }
       }
     }
@@ -955,9 +944,7 @@ export default function BookingScreen() {
                                   setSelectedTime(d);
                                   setTimeAvailabilityError(null);
                                 } else {
-                                  setTimeAvailabilityError(
-                                    "Esta hora no está disponible. Por favor selecciona otra hora."
-                                  );
+                                  setTimeAvailabilityError(UNAVAILABLE_MSG);
                                 }
                               }}
                               activeOpacity={0.8}>
@@ -1088,12 +1075,7 @@ export default function BookingScreen() {
 
             {/* Info */}
             {!reservationSuccess && (
-              <View style={[styles.infoCard, {backgroundColor: "#3b82f6" + "10"}]}>
-                <Ionicons name="information-circle" size={20} color="#3b82f6" />
-                <Text style={[styles.infoText, {color: "#3b82f6"}]}>
-                  Tu solicitud será enviada al proveedor. Te notificaremos cuando la acepte o rechace.
-                </Text>
-              </View>
+              null
             )}
 
             {/* Confirm Button */}

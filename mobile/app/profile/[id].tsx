@@ -40,8 +40,7 @@ export default function ProfileDetailScreen() {
   const [linkedPlaces, setLinkedPlaces] = useState<PlaceProfessionalLink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<"team" | "services" | "posts" | "details" | "hours">("services");
-  const [isHoursExpanded, setIsHoursExpanded] = useState(false);
+  const [activeSection, setActiveSection] = useState<"team" | "services" | "details" | "hours">("services");
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef<any>(null);
@@ -481,6 +480,9 @@ export default function ProfileDetailScreen() {
     key: "team" | "services" | "details" | "hours";
     label: string;
   }> = [
+    {key: "services", label: "Servicios"},
+    {key: "details", label: "Detalles"},
+    {key: "hours", label: "Horario"},
     ...(hasTeamSection
       ? ([
           {
@@ -489,9 +491,6 @@ export default function ProfileDetailScreen() {
           },
         ] as any)
       : []),
-    {key: "services", label: "Servicios"},
-    {key: "details", label: "Detalles"},
-    {key: "hours", label: "Horario"},
   ];
 
   const onSectionLayout = (key: string) => (e: any) => {
@@ -537,14 +536,14 @@ export default function ProfileDetailScreen() {
                 <Text style={[styles.servicePrice, {color: colors.primary}]} numberOfLines={1}>
                   ${service.price} MXN
                 </Text>
-              </View>
+                </View>
 
               {!!service.description && (
                 <Text
                   style={[styles.serviceDescription, {color: colors.mutedForeground}]}
                   numberOfLines={1}>
-                  {service.description}
-                </Text>
+                {service.description}
+              </Text>
               )}
 
               <View style={styles.serviceMetaLine}>
@@ -554,14 +553,14 @@ export default function ProfileDetailScreen() {
                     {service.duration_minutes || service.duration} min
                   </Text>
                 </View>
-                {service.availability_summary && service.availability_summary.length > 0 && (
+              {service.availability_summary && service.availability_summary.length > 0 && (
                   <View style={styles.serviceMetaItem}>
                     <Ionicons name="calendar-outline" color={colors.mutedForeground} size={14} />
                     <Text style={[styles.serviceMetaText, {color: colors.mutedForeground}]}>
                       {service.availability_summary.length} días/sem
-                    </Text>
-                  </View>
-                )}
+                  </Text>
+                </View>
+              )}
               </View>
             </View>
           </TouchableOpacity>
@@ -682,9 +681,18 @@ export default function ProfileDetailScreen() {
           hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>
-          Perfil
+        <View style={styles.headerCenter}>
+          <Text style={[styles.headerName, {color: colors.foreground}]} numberOfLines={1}>
+            {profile?.display_name || profile?.name || "Perfil"}
         </Text>
+          {categoryNames.length > 0 && (
+            <View style={[styles.headerCategoryTag, {backgroundColor: colors.primary + "15"}]}>
+              <Text style={[styles.headerCategoryTagText, {color: colors.primary}]} numberOfLines={1}>
+                {categoryNames[0]}
+              </Text>
+            </View>
+          )}
+        </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerActionButton} onPress={handleToggleFavorite}>
             <Ionicons 
@@ -722,11 +730,11 @@ export default function ProfileDetailScreen() {
           <View style={styles.heroSection}>
             {profile.images && profile.images.length > 0 ? (
               <View style={styles.heroImageContainer}>
-                <Image
+                    <Image
                   source={{uri: profile.images[0]}}
                   style={styles.heroImageSingle}
-                  resizeMode="cover"
-                />
+                      resizeMode="cover"
+                    />
 
                 {/* Overlay button: view all photos */}
                 {profile.images.length > 1 && (
@@ -748,53 +756,11 @@ export default function ProfileDetailScreen() {
             )}
 
             {/* Rating badge hidden (reseñas/calificaciones no implementadas todavía) */}
-          </View>
-
-          {/* Profile Info */}
-          <View style={styles.profileInfo}>
-            {/* Row 1: avatar + name */}
-            <View style={styles.profileHeaderRow}>
-              <View
-                style={[
-                  styles.profileAvatar,
-                  {
-                    backgroundColor: getAvatarColorFromSubcategory(
-                      profile.category,
-                      profile.sub_categories
-                    ),
-                  },
-                ]}>
-                {profile.user_image ? (
-                  <Image 
-                    source={{uri: profile.user_image}} 
-                    style={styles.profileAvatarImage}
-                    onError={(error) => {
-                      console.error("Error loading profile image:", profile.user_image, error);
-                    }}
-                  />
-                ) : (
-                  <Text style={styles.profileAvatarText}>
-                    {(profile.name || "U").charAt(0).toUpperCase()}
-                  </Text>
-                )}
-              </View>
-              <View style={styles.profileHeaderText}>
-                <Text style={[styles.profileName, {color: colors.foreground}]} numberOfLines={1}>
-                  {profile.name || "Sin nombre"}
-                </Text>
-                {/* Top: only category */}
-                {categoryNames.length > 0 && (
-                  <Text style={[styles.profileCategoryOnly, {color: colors.primary}]} numberOfLines={1}>
-                    {categoryNames.join(" · ")}
-                  </Text>
-                )}
-              </View>
             </View>
-          </View>
         </Animated.View>
 
         {/* Sticky section tabs */}
-        <View
+              <View
           style={[styles.stickyTabs, {backgroundColor: colors.background, borderBottomColor: colors.border}]}
           onLayout={(e) => {
             stickyHeightRef.current = e?.nativeEvent?.layout?.height ?? 44;
@@ -807,7 +773,7 @@ export default function ProfileDetailScreen() {
                   key={s.key}
                   onPress={() => scrollToSection(s.key)}
                   activeOpacity={0.8}
-                  style={[
+                style={[
                     styles.stickyTab,
                     isActive ? {borderBottomColor: colors.primary} : {borderBottomColor: "transparent"},
                   ]}>
@@ -818,96 +784,10 @@ export default function ProfileDetailScreen() {
               );
             })}
           </ScrollView>
-        </View>
+              </View>
 
         {/* Sections */}
         <View style={styles.sectionsWrap}>
-          {/* Trabaja en / Equipo */}
-          {hasTeamSection && (
-            <View onLayout={onSectionLayout("team")} style={styles.section}>
-              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-                {profile.profile_type === "PLACE" ? "Nuestro Equipo" : "Trabaja en"}
-              </Text>
-
-              {profile.profile_type === "PLACE" && linkedProfessionalsDetails.length > 0 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.teamScrollContainer}>
-                  {linkedProfessionalsDetails.map((linkDetail) => {
-                    const getInitials = (name: string) => {
-                      const words = name.split(" ");
-                      if (words.length >= 2) {
-                        return `${words[0].charAt(0)}${words[1].charAt(0)}`.toUpperCase();
-                      }
-                      return name.substring(0, 2).toUpperCase();
-                    };
-                    const borderColor = getAvatarColorFromSubcategory(linkDetail.category, linkDetail.sub_categories);
-                    return (
-                      <TouchableOpacity
-                        key={linkDetail.id}
-                        style={styles.teamStoryItem}
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          const profileId = linkDetail.public_profile_id || linkDetail.professional_id;
-                          router.push(`/profile/${profileId}`);
-                        }}>
-                        <View style={[styles.teamStoryRing, {borderColor}]}>
-                          <View style={[styles.teamStoryAvatar, {backgroundColor: borderColor}]}>
-                            {linkDetail.user_image ? (
-                              <Image source={{uri: linkDetail.user_image}} style={styles.teamStoryAvatarImage} />
-                            ) : (
-                              <Text style={styles.teamStoryAvatarText}>{getInitials(linkDetail.professional_name)}</Text>
-                            )}
-                          </View>
-                        </View>
-                        <Text style={[styles.teamStoryName, {color: colors.foreground}]} numberOfLines={1}>
-                          {linkDetail.professional_name.split(" ")[0]}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              )}
-
-              {profile.profile_type === "PROFESSIONAL" &&
-                (linkedPlaces.length > 0 ? (
-                  <View style={styles.teamContainer}>
-                    {linkedPlaces.map((link) => (
-                      <TouchableOpacity
-                        key={link.id}
-                        style={styles.teamCard}
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          const profileId = (link as any).public_profile_id || link.place_id;
-                          router.push(`/profile/${profileId}`);
-                        }}>
-                        <View style={[styles.teamAvatar, {backgroundColor: colors.primary}]}>
-                          <Ionicons name="business" color="#ffffff" size={18} />
-                        </View>
-                        <View style={styles.teamLine}>
-                          <Text style={[styles.teamLineName, {color: colors.foreground}]} numberOfLines={1}>
-                            {link.place_name}
-                          </Text>
-                          <View style={styles.teamLineStatus}>
-                            <View style={styles.teamStatusDot} />
-                            <Text style={[styles.teamStatusText, {color: colors.mutedForeground}]}>
-                              Vinculado
-                            </Text>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                ) : (
-                  <View style={[styles.emptyTeamCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-                    <Ionicons name="business-outline" color={colors.mutedForeground} size={48} />
-                    <Text style={[styles.emptyTeamTitle, {color: colors.foreground}]}>No está vinculado a ningún lugar</Text>
-                    <Text style={[styles.emptyTeamText, {color: colors.mutedForeground}]}>
-                      Este profesional aún no está vinculado a ningún establecimiento
-                    </Text>
-                  </View>
-                ))}
-            </View>
-          )}
-
           {/* Servicios */}
           <View onLayout={onSectionLayout("services")} style={styles.section}>
             <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Servicios</Text>
@@ -922,23 +802,23 @@ export default function ProfileDetailScreen() {
             {(profile.bio || profile.description) && (
               <Text style={[styles.detailText, {color: colors.mutedForeground}]}>
                 {profile.bio || profile.description}
-              </Text>
-            )}
-
+                  </Text>
+                )}
+                
             {subCategoryNames.length > 0 && (
               <View style={styles.detailRow}>
                 <Ionicons name="pricetag-outline" size={16} color={colors.mutedForeground} />
                 <Text style={[styles.detailRowText, {color: colors.foreground}]} numberOfLines={2}>
                   {subCategoryNames.join(" · ")}
-                </Text>
-              </View>
+                          </Text>
+                        </View>
             )}
 
             {profile.user_phone && (
               <View style={styles.detailRow}>
                 <Ionicons name="call-outline" size={16} color={colors.mutedForeground} />
                 <Text style={[styles.detailRowText, {color: colors.foreground}]}>{profile.user_phone}</Text>
-              </View>
+                        </View>
             )}
 
             {(profile.city || profile.street) && (
@@ -948,44 +828,112 @@ export default function ProfileDetailScreen() {
                   {profile.street && `${profile.street}, `}
                   {profile.city}
                   {profile.country && `, ${profile.country}`}
-                </Text>
-              </View>
+                    </Text>
+                  </View>
+                )}
+            <View style={[styles.sectionDivider, {backgroundColor: colors.border}]} />
+            </View>
+
+          {/* Horario */}
+          <View onLayout={onSectionLayout("hours")} style={styles.section}>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Horario</Text>
+            {profile.availability && Array.isArray(profile.availability) ? (
+              <AvailabilityDisplay availability={profile.availability} showHeader={false} variant="compact" />
+            ) : (
+              <Text style={[styles.detailText, {color: colors.mutedForeground}]}>No hay horarios disponibles</Text>
             )}
             <View style={[styles.sectionDivider, {backgroundColor: colors.border}]} />
           </View>
 
-          {/* Horario (colapsable) */}
-          <View onLayout={onSectionLayout("hours")} style={styles.section}>
-            <TouchableOpacity
-              style={[styles.hoursAccordion, {backgroundColor: colors.card, borderColor: colors.border}]}
-              activeOpacity={0.85}
-              onPress={() => setIsHoursExpanded((v) => !v)}>
-              <View style={styles.hoursHeader}>
-                <Text style={[styles.hoursTitle, {color: colors.foreground}]}>Horario</Text>
-                <Ionicons
-                  name={isHoursExpanded ? "chevron-up" : "chevron-down"}
-                  size={18}
-                  color={colors.mutedForeground}
-                />
-              </View>
-              {isHoursExpanded && (
-                <View style={styles.hoursContent}>
-                  {profile.availability && Array.isArray(profile.availability) ? (
-                    <AvailabilityDisplay
-                      availability={profile.availability}
-                      showHeader={false}
-                      variant="compact"
-                    />
-                  ) : (
-                    <Text style={[styles.detailText, {color: colors.mutedForeground}]}>
-                      No hay horarios disponibles
-                    </Text>
-                  )}
-                </View>
+          {/* Trabaja en / Equipo */}
+          {hasTeamSection && (
+            <View onLayout={onSectionLayout("team")} style={styles.section}>
+              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+                {profile.profile_type === "PLACE" ? "Nuestro Equipo" : "Trabaja en"}
+              </Text>
+
+          {profile.profile_type === "PLACE" && linkedProfessionalsDetails.length > 0 && (
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.teamScrollContainer}>
+                {linkedProfessionalsDetails.map((linkDetail) => {
+                  const getInitials = (name: string) => {
+                    const words = name.split(" ");
+                    if (words.length >= 2) {
+                      return `${words[0].charAt(0)}${words[1].charAt(0)}`.toUpperCase();
+                    }
+                    return name.substring(0, 2).toUpperCase();
+                  };
+                    const borderColor = getAvatarColorFromSubcategory(linkDetail.category, linkDetail.sub_categories);
+                  return (
+                    <TouchableOpacity
+                      key={linkDetail.id}
+                      style={styles.teamStoryItem}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        const profileId = linkDetail.public_profile_id || linkDetail.professional_id;
+                        router.push(`/profile/${profileId}`);
+                      }}>
+                        <View style={[styles.teamStoryRing, {borderColor}]}>
+                        <View style={[styles.teamStoryAvatar, {backgroundColor: borderColor}]}>
+                            {linkDetail.user_image ? (
+                              <Image source={{uri: linkDetail.user_image}} style={styles.teamStoryAvatarImage} />
+                            ) : (
+                              <Text style={styles.teamStoryAvatarText}>{getInitials(linkDetail.professional_name)}</Text>
+                            )}
+                        </View>
+                      </View>
+                      <Text style={[styles.teamStoryName, {color: colors.foreground}]} numberOfLines={1}>
+                          {linkDetail.professional_name.split(" ")[0]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
               )}
-            </TouchableOpacity>
-          </View>
-        </View>
+
+              {profile.profile_type === "PROFESSIONAL" &&
+                (linkedPlaces.length > 0 ? (
+                <View style={styles.teamContainer}>
+                  {linkedPlaces.map((link) => (
+                    <TouchableOpacity
+                      key={link.id}
+                        style={styles.teamCard}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        const profileId = (link as any).public_profile_id || link.place_id;
+                        router.push(`/profile/${profileId}`);
+                      }}>
+                      <View style={[styles.teamAvatar, {backgroundColor: colors.primary}]}>
+                          <Ionicons name="business" color="#ffffff" size={18} />
+                      </View>
+                        <View style={styles.teamLine}>
+                          <Text style={[styles.teamLineName, {color: colors.foreground}]} numberOfLines={1}>
+                          {link.place_name}
+                        </Text>
+                          <View style={styles.teamLineStatus}>
+                            <View style={styles.teamStatusDot} />
+                            <Text style={[styles.teamStatusText, {color: colors.mutedForeground}]}>Vinculado</Text>
+                          </View>
+                          </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <View style={[styles.emptyTeamCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                  <Ionicons name="business-outline" color={colors.mutedForeground} size={48} />
+                  <Text style={[styles.emptyTeamTitle, {color: colors.foreground}]}>
+                    No está vinculado a ningún lugar
+                  </Text>
+                  <Text style={[styles.emptyTeamText, {color: colors.mutedForeground}]}>
+                    Este profesional aún no está vinculado a ningún establecimiento
+                  </Text>
+                </View>
+                ))}
+            </View>
+          )}
+            </View>
       </ScrollView>
 
 
@@ -1013,11 +961,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
+  headerCenter: {
     flex: 1,
-    textAlign: "center",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 1,
+  },
+  headerName: {
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: -0.2,
+  },
+  headerCategoryTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    maxWidth: 180,
+  },
+  headerCategoryTagText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   headerActions: {
     flexDirection: "row",
@@ -1123,16 +1086,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
   },
   // ratingBadge/ratingText removed (reseñas/calificaciones no implementadas todavía)
-  profileInfo: {
-    padding: 20,
-    paddingTop: 24,
-    alignItems: "stretch",
-  },
-  profileHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
   profileAvatar: {
     width: 40,
     height: 40,
@@ -1269,27 +1222,6 @@ const styles = StyleSheet.create({
   sectionDivider: {
     height: 1,
     marginTop: 18,
-  },
-  hoursAccordion: {
-    borderRadius: 14,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  hoursHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  hoursTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    letterSpacing: -0.2,
-  },
-  hoursContent: {
-    paddingHorizontal: 12,
-    paddingBottom: 10,
   },
   detailText: {
     fontSize: 14,

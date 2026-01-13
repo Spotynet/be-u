@@ -97,6 +97,40 @@ export const CalendarView = ({
             {formatMonthYear(date)}
           </Text>
         )}
+        dayComponent={({date, state}: any) => {
+          const dateString: string | undefined = date?.dateString;
+          const dayLabel: string | undefined = typeof date?.day === "number" ? String(date.day) : undefined;
+          const isDisabled = state === "disabled";
+          const isSelected = !!(dateString && markedDates?.[dateString]?.selected);
+
+          return (
+            <TouchableOpacity
+              disabled={isDisabled || !dateString}
+              onPress={() => {
+                if (!dateString) return;
+                onDayPress(dateString);
+              }}
+              activeOpacity={0.8}
+              style={styles.dayTouch}>
+              <View
+                style={[
+                  styles.dayCircle,
+                  isSelected && {backgroundColor: colors.primary},
+                  isDisabled && styles.dayCircleDisabled,
+                ]}>
+                <Text
+                  style={[
+                    styles.dayText,
+                    {color: colors.foreground},
+                    isSelected && {color: "#ffffff"},
+                    isDisabled && {color: colors.mutedForeground},
+                  ]}>
+                  {dayLabel || ""}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
         minDate={minDate}
         maxDate={maxDate}
         disabledDaysIndexes={disabledDaysIndexes}
@@ -157,6 +191,25 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: -0.2,
     paddingVertical: 8,
+  },
+  dayTouch: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayCircleDisabled: {
+    backgroundColor: "transparent",
+    opacity: 0.4,
+  },
+  dayText: {
+    fontSize: 15,
+    fontWeight: "600",
   },
   legend: {
     padding: 16,

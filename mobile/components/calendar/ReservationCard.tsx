@@ -29,6 +29,12 @@ export const ReservationCard = ({
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
 
+  const serviceName =
+    reservation.service_details?.name ||
+    // Some list endpoints return a lightweight shape with `service_name`
+    ((reservation as any).service_name as string | undefined) ||
+    "Servicio";
+
   // Use a touchable wrapper only when a press handler is provided so that
   // action buttons inside the card remain interactive.
   const Wrapper: React.ElementType = onPress ? TouchableOpacity : View;
@@ -78,7 +84,7 @@ export const ReservationCard = ({
 
         {/* Service Info */}
         <Text style={[styles.serviceName, {color: colors.foreground}]}>
-          {reservation.service_details?.name || "Servicio"}
+          {serviceName}
         </Text>
 
         {/* Date & Time */}

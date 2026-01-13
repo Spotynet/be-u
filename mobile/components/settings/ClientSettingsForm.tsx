@@ -25,6 +25,7 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
   const [email, setEmail] = useState(user.email);
   const [phone, setPhone] = useState(user.phone || "");
   const [username, setUsername] = useState(user.username || "");
+  // For CLIENTs there is no PublicProfile.display_name; treat "display name" as first+last name.
   const [displayName, setDisplayName] = useState("");
   const [profilePhoto, setProfilePhoto] = useState<string | null>((user as any).image || null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -48,10 +49,15 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
     setLastName((user as any).lastName || (user as any).last_name);
     setEmail(user.email);
     setPhone(user.phone || "");
+    setUsername(user.username || "");
     setProfilePhoto((user as any).image || null);
+    const fn = ((user as any).firstName || (user as any).first_name || "").trim();
+    const ln = ((user as any).lastName || (user as any).last_name || "").trim();
+    setDisplayName(`${fn}${fn && ln ? " " : ""}${ln}`.trim());
   }, [
     user.email,
     user.phone,
+    user.username,
     (user as any).firstName,
     (user as any).first_name,
     (user as any).lastName,
@@ -152,12 +158,18 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
   };
 
   const handleSave = async () => {
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) {
+      Alert.alert("Error", "El nombre de usuario no puede estar vacío");
+      return;
+    }
+
     const userData = {
       firstName,
       lastName,
       email,
       phone,
-      username: username.trim(), // Ensure username is trimmed and saved
+      username: trimmedUsername, // Ensure username is trimmed and saved
     };
 
     const profileData = {};
@@ -333,6 +345,14 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
                 // Limit to 50 characters
                 if (text.length <= 50) {
                   setDisplayName(text);
+                  const parts = text.trim().split(/\s+/).filter(Boolean);
+                  if (parts.length > 0) {
+                    setFirstName(parts[0]);
+                    setLastName(parts.slice(1).join(" "));
+                  } else {
+                    setFirstName("");
+                    setLastName("");
+                  }
                 }
               }}
               placeholder="Ej: Juan Pérez"

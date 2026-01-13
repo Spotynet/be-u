@@ -524,6 +524,7 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
               onReject={canManageAsProvider ? handleReject : undefined}
               onCancel={isClient ? handleCancel : undefined}
               onComplete={canManageAsProvider ? handleComplete : undefined}
+              onPress={() => router.push(`/reservation/${item.id}` as any)}
             />
           )}
         />
