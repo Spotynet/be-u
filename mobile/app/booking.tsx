@@ -189,7 +189,7 @@ export default function BookingScreen() {
   }, [serviceInfo?.serviceType, providerIdForAvailability]);
 
   // Derive current step for the visual indicator
-  const currentStep = !selectedDate ? 1 : !selectedTime ? 2 : 3;
+  const currentStep = !selectedTime ? 1 : 2;
 
   // Color helpers for step indicator
   const getStepColors = (step: number) => {
@@ -811,7 +811,7 @@ export default function BookingScreen() {
               styles.stepLabel,
               {color: getStepColors(1).label},
             ]}>
-            Fecha
+            Fecha y hora
           </Text>
         </View>
 
@@ -838,33 +838,6 @@ export default function BookingScreen() {
               styles.stepLabel,
               {color: getStepColors(2).label},
             ]}>
-            Hora
-          </Text>
-        </View>
-
-        <View style={[styles.stepDivider, {backgroundColor: colors.border}]} />
-
-        <View style={styles.step}>
-          <View
-            style={[
-              styles.stepNumber,
-              {
-                backgroundColor: getStepColors(3).bg,
-              },
-            ]}>
-            <Text
-              style={[
-                styles.stepNumberText,
-                {color: getStepColors(3).text},
-              ]}>
-              3
-            </Text>
-          </View>
-          <Text
-            style={[
-              styles.stepLabel,
-              {color: getStepColors(3).label},
-            ]}>
             Confirmar
           </Text>
         </View>
@@ -875,214 +848,138 @@ export default function BookingScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        {/* Step 1: Date Selection */}
-        {!selectedDate ? (
+        {/* Step 1: Date + Time */}
+        {!selectedTime ? (
           <View style={styles.stepContent}>
-            <Text style={[styles.stepTitle, {color: colors.foreground}]}>Selecciona una fecha</Text>
             {dateAvailabilityError && (
               <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "20", borderColor: "#ef4444"}]}>
                 <Ionicons name="alert-circle" size={20} color="#ef4444" />
-                <Text style={[styles.errorCardText, {color: "#ef4444"}]}>
-                  {dateAvailabilityError}
-                </Text>
+                <Text style={[styles.errorCardText, {color: "#ef4444"}]}>{dateAvailabilityError}</Text>
               </View>
             )}
+
             <CalendarView
               reservations={[]}
               onDayPress={(date) => handleDateSelect(date)}
-              selectedDate={undefined}
+              selectedDate={selectedDate ? formatLocalDate(selectedDate) : undefined}
               minDate={formatLocalDate(new Date())}
               disabledDaysIndexes={disabledDaysIndexes}
+              showLegend={false}
             />
-          </View>
-        ) : !scheduleData || !scheduleData.working_hours ? (
-          // Date selected but not available
-          <View style={styles.stepContent}>
-            <View style={styles.stepHeader}>
-              <TouchableOpacity onPress={() => {
-                setSelectedDate(null);
-                setScheduleData(null);
-                setDateAvailabilityError(null);
-              }} activeOpacity={0.7}>
-                <Ionicons name="chevron-back" size={24} color={colors.primary} />
-              </TouchableOpacity>
-              <Text style={[styles.stepTitle, {color: colors.foreground}]}>
-                Fecha no disponible
-              </Text>
-              <View style={styles.placeholder} />
-            </View>
-            <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "20", borderColor: "#ef4444"}]}>
-              <Ionicons name="alert-circle" size={20} color="#ef4444" />
-              <Text style={[styles.errorCardText, {color: "#ef4444"}]}>
-                El proveedor no está disponible en este día. Por favor selecciona otra fecha.
-              </Text>
-            </View>
-          </View>
-        ) : !selectedTime ? (
-          // Step 2: Time Selection
-          <View style={styles.stepContent}>
-            <View style={styles.stepHeader}>
-              <TouchableOpacity onPress={() => {
-                setSelectedDate(null);
-                setSelectedTime(null);
-                setScheduleData(null);
-                setTimeAvailabilityError(null);
-              }} activeOpacity={0.7}>
-                <Ionicons name="chevron-back" size={24} color={colors.primary} />
-              </TouchableOpacity>
-              <Text style={[styles.stepTitle, {color: colors.foreground}]}>
-                Selecciona una hora
-              </Text>
-              <View style={styles.placeholder} />
-            </View>
 
-            <View style={styles.timePickerContainer}>
-              <Text style={[styles.timePickerLabel, {color: colors.mutedForeground}]}>
-                {selectedDate.toLocaleDateString("es-MX", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                })}
-              </Text>
-              
-              {timeAvailabilityError && (
-                <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "20", borderColor: "#ef4444"}]}>
-                  <Ionicons name="alert-circle" size={20} color="#ef4444" />
-                  <Text style={[styles.errorCardText, {color: "#ef4444"}]}>
-                    {timeAvailabilityError}
-                  </Text>
-                </View>
-              )}
-              
-              {/* Time selection is now only via dynamic chips below */}
+            {selectedDate && (
+              <View style={styles.timePickerContainer}>
+                {timeAvailabilityError && (
+                  <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "20", borderColor: "#ef4444"}]}>
+                    <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                    <Text style={[styles.errorCardText, {color: "#ef4444"}]}>{timeAvailabilityError}</Text>
+                  </View>
+                )}
 
-              {loadingSchedule ? (
-                <View style={styles.loadingSchedule}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={[styles.loadingScheduleText, {color: colors.mutedForeground}]}>
-                    Cargando horarios disponibles...
-                  </Text>
-                </View>
-              ) : !scheduleData || !scheduleData.working_hours ? (
-                <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "20", borderColor: "#ef4444"}]}>
-                  <Ionicons name="alert-circle" size={20} color="#ef4444" />
-                  <Text style={[styles.errorCardText, {color: "#ef4444"}]}>
-                    El proveedor no está disponible en este día. Por favor selecciona otra fecha.
-                  </Text>
-                </View>
-              ) : scheduleData && scheduleData.working_hours ? (
-                <View style={[styles.scheduleInfo, {backgroundColor: colors.card + "50"}]}>
-                  <View style={styles.scheduleRow}>
-                    <Ionicons name="time-outline" size={16} color={colors.mutedForeground} />
-                    <Text style={[styles.scheduleText, {color: colors.mutedForeground}]}>
-                      Horario: {scheduleData.working_hours.start} - {scheduleData.working_hours.end}
+                {loadingSchedule ? (
+                  <View style={styles.loadingSchedule}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={[styles.loadingScheduleText, {color: colors.mutedForeground}]}>
+                      Cargando horarios disponibles...
                     </Text>
                   </View>
-                  {scheduleData.booked_slots.length > 0 && (
+                ) : scheduleData && scheduleData.working_hours ? (
+                  <View style={[styles.scheduleInfo, {backgroundColor: colors.card + "50"}]}>
                     <View style={styles.scheduleRow}>
-                      <Ionicons name="calendar-outline" size={16} color={colors.mutedForeground} />
+                      <Ionicons name="time-outline" size={16} color={colors.mutedForeground} />
                       <Text style={[styles.scheduleText, {color: colors.mutedForeground}]}>
-                        {scheduleData.booked_slots.length} reserva(s) existente(s)
+                        Horario: {scheduleData.working_hours.start} - {scheduleData.working_hours.end}
                       </Text>
                     </View>
-                  )}
-                  {scheduleData.break_times.length > 0 && (
-                    <View style={styles.breaksContainer}>
-                      <View style={styles.scheduleRow}>
-                        <Ionicons name="cafe-outline" size={16} color={colors.mutedForeground} />
-                        <Text style={[styles.scheduleText, {color: colors.mutedForeground}]}>
-                          Descansos programados
-                        </Text>
-                      </View>
-                      <View style={styles.breakChips}>
-                        {scheduleData.break_times.map((br, idx) => (
-                          <View
-                            key={`${br.start}-${br.end}-${idx}`}
-                            style={[
-                              styles.breakChip,
-                              {
-                                backgroundColor: colors.card,
-                                borderColor: colors.border,
-                              },
-                            ]}>
-                            <Text style={[styles.breakChipText, {color: colors.mutedForeground}]}>
-                              {br.start} - {br.end}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-                </View>
-              ) : null}
-
-              {scheduleData?.working_hours && (
-                <View style={styles.availableTimesContainer}>
-                  <Text style={[styles.availableTimesTitle, {color: colors.foreground}]}>
-                    Horarios disponibles
-                  </Text>
-                  {availableTimes.length === 0 ? (
-                    <Text style={[styles.availableTimesEmpty, {color: colors.mutedForeground}]}>
-                      No hay horarios que cumplan con la duración y disponibilidad.
-                    </Text>
-                  ) : (
-                    <View style={styles.availableTimesList}>
-                      {availableTimes.map((t) => (
-                        <TouchableOpacity
-                          key={t}
-                          style={[
-                            styles.availableTimeChip,
-                            {
-                              backgroundColor:
-                                selectedTime && formatTime(selectedTime) === t
-                                  ? colors.primary
-                                  : colors.card,
-                              borderColor:
-                                selectedTime && formatTime(selectedTime) === t
-                                  ? colors.primary
-                                  : colors.border,
-                            },
-                          ]}
-                          onPress={() => {
-                            const [h, m] = t.split(":").map(Number);
-                            const d = new Date(selectedDate || new Date());
-                            d.setHours(h, m, 0, 0);
-                            if (isTimeSlotAvailable(d)) {
-                              setSelectedTime(d);
-                              setTimeAvailabilityError(null);
-                              setTimeInputText(t);
-                            }
-                          }}
-                          activeOpacity={0.8}>
-                          <Text
-                            style={[
-                              styles.availableTimeText,
-                              {
-                                color:
-                                  selectedTime && formatTime(selectedTime) === t
-                                    ? "#ffffff"
-                                    : colors.foreground,
-                              },
-                            ]}>
-                            {t}
+                    {scheduleData.break_times.length > 0 && (
+                      <View style={styles.breaksContainer}>
+                        <View style={styles.scheduleRow}>
+                          <Ionicons name="cafe-outline" size={16} color={colors.mutedForeground} />
+                          <Text style={[styles.scheduleText, {color: colors.mutedForeground}]}>
+                            Descansos
                           </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              )}
+                        </View>
+                        <View style={styles.breakChips}>
+                          {scheduleData.break_times.map((br, idx) => (
+                            <View
+                              key={`${br.start}-${br.end}-${idx}`}
+                              style={[
+                                styles.breakChip,
+                                {
+                                  backgroundColor: colors.card,
+                                  borderColor: colors.border,
+                                },
+                              ]}>
+                              <Text style={[styles.breakChipText, {color: colors.mutedForeground}]}>
+                                {br.start} - {br.end}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                ) : null}
 
-              <View style={[styles.infoCard, {backgroundColor: colors.primary + "10"}]}>
-                <Ionicons name="information-circle" size={20} color={colors.primary} />
-                <Text style={[styles.infoText, {color: colors.primary}]}>
-                  Elige la hora que prefieras. El proveedor revisará tu solicitud y te confirmará si está disponible.
-                </Text>
+                {scheduleData?.working_hours && (
+                  <View style={styles.availableTimesContainer}>
+                    <Text style={[styles.availableTimesTitle, {color: colors.foreground}]}>
+                      Horarios disponibles
+                    </Text>
+                    {availableTimes.length === 0 ? (
+                      <Text style={[styles.availableTimesEmpty, {color: colors.mutedForeground}]}>
+                        No hay horarios que cumplan con la duración y disponibilidad.
+                      </Text>
+                    ) : (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.availableTimesRow}>
+                        {availableTimes.map((t) => {
+                          const isSelected = selectedTime && formatTime(selectedTime) === t;
+                          return (
+                            <TouchableOpacity
+                              key={t}
+                              style={[
+                                styles.availableTimeChip,
+                                {
+                                  backgroundColor: isSelected ? colors.primary : colors.card,
+                                  borderColor: isSelected ? colors.primary : colors.border,
+                                },
+                              ]}
+                              onPress={() => {
+                                const [h, m] = t.split(":").map(Number);
+                                const d = new Date(selectedDate || new Date());
+                                d.setHours(h, m, 0, 0);
+                                if (isTimeSlotAvailable(d)) {
+                                  setSelectedTime(d);
+                                  setTimeAvailabilityError(null);
+                                } else {
+                                  setTimeAvailabilityError(
+                                    "Esta hora no está disponible. Por favor selecciona otra hora."
+                                  );
+                                }
+                              }}
+                              activeOpacity={0.8}>
+                              <Text
+                                style={[
+                                  styles.availableTimeText,
+                                  {color: isSelected ? "#ffffff" : colors.foreground},
+                                ]}>
+                                {t}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
+                    )}
+                  </View>
+                )}
               </View>
-            </View>
+            )}
           </View>
         ) : (
-          // Step 3: Confirmation
+          // Step 2: Confirmation
           <View style={styles.stepContent}>
             <View style={styles.stepHeader}>
               <TouchableOpacity
@@ -1563,6 +1460,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+  },
+  availableTimesRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingVertical: 4,
   },
   availableTimeChip: {
     paddingHorizontal: 12,

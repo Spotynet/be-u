@@ -5,11 +5,23 @@ import {ThemeProvider} from "@/contexts/ThemeContext";
 import {ThemeVariantProvider} from "@/contexts/ThemeVariantContext";
 import {CategoryProvider} from "@/contexts/CategoryContext";
 import {useEffect} from "react";
-import {AppState} from "react-native";
+import {AppState, Text, TextInput} from "react-native";
 import {tokenRefreshScheduler} from "@/lib/api";
 import {ErrorBoundary} from "@/components/ErrorBoundary";
+import * as SplashScreen from "expo-splash-screen";
+import {useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold, Poppins_800ExtraBold} from "@expo-google-fonts/poppins";
+
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+    Poppins_800ExtraBold,
+  });
+
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (nextAppState === "active") {
@@ -22,6 +34,23 @@ export default function RootLayout() {
       subscription.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (!fontsLoaded) return;
+
+    // Set global defaults so most <Text/> / <TextInput/> render in Poppins without per-component changes.
+    Text.defaultProps = Text.defaultProps || {};
+    Text.defaultProps.style = [{fontFamily: "Poppins_400Regular"}, Text.defaultProps.style];
+
+    TextInput.defaultProps = TextInput.defaultProps || {};
+    TextInput.defaultProps.style = [{fontFamily: "Poppins_400Regular"}, TextInput.defaultProps.style];
+
+    SplashScreen.hideAsync();
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <ErrorBoundary>

@@ -240,9 +240,13 @@ SIMPLE_JWT = {
 }
 
 # AWS S3 Configuration
-# Toggle USE_S3 to False for local development, True for production
+# In production/staging (DEBUG=False) we default to S3 unless explicitly disabled.
 import os
-USE_S3 = os.environ.get('USE_S3', 'False') == 'True'
+_use_s3_env = os.environ.get('USE_S3')
+if _use_s3_env is None:
+    USE_S3 = not DEBUG
+else:
+    USE_S3 = _use_s3_env == 'True'
 
 # AWS credentials - always defined to avoid import errors, but only used when USE_S3=True
 AWS_ACCESS_KEY_ID = 'AKIAXBZV5BYXMHMUVG4S'
@@ -273,6 +277,11 @@ else:
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
+
+# If we're behind a reverse proxy (common in staging/prod), ensure Django builds https absolute URLs.
+# This fixes profile photo URLs being emitted as http://... and avoids mixed content / broken links.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
 
 # Google Calendar API Configuration
 # For production, use environment variables. For development, these defaults are used.

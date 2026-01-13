@@ -18,10 +18,8 @@ import {useRouter, useLocalSearchParams} from "expo-router";
 import {useNavigation} from "@/hooks/useNavigation";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {providerApi, postApi, serviceApi, linkApi, profileCustomizationApi, PlaceProfessionalLink, api} from "@/lib/api";
-import {BookingFlow} from "@/components/booking/BookingFlow";
 import {errorUtils} from "@/lib/api";
 import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from "@/constants/categories";
-import {ServiceDetailModal} from "@/components/service/ServiceDetailModal";
 import {AvailabilityDisplay} from "@/components/profile/AvailabilityDisplay";
 import {useFavorites} from "@/features/favorites";
 
@@ -42,12 +40,13 @@ export default function ProfileDetailScreen() {
   const [linkedPlaces, setLinkedPlaces] = useState<PlaceProfessionalLink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"services" | "posts">("services");
-  const [showBooking, setShowBooking] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
+  const [activeSection, setActiveSection] = useState<"team" | "services" | "posts" | "details" | "hours">("services");
+  const [isHoursExpanded, setIsHoursExpanded] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scrollRef = useRef<any>(null);
+  const stickyHeightRef = useRef<number>(44);
+  const sectionOffsetsRef = useRef<Record<string, number>>({});
   
   // Favorites functionality
   const {toggleFavorite, isFavorited} = useFavorites();
@@ -397,8 +396,114 @@ export default function ProfileDetailScreen() {
     return stars;
   };
 
-  const [selectedService, setSelectedService] = useState<any>(null);
-  const [serviceModalVisible, setServiceModalVisible] = useState(false);
+  const navigateToBooking = (service: any) => {
+    // Match the behavior of the "Solicitar reserva" / "Reservar" button (ServiceDetailModal.handleBookNow)
+    const serviceInstanceId = service?.id;
+    const serviceTypeId =
+      service?.service_type_id || service?.service || service?.service_details?.id || service?.id;
+    const serviceName = service?.name || service?.service_details?.name || "Servicio";
+    const durationMinutes = service?.duration_minutes || service?.duration || service?.time || 60;
+
+    const providerType = profile?.profile_type === "PLACE" ? "place_service" : "professional_service";
+    const providerId =
+      profile?.profile_type === "PLACE"
+        ? (profile?.place_profile?.id ??
+          profile?.place_profile_id ??
+          profile?.place?.id ??
+          profile?.place_id ??
+          profile?.user_place_profile_id ??
+          profile?.user_id ??
+          profile?.user ??
+          0)
+        : (profile?.professional_profile?.id ??
+          profile?.professional_profile_id ??
+          profile?.professional?.id ??
+          profile?.professional_id ??
+          profile?.user_professional_profile_id ??
+          profile?.user_id ??
+          profile?.user ??
+          0);
+
+    const providerName =
+      profile?.profile_type === "PLACE"
+        ? (profile?.place_profile?.name ?? profile?.place?.name ?? profile?.name ?? "")
+        : (profile?.professional_profile
+            ? `${profile?.professional_profile?.name || ""} ${profile?.professional_profile?.last_name || ""}`.trim()
+            : profile?.name || "");
+
+    if (!serviceInstanceId) return;
+
+    router.push({
+      pathname: "/booking",
+      params: {
+        serviceInstanceId: String(serviceInstanceId),
+        serviceTypeId: String(serviceTypeId),
+        serviceName,
+        serviceType: providerType,
+        providerId: String(providerId || 0),
+        providerName,
+        price: String(service?.price ?? 0),
+        duration: String(durationMinutes),
+      },
+    });
+  };
+
+  const categoryNames: string[] =
+    profile?.category && (Array.isArray(profile.category) ? profile.category.length > 0 : profile.category)
+      ? (Array.isArray(profile.category) ? profile.category : [profile.category])
+          .map((catId: string) => MAIN_CATEGORIES.find((c) => c.id === catId)?.name)
+          .filter(Boolean)
+      : [];
+
+  const subCategoryNames: string[] =
+    profile?.sub_categories && Array.isArray(profile.sub_categories) && profile.sub_categories.length > 0
+      ? profile.sub_categories
+          .map((subId: string) => {
+            const categories = Array.isArray(profile.category)
+              ? profile.category
+              : profile.category
+                ? [profile.category]
+                : [];
+            for (const catId of categories) {
+              const subCategory = getSubCategoryById(catId, subId);
+              if (subCategory) return subCategory.name;
+            }
+            return null;
+          })
+          .filter(Boolean)
+      : [];
+
+  const hasTeamSection =
+    (profile?.profile_type === "PLACE" && linkedProfessionalsDetails.length > 0) ||
+    (profile?.profile_type === "PROFESSIONAL" && linkedPlaces.length > 0);
+
+  const sections: Array<{
+    key: "team" | "services" | "details" | "hours";
+    label: string;
+  }> = [
+    ...(hasTeamSection
+      ? ([
+          {
+            key: "team",
+            label: profile?.profile_type === "PLACE" ? "Equipo" : "Trabaja en",
+          },
+        ] as any)
+      : []),
+    {key: "services", label: "Servicios"},
+    {key: "details", label: "Detalles"},
+    {key: "hours", label: "Horario"},
+  ];
+
+  const onSectionLayout = (key: string) => (e: any) => {
+    sectionOffsetsRef.current[key] = e?.nativeEvent?.layout?.y ?? 0;
+  };
+
+  const scrollToSection = (key: typeof activeSection) => {
+    const y = sectionOffsetsRef.current[key];
+    if (typeof y !== "number") return;
+    const topInset = stickyHeightRef.current + 8;
+    scrollRef.current?.scrollTo?.({y: Math.max(0, y - topInset), animated: true});
+  };
 
   const renderServices = () => {
     if (services.length === 0) {
@@ -417,50 +522,47 @@ export default function ProfileDetailScreen() {
         {services.map((service, index) => (
           <TouchableOpacity
             key={service.id || index}
-            style={[
-              styles.serviceCard,
-              {backgroundColor: colors.background, borderColor: colors.border},
-            ]}
+            style={styles.serviceCard}
             activeOpacity={0.7}
             onPress={() => {
-              setSelectedService(service);
-              setServiceModalVisible(true);
+              navigateToBooking(service);
             }}>
-            <View style={styles.serviceImageContainer}>
-              {service.image_url ? (
-                <Image source={{uri: service.image_url}} style={styles.serviceImage} />
-              ) : (
-                <View
-                  style={[styles.serviceImagePlaceholder, {backgroundColor: colors.muted + "20"}]}>
-                  <Ionicons name="briefcase-outline" size={30} color={colors.mutedForeground} />
-                </View>
-              )}
-            </View>
-            <View style={styles.serviceInfo}>
-              <Text style={[styles.serviceName, {color: colors.foreground}]}>{service.name}</Text>
-              <Text style={[styles.serviceDescription, {color: colors.mutedForeground}]}>
-                {service.description}
-              </Text>
-              <View style={styles.serviceDetails}>
-                <View style={styles.serviceDetailItem}>
-                  <Ionicons name="time-outline" color={colors.mutedForeground} size={16} />
-                  <Text style={[styles.serviceDetailText, {color: colors.mutedForeground}]}>
-                    {service.duration_minutes || service.duration} min
-                  </Text>
-                </View>
-                <Text style={[styles.servicePrice, {color: colors.primary}]}>
+            <View style={styles.serviceContent}>
+              <View style={styles.serviceTopLine}>
+                <Text
+                  style={[styles.serviceName, {color: colors.foreground}]}
+                  numberOfLines={1}>
+                  {service.name}
+                </Text>
+                <Text style={[styles.servicePrice, {color: colors.primary}]} numberOfLines={1}>
                   ${service.price} MXN
                 </Text>
               </View>
-              {/* Availability indicator */}
-              {service.availability_summary && service.availability_summary.length > 0 && (
-                <View style={styles.availabilityIndicator}>
-                  <Ionicons name="calendar-outline" color={colors.primary} size={14} />
-                  <Text style={[styles.availabilityText, {color: colors.primary}]}>
-                    Disponible {service.availability_summary.length} días/semana
+
+              {!!service.description && (
+                <Text
+                  style={[styles.serviceDescription, {color: colors.mutedForeground}]}
+                  numberOfLines={1}>
+                  {service.description}
+                </Text>
+              )}
+
+              <View style={styles.serviceMetaLine}>
+                <View style={styles.serviceMetaItem}>
+                  <Ionicons name="time-outline" color={colors.mutedForeground} size={14} />
+                  <Text style={[styles.serviceMetaText, {color: colors.mutedForeground}]}>
+                    {service.duration_minutes || service.duration} min
                   </Text>
                 </View>
-              )}
+                {service.availability_summary && service.availability_summary.length > 0 && (
+                  <View style={styles.serviceMetaItem}>
+                    <Ionicons name="calendar-outline" color={colors.mutedForeground} size={14} />
+                    <Text style={[styles.serviceMetaText, {color: colors.mutedForeground}]}>
+                      {service.availability_summary.length} días/sem
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
           </TouchableOpacity>
         ))}
@@ -598,51 +700,45 @@ export default function ProfileDetailScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.content}
         showsVerticalScrollIndicator={true}
-        contentContainerStyle={styles.scrollContent}>
+        contentContainerStyle={styles.scrollContent}
+        stickyHeaderIndices={[1]}
+        onScroll={(e) => {
+          const y = e?.nativeEvent?.contentOffset?.y ?? 0;
+          const top = y + stickyHeightRef.current + 12;
+          const keys = sections.map((s) => s.key);
+          let current: any = keys[0];
+          for (const k of keys) {
+            const off = sectionOffsetsRef.current[k];
+            if (typeof off === "number" && off <= top) current = k;
+          }
+          if (current && current !== activeSection) setActiveSection(current);
+        }}
+        scrollEventThrottle={16}>
         <Animated.View style={[styles.profileSection, {opacity: fadeAnim}]}>
           {/* Hero Section with Image Slider */}
           <View style={styles.heroSection}>
             {profile.images && profile.images.length > 0 ? (
-              <View style={styles.imageSliderContainer}>
-                <ScrollView
-                  horizontal
-                  pagingEnabled
-                  showsHorizontalScrollIndicator={false}
-                  onMomentumScrollEnd={(event) => {
-                    const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-                    setCurrentImageIndex(index);
-                  }}
-                  style={styles.imageSlider}>
-                  {profile.images.map((imageUrl: string, index: number) => (
-                    <Image
-                      key={index}
-                      source={{uri: imageUrl}}
-                      style={styles.heroImage}
-                      resizeMode="cover"
-                    />
-                  ))}
-                </ScrollView>
+              <View style={styles.heroImageContainer}>
+                <Image
+                  source={{uri: profile.images[0]}}
+                  style={styles.heroImageSingle}
+                  resizeMode="cover"
+                />
 
-                {/* Image Dots Indicator */}
+                {/* Overlay button: view all photos */}
                 {profile.images.length > 1 && (
-                  <View style={styles.dotsContainer}>
-                    {profile.images.map((_, index: number) => (
-                      <View
-                        key={index}
-                        style={[
-                          styles.dot,
-                          {
-                            backgroundColor:
-                              index === currentImageIndex
-                                ? colors.foreground
-                                : colors.mutedForeground + "50",
-                          },
-                        ]}
-                      />
-                    ))}
-                  </View>
+                  <TouchableOpacity
+                    style={styles.viewAllPhotosButton}
+                    activeOpacity={0.85}
+                    onPress={() => router.push(`/profile/photos/${Number(id)}` as any)}>
+                    <Ionicons name="images-outline" size={14} color="#ffffff" />
+                    <Text style={styles.viewAllPhotosText}>
+                      Ver las {profile.images.length} fotos
+                    </Text>
+                  </TouchableOpacity>
                 )}
               </View>
             ) : (
@@ -656,8 +752,8 @@ export default function ProfileDetailScreen() {
 
           {/* Profile Info */}
           <View style={styles.profileInfo}>
-            {/* Row 1: avatar - name/role - settings */}
-            <View style={styles.profileRowTop}>
+            {/* Row 1: avatar + name */}
+            <View style={styles.profileHeaderRow}>
               <View
                 style={[
                   styles.profileAvatar,
@@ -682,325 +778,217 @@ export default function ProfileDetailScreen() {
                   </Text>
                 )}
               </View>
-              <View style={styles.profileNameRole}>
+              <View style={styles.profileHeaderText}>
                 <Text style={[styles.profileName, {color: colors.foreground}]} numberOfLines={1}>
                   {profile.name || "Sin nombre"}
                 </Text>
-                
-                {/* Location */}
-                {(profile.city || profile.street) && (
-                  <Text style={[styles.profileLocation, {color: colors.mutedForeground}]} numberOfLines={1}>
-                    <Ionicons name="location-outline" size={14} color={colors.mutedForeground} />
-                    {" "}
-                    {profile.street && `${profile.street}, `}
-                    {profile.city}{profile.country && `, ${profile.country}`}
+                {/* Top: only category */}
+                {categoryNames.length > 0 && (
+                  <Text style={[styles.profileCategoryOnly, {color: colors.primary}]} numberOfLines={1}>
+                    {categoryNames.join(" · ")}
                   </Text>
-                )}
-                
-                {/* Tags for Category and Subcategories */}
-                <View style={styles.profileTagsContainer}>
-                  {profile.category && (Array.isArray(profile.category) ? profile.category.length > 0 : profile.category) && (
-                    (Array.isArray(profile.category) ? profile.category : [profile.category]).map((catId: string, idx: number) => {
-                      const category = MAIN_CATEGORIES.find((c) => c.id === catId);
-                      return category ? (
-                        <View 
-                          key={idx}
-                          style={[styles.profileTag, {backgroundColor: colors.primary + "20", borderColor: colors.primary + "40"}]}>
-                          <Text style={[styles.profileTagText, {color: colors.primary}]}>
-                            {category.name}
-                          </Text>
-                        </View>
-                      ) : null;
-                    })
-                  )}
-                  {profile.sub_categories && profile.sub_categories.length > 0 && (
-                    profile.sub_categories.map((subId: string, idx: number) => {
-                      // Find the category that contains this subcategory
-                      const categories = Array.isArray(profile.category) 
-                        ? profile.category 
-                        : profile.category ? [profile.category] : [];
-                      let subCategory = null;
-                      for (const catId of categories) {
-                        subCategory = getSubCategoryById(catId, subId);
-                        if (subCategory) break;
-                      }
-                      return subCategory ? (
-                        <View 
-                          key={idx}
-                          style={[styles.profileTag, {backgroundColor: colors.muted, borderColor: colors.border}]}>
-                          <Text style={[styles.profileTagText, {color: colors.mutedForeground}]}>
-                            {subCategory.name}
-                          </Text>
-                        </View>
-                      ) : null;
-                    })
-                  )}
-                </View>
-
-                {/* Bio/Description */}
-                {(profile.bio || profile.description) && (
-                  <Text style={[styles.profileBio, {color: colors.mutedForeground}]} numberOfLines={4}>
-                    {profile.bio || profile.description}
-                  </Text>
-                )}
-                
-                {/* Phone */}
-                {profile.user_phone && (
-                  <View style={styles.profilePhoneContainer}>
-                    <Ionicons name="call-outline" color={colors.mutedForeground} size={16} />
-                    <Text style={[styles.profilePhone, {color: colors.mutedForeground}]}>
-                      {profile.user_phone}
-                    </Text>
-                  </View>
-                )}
-
-                {/* Schedule (Collapsible) */}
-                {profile.availability && Array.isArray(profile.availability) && (
-                  <View
-                    style={[
-                      styles.scheduleAccordion,
-                      {backgroundColor: colors.card, borderColor: colors.border},
-                    ]}>
-                    <TouchableOpacity
-                      style={styles.scheduleHeader}
-                      onPress={() => setIsScheduleExpanded((v) => !v)}
-                      activeOpacity={0.8}>
-                      <View style={styles.scheduleHeaderLeft}>
-                        <Ionicons name="calendar-outline" color={colors.primary} size={18} />
-                        <Text style={[styles.scheduleTitle, {color: colors.foreground}]}>
-                          Horarios
-                        </Text>
-                      </View>
-                      <Ionicons
-                        name={isScheduleExpanded ? "chevron-up" : "chevron-down"}
-                        color={colors.mutedForeground}
-                        size={18}
-                      />
-                    </TouchableOpacity>
-
-                    {isScheduleExpanded && (
-                      <View style={styles.scheduleContent}>
-                        <AvailabilityDisplay availability={profile.availability} />
-                      </View>
-                    )}
-                  </View>
                 )}
               </View>
             </View>
-
           </View>
+        </Animated.View>
 
-          {/* Team Section - Only for Places */}
-          {profile.profile_type === "PLACE" && linkedProfessionalsDetails.length > 0 && (
-            <View style={styles.teamSection}>
-              <Text style={[styles.teamSectionTitle, {color: colors.foreground}]}>Nuestro Equipo</Text>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.teamScrollContainer}>
-                {linkedProfessionalsDetails.map((linkDetail) => {
-                  const getInitials = (name: string) => {
-                    const words = name.split(" ");
-                    if (words.length >= 2) {
-                      return `${words[0].charAt(0)}${words[1].charAt(0)}`.toUpperCase();
-                    }
-                    return name.substring(0, 2).toUpperCase();
-                  };
-                  const borderColor = getAvatarColorFromSubcategory(
-                    linkDetail.category,
-                    linkDetail.sub_categories
-                  );
-                  return (
-                    <TouchableOpacity
-                      key={linkDetail.id}
-                      style={styles.teamStoryItem}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        const profileId = linkDetail.public_profile_id || linkDetail.professional_id;
-                        console.log(`Navigating to professional profile: ${profileId}`);
-                        router.push(`/profile/${profileId}`);
-                      }}>
-                      <View style={[styles.teamStoryRing, {borderColor: borderColor}]}>
-                        <View style={[styles.teamStoryAvatar, {backgroundColor: borderColor}]}>
-                          {linkDetail.user_image ? (
-                            <Image
-                              source={{uri: linkDetail.user_image}}
-                              style={styles.teamStoryAvatarImage}
-                            />
-                          ) : (
-                            <Text style={styles.teamStoryAvatarText}>
-                              {getInitials(linkDetail.professional_name)}
-                            </Text>
-                          )}
-                        </View>
-                      </View>
-                      <Text style={[styles.teamStoryName, {color: colors.foreground}]} numberOfLines={1}>
-                        {linkDetail.professional_name.split(' ')[0]}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          )}
+        {/* Sticky section tabs */}
+        <View
+          style={[styles.stickyTabs, {backgroundColor: colors.background, borderBottomColor: colors.border}]}
+          onLayout={(e) => {
+            stickyHeightRef.current = e?.nativeEvent?.layout?.height ?? 44;
+          }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stickyTabsContent}>
+            {sections.map((s) => {
+              const isActive = activeSection === s.key;
+              return (
+                <TouchableOpacity
+                  key={s.key}
+                  onPress={() => scrollToSection(s.key)}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.stickyTab,
+                    isActive ? {borderBottomColor: colors.primary} : {borderBottomColor: "transparent"},
+                  ]}>
+                  <Text style={[styles.stickyTabText, {color: isActive ? colors.foreground : colors.mutedForeground}]}>
+                    {s.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
 
-          {/* Linked Places Section - Only for Professionals */}
-          {profile.profile_type === "PROFESSIONAL" && (
-            <View style={styles.teamSection}>
-              <Text style={[styles.teamSectionTitle, {color: colors.foreground}]}>Trabaja en</Text>
-              {linkedPlaces.length > 0 ? (
-                <View style={styles.teamContainer}>
-                  {linkedPlaces.map((link) => (
-                    <TouchableOpacity
-                      key={link.id}
-                      style={[styles.teamCard, {backgroundColor: colors.card, borderColor: colors.border}]}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        const profileId = (link as any).public_profile_id || link.place_id;
-                        console.log(`Navigating to place profile: ${profileId}`);
-                        router.push(`/profile/${profileId}`);
-                      }}>
-                      <View style={[styles.teamAvatar, {backgroundColor: colors.primary}]}>
-                        <Ionicons name="business" color="#ffffff" size={24} />
-                      </View>
-                      <View style={styles.teamInfo}>
-                        <Text style={[styles.teamName, {color: colors.foreground}]}>
-                          {link.place_name}
-                        </Text>
-                        <View style={styles.teamMeta}>
-                          <View style={[styles.teamRoleBadge, {backgroundColor: colors.primary + "15"}]}>
-                            <Ionicons name="business" color={colors.primary} size={10} />
-                            <Text style={[styles.teamRole, {color: colors.primary}]}>Establecimiento</Text>
+        {/* Sections */}
+        <View style={styles.sectionsWrap}>
+          {/* Trabaja en / Equipo */}
+          {hasTeamSection && (
+            <View onLayout={onSectionLayout("team")} style={styles.section}>
+              <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+                {profile.profile_type === "PLACE" ? "Nuestro Equipo" : "Trabaja en"}
+              </Text>
+
+              {profile.profile_type === "PLACE" && linkedProfessionalsDetails.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.teamScrollContainer}>
+                  {linkedProfessionalsDetails.map((linkDetail) => {
+                    const getInitials = (name: string) => {
+                      const words = name.split(" ");
+                      if (words.length >= 2) {
+                        return `${words[0].charAt(0)}${words[1].charAt(0)}`.toUpperCase();
+                      }
+                      return name.substring(0, 2).toUpperCase();
+                    };
+                    const borderColor = getAvatarColorFromSubcategory(linkDetail.category, linkDetail.sub_categories);
+                    return (
+                      <TouchableOpacity
+                        key={linkDetail.id}
+                        style={styles.teamStoryItem}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          const profileId = linkDetail.public_profile_id || linkDetail.professional_id;
+                          router.push(`/profile/${profileId}`);
+                        }}>
+                        <View style={[styles.teamStoryRing, {borderColor}]}>
+                          <View style={[styles.teamStoryAvatar, {backgroundColor: borderColor}]}>
+                            {linkDetail.user_image ? (
+                              <Image source={{uri: linkDetail.user_image}} style={styles.teamStoryAvatarImage} />
+                            ) : (
+                              <Text style={styles.teamStoryAvatarText}>{getInitials(linkDetail.professional_name)}</Text>
+                            )}
                           </View>
-                          <View style={styles.linkedBadge}>
-                            <Ionicons name="checkmark-circle" color="#10b981" size={12} />
-                            <Text style={[styles.linkedStatus, {color: colors.mutedForeground}]}>
+                        </View>
+                        <Text style={[styles.teamStoryName, {color: colors.foreground}]} numberOfLines={1}>
+                          {linkDetail.professional_name.split(" ")[0]}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
+
+              {profile.profile_type === "PROFESSIONAL" &&
+                (linkedPlaces.length > 0 ? (
+                  <View style={styles.teamContainer}>
+                    {linkedPlaces.map((link) => (
+                      <TouchableOpacity
+                        key={link.id}
+                        style={styles.teamCard}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          const profileId = (link as any).public_profile_id || link.place_id;
+                          router.push(`/profile/${profileId}`);
+                        }}>
+                        <View style={[styles.teamAvatar, {backgroundColor: colors.primary}]}>
+                          <Ionicons name="business" color="#ffffff" size={18} />
+                        </View>
+                        <View style={styles.teamLine}>
+                          <Text style={[styles.teamLineName, {color: colors.foreground}]} numberOfLines={1}>
+                            {link.place_name}
+                          </Text>
+                          <View style={styles.teamLineStatus}>
+                            <View style={styles.teamStatusDot} />
+                            <Text style={[styles.teamStatusText, {color: colors.mutedForeground}]}>
                               Vinculado
                             </Text>
                           </View>
                         </View>
-                      </View>
-                      <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              ) : (
-                <View style={[styles.emptyTeamCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-                  <Ionicons name="business-outline" color={colors.mutedForeground} size={48} />
-                  <Text style={[styles.emptyTeamTitle, {color: colors.foreground}]}>
-                    No está vinculado a ningún lugar
-                  </Text>
-                  <Text style={[styles.emptyTeamText, {color: colors.mutedForeground}]}>
-                    Este profesional aún no está vinculado a ningún establecimiento
-                  </Text>
-                </View>
-              )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={[styles.emptyTeamCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                    <Ionicons name="business-outline" color={colors.mutedForeground} size={48} />
+                    <Text style={[styles.emptyTeamTitle, {color: colors.foreground}]}>No está vinculado a ningún lugar</Text>
+                    <Text style={[styles.emptyTeamText, {color: colors.mutedForeground}]}>
+                      Este profesional aún no está vinculado a ningún establecimiento
+                    </Text>
+                  </View>
+                ))}
             </View>
           )}
 
-          {/* Tabs + content (hide for places; show only basic info + linked users) */}
-          {profile.profile_type !== "PLACE" && (
-            <>
-              {/* Tab Navigation */}
-              <View style={styles.tabsWrapper}>
-                <View style={[styles.tabsContainer, {backgroundColor: colors.muted + "20"}]}>
-                  <TouchableOpacity
-                    style={[
-                      styles.tab,
-                      activeTab === "services" && [
-                        styles.activeTab,
-                        {backgroundColor: colors.background},
-                      ],
-                    ]}
-                    onPress={() => setActiveTab("services")}>
-                    <Ionicons
-                      name="briefcase-outline"
-                      size={24}
-                      color={activeTab === "services" ? colors.foreground : colors.mutedForeground}
+          {/* Servicios */}
+          <View onLayout={onSectionLayout("services")} style={styles.section}>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Servicios</Text>
+            {renderServices()}
+            <View style={[styles.sectionDivider, {backgroundColor: colors.border}]} />
+          </View>
+
+          {/* Detalles */}
+          <View onLayout={onSectionLayout("details")} style={styles.section}>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Detalles</Text>
+
+            {(profile.bio || profile.description) && (
+              <Text style={[styles.detailText, {color: colors.mutedForeground}]}>
+                {profile.bio || profile.description}
+              </Text>
+            )}
+
+            {subCategoryNames.length > 0 && (
+              <View style={styles.detailRow}>
+                <Ionicons name="pricetag-outline" size={16} color={colors.mutedForeground} />
+                <Text style={[styles.detailRowText, {color: colors.foreground}]} numberOfLines={2}>
+                  {subCategoryNames.join(" · ")}
+                </Text>
+              </View>
+            )}
+
+            {profile.user_phone && (
+              <View style={styles.detailRow}>
+                <Ionicons name="call-outline" size={16} color={colors.mutedForeground} />
+                <Text style={[styles.detailRowText, {color: colors.foreground}]}>{profile.user_phone}</Text>
+              </View>
+            )}
+
+            {(profile.city || profile.street) && (
+              <View style={styles.detailRow}>
+                <Ionicons name="location-outline" size={16} color={colors.mutedForeground} />
+                <Text style={[styles.detailRowText, {color: colors.foreground}]} numberOfLines={2}>
+                  {profile.street && `${profile.street}, `}
+                  {profile.city}
+                  {profile.country && `, ${profile.country}`}
+                </Text>
+              </View>
+            )}
+            <View style={[styles.sectionDivider, {backgroundColor: colors.border}]} />
+          </View>
+
+          {/* Horario (colapsable) */}
+          <View onLayout={onSectionLayout("hours")} style={styles.section}>
+            <TouchableOpacity
+              style={[styles.hoursAccordion, {backgroundColor: colors.card, borderColor: colors.border}]}
+              activeOpacity={0.85}
+              onPress={() => setIsHoursExpanded((v) => !v)}>
+              <View style={styles.hoursHeader}>
+                <Text style={[styles.hoursTitle, {color: colors.foreground}]}>Horario</Text>
+                <Ionicons
+                  name={isHoursExpanded ? "chevron-up" : "chevron-down"}
+                  size={18}
+                  color={colors.mutedForeground}
+                />
+              </View>
+              {isHoursExpanded && (
+                <View style={styles.hoursContent}>
+                  {profile.availability && Array.isArray(profile.availability) ? (
+                    <AvailabilityDisplay
+                      availability={profile.availability}
+                      showHeader={false}
+                      variant="compact"
                     />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.tab,
-                      activeTab === "posts" && [
-                        styles.activeTab,
-                        {backgroundColor: colors.background},
-                      ],
-                    ]}
-                    onPress={() => setActiveTab("posts")}>
-                    <Ionicons
-                      name="images-outline"
-                      size={24}
-                      color={activeTab === "posts" ? colors.foreground : colors.mutedForeground}
-                    />
-                  </TouchableOpacity>
+                  ) : (
+                    <Text style={[styles.detailText, {color: colors.mutedForeground}]}>
+                      No hay horarios disponibles
+                    </Text>
+                  )}
                 </View>
-              </View>
-
-              {/* Tab Content */}
-              <View style={styles.tabContent}>
-                {activeTab === "services" && renderServices()}
-                {activeTab === "posts" && renderPosts()}
-              </View>
-            </>
-          )}
-
-        </Animated.View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
 
 
-      {/* Booking Modal */}
-      {showBooking && (
-        <BookingFlow
-          profile={profile}
-          onClose={() => setShowBooking(false)}
-          onBookingComplete={() => {
-            setShowBooking(false);
-          }}
-        />
-      )}
-
-      {/* Service Detail Modal */}
-      {selectedService && (
-        <ServiceDetailModal
-          visible={serviceModalVisible}
-          service={selectedService}
-          providerType={profile.profile_type === 'PLACE' ? 'place' : 'professional'}
-          providerId={
-            profile.profile_type === 'PLACE'
-              ? (profile.place_profile?.id ??
-                profile.place_profile_id ??
-                profile.place?.id ??
-                profile.place_id ??
-                profile.user_place_profile_id ??
-                profile.user_id ??
-                profile.user)
-              : (profile.professional_profile?.id ??
-                profile.professional_profile_id ??
-                profile.professional?.id ??
-                profile.professional_id ??
-                profile.user_professional_profile_id ??
-                profile.user_id ??
-                profile.user)
-          }
-          providerName={
-            profile.profile_type === 'PLACE'
-              ? (profile.place_profile?.name ?? profile.place?.name ?? profile.name ?? '')
-              : (profile.professional_profile
-                  ? `${profile.professional_profile.name || ''} ${profile.professional_profile.last_name || ''}`.trim()
-                  : profile.name || '')
-          }
-          onClose={() => {
-            setServiceModalVisible(false);
-            setSelectedService(null);
-          }}
-          onBook={(date, slot) => {
-            setServiceModalVisible(false);
-            setShowBooking(true);
-            // You can pass the selected date/slot to BookingFlow if needed
-          }}
-        />
-      )}
     </View>
   );
 }
@@ -1101,17 +1089,13 @@ const styles = StyleSheet.create({
     position: "relative",
     height: 200,
   },
-  imageSliderContainer: {
+  heroImageContainer: {
     position: "relative",
     width: "100%",
     height: "100%",
   },
-  imageSlider: {
+  heroImageSingle: {
     width: "100%",
-    height: "100%",
-  },
-  heroImage: {
-    width: SCREEN_WIDTH,
     height: "100%",
   },
   heroImagePlaceholder: {
@@ -1120,19 +1104,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  dotsContainer: {
+  viewAllPhotosButton: {
     position: "absolute",
-    bottom: 16,
-    left: 0,
-    right: 0,
+    alignSelf: "center",
+    bottom: 12,
     flexDirection: "row",
-    justifyContent: "center",
+    alignItems: "center",
     gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.55)",
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  viewAllPhotosText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: -0.1,
   },
   // ratingBadge/ratingText removed (reseñas/calificaciones no implementadas todavía)
   profileInfo: {
@@ -1140,11 +1128,10 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     alignItems: "stretch",
   },
-  profileRowTop: {
+  profileHeaderRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 14,
-    marginBottom: 16,
   },
   profileAvatar: {
     width: 40,
@@ -1164,8 +1151,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     resizeMode: "cover",
   },
-  profileNameRole: {
+  profileHeaderText: {
     flex: 1,
+  },
+  profileCategoryOnly: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: -0.1,
   },
   profileName: {
     fontSize: 26,
@@ -1178,23 +1171,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 2,
   },
-  profileTagsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
+  profileTagsBlock: {
     marginTop: 8,
     marginBottom: 8,
+    gap: 4,
   },
-  profileTag: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
+  profileTagsText: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: -0.1,
   },
-  profileTagText: {
-    fontSize: 11,
-    fontWeight: "600",
-    textTransform: "capitalize",
+  profileSubtagsText: {
+    fontSize: 12,
+    fontWeight: "500",
+    letterSpacing: -0.1,
   },
   profileBio: {
     fontSize: 14,
@@ -1236,7 +1226,85 @@ const styles = StyleSheet.create({
   },
   scheduleContent: {
     paddingHorizontal: 12,
+    paddingBottom: 10,
+    paddingTop: 6,
+  },
+  stickyTabs: {
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  stickyTabsContent: {
+    gap: 32,
+    paddingRight: 24,
+  },
+  stickyTab: {
     paddingBottom: 12,
+    borderBottomWidth: 2,
+  },
+  stickyTabText: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  sectionsWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 56,
+    gap: 26,
+  },
+  section: {
+    gap: 12,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  sectionDivider: {
+    height: 1,
+    marginTop: 18,
+  },
+  hoursAccordion: {
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  hoursHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  hoursTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: -0.2,
+  },
+  hoursContent: {
+    paddingHorizontal: 12,
+    paddingBottom: 10,
+  },
+  detailText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 6,
+  },
+  detailRowText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
   },
   profileRowActions: {
     flexDirection: "row",
@@ -1322,76 +1390,56 @@ const styles = StyleSheet.create({
     minHeight: 100,
   },
   servicesContainer: {
-    gap: 16,
+    gap: 0,
   },
   serviceCard: {
     flexDirection: "row",
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1,
-  },
-  serviceImageContainer: {
-    width: 80,
-    height: 80,
-    marginRight: 16,
-  },
-  serviceImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 8,
-  },
-  serviceImagePlaceholder: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 8,
-    justifyContent: "center",
     alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 0,
+    borderBottomWidth: 0,
+    gap: 0,
   },
-  serviceInfo: {
+  serviceContent: {
     flex: 1,
+    gap: 4,
+  },
+  serviceTopLine: {
+    flexDirection: "row",
+    alignItems: "baseline",
     justifyContent: "space-between",
+    gap: 12,
   },
   serviceName: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 4,
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: -0.2,
   },
   serviceDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  serviceDetails: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  serviceDetailItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  serviceDetailText: {
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 1,
   },
   servicePrice: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "800",
   },
-  availabilityIndicator: {
+  serviceMetaLine: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
-    gap: 4,
+    gap: 12,
+    marginTop: 2,
+    flexWrap: "wrap",
   },
-  availabilityText: {
+  serviceMetaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  serviceMetaText: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   reviewsContainer: {
     gap: 16,
@@ -1583,25 +1631,20 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   teamContainer: {
-    gap: 12,
+    gap: 0,
   },
   teamCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    borderBottomWidth: 0,
     gap: 12,
   },
   teamAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1610,39 +1653,34 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
   },
-  teamInfo: {
+  teamLine: {
     flex: 1,
-  },
-  teamName: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 6,
-  },
-  teamMeta: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    justifyContent: "space-between",
+    gap: 12,
   },
-  teamRoleBadge: {
+  teamLineName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: -0.2,
+  },
+  teamLineStatus: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
+    gap: 6,
+    flexShrink: 0,
   },
-  teamRole: {
-    fontSize: 11,
-    fontWeight: "600",
+  teamStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#10b981",
   },
-  linkedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  linkedStatus: {
-    fontSize: 11,
-    fontWeight: "500",
+  teamStatusText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   emptyTeamCard: {
     padding: 32,

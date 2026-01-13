@@ -19,6 +19,8 @@ interface AvailabilitySchedule {
 
 interface AvailabilityDisplayProps {
   availability: AvailabilitySchedule[];
+  showHeader?: boolean;
+  variant?: "default" | "compact";
 }
 
 const DAY_NAMES = [
@@ -33,8 +35,13 @@ const DAY_NAMES = [
 
 const DAY_ABBREVIATIONS = ["L", "M", "X", "J", "V", "S", "D"];
 
-export const AvailabilityDisplay = ({availability}: AvailabilityDisplayProps) => {
+export const AvailabilityDisplay = ({
+  availability,
+  showHeader = true,
+  variant = "default",
+}: AvailabilityDisplayProps) => {
   const {colors} = useThemeVariant();
+  const isCompact = variant === "compact";
 
   // Create a map of day_of_week to schedule for easy lookup
   const availabilityMap = new Map<number, AvailabilitySchedule>();
@@ -140,12 +147,25 @@ export const AvailabilityDisplay = ({availability}: AvailabilityDisplayProps) =>
 
   if (!hasAvailability) {
     return (
-      <View style={[styles.container, {backgroundColor: colors.card, borderColor: colors.border}]}>
-        <View style={styles.header}>
-          <Ionicons name="time-outline" size={20} color={colors.mutedForeground} />
-          <Text style={[styles.title, {color: colors.foreground}]}>Horarios</Text>
-        </View>
-        <Text style={[styles.noAvailabilityText, {color: colors.mutedForeground}]}>
+      <View
+        style={[
+          showHeader ? styles.container : styles.containerBare,
+          showHeader ? {backgroundColor: colors.card, borderColor: colors.border} : null,
+          isCompact ? styles.containerCompact : null,
+        ]}>
+        {showHeader && (
+          <View style={[styles.header, isCompact ? styles.headerCompact : null]}>
+            <Ionicons
+              name="time-outline"
+              size={isCompact ? 16 : 20}
+              color={colors.mutedForeground}
+            />
+            <Text style={[styles.title, isCompact ? styles.titleCompact : null, {color: colors.foreground}]}>
+              Horarios
+            </Text>
+          </View>
+        )}
+        <Text style={[styles.noAvailabilityText, isCompact ? styles.noAvailabilityTextCompact : null, {color: colors.mutedForeground}]}>
           No hay horarios disponibles configurados
         </Text>
       </View>
@@ -153,26 +173,36 @@ export const AvailabilityDisplay = ({availability}: AvailabilityDisplayProps) =>
   }
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.card, borderColor: colors.border}]}>
-      <View style={styles.header}>
-        <Ionicons name="time-outline" size={20} color={colors.primary} />
-        <Text style={[styles.title, {color: colors.foreground}]}>Horarios</Text>
-      </View>
+    <View
+      style={[
+        showHeader ? styles.container : styles.containerBare,
+        showHeader ? {backgroundColor: colors.card, borderColor: colors.border} : null,
+        isCompact ? styles.containerCompact : null,
+      ]}>
+      {showHeader && (
+        <View style={[styles.header, isCompact ? styles.headerCompact : null]}>
+          <Ionicons name="time-outline" size={isCompact ? 16 : 20} color={colors.primary} />
+          <Text style={[styles.title, isCompact ? styles.titleCompact : null, {color: colors.foreground}]}>
+            Horarios
+          </Text>
+        </View>
+      )}
 
-      <View style={styles.scheduleList}>
+      <View style={[styles.scheduleList, isCompact ? styles.scheduleListCompact : null]}>
         {groups.map((group, index) => {
           const schedule = group.schedule;
           const isAvailable = schedule?.is_available && schedule.time_slots.length > 0;
 
           return (
-            <View key={index} style={styles.scheduleItem}>
-              <View style={styles.dayInfo}>
-                <View style={styles.dayBadges}>
+            <View key={index} style={[styles.scheduleItem, isCompact ? styles.scheduleItemCompact : null]}>
+              <View style={[styles.dayInfo, isCompact ? styles.dayInfoCompact : null]}>
+                <View style={[styles.dayBadges, isCompact ? styles.dayBadgesCompact : null]}>
                   {group.days.map((day) => (
                     <View
                       key={day}
                       style={[
                         styles.dayBadge,
+                        isCompact ? styles.dayBadgeCompact : null,
                         {
                           backgroundColor: isAvailable
                             ? colors.primary + "20"
@@ -182,6 +212,7 @@ export const AvailabilityDisplay = ({availability}: AvailabilityDisplayProps) =>
                       <Text
                         style={[
                           styles.dayBadgeText,
+                          isCompact ? styles.dayBadgeTextCompact : null,
                           {
                             color: isAvailable ? colors.primary : colors.mutedForeground,
                           },
@@ -191,11 +222,11 @@ export const AvailabilityDisplay = ({availability}: AvailabilityDisplayProps) =>
                     </View>
                   ))}
                 </View>
-                <Text style={[styles.dayRange, {color: colors.foreground}]}>
+                <Text style={[styles.dayRange, isCompact ? styles.dayRangeCompact : null, {color: colors.foreground}]}>
                   {formatDayRange(group.days)}
                 </Text>
               </View>
-              <Text style={[styles.timeRange, {color: colors.mutedForeground}]}>
+              <Text style={[styles.timeRange, isCompact ? styles.timeRangeCompact : null, {color: colors.mutedForeground}]}>
                 {isAvailable ? formatTimeSlots(schedule!.time_slots) : "No disponible"}
               </Text>
             </View>
@@ -213,15 +244,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 16,
   },
+  containerBare: {
+    padding: 0,
+  },
+  containerCompact: {
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 0,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginBottom: 16,
   },
+  headerCompact: {
+    marginBottom: 10,
+    gap: 6,
+  },
   title: {
     fontSize: 18,
     fontWeight: "600",
+  },
+  titleCompact: {
+    fontSize: 14,
+    fontWeight: "700",
   },
   noAvailabilityText: {
     fontSize: 14,
@@ -229,20 +276,36 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingVertical: 8,
   },
+  noAvailabilityTextCompact: {
+    fontSize: 12,
+    paddingVertical: 4,
+  },
   scheduleList: {
     gap: 12,
   },
+  scheduleListCompact: {
+    gap: 8,
+  },
   scheduleItem: {
     gap: 8,
+  },
+  scheduleItemCompact: {
+    gap: 4,
   },
   dayInfo: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
+  dayInfoCompact: {
+    gap: 6,
+  },
   dayBadges: {
     flexDirection: "row",
     gap: 4,
+  },
+  dayBadgesCompact: {
+    gap: 3,
   },
   dayBadge: {
     width: 28,
@@ -251,18 +314,33 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  dayBadgeCompact: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
   dayBadgeText: {
     fontSize: 12,
     fontWeight: "700",
+  },
+  dayBadgeTextCompact: {
+    fontSize: 11,
   },
   dayRange: {
     fontSize: 15,
     fontWeight: "600",
     flex: 1,
   },
+  dayRangeCompact: {
+    fontSize: 13,
+  },
   timeRange: {
     fontSize: 14,
     marginLeft: 36, // Align with day range text
+  },
+  timeRangeCompact: {
+    fontSize: 12,
+    marginLeft: 28,
   },
 });
 

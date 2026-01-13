@@ -14,6 +14,7 @@ interface CalendarViewProps {
   minDate?: string;
   maxDate?: string;
   disabledDaysIndexes?: number[];
+  showLegend?: boolean;
 }
 
 export const CalendarView = ({
@@ -23,9 +24,18 @@ export const CalendarView = ({
   minDate,
   maxDate,
   disabledDaysIndexes,
+  showLegend = true,
 }: CalendarViewProps) => {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
+
+  const formatMonthYear = (d: any) => {
+    // react-native-calendars passes an XDate-like object on web; normalize to JS Date.
+    const jsDate: Date = d?.toDate?.() ?? new Date(d);
+    const text = new Intl.DateTimeFormat("es-MX", {month: "long", year: "numeric"}).format(jsDate);
+    // Capitalize first letter (e.g., "enero 2026" -> "Enero 2026")
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  };
 
   const getStatusColor = (status: ReservationStatus) => {
     switch (status) {
@@ -82,6 +92,11 @@ export const CalendarView = ({
         markingType="multi-dot"
         markedDates={markedDates}
         onDayPress={(day: DateData) => onDayPress(day.dateString)}
+        renderHeader={(date) => (
+          <Text style={[styles.monthHeader, {color: colors.foreground}]}>
+            {formatMonthYear(date)}
+          </Text>
+        )}
         minDate={minDate}
         maxDate={maxDate}
         disabledDaysIndexes={disabledDaysIndexes}
@@ -110,23 +125,25 @@ export const CalendarView = ({
       />
 
       {/* Legend */}
-      <View style={[styles.legend, {backgroundColor: colors.card, borderTopColor: colors.border}]}>
-        <Text style={[styles.legendTitle, {color: colors.foreground}]}>Estado:</Text>
-        <View style={styles.legendItems}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, {backgroundColor: "#10b981"}]} />
-            <Text style={[styles.legendText, {color: colors.foreground}]}>Confirmada</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, {backgroundColor: "#f59e0b"}]} />
-            <Text style={[styles.legendText, {color: colors.foreground}]}>Pendiente</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, {backgroundColor: "#6b7280"}]} />
-            <Text style={[styles.legendText, {color: colors.foreground}]}>Completada</Text>
+      {showLegend && (
+        <View style={[styles.legend, {backgroundColor: colors.card, borderTopColor: colors.border}]}>
+          <Text style={[styles.legendTitle, {color: colors.foreground}]}>Estado:</Text>
+          <View style={styles.legendItems}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, {backgroundColor: "#10b981"}]} />
+              <Text style={[styles.legendText, {color: colors.foreground}]}>Confirmada</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, {backgroundColor: "#f59e0b"}]} />
+              <Text style={[styles.legendText, {color: colors.foreground}]}>Pendiente</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, {backgroundColor: "#6b7280"}]} />
+              <Text style={[styles.legendText, {color: colors.foreground}]}>Completada</Text>
+            </View>
           </View>
         </View>
-      </View>
+      )}
     </View>
   );
 };
@@ -134,6 +151,12 @@ export const CalendarView = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "transparent",
+  },
+  monthHeader: {
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+    paddingVertical: 8,
   },
   legend: {
     padding: 16,
