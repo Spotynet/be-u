@@ -233,9 +233,6 @@ export default function PostDetailScreen() {
             <TouchableOpacity style={styles.actionButton}>
               <Ionicons name="chatbubble-outline" size={26} color={colors.foreground} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="paper-plane-outline" size={26} color={colors.foreground} />
-            </TouchableOpacity>
           </View>
         </View>
 

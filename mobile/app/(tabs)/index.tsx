@@ -112,6 +112,15 @@ export default function Home() {
     }
   };
 
+  const getCommentCount = (post: any) =>
+    Number.isFinite(post?.comments_count)
+      ? post.comments_count
+      : Number.isFinite(post?.commentsCount)
+        ? post.commentsCount
+        : Number.isFinite(post?.stats?.comments)
+          ? post.stats.comments
+          : 0;
+
   // Toggle like function
   const toggleLike = (postId: number) => {
     setLikedPosts((prev) => {
@@ -749,7 +758,7 @@ export default function Home() {
             }}>
             <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={22} />
             <Text style={[styles.postActionText, {color: colors.foreground}]}>
-              {post.comments_count || 0}
+              {getCommentCount(post)}
             </Text>
           </TouchableOpacity>
           {/* Reservar Button */}
@@ -884,13 +893,7 @@ export default function Home() {
         <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
           <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={24} />
           <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.comments}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
-          <Ionicons name="paper-plane-outline" color={colors.mutedForeground} size={24} />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.shares}
+            {getCommentCount(post)}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.postActionBookmark} activeOpacity={0.7}>
@@ -960,7 +963,7 @@ export default function Home() {
         <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
           <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={24} />
           <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.comments}
+            {getCommentCount(post)}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.postActionBookmark} activeOpacity={0.7}>
@@ -1031,7 +1034,7 @@ export default function Home() {
         <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
           <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={24} />
           <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.comments}
+            {getCommentCount(post)}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.postActionBookmark} activeOpacity={0.7}>
@@ -1091,11 +1094,8 @@ export default function Home() {
         <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
           <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={24} />
           <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.comments}
+            {getCommentCount(post)}
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
-          <Ionicons name="paper-plane-outline" color={colors.mutedForeground} size={24} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.postActionBookmark} activeOpacity={0.7}>
           <Ionicons name="bookmark-outline" color={colors.mutedForeground} size={24} />
@@ -1169,11 +1169,8 @@ export default function Home() {
           <TouchableOpacity style={styles.reelAction} activeOpacity={0.7}>
             <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={20} />
             <Text style={[styles.reelActionText, {color: colors.foreground}]}>
-              {post.stats.comments}
+              {getCommentCount(post)}
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.reelAction} activeOpacity={0.7}>
-            <Ionicons name="paper-plane-outline" color={colors.mutedForeground} size={20} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.reelActionBookmark} activeOpacity={0.7}>
             <Ionicons name="bookmark-outline" color={colors.mutedForeground} size={20} />
@@ -1232,11 +1229,8 @@ export default function Home() {
         <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
           <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={24} />
           <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.comments}
+            {getCommentCount(post)}
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
-          <Ionicons name="paper-plane-outline" color={colors.mutedForeground} size={24} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.postActionBookmark} activeOpacity={0.7}>
           <Ionicons name="bookmark-outline" color={colors.mutedForeground} size={24} />
@@ -1288,9 +1282,6 @@ export default function Home() {
         <TouchableOpacity style={styles.tipAction} activeOpacity={0.7}>
           <Ionicons name="bookmark" color="#ffffff" size={22} />
           <Text style={styles.tipActionText}>{post.stats.saves}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tipAction} activeOpacity={0.7}>
-          <Ionicons name="share-social-outline" color="#ffffff" size={22} />
         </TouchableOpacity>
       </View>
     </View>
@@ -1352,11 +1343,8 @@ export default function Home() {
         <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
           <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={24} />
           <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.comments}
+            {getCommentCount(post)}
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
-          <Ionicons name="paper-plane-outline" color={colors.mutedForeground} size={24} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.postActionBookmark} activeOpacity={0.7}>
           <Ionicons name="bookmark-outline" color={colors.mutedForeground} size={24} />
@@ -1418,13 +1406,7 @@ export default function Home() {
         <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
           <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={24} />
           <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.comments}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
-          <Ionicons name="paper-plane-outline" color={colors.mutedForeground} size={24} />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.shares}
+            {getCommentCount(post)}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.postActionBookmark} activeOpacity={0.7}>

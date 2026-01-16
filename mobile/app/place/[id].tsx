@@ -484,11 +484,6 @@ export default function PlaceDetailScreen() {
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerButton}>
             <View style={styles.headerButtonBg}>
-              <Ionicons name="share-outline" color="#ffffff" size={24} />
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton}>
-            <View style={styles.headerButtonBg}>
               <Ionicons name="heart-outline" color="#ffffff" size={24} />
             </View>
           </TouchableOpacity>

@@ -174,7 +174,17 @@ export default function Notificaciones() {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
         <View style={[styles.header, {backgroundColor: colors.primary}]}>
-          <Text style={styles.headerTitle}>Notificaciones</Text>
+          <View style={styles.headerTop}>
+            <View style={styles.headerLeft}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => router.back()}
+                activeOpacity={0.7}>
+                <Ionicons name="arrow-back" color="#ffffff" size={22} />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Notificaciones</Text>
+            </View>
+          </View>
         </View>
         <View style={styles.centeredContainer}>
           <Ionicons name="notifications-outline" size={80} color={colors.mutedForeground} />
@@ -200,7 +210,17 @@ export default function Notificaciones() {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
         <View style={[styles.header, {backgroundColor: colors.primary}]}>
-          <Text style={styles.headerTitle}>Notificaciones</Text>
+          <View style={styles.headerTop}>
+            <View style={styles.headerLeft}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => router.back()}
+                activeOpacity={0.7}>
+                <Ionicons name="arrow-back" color="#ffffff" size={22} />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Notificaciones</Text>
+            </View>
+          </View>
         </View>
         <View style={styles.centeredContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -217,7 +237,15 @@ export default function Notificaciones() {
       {/* Header */}
       <View style={[styles.header, {backgroundColor: colors.primary}]}>
         <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>Notificaciones</Text>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+              activeOpacity={0.7}>
+              <Ionicons name="arrow-back" color="#ffffff" size={22} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Notificaciones</Text>
+          </View>
           {unreadCount > 0 && (
             <TouchableOpacity
               style={styles.markAllButton}
@@ -437,6 +465,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  backButton: {
+    padding: 6,
   },
   headerTitle: {
     color: "#ffffff",

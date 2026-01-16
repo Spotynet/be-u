@@ -219,6 +219,7 @@ export function FavoritesTab() {
               <TouchableOpacity
                 key={post.id}
                 style={styles.postCard}
+                onPress={() => router.push(`/post/${post.id}` as any)}
                 activeOpacity={0.7}>
                 {post.media && post.media.length > 0 ? (
                   <Image 

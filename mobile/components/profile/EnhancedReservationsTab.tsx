@@ -32,7 +32,7 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
   const router = useRouter();
   const {user, isAuthenticated} = useAuth();
 
-  const [isCalendarExpanded, setIsCalendarExpanded] = useState(false);
+  const [isCalendarExpanded] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | undefined>();
   const [timeTab, setTimeTab] = useState<"upcoming" | "history">("upcoming");
   const [teamLinks, setTeamLinks] = useState<any[]>([]);
@@ -348,13 +348,11 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
   return (
     <View style={styles.container}>
       {/* Collapsible Calendar Header */}
-      <TouchableOpacity
+      <View
         style={[
           styles.calendarHeader,
           {backgroundColor: colors.card, borderBottomColor: colors.border},
-        ]}
-        onPress={() => setIsCalendarExpanded(!isCalendarExpanded)}
-        activeOpacity={0.7}>
+        ]}>
         <View style={styles.calendarHeaderContent}>
           <View style={styles.calendarHeaderLeft}>
             <Ionicons name="calendar-outline" size={20} color={colors.primary} />
@@ -362,35 +360,29 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
               {selectedDate ? `Filtrar por fecha: ${selectedDate}` : "Filtrar por fecha"}
             </Text>
           </View>
-          <Ionicons
-            name={isCalendarExpanded ? "chevron-up" : "chevron-down"}
-            size={20}
-            color={colors.mutedForeground}
-          />
         </View>
-      </TouchableOpacity>
+      </View>
 
       {/* Expandable Calendar */}
-      {isCalendarExpanded && (
-        <View style={[styles.calendarContainer, {backgroundColor: colors.card}]}>
-          <CalendarView
-            reservations={reservations}
-            onDayPress={handleDayPress}
-            selectedDate={selectedDate}
-          />
-          {selectedDate && (
-            <TouchableOpacity
-              style={styles.clearFilterButton}
-              onPress={() => setSelectedDate(undefined)}
-              activeOpacity={0.7}>
-              <Ionicons name="close-circle" size={16} color={colors.mutedForeground} />
-              <Text style={[styles.clearFilterText, {color: colors.mutedForeground}]}>
-                Limpiar filtro
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
+      <View style={[styles.calendarContainer, {backgroundColor: colors.card}]}>
+        <CalendarView
+          reservations={reservations}
+          onDayPress={handleDayPress}
+          selectedDate={selectedDate}
+          showLegend={false}
+        />
+        {selectedDate && (
+          <TouchableOpacity
+            style={styles.clearFilterButton}
+            onPress={() => setSelectedDate(undefined)}
+            activeOpacity={0.7}>
+            <Ionicons name="close-circle" size={16} color={colors.mutedForeground} />
+            <Text style={[styles.clearFilterText, {color: colors.mutedForeground}]}>
+              Limpiar filtro
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Tabs: Próximas / Historial */}
       <View

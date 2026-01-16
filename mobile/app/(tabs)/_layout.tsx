@@ -70,13 +70,17 @@ export default function TabLayout() {
       <Tabs.Screen
         name="notificaciones"
         options={{
+          // Hidden from tab bar; opened via header icon in index.tsx
+          href: null,
           title: "Notificaciones",
+        }}
+      />
+      <Tabs.Screen
+        name="calendario"
+        options={{
+          title: "Calendario",
           tabBarIcon: ({color, focused}) => (
-            <Ionicons
-              name={focused ? "notifications" : "notifications-outline"}
-              color={color}
-              size={24}
-            />
+            <Ionicons name={focused ? "calendar" : "calendar-outline"} color={color} size={24} />
           ),
         }}
       />

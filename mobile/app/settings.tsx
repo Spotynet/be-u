@@ -233,19 +233,14 @@ export default function Settings() {
       {/* Header */}
       <View
         style={[
-        styles.header,
-        {
-          backgroundColor: colors.background,
-          borderBottomColor: colors.border,
-          paddingTop: Math.max(insets.top + 16, 20),
-        },
-      ]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.7}>
-          <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-        </TouchableOpacity>
+          styles.header,
+          {
+            backgroundColor: colors.background,
+            borderBottomColor: colors.border,
+            paddingTop: Math.max(insets.top + 16, 20),
+          },
+        ]}>
+        <View style={styles.headerSpacer} />
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>Configuración</Text>
         <TouchableOpacity
           style={styles.settingsIconButton}
@@ -333,6 +328,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   placeholder: {
+    width: 40,
+  },
+  headerSpacer: {
     width: 40,
   },
   settingsIconButton: {

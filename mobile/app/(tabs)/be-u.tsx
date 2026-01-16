@@ -626,14 +626,6 @@ export default function BeU() {
               <Text style={styles.primaryActionText}>Volver al chat</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.secondaryAction, {borderColor: colors.border}]}
-              activeOpacity={0.9}>
-              <Ionicons name="share-social" color={colors.foreground} size={20} />
-              <Text style={[styles.secondaryActionText, {color: colors.foreground}]}>
-                Compartir
-              </Text>
-            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>

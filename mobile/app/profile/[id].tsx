@@ -708,9 +708,6 @@ export default function ProfileDetailScreen() {
               size={24} 
             />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerActionButton}>
-            <Ionicons name="share-outline" color={colors.foreground} size={24} />
-          </TouchableOpacity>
         </View>
       </View>
 
