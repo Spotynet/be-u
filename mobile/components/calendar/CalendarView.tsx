@@ -100,8 +100,19 @@ export const CalendarView = ({
         dayComponent={({date, state}: any) => {
           const dateString: string | undefined = date?.dateString;
           const dayLabel: string | undefined = typeof date?.day === "number" ? String(date.day) : undefined;
-          const isDisabled = state === "disabled";
-          const isSelected = !!(dateString && markedDates?.[dateString]?.selected);
+          
+          // Check if this day's weekday index is in the disabled list
+          // dateString is "YYYY-MM-DD", we parse it to get the JS day (0=Sun, 1=Mon, etc.)
+          let isWeekdayDisabled = false;
+          if (dateString && disabledDaysIndexes && disabledDaysIndexes.length > 0) {
+            const [y, m, d] = dateString.split("-").map(Number);
+            const jsDate = new Date(y, m - 1, d);
+            const weekdayIndex = jsDate.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+            isWeekdayDisabled = disabledDaysIndexes.includes(weekdayIndex);
+          }
+          
+          const isDisabled = state === "disabled" || isWeekdayDisabled;
+          const isSelected = !!(dateString && markedDates?.[dateString]?.selected) && !isDisabled;
 
           return (
             <TouchableOpacity

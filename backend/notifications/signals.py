@@ -210,29 +210,51 @@ def create_reservation_notification(sender, instance, created, **kwargs):
         # Create client notification
         client_notif_created = create_client_notification_for_new_reservation(instance, provider_name)
 
+        # Send confirmation email to provider
+        # Note: Google Calendar doesn't send email to the organizer (professional), only to attendees
+        # So we need to send a custom email to the professional
+        try:
+            from .emails import send_reservation_notification_to_provider
+            email_sent_to_provider = send_reservation_notification_to_provider(instance)
+            if email_sent_to_provider:
+                logger.info(f"✅ Confirmation email sent to provider for reservation {instance.code}")
+            else:
+                logger.warning(f"⚠️ Failed to send confirmation email to provider for reservation {instance.code}")
+        except Exception as e:
+            logger.error(f"❌ Error sending confirmation email to provider for reservation {instance.code}: {e}", exc_info=True)
+
+        # Note: Client email is sent automatically via Google Calendar when the event is created
+        # The client is added as an attendee with responseStatus='accepted'
+        # This ensures the client receives the calendar invite without requiring RSVP confirmation
+
         # If reservations are created already CONFIRMED, also create Google Calendar event immediately
+        # This is done in a separate try/except to ensure it doesn't block reservation creation
         if instance.status == Reservation.Status.CONFIRMED:
             try:
                 from calendar_integration.event_helpers import create_reservation_event
                 calendar_event = create_reservation_event(instance)
                 if calendar_event and provider_user:
-                    _create_notification(
-                        user=provider_user,
-                        type=Notification.NotificationType.RESERVATION,
-                        title="Evento creado en Google Calendar",
-                        message=f"Se creó un evento en tu Google Calendar para la reserva {instance.code}",
-                        content_object=instance,
-                        metadata={
-                            'reservation_code': instance.code,
-                            'service_name': instance.service.name,
-                            'client_name': get_client_name_from_reservation(instance),
-                            'calendar_event_id': calendar_event.google_event_id,
-                            'calendar_event_link': calendar_event.event_link,
-                            'status': instance.status,
-                        }
-                    )
+                    try:
+                        _create_notification(
+                            user=provider_user,
+                            type=Notification.NotificationType.RESERVATION,
+                            title="Evento creado en Google Calendar",
+                            message=f"Se creó un evento en tu Google Calendar para la reserva {instance.code}",
+                            content_object=instance,
+                            metadata={
+                                'reservation_code': instance.code,
+                                'service_name': instance.service.name,
+                                'client_name': get_client_name_from_reservation(instance),
+                                'calendar_event_id': calendar_event.google_event_id,
+                                'calendar_event_link': calendar_event.event_link,
+                                'status': instance.status,
+                            }
+                        )
+                    except Exception as notif_error:
+                        logger.error(f"Failed to create calendar notification for reservation {instance.code}: {notif_error}", exc_info=True)
             except Exception as e:
-                logger.warning(f"Could not create calendar event for reservation {instance.code}: {e}")
+                # Log error but don't let it prevent reservation creation
+                logger.error(f"Could not create calendar event for reservation {instance.code}: {e}", exc_info=True)
         
         # Log summary
         if provider_notif_created and client_notif_created:

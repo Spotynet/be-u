@@ -231,15 +231,17 @@ class GoogleCalendarService:
             event_body['location'] = event_data.location
         
         if event_data.attendees:
+            # Mark all attendees as accepted to avoid RSVP prompts
+            # Google Calendar will still send notification emails
             event_body['attendees'] = [
-                {'email': email} for email in event_data.attendees
+                {'email': email, 'responseStatus': 'accepted'} for email in event_data.attendees
             ]
         
         try:
             event = service.events().insert(
                 calendarId=calendar_id,
                 body=event_body,
-                sendUpdates='all' if event_data.attendees else 'none'
+                sendUpdates='all' if event_data.attendees else 'none'  # Send emails but attendees are pre-accepted
             ).execute()
             
             logger.info(f"Created calendar event {event['id']} for user {user.id}")

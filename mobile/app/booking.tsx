@@ -46,7 +46,8 @@ export default function BookingScreen() {
     useReservationFlow();
 
   const [localNotes, setLocalNotes] = useState("");
-  const UNAVAILABLE_MSG = "EL profesional no esta disponible en la fecha seleccionada";
+  const UNAVAILABLE_MSG =
+    "El/La profesional no esta disponible en la fecha seleccionada. Seleccione otro día.";
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(() => new Date());
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
@@ -584,27 +585,15 @@ export default function BookingScreen() {
       };
 
       const {reservationApi} = await import("@/lib/api");
+      
+      console.log("Sending reservation data:", reservationData);
+      
       const response = await reservationApi.createReservation(reservationData);
       
       console.log("Reservation created successfully:", response.data);
       
       // Set success state for visual feedback
       setReservationSuccess(true);
-      
-      // Show success feedback briefly, then redirect automatically
-      Alert.alert(
-        "¡Solicitud Enviada!",
-        "Tu solicitud de reserva ha sido enviada y está pendiente de confirmación por parte del proveedor. Te notificaremos cuando sea aceptada o rechazada.\n\nRedirigiendo a tus reservas...",
-        [
-          {
-            text: "Ver Mis Reservas",
-            onPress: () => {
-              router.push("/(tabs)/perfil");
-            },
-          },
-        ],
-        { cancelable: false }
-      );
       
       // Auto-redirect to profile/reservations page after showing success message
       // Give user time to see the success message (2 seconds)
@@ -613,7 +602,10 @@ export default function BookingScreen() {
       }, 2000);
     } catch (err: any) {
       console.error("Error creating reservation:", err);
+      console.error("Error response:", err?.response);
       console.error("Error response data:", err?.response?.data);
+      console.error("Error message:", err?.message);
+      console.error("Full error:", JSON.stringify(err, null, 2));
       
       // Handle Django REST Framework validation errors
       let errorMessage = "No se pudo crear la reserva";

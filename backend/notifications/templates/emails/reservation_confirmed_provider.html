@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Reserva Confirmada</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 0;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .notification-icon {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .notification-icon span {
+            font-size: 64px;
+        }
+        .greeting {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333333;
+        }
+        .message {
+            font-size: 16px;
+            color: #666666;
+            margin-bottom: 30px;
+            line-height: 1.8;
+        }
+        .reservation-details {
+            background-color: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 14px;
+        }
+        .detail-value {
+            color: #212529;
+            font-size: 14px;
+            text-align: right;
+        }
+        .reservation-code {
+            background-color: #667eea;
+            color: #ffffff;
+            padding: 15px 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 25px 0;
+            font-weight: 600;
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+        .client-info {
+            background-color: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        .client-info h3 {
+            margin-top: 0;
+            color: #1976D2;
+            font-size: 16px;
+        }
+        .client-info p {
+            margin: 8px 0;
+            color: #424242;
+            font-size: 14px;
+        }
+        .notes-section {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px 20px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        .notes-section strong {
+            color: #856404;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Nueva Reserva Confirmada</h1>
+        </div>
+        
+        <div class="content">
+            <div class="notification-icon">
+                <span>📅</span>
+            </div>
+            
+            <div class="greeting">
+                Hola {{ provider_name }},
+            </div>
+            
+            <div class="message">
+                Tienes una nueva reserva confirmada. A continuación encontrarás todos los detalles.
+            </div>
+            
+            <div class="reservation-details">
+                <div class="detail-row">
+                    <span class="detail-label">Servicio:</span>
+                    <span class="detail-value">{{ service_name }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Fecha:</span>
+                    <span class="detail-value">{{ date }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Hora:</span>
+                    <span class="detail-value">{{ time }} - {{ end_time }}</span>
+                </div>
+            </div>
+            
+            <div class="reservation-code">
+                Código de Reserva: {{ reservation_code }}
+            </div>
+            
+            <div class="client-info">
+                <h3>Información del Cliente</h3>
+                <p><strong>Nombre:</strong> {{ client_name }}</p>
+                <p><strong>Email:</strong> {{ client_email }}</p>
+                <p><strong>Teléfono:</strong> {{ client_phone }}</p>
+            </div>
+            
+            {% if notes %}
+            <div class="notes-section">
+                <strong>Notas del Cliente:</strong><br>
+                {{ notes }}
+            </div>
+            {% endif %}
+            
+            <div class="message" style="margin-top: 30px;">
+                Esta reserva ya está confirmada y aparecerá en tu calendario. Si necesitas modificar o cancelar, puedes hacerlo desde la aplicación.
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Este es un email automático de notificación. Por favor no respondas a este mensaje.</p>
+            <p>© 2024 Be-U. Todos los derechos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>

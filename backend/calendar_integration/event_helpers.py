@@ -75,13 +75,21 @@ def create_reservation_event(reservation) -> Optional[CalendarEvent]:
             location_parts.append(f"CP {provider.postal_code}")
         location = ", ".join(location_parts)
     
+    # Add both client and provider as attendees - Google Calendar will send email automatically to both
+    # Both attendees will be marked as 'accepted' in services.py to avoid RSVP prompts
+    attendees_list = []
+    if client.user.email:
+        attendees_list.append(client.user.email)
+    if provider_user.email:
+        attendees_list.append(provider_user.email)
+    
     event_data = CalendarEventData(
         summary=f"Reserva: {service.name}",
         description="\n".join(description_parts),
         start_datetime=start_datetime,
         end_datetime=end_datetime,
         location=location,
-        attendees=[client.user.email] if client.user.email else None,
+        attendees=attendees_list if attendees_list else None,  # Google Calendar will send email notification to all attendees
         timezone='America/Mexico_City',
     )
     

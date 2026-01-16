@@ -134,12 +134,14 @@ export default function ProfessionalDetailScreen() {
       });
 
       // Transform API response to match expected format for UI
+      const displayName =
+        professionalData.user?.display_name || professionalData.display_name || "";
       const transformedProfessional: ProfessionalProfile = {
         id: professionalData.id,
         user_id: professionalData.user?.id || professionalData.id,
         email: professionalData.user?.email || "",
-        name: professionalData.user?.first_name || professionalData.name || "Nombre no disponible",
-        last_name: professionalData.user?.last_name || professionalData.last_name || "",
+        name: displayName || professionalData.user?.first_name || professionalData.name || "Nombre no disponible",
+        last_name: displayName ? "" : professionalData.user?.last_name || professionalData.last_name || "",
         bio: professionalData.bio,
         city: professionalData.city || "Ciudad no especificada",
         rating: professionalData.rating || 4.5,
@@ -362,7 +364,7 @@ export default function ProfessionalDetailScreen() {
           <View style={styles.profileHeader}>
             <View style={styles.profileTextContainer}>
               <Text style={[styles.profileName, {color: colors.foreground}]}>
-                {professional.name} {professional.last_name}
+                {`${professional.name} ${professional.last_name}`.trim()}
               </Text>
               <View style={styles.profileMeta}>
                 <View style={styles.metaItem}>
@@ -596,7 +598,9 @@ export default function ProfessionalDetailScreen() {
                               serviceName: service.name,
                               serviceType: "professional_service",
                               providerId: providerId,
-                              providerName: professional ? `${professional.name} ${professional.last_name}` : "",
+                              providerName: professional
+                                ? `${professional.name} ${professional.last_name}`.trim()
+                                : "",
                               price: service.price.toString(),
                               duration: service.duration_minutes?.toString() || service.time?.toString() || service.duration?.toString() || "60",
                             },

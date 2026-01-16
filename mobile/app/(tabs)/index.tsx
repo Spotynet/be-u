@@ -1470,12 +1470,15 @@ export default function Home() {
             paddingTop: insets.top + 22,
           },
         ]}>
-        <Image
-          source={require("@/assets/images/be-u.png")}
-          style={styles.headerLogo}
-          resizeMode="contain"
-        />
-        <View style={styles.headerActions}>
+        <View style={styles.headerLeft}>
+          <Image
+            source={require("@/assets/images/be-u.png")}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+        </View>
+
+        <View style={styles.headerCenter}>
           <View style={styles.categorySelector}>
             {/* Always Expanded - Horizontal Options */}
             <View style={[styles.expandedCategoryOptions, {backgroundColor: colors.card}]}>
@@ -1511,6 +1514,12 @@ export default function Home() {
               ))}
             </View>
           </View>
+        </View>
+
+        <View style={styles.headerRight} pointerEvents="box-none">
+          <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/notificaciones")}>
+            <Ionicons name="notifications-outline" color={colors.foreground} size={24} />
+          </TouchableOpacity>
           {user?.role !== "CLIENT" && (
             <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/create-post")}>
               <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
@@ -1624,11 +1633,30 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
     paddingTop: 30,
     paddingBottom: 8,
     borderBottomWidth: 1,
+  },
+  headerLeft: {
+    position: "absolute",
+    left: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerCenter: {
+    maxWidth: "72%",
+    flexShrink: 1,
+    alignItems: "center",
+  },
+  headerRight: {
+    position: "absolute",
+    right: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   headerTitle: {
     fontSize: 32,
@@ -1643,18 +1671,11 @@ const styles = StyleSheet.create({
   headerLogo: {
     height: 36,
     width: 36,
-    marginLeft: 12,
   },
   headerTitleText: {
     fontSize: 24,
     fontWeight: "700",
     letterSpacing: -0.5,
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingRight: 20,
   },
   categorySelector: {
     flexDirection: "row",
@@ -1687,6 +1708,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
     gap: 4,
+    flexShrink: 1,
   },
   expandedCategoryOption: {
     flexDirection: "row",

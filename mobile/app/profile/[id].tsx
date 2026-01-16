@@ -425,10 +425,17 @@ export default function ProfileDetailScreen() {
 
     const providerName =
       profile?.profile_type === "PLACE"
-        ? (profile?.place_profile?.name ?? profile?.place?.name ?? profile?.name ?? "")
-        : (profile?.professional_profile
+        ? (profile?.place_profile?.display_name ??
+          profile?.place_profile?.name ??
+          profile?.place?.name ??
+          profile?.display_name ??
+          profile?.name ??
+          "")
+        : (profile?.professional_profile?.display_name ??
+          profile?.display_name ??
+          (profile?.professional_profile
             ? `${profile?.professional_profile?.name || ""} ${profile?.professional_profile?.last_name || ""}`.trim()
-            : profile?.name || "");
+            : profile?.name || ""));
 
     if (!serviceInstanceId) return;
 

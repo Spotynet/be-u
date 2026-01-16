@@ -280,6 +280,14 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
     return timeTab === "upcoming" ? !isHistoryReservation(r) : isHistoryReservation(r);
   });
 
+  const sortedReservations = timeTab === "upcoming"
+    ? [...filteredReservations].sort((a: any, b: any) => {
+        const aStart = parseReservationDateTime(a.date, a.time);
+        const bStart = parseReservationDateTime(b.date, b.time);
+        return aStart.getTime() - bStart.getTime();
+      })
+    : filteredReservations;
+
   // Show loading state
   if (isLoading) {
     return (
@@ -512,7 +520,7 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
       ) : (
         <FlatList
           style={styles.content}
-          data={filteredReservations}
+          data={sortedReservations}
           keyExtractor={(item) => item.id.toString()}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.reservationsList}
@@ -523,7 +531,7 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
               onConfirm={canManageAsProvider ? handleConfirm : undefined}
               onReject={canManageAsProvider ? handleReject : undefined}
               onCancel={isClient ? handleCancel : undefined}
-              onComplete={canManageAsProvider ? handleComplete : undefined}
+              onComplete={canManageAsProvider && timeTab === "history" ? handleComplete : undefined}
               onPress={() => router.push(`/reservation/${item.id}` as any)}
             />
           )}
