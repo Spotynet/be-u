@@ -9,6 +9,7 @@ export interface Favorite {
   favorite_specialty: string;
   favorite_rating: number;
   content_object_id: number;
+  public_profile_id?: number | null;
   created_at: string;
 }
 

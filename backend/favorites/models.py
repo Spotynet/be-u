@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
-from users.models import ClientProfile, ProfessionalProfile, PlaceProfile
+from users.models import ClientProfile, ProfessionalProfile, PlaceProfile, PublicProfile
 
 
 class Favorite(models.Model):
@@ -26,19 +26,19 @@ class Favorite(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.user.user.username} favorited {self.content_object}"
+        return f"{self.user.username} favorited {self.content_object}"
     
     @property
     def favorite_name(self):
         """Get the name of the favorited item"""
+        if isinstance(self.content_object, ProfessionalProfile):
+            return f"{self.content_object.name} {self.content_object.last_name}"
+        if isinstance(self.content_object, PlaceProfile):
+            return self.content_object.name
+        if isinstance(self.content_object, PublicProfile):
+            return self.content_object.display_name or self.content_object.name
         if hasattr(self.content_object, 'name'):
             return self.content_object.name
-        elif hasattr(self.content_object, 'user'):
-            if hasattr(self.content_object, 'professional_profile'):
-                prof = self.content_object.professional_profile
-                return f"{prof.name} {prof.last_name}"
-            elif hasattr(self.content_object, 'place_profile'):
-                return self.content_object.place_profile.name
         return "Unknown"
     
     @property
@@ -53,22 +53,27 @@ class Favorite(models.Model):
     @property
     def favorite_specialty(self):
         """Get the specialty/description of the favorited item"""
-        if hasattr(self.content_object, 'professional_profile'):
-            # For professionals, get their main service or bio
-            prof = self.content_object.professional_profile
-            return prof.bio or "Profesional"
-        elif hasattr(self.content_object, 'place_profile'):
-            # For places, get their description
-            place = self.content_object.place_profile
-            return place.description or "Establecimiento"
+        if isinstance(self.content_object, ProfessionalProfile):
+            return self.content_object.bio or "Profesional"
+        if isinstance(self.content_object, PlaceProfile):
+            return self.content_object.description or self.content_object.bio or "Establecimiento"
+        if isinstance(self.content_object, PublicProfile):
+            if self.content_object.profile_type == 'PROFESSIONAL':
+                return self.content_object.bio or self.content_object.description or "Profesional"
+            return self.content_object.description or self.content_object.bio or "Establecimiento"
         return "Servicio"
     
     @property
     def favorite_rating(self):
         """Get the rating of the favorited item"""
-        if hasattr(self.content_object, 'professional_profile'):
-            return float(self.content_object.professional_profile.rating)
-        elif hasattr(self.content_object, 'place_profile'):
-            return float(self.content_object.place_profile.rating)
+        if isinstance(self.content_object, ProfessionalProfile):
+            return float(self.content_object.rating)
+        if isinstance(self.content_object, PlaceProfile):
+            try:
+                return float(self.content_object.user.public_profile.rating)
+            except Exception:
+                return 0.0
+        if isinstance(self.content_object, PublicProfile):
+            return float(self.content_object.rating)
         return 0.0
 

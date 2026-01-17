@@ -50,22 +50,39 @@ export default function ProfileDetailScreen() {
   // Favorites functionality
   const {toggleFavorite, isFavorited} = useFavorites();
   const [isFavorite, setIsFavorite] = useState(false);
+
+  const getFavoriteTarget = () => {
+    if (!profile) return null;
+    const contentType =
+      profile.profile_type === "PROFESSIONAL" ? "professionalprofile" : "placeprofile";
+    const rawId =
+      contentType === "professionalprofile"
+        ? profile.professional_profile_id
+        : profile.place_profile_id;
+    const resolvedId = Number(rawId ?? id);
+    if (!resolvedId) return null;
+    return {contentType, objectId: resolvedId};
+  };
   
   // Check if profile is favorited
   useEffect(() => {
-    if (profile && Number(id)) {
-      const contentType = profile.profile_type === "PROFESSIONAL" ? "professionalprofile" : "placeprofile";
-      setIsFavorite(isFavorited(contentType, Number(id)));
+    const target = getFavoriteTarget();
+    if (target) {
+      setIsFavorite(isFavorited(target.contentType, target.objectId));
     }
   }, [profile, id, isFavorited]);
   
   const handleToggleFavorite = async () => {
-    if (!profile || !id) return;
+    const target = getFavoriteTarget();
+    if (!target) return;
     
     try {
-      const contentType = profile.profile_type === "PROFESSIONAL" ? "professionalprofile" : "placeprofile";
-      await toggleFavorite(contentType, Number(id));
-      setIsFavorite(!isFavorite);
+      const result = await toggleFavorite(target.contentType, target.objectId);
+      if (typeof result?.is_favorited === "boolean") {
+        setIsFavorite(result.is_favorited);
+      } else {
+        setIsFavorite(!isFavorite);
+      }
     } catch (err) {
       // Error already handled in hook
     }

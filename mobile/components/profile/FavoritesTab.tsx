@@ -172,13 +172,18 @@ export function FavoritesTab() {
       {favorites.length > 0 && (
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Perfiles Guardados</Text>
-          <View style={styles.grid}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.profileScroll}
+            contentContainerStyle={styles.profileRow}>
             {favorites.map((item, index) => (
               <TouchableOpacity
                 key={item.id}
                 style={[styles.card, {backgroundColor: colors.card}]}
                 onPress={() => {
-                  router.push(`/profile/${item.content_object_id}` as any);
+                  const profileId = item.public_profile_id || item.content_object_id;
+                  router.push(`/profile/${profileId}` as any);
                 }}
                 activeOpacity={0.7}>
                 <View style={[styles.avatar, {backgroundColor: getAvatarColor(index)}]}>
@@ -190,12 +195,6 @@ export function FavoritesTab() {
                 <Text style={[styles.specialty, {color: colors.mutedForeground}]} numberOfLines={1}>
                   {item.favorite_specialty}
                 </Text>
-                <View style={styles.rating}>
-                  <Ionicons name="star" size={14} color="#FFA500" />
-                  <Text style={[styles.ratingText, {color: colors.mutedForeground}]}>
-                    {item.favorite_rating.toFixed(1)}
-                  </Text>
-                </View>
                 <TouchableOpacity
                   style={styles.heartButton}
                   onPress={(e) => {
@@ -206,7 +205,7 @@ export function FavoritesTab() {
                 </TouchableOpacity>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         </View>
       )}
       
@@ -319,14 +318,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 12,
   },
-  grid: {
+  profileScroll: {
+    paddingHorizontal: 16,
+    overflow: "hidden",
+  },
+  profileRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    padding: 16,
     gap: 16,
+    paddingVertical: 4,
+    paddingRight: 16,
   },
   card: {
-    width: "47%",
+    width: 160,
     padding: 16,
     borderRadius: 20,
     alignItems: "center",
@@ -365,15 +368,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: "center",
     marginBottom: 8,
-  },
-  rating: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  ratingText: {
-    fontSize: 13,
-    fontWeight: "600",
   },
   heartButton: {
     position: "absolute",

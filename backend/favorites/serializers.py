@@ -11,6 +11,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
     favorite_specialty = serializers.ReadOnlyField()
     favorite_rating = serializers.ReadOnlyField()
     content_object_id = serializers.SerializerMethodField()
+    public_profile_id = serializers.SerializerMethodField()
     
     class Meta:
         model = Favorite
@@ -20,6 +21,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
             'content_type',
             'object_id',
             'content_object_id',
+            'public_profile_id',
             'favorite_name',
             'favorite_type',
             'favorite_specialty',
@@ -31,13 +33,26 @@ class FavoriteSerializer(serializers.ModelSerializer):
     def get_content_object_id(self, obj):
         """Get the actual ID of the content object"""
         return obj.object_id
+
+    def get_public_profile_id(self, obj):
+        """Get the associated PublicProfile ID when available"""
+        content_object = obj.content_object
+        try:
+            # If it's already a PublicProfile instance
+            if hasattr(content_object, 'profile_type') and hasattr(content_object, 'user'):
+                return content_object.id
+            if hasattr(content_object, 'user') and hasattr(content_object.user, 'public_profile'):
+                return content_object.user.public_profile.id
+        except Exception:
+            return None
+        return None
     
     def create(self, validated_data):
         """Create a new favorite"""
         # Set the user from the request context
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
-            validated_data['user'] = request.user.client_profile
+            validated_data['user'] = request.user
         return super().create(validated_data)
 
 

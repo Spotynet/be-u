@@ -2,7 +2,8 @@ from rest_framework.routers import DefaultRouter
 from .views import FavoriteViewSet
 
 router = DefaultRouter()
-router.register(r'favorites', FavoriteViewSet, basename='favorite')
+# Mount viewset at root so /api/favorites/ works with include path
+router.register(r'', FavoriteViewSet, basename='favorite')
 
 urlpatterns = router.urls
 
