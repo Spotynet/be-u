@@ -25,7 +25,7 @@ import {
 import {SettingsMenu} from "@/components/profile";
 import {CalendarConnectionCard} from "@/features/calendar";
 
-export default function Settings() {
+export default function Settings({embedded = false}: {embedded?: boolean} = {}) {
   const colorScheme = useColorScheme();
   const {colors, colorMode, setColorMode} = useThemeVariant();
   const insets = useSafeAreaInsets();
@@ -125,24 +125,26 @@ export default function Settings() {
   if (profileLoading) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View
-          style={[
-            styles.header,
-            {
-              backgroundColor: colors.background,
-              borderBottomColor: colors.border,
-              paddingTop: Math.max(insets.top + 16, 20),
-            },
-          ]}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => goBack("/(tabs)/perfil")}
-            activeOpacity={0.7}>
-            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Configuración</Text>
-          <View style={styles.placeholder} />
-        </View>
+        {!embedded && (
+          <View
+            style={[
+              styles.header,
+              {
+                backgroundColor: colors.background,
+                borderBottomColor: colors.border,
+                paddingTop: Math.max(insets.top + 16, 20),
+              },
+            ]}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => goBack("/(tabs)/perfil")}
+              activeOpacity={0.7}>
+              <Ionicons name="arrow-back" color={colors.foreground} size={24} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Configuración</Text>
+            <View style={styles.placeholder} />
+          </View>
+        )}
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, {color: colors.mutedForeground}]}>
@@ -231,26 +233,28 @@ export default function Settings() {
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.background,
-            borderBottomColor: colors.border,
-            paddingTop: Math.max(insets.top + 16, 20),
-          },
-        ]}>
-        <View style={styles.headerSpacer} />
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Configuración</Text>
-        <TouchableOpacity
-          style={styles.settingsIconButton}
-          onPress={() => setIsSettingsMenuVisible(true)}
-          activeOpacity={0.7}>
-          <View style={[styles.settingsIconContainer, {backgroundColor: colors.card}]}>
-            <Ionicons name="settings" color={colors.primary} size={22} />
-          </View>
-        </TouchableOpacity>
-      </View>
+      {!embedded && (
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: colors.background,
+              borderBottomColor: colors.border,
+              paddingTop: Math.max(insets.top + 16, 20),
+            },
+          ]}>
+          <View style={styles.headerSpacer} />
+          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Configuración</Text>
+          <TouchableOpacity
+            style={styles.settingsIconButton}
+            onPress={() => setIsSettingsMenuVisible(true)}
+            activeOpacity={0.7}>
+            <View style={[styles.settingsIconContainer, {backgroundColor: colors.card}]}>
+              <Ionicons name="settings" color={colors.primary} size={22} />
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Content */}
       <ScrollView 

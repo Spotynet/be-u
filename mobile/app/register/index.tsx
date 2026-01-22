@@ -43,6 +43,15 @@ export default function RegisterSelector() {
       </View>
 
       <View style={styles.cards}>
+        <TouchableOpacity
+          style={[styles.googleButton, {backgroundColor: colors.card, borderColor: colors.border}]}
+          onPress={() => {}}
+          activeOpacity={0.8}>
+          <Ionicons name="logo-google" size={20} color={colors.foreground} />
+          <Text style={[styles.googleButtonText, {color: colors.foreground}]}>
+            Continuar con Google
+          </Text>
+        </TouchableOpacity>
         {registerOptions.map((option) => (
           <TouchableOpacity
             key={option.id}
@@ -71,6 +80,16 @@ const styles = StyleSheet.create({
   headerBtn: {width: 32, height: 32, alignItems: "center", justifyContent: "center"},
   headerTitle: {fontSize: 20, fontWeight: "700"},
   cards: {padding: 16, gap: 12},
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  googleButtonText: {fontSize: 14, fontWeight: "600"},
   card: {borderWidth: 1, borderRadius: 14, padding: 16, alignItems: "center", gap: 8},
   cardTitle: {fontSize: 16, fontWeight: "700"},
   cardText: {fontSize: 13},

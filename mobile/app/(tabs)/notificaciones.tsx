@@ -52,8 +52,18 @@ export default function Notificaciones() {
     // TODO: Navigate to relevant screen based on notification type
     switch (notification.type) {
       case "reserva":
-        // Navigate to reservation details or profile reservations tab
-        router.push("/(tabs)/perfil");
+        // Navigate to reservation details if available, otherwise to calendar
+        {
+          const reservationId =
+            notification.metadata?.reservation_id ??
+            notification.metadata?.reservationId ??
+            notification.relatedId;
+          if (Number.isFinite(reservationId) && Number(reservationId) > 0) {
+            router.push(`/reservation/${Number(reservationId)}` as any);
+          } else {
+            router.push("/(tabs)/calendario");
+          }
+        }
         break;
       case "reseña":
         // Navigate to review details or service page

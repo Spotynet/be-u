@@ -316,6 +316,20 @@ export default function Login() {
               <Text style={[styles.loginButtonText, {color: "#ffffff"}]}>Iniciar Sesión</Text>
             )}
           </TouchableOpacity>
+
+        {/* Google Login (placeholder) */}
+        <TouchableOpacity
+          style={[
+            styles.googleButton,
+            {backgroundColor: colors.card, borderColor: colors.border},
+          ]}
+          onPress={() => {}}
+          activeOpacity={0.8}>
+          <Ionicons name="logo-google" size={20} color={colors.foreground} />
+          <Text style={[styles.googleButtonText, {color: colors.foreground}]}>
+            Continuar con Google
+          </Text>
+        </TouchableOpacity>
         </View>
 
         {/* Register Link */}
@@ -476,6 +490,20 @@ const styles = StyleSheet.create({
   },
   loginButtonText: {
     fontSize: 16,
+    fontWeight: "600",
+  },
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    marginBottom: 8,
+  },
+  googleButtonText: {
+    fontSize: 15,
     fontWeight: "600",
   },
   errorText: {

@@ -2,14 +2,12 @@ import {View, Text, StyleSheet} from "react-native";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {useAuth} from "@/features/auth";
-import {ProfileTabs} from "@/components/profile";
+import {EnhancedReservationsTab} from "@/components/profile/EnhancedReservationsTab";
 import {Ionicons} from "@expo/vector-icons";
-import {useRouter} from "expo-router";
 
 export default function Calendario() {
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const {user, isAuthenticated} = useAuth();
 
   if (!isAuthenticated || !user) {
@@ -54,7 +52,7 @@ export default function Calendario() {
       </View>
 
       <View style={styles.tabsContainer}>
-        <ProfileTabs userRole={user.role as "CLIENT" | "PROFESSIONAL" | "PLACE"} />
+        <EnhancedReservationsTab userRole={user.role as "CLIENT" | "PROFESSIONAL" | "PLACE"} />
       </View>
     </View>
   );

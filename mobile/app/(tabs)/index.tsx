@@ -1627,6 +1627,8 @@ const styles = StyleSheet.create({
     left: 12,
     flexDirection: "row",
     alignItems: "center",
+    top: "50%",
+    transform: [{translateY: -18}],
   },
   headerCenter: {
     maxWidth: "72%",
@@ -1639,6 +1641,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    top: "50%",
+    transform: [{translateY: -12}],
   },
   headerTitle: {
     fontSize: 32,
