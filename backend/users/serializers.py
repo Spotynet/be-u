@@ -23,6 +23,35 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'dateJoined', 'lastLogin']
 
 
+class GoogleAuthUrlSerializer(serializers.Serializer):
+    auth_url = serializers.URLField()
+    state = serializers.CharField()
+
+
+class GoogleCallbackSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    state = serializers.CharField(required=False, allow_blank=True)
+    redirect_uri = serializers.URLField(required=False, allow_blank=True)
+
+
+class EmailCodeRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class EmailCodeVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.CharField(min_length=4, max_length=8)
+
+
+class GoogleUserDataSerializer(serializers.Serializer):
+    sub = serializers.CharField()
+    email = serializers.EmailField()
+    email_verified = serializers.BooleanField()
+    given_name = serializers.CharField(required=False, allow_blank=True)
+    family_name = serializers.CharField(required=False, allow_blank=True)
+    picture = serializers.URLField(required=False, allow_blank=True)
+
+
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     firstName = serializers.CharField(source='first_name')

@@ -5,6 +5,11 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface EmailCodeCredentials {
+  email: string;
+  code: string;
+}
+
 export interface RegisterCredentials {
   email: string;
   password: string;
@@ -19,6 +24,8 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
+  requestEmailCode: (email: string) => Promise<void>;
+  loginWithEmailCode: (credentials: EmailCodeCredentials) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => void;
   refreshToken: () => Promise<void>;

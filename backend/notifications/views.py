@@ -6,14 +6,16 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from django.contrib.contenttypes.models import ContentType
 
-from .models import Notification, NotificationTemplate
+from .models import Notification, NotificationTemplate, PushDeviceToken, ReservationReminder
 from .serializers import (
     NotificationSerializer, 
     NotificationCreateSerializer,
     NotificationUpdateSerializer,
     NotificationBulkUpdateSerializer,
     NotificationStatsSerializer,
-    NotificationTemplateSerializer
+    NotificationTemplateSerializer,
+    PushDeviceTokenSerializer,
+    ReservationReminderSerializer
 )
 
 
@@ -202,3 +204,42 @@ class NotificationTemplateViewSet(viewsets.ReadOnlyModelViewSet):
         if self.request.user.is_staff:
             return NotificationTemplate.objects.all()
         return NotificationTemplate.objects.filter(is_active=True)
+
+
+class PushDeviceTokenViewSet(viewsets.ModelViewSet):
+    """Register/manage push device tokens for current user"""
+
+    serializer_class = PushDeviceTokenSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return PushDeviceToken.objects.filter(user=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        token = serializer.validated_data['token']
+        platform = serializer.validated_data.get('platform', PushDeviceToken.Platform.UNKNOWN)
+
+        # Reassign token if it exists for another user
+        token_obj, _ = PushDeviceToken.objects.update_or_create(
+            token=token,
+            defaults={
+                'user': request.user,
+                'platform': platform,
+                'is_active': True,
+                'last_seen_at': timezone.now(),
+            }
+        )
+        out = self.get_serializer(token_obj)
+        return Response(out.data, status=status.HTTP_201_CREATED)
+
+
+class ReservationReminderViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only reminders for current user (debug/admin use)"""
+
+    serializer_class = ReservationReminderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return ReservationReminder.objects.filter(user=self.request.user)

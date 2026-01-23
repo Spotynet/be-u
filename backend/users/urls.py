@@ -14,9 +14,14 @@ router.register(r'links', PlaceProfessionalLinkViewSet, basename='place-pro-link
 urlpatterns = [
     path('', include(router.urls)),
     path('auth/login/', auth_views.login_view, name='login'),
+    path('auth/email/request-code/', auth_views.email_request_code_view, name='email-request-code'),
+    path('auth/email/verify-code/', auth_views.email_verify_code_view, name='email-verify-code'),
     path('auth/register/', auth_views.register_view, name='register'),
     path('auth/logout/', auth_views.logout_view, name='logout'),
     path('auth/refresh/', auth_views.refresh_token_view, name='refresh'),
+    path('auth/google/auth-url/', auth_views.google_auth_url_view, name='google-auth-url'),
+    path('auth/google/callback/', auth_views.google_callback_view, name='google-callback'),
+    path('auth/google/link/', auth_views.google_link_account_view, name='google-link'),
     path('auth/profile/', views.profile_view, name='profile'),
     
     # Profile customization endpoints

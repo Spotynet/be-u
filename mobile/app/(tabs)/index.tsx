@@ -1449,7 +1449,8 @@ export default function Home() {
           {
             backgroundColor: colors.background,
             borderBottomColor: colors.border,
-            paddingTop: insets.top + 22,
+            paddingTop: Math.max(insets.top + 16, 20),
+            minHeight: Math.max(insets.top + 16, 20) + 38,
           },
         ]}>
         <View style={styles.headerLeft}>
@@ -1462,7 +1463,6 @@ export default function Home() {
 
         <View style={styles.headerCenter}>
           <View style={styles.categorySelector}>
-            {/* Always Expanded - Horizontal Options */}
             <View style={[styles.expandedCategoryOptions, {backgroundColor: colors.card}]}>
               {categories.map((category) => (
                 <TouchableOpacity
@@ -1616,33 +1616,29 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
     position: "relative",
-    paddingTop: 30,
-    paddingBottom: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
   },
   headerLeft: {
-    position: "absolute",
-    left: 12,
     flexDirection: "row",
     alignItems: "center",
-    top: "50%",
-    transform: [{translateY: -18}],
+    justifyContent: "flex-start",
   },
   headerCenter: {
+    flex: 1,
     maxWidth: "72%",
     flexShrink: 1,
     alignItems: "center",
+    justifyContent: "center",
   },
   headerRight: {
-    position: "absolute",
-    right: 20,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-end",
     gap: 12,
-    top: "50%",
-    transform: [{translateY: -12}],
   },
   headerTitle: {
     fontSize: 32,
@@ -1704,6 +1700,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     minWidth: 36,
     justifyContent: "center",
+    height: 36,
   },
   selectedCategoryOption: {
     backgroundColor: "transparent",
@@ -1715,6 +1712,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     marginLeft: 4,
+    lineHeight: 12,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
   headerButton: {
     position: "relative",

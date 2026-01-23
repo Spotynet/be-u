@@ -1,6 +1,7 @@
 import React, {createContext, useContext, useState, useEffect, ReactNode} from "react";
-import {authApi, tokenUtils, tokenRefreshScheduler} from "@/lib/api";
-import {AuthContextType, AuthState, LoginCredentials, RegisterCredentials} from "../types";
+import {authApi, tokenUtils, tokenRefreshScheduler, notificationApi} from "@/lib/api";
+import {getExpoPushToken, getPlatformLabel} from "@/lib/pushNotifications";
+import {AuthContextType, AuthState, LoginCredentials, RegisterCredentials, EmailCodeCredentials} from "../types";
 import {User} from "@/types/global";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,6 +41,16 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
 
           // Start background token refresh
           tokenRefreshScheduler.start();
+
+          // Register push token (best-effort)
+          try {
+            const token = await getExpoPushToken();
+            if (token) {
+              await notificationApi.registerPushToken({token, platform: getPlatformLabel()});
+            }
+          } catch (_) {
+            // ignore push registration errors
+          }
         } catch (error) {
           // Token is invalid, clear it
           await tokenUtils.removeToken();
@@ -69,6 +80,64 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
 
       // Start background token refresh
       tokenRefreshScheduler.start();
+
+      // Register push token (best-effort)
+      try {
+        const token = await getExpoPushToken();
+        if (token) {
+          await notificationApi.registerPushToken({token, platform: getPlatformLabel()});
+        }
+      } catch (_) {
+        // ignore push registration errors
+      }
+    } catch (error: any) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error.message || "Login failed",
+      }));
+      throw error;
+    }
+  };
+
+  const requestEmailCode = async (email: string) => {
+    try {
+      setState((prev) => ({...prev, isLoading: true, error: null}));
+      await authApi.requestEmailCode({email});
+      setState((prev) => ({...prev, isLoading: false}));
+    } catch (error: any) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error.message || "Failed to send code",
+      }));
+      throw error;
+    }
+  };
+
+  const loginWithEmailCode = async (credentials: EmailCodeCredentials) => {
+    try {
+      setState((prev) => ({...prev, isLoading: true, error: null}));
+      const response = await authApi.verifyEmailCode(credentials);
+
+      await tokenUtils.setTokens(response.data.access, response.data.refresh);
+      setState((prev) => ({
+        ...prev,
+        user: response.data.user,
+        isLoading: false,
+      }));
+
+      tokenRefreshScheduler.start();
+
+      // Register push token (best-effort)
+      try {
+        const token = await getExpoPushToken();
+        if (token) {
+          await notificationApi.registerPushToken({token, platform: getPlatformLabel()});
+        }
+      } catch (_) {
+        // ignore push registration errors
+      }
     } catch (error: any) {
       setState((prev) => ({
         ...prev,
@@ -96,6 +165,16 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
 
       // Start background token refresh
       tokenRefreshScheduler.start();
+
+      // Register push token (best-effort)
+      try {
+        const token = await getExpoPushToken();
+        if (token) {
+          await notificationApi.registerPushToken({token, platform: getPlatformLabel()});
+        }
+      } catch (_) {
+        // ignore push registration errors
+      }
     } catch (error: any) {
       setState((prev) => ({
         ...prev,
@@ -168,6 +247,8 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
     isLoading: state.isLoading,
     isAuthenticated: !!state.user,
     login,
+    requestEmailCode,
+    loginWithEmailCode,
     register,
     logout,
     refreshToken,

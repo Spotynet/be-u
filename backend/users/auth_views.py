@@ -7,10 +7,24 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import User, ClientProfile, ProfessionalProfile, PlaceProfile, PublicProfile
-from .serializers import UserSerializer
+from .models import User, ClientProfile, ProfessionalProfile, PlaceProfile, PublicProfile, EmailAuthCode
+from .serializers import (
+    UserSerializer,
+    GoogleAuthUrlSerializer,
+    GoogleCallbackSerializer,
+    EmailCodeRequestSerializer,
+    EmailCodeVerifySerializer,
+)
+from .services import google_auth_service
+from calendar_integration.models import GoogleCalendarCredentials
 import json
 import logging
+import secrets
+import hashlib
+import hmac
+from django.conf import settings
+from django.core.mail import send_mail
+from django.utils import timezone
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -47,6 +61,260 @@ def login_view(request):
         return Response({'error': 'Invalid JSON'}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def google_auth_url_view(request):
+    """
+    GET /api/auth/google/auth-url/
+
+    Returns the Google OAuth authorization URL for Google Sign-In.
+    """
+    state = secrets.token_urlsafe(32)
+    request.session['google_auth_state'] = state
+    mobile_redirect_uri = request.query_params.get('redirect_uri', None)
+    auth_url = google_auth_service.get_auth_url(state=state, redirect_uri=mobile_redirect_uri)
+    serializer = GoogleAuthUrlSerializer({
+        'auth_url': auth_url,
+        'state': state,
+    })
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def google_callback_view(request):
+    """
+    POST /api/auth/google/callback/
+
+    Exchange code for tokens, create/update user, and return JWT tokens.
+    """
+    serializer = GoogleCallbackSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    code = serializer.validated_data.get('code')
+    state = serializer.validated_data.get('state')
+    redirect_uri = serializer.validated_data.get('redirect_uri')
+
+    stored_state = request.session.get('google_auth_state')
+    if stored_state and state and stored_state != state:
+        return Response({'error': 'Invalid state parameter'}, status=status.HTTP_400_BAD_REQUEST)
+    if 'google_auth_state' in request.session:
+        del request.session['google_auth_state']
+
+    try:
+        tokens = google_auth_service.exchange_code_for_tokens(code, redirect_uri=redirect_uri)
+        google_user_data = google_auth_service.get_user_info(tokens['access_token'])
+
+        if not google_user_data.get('email_verified', False):
+            return Response({'error': 'Email not verified with Google'}, status=status.HTTP_400_BAD_REQUEST)
+
+        google_id = google_user_data.get('sub') or google_user_data.get('id')
+        if google_id and User.objects.filter(google_auth_credentials__google_id=google_id).exists():
+            existing_user = User.objects.filter(google_auth_credentials__google_id=google_id).first()
+        else:
+            existing_user = None
+
+        user = google_auth_service.create_or_update_user(google_user_data)
+        if existing_user and existing_user.id != user.id:
+            return Response(
+                {'error': 'Google account already linked to another user'},
+                status=status.HTTP_409_CONFLICT
+            )
+
+        google_auth_credentials = google_auth_service.link_google_account(user, google_user_data, tokens)
+
+        # Connect calendar using same tokens
+        calendar_credentials, _ = GoogleCalendarCredentials.objects.update_or_create(
+            user=user,
+            defaults={
+                'access_token': tokens['access_token'],
+                'refresh_token': tokens['refresh_token'],
+                'token_expiry': tokens['expires_at'],
+                'is_active': True,
+                'sync_error': None,
+                'google_auth_credentials': google_auth_credentials,
+            }
+        )
+
+        if hasattr(user, 'public_profile'):
+            user.public_profile.has_calendar = True
+            user.public_profile.save(update_fields=['has_calendar'])
+
+        refresh = RefreshToken.for_user(user)
+        access_token = refresh.access_token
+
+        return Response({
+            'message': 'Google login successful',
+            'access': str(access_token),
+            'refresh': str(refresh),
+            'user': UserSerializer(user).data,
+            'calendar_id': calendar_credentials.calendar_id,
+        })
+    except Exception as e:
+        logger.error(f"Google auth failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+def _hash_email_code(email: str, code: str) -> str:
+    msg = f"{email.lower().strip()}:{code}".encode("utf-8")
+    key = settings.SECRET_KEY.encode("utf-8")
+    return hmac.new(key, msg, hashlib.sha256).hexdigest()
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@csrf_exempt
+def email_request_code_view(request):
+    """
+    POST /api/auth/email/request-code/
+    Body: { "email": "user@example.com" }
+    """
+    serializer = EmailCodeRequestSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    email = serializer.validated_data["email"].strip().lower()
+    # 6-digit numeric code
+    code = f"{secrets.randbelow(1000000):06d}"
+    code_hash = _hash_email_code(email, code)
+    expires_at = timezone.now() + timezone.timedelta(minutes=10)
+
+    # Invalidate previous pending codes for this email
+    EmailAuthCode.objects.filter(email=email, consumed_at__isnull=True).update(consumed_at=timezone.now())
+
+    EmailAuthCode.objects.create(email=email, code_hash=code_hash, expires_at=expires_at)
+
+    # Send email (best-effort)
+    try:
+        send_mail(
+            subject="Tu código de acceso - Be-U",
+            message=f"Tu código de acceso es: {code}\n\nEste código expira en 10 minutos.",
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[email],
+            fail_silently=True,
+        )
+    except Exception as e:
+        logger.warning(f"Failed sending email code to {email}: {e}")
+
+    return Response({"message": "Si el correo existe, te enviamos un código."}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@csrf_exempt
+def email_verify_code_view(request):
+    """
+    POST /api/auth/email/verify-code/
+    Body: { "email": "user@example.com", "code": "123456" }
+    """
+    serializer = EmailCodeVerifySerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    email = serializer.validated_data["email"].strip().lower()
+    code = serializer.validated_data["code"].strip()
+
+    auth_code = (
+        EmailAuthCode.objects.filter(email=email, consumed_at__isnull=True, expires_at__gt=timezone.now())
+        .order_by("-created_at")
+        .first()
+    )
+    if not auth_code:
+        return Response({"error": "Código inválido o expirado"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Attempt limit
+    if auth_code.attempts >= 5:
+        auth_code.consumed_at = timezone.now()
+        auth_code.save(update_fields=["consumed_at", "updated_at"])
+        return Response({"error": "Demasiados intentos. Solicita un nuevo código."}, status=status.HTTP_400_BAD_REQUEST)
+
+    expected = auth_code.code_hash
+    provided = _hash_email_code(email, code)
+    if not hmac.compare_digest(expected, provided):
+        auth_code.attempts += 1
+        auth_code.save(update_fields=["attempts", "updated_at"])
+        return Response({"error": "Código inválido"}, status=status.HTTP_400_BAD_REQUEST)
+
+    auth_code.consumed_at = timezone.now()
+    auth_code.save(update_fields=["consumed_at", "updated_at"])
+
+    user, created = User.objects.get_or_create(email=email, defaults={})
+    if created:
+        user.set_unusable_password()
+        user.role = User.Role.CLIENT
+        user.save()
+        ClientProfile.objects.get_or_create(user=user)
+
+    refresh = RefreshToken.for_user(user)
+    access_token = refresh.access_token
+
+    return Response(
+        {
+            "message": "Login successful",
+            "access": str(access_token),
+            "refresh": str(refresh),
+            "user": UserSerializer(user).data,
+        }
+    )
+
+
+@api_view(['POST'])
+def google_link_account_view(request):
+    """
+    POST /api/auth/google/link/
+
+    Link Google account to an existing user.
+    """
+    if not request.user or not request.user.is_authenticated:
+        return Response(
+            {'detail': 'Authentication credentials were not provided.'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    serializer = GoogleCallbackSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    code = serializer.validated_data.get('code')
+    redirect_uri = serializer.validated_data.get('redirect_uri')
+
+    try:
+        tokens = google_auth_service.exchange_code_for_tokens(code, redirect_uri=redirect_uri)
+        google_user_data = google_auth_service.get_user_info(tokens['access_token'])
+        google_id = google_user_data.get('sub') or google_user_data.get('id')
+        if google_id:
+            existing_user = User.objects.filter(google_auth_credentials__google_id=google_id).exclude(id=request.user.id).first()
+            if existing_user:
+                return Response(
+                    {'error': 'Google account already linked to another user'},
+                    status=status.HTTP_409_CONFLICT
+                )
+        google_auth_credentials = google_auth_service.link_google_account(request.user, google_user_data, tokens)
+
+        GoogleCalendarCredentials.objects.update_or_create(
+            user=request.user,
+            defaults={
+                'access_token': tokens['access_token'],
+                'refresh_token': tokens['refresh_token'],
+                'token_expiry': tokens['expires_at'],
+                'is_active': True,
+                'sync_error': None,
+                'google_auth_credentials': google_auth_credentials,
+            }
+        )
+
+        if hasattr(request.user, 'public_profile'):
+            request.user.public_profile.has_calendar = True
+            request.user.public_profile.save(update_fields=['has_calendar'])
+
+        return Response({'message': 'Google account linked successfully'})
+    except Exception as e:
+        logger.error(f"Failed to link Google account: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

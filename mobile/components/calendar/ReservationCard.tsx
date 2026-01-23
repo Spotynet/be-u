@@ -6,6 +6,7 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Reservation} from "@/types/global";
 import {Ionicons} from "@expo/vector-icons";
 import {parseISODateAsLocal} from "@/lib/dateUtils";
+import ReservationQRCode from "@/components/reservation/ReservationQRCode";
 
 interface ReservationCardProps {
   reservation: Reservation;
@@ -73,7 +74,7 @@ export const ReservationCard = ({
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={[styles.code, {color: colors.mutedForeground}]}>{reservation.code}</Text>
+            <ReservationQRCode code={reservation.code} size={60} />
             <View style={[styles.statusBadge, {backgroundColor: statusColor + "15"}]}>
               <Text style={[styles.statusText, {color: statusColor}]}>
                 {reservation.status_display}
@@ -225,6 +226,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    flexWrap: "wrap",
   },
   code: {
     fontSize: 12,

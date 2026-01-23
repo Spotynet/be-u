@@ -301,7 +301,7 @@ export default function BookingScreen() {
     if (serviceInfo && providerIdForAvailability > 0) {
       setLoadingSchedule(true);
       try {
-        const {reservationApi, profileCustomizationApi} = await import("@/lib/api");
+        const {reservationApi, profileCustomizationApi, serviceApi} = await import("@/lib/api");
         const providerType = providerTypeForAvailability;
 
         // Helper: convert JS getDay (0=Sun) to backend (0=Mon)
@@ -409,9 +409,34 @@ export default function BookingScreen() {
         }
 
         setScheduleData(computedSchedule);
-        setAvailableTimes(
-          computeAvailableTimes(computedSchedule, serviceInfo.duration)
-        );
+
+        // 3) Use server-provided available slots (includes Google Calendar busy times)
+        try {
+          const slotsResponse = await serviceApi.getAvailableSlots({
+            service_id: serviceInfo.serviceInstanceId,
+            date,
+            service_type: providerType as "professional" | "place",
+          });
+          const slots = slotsResponse.data?.slots || [];
+          const available = slots
+            .filter((s: any) => s.available)
+            .map((s: any) => s.time)
+            .filter((t: string) => typeof t === "string");
+
+          setAvailableTimes(available);
+
+          if (available.length === 0) {
+            setDateAvailabilityError(UNAVAILABLE_MSG);
+            return;
+          }
+        } catch (slotsErr) {
+          // Fallback to local computation if slots endpoint fails
+          if (computedSchedule && serviceInfo?.duration) {
+            setAvailableTimes(computeAvailableTimes(computedSchedule, serviceInfo.duration));
+          } else {
+            setAvailableTimes([]);
+          }
+        }
 
         // Check if provider is available on this day
         if (!computedSchedule?.working_hours) {
@@ -478,15 +503,15 @@ export default function BookingScreen() {
   };
 
   const isTimeSlotAvailable = (time: Date): boolean => {
-    // If no schedule data or no working hours, time is not available
-    if (!scheduleData || !scheduleData.working_hours || !serviceInfo) {
-      return false;
-    }
-
     const timeStr = formatTime(time);
 
-    // Require membership in precomputed availability when present
-    if (availableTimes.length > 0 && !availableTimes.includes(timeStr)) {
+    // If server-provided slots exist, use them as source of truth
+    if (availableTimes.length > 0) {
+      return availableTimes.includes(timeStr);
+    }
+
+    // Fallback to schedule-based checks
+    if (!scheduleData || !scheduleData.working_hours || !serviceInfo) {
       return false;
     }
 

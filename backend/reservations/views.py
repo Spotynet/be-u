@@ -12,6 +12,7 @@ from .serializers import (
     ReservationUpdateSerializer, ReservationListSerializer
 )
 from .permissions import IsReservationClient, IsReservationProvider, CanViewReservation
+from django.http import Http404
 from users.models import ProfessionalProfile, PlaceProfile
 from services.models import TimeSlotBlock
 from reservations.availability import check_slot_availability
@@ -91,6 +92,30 @@ class ReservationViewSet(viewsets.ModelViewSet):
                 queryset = queryset.none()
         
         return queryset.order_by('-date', '-time')
+    
+    def get_object(self):
+        """
+        Override to check permissions even if reservation is not in filtered queryset.
+        This allows users to access reservations they have permission to view,
+        even if they're not in the initial queryset filter.
+        """
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        lookup_value = self.kwargs[lookup_url_kwarg]
+        
+        try:
+            # Try to get the reservation directly (bypass queryset filter)
+            reservation = Reservation.objects.select_related(
+                'client__user', 'service', 'professional', 'place'
+            ).get(pk=lookup_value)
+        except Reservation.DoesNotExist:
+            raise Http404("No Reservation matches the given query.")
+        
+        # Check permissions using CanViewReservation
+        permission = CanViewReservation()
+        if not permission.has_object_permission(self.request, self, reservation):
+            raise Http404("No Reservation matches the given query.")
+        
+        return reservation
     
     def perform_create(self, serializer):
         serializer.save()

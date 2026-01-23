@@ -78,11 +78,13 @@ export const SubCategoryBar = ({
           activeOpacity={0.7}>
           <View style={styles.categoryContent}>
             {iconName ? (
-              <IconComponent
-                name={iconName as any}
-                size={20}
-                color={isSelected ? highlightColor : colors.mutedForeground}
-              />
+              <View style={styles.iconContainer}>
+                <IconComponent
+                  name={iconName as any}
+                  size={20}
+                  color={isSelected ? highlightColor : colors.mutedForeground}
+                />
+              </View>
             ) : null}
             {showLabels && (
               <Text
@@ -138,13 +140,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
   },
   categoryContent: {
+    flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    justifyContent: "center",
+    gap: 6,
+  },
+  iconContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    height: 20,
   },
   categoryLabel: {
     fontSize: 12,
     fontWeight: "500",
     textAlign: "center",
     maxWidth: 80,
+    lineHeight: 12,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
 });

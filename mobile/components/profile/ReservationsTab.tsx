@@ -12,6 +12,7 @@ import {Ionicons} from "@expo/vector-icons";
 import {parseISODateAsLocal} from "@/lib/dateUtils";
 import {useState, useEffect} from "react";
 import {useRouter} from "expo-router";
+import ReservationQRCode from "@/components/reservation/ReservationQRCode";
 
 interface ReservationsTabProps {
   userRole: "CLIENT" | "PROFESSIONAL" | "PLACE";
@@ -196,9 +197,7 @@ export function ReservationsTab({userRole}: ReservationsTabProps) {
                 </View>
                 <View style={styles.infoRow}>
                   <Ionicons name="ticket-outline" color={colors.mutedForeground} size={16} />
-                  <Text style={[styles.infoText, {color: colors.mutedForeground}]}>
-                    {reservation.code}
-                  </Text>
+                  <ReservationQRCode code={reservation.code} size={50} />
                 </View>
                 {reservation.provider_name && (
                   <View style={styles.infoRow}>

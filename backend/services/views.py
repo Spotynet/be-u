@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.contenttypes.models import ContentType
 from datetime import datetime, timedelta, time as dt_time
+from django.utils import timezone
 from .models import (
     ServicesCategory, ServicesType, ServiceInPlace, 
     ProfessionalService, ProviderAvailability, TimeSlotBlock
@@ -581,11 +582,17 @@ def get_available_slots(self, request):
         provider_user = provider.user
         if google_calendar_service.has_calendar_connected(provider_user):
             has_google_calendar = True
-            # Get busy times for the entire day
-            day_start = datetime.combine(target_date, dt_time(0, 0))
-            day_end = datetime.combine(target_date, dt_time(23, 59, 59))
+            # Get busy times for the entire day (timezone-aware)
+            tz = timezone.get_default_timezone()
+            day_start = timezone.make_aware(datetime.combine(target_date, dt_time(0, 0)), tz)
+            day_end = timezone.make_aware(datetime.combine(target_date, dt_time(23, 59, 59)), tz)
+            calendar_id = 'primary'
+            try:
+                calendar_id = provider_user.google_calendar_credentials.calendar_id or 'primary'
+            except Exception:
+                calendar_id = 'primary'
             google_busy_times = google_calendar_service.get_busy_times(
-                provider_user, day_start, day_end
+                provider_user, day_start, day_end, calendar_id=calendar_id
             )
     except Exception as e:
         # Log but don't fail if Google Calendar is unavailable
@@ -604,6 +611,11 @@ def get_available_slots(self, request):
             # Convert time to datetime for calculations
             current_dt = datetime.combine(target_date, current_time)
             slot_end_dt = current_dt + duration
+            # Compare using timezone-aware datetimes
+            if timezone.is_naive(current_dt):
+                current_dt = timezone.make_aware(current_dt, timezone.get_default_timezone())
+            if timezone.is_naive(slot_end_dt):
+                slot_end_dt = timezone.make_aware(slot_end_dt, timezone.get_default_timezone())
             
             # Check if slot fits within this time slot's bounds
             if slot_end_dt.time() > slot_end_limit:
@@ -632,11 +644,9 @@ def get_available_slots(self, request):
             is_google_busy = False
             if google_busy_times:
                 for busy in google_busy_times:
-                    # Make datetimes timezone-naive for comparison if needed
-                    busy_start = busy.start.replace(tzinfo=None) if busy.start.tzinfo else busy.start
-                    busy_end = busy.end.replace(tzinfo=None) if busy.end.tzinfo else busy.end
-                    
-                    # Check for overlap
+                    busy_start = busy.start
+                    busy_end = busy.end
+                    # Check for overlap (timezone-aware)
                     if current_dt < busy_end and slot_end_dt > busy_start:
                         is_google_busy = True
                         break

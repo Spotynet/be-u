@@ -36,6 +36,9 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
     onClose();
     // Aquí puedes agregar navegación a las diferentes pantallas según la opción
     switch (option) {
+      case "agenda":
+        router.push("/agenda");
+        break;
       case "password":
         // router.push("/change-password");
         console.log("Cambiar contraseña");
@@ -126,6 +129,25 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
                 trackColor={{false: colors.muted, true: colors.primary}}
                 thumbColor="#ffffff"
               />
+            </TouchableOpacity>
+
+            {/* View Agenda */}
+            <TouchableOpacity
+              style={[
+                styles.optionButton,
+                {backgroundColor: colors.background, borderColor: colors.border},
+              ]}
+              onPress={() => handleOptionPress("agenda")}
+              activeOpacity={0.7}>
+              <View style={styles.optionLeft}>
+                <View style={[styles.optionIcon, {backgroundColor: "#22c55e" + "15"}]}>
+                  <Ionicons name="calendar" color="#22c55e" size={20} />
+                </View>
+                <Text style={[styles.optionText, {color: colors.foreground}]}>
+                  Ver agenda
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
             </TouchableOpacity>
 
             {/* Change Password */}

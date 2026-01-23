@@ -26,6 +26,14 @@ class GoogleCalendarCredentials(models.Model):
         on_delete=models.CASCADE,
         related_name='google_calendar_credentials'
     )
+
+    google_auth_credentials = models.OneToOneField(
+        'users.GoogleAuthCredentials',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='calendar_credentials'
+    )
     
     # Encrypted token storage
     _access_token = models.TextField(db_column='access_token')

@@ -297,6 +297,10 @@ GOOGLE_REDIRECT_URI = os.environ.get(
     'GOOGLE_REDIRECT_URI',
     'http://localhost:8000/api/calendar/callback/'
 )
+GOOGLE_REDIRECT_URI_AUTH = os.environ.get(
+    'GOOGLE_REDIRECT_URI_AUTH',
+    'http://localhost:8000/api/auth/google/callback/'
+)
 # Encryption key for storing Google tokens (derived from SECRET_KEY if not set)
 GOOGLE_TOKEN_ENCRYPTION_KEY = os.environ.get('GOOGLE_TOKEN_ENCRYPTION_KEY', None)
 

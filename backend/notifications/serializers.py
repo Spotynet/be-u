@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Notification, NotificationTemplate
+from .models import Notification, NotificationTemplate, PushDeviceToken, ReservationReminder
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -98,5 +98,23 @@ class NotificationTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = NotificationTemplate
         fields = ['id', 'type', 'title_template', 'message_template', 'is_active', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class PushDeviceTokenSerializer(serializers.ModelSerializer):
+    """Serializer for registering push device tokens"""
+
+    class Meta:
+        model = PushDeviceToken
+        fields = ['id', 'token', 'platform', 'is_active', 'last_seen_at', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'is_active', 'last_seen_at', 'created_at', 'updated_at']
+
+
+class ReservationReminderSerializer(serializers.ModelSerializer):
+    """Serializer for reservation reminders (debug/admin use)"""
+
+    class Meta:
+        model = ReservationReminder
+        fields = ['id', 'reservation', 'user', 'reminder_type', 'send_at', 'status', 'last_error', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 

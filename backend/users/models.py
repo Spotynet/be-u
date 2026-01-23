@@ -1,5 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.conf import settings
+from cryptography.fernet import Fernet
+import base64
 
 
 # ======================
@@ -39,10 +42,147 @@ class User(AbstractUser):
         return f"{self.email} ({self.role})"
     
     def save(self, *args, **kwargs):
-        # Auto-generate username from email if not provided
-        if not self.username:
-            self.username = self.email.split('@')[0]
+        # Auto-generate a UNIQUE username from email prefix if not provided
+        if not self.username and self.email:
+            base = self.email.split('@')[0]
+            candidate = base
+            i = 0
+            # Ensure uniqueness (avoid collisions like john@gmail.com and john@yahoo.com)
+            while User.objects.filter(username=candidate).exclude(pk=self.pk).exists():
+                i += 1
+                candidate = f"{base}{i}"
+            self.username = candidate
         super().save(*args, **kwargs)
+
+
+class EmailAuthCode(models.Model):
+    """One-time email auth code for passwordless login/verification."""
+
+    email = models.EmailField(db_index=True)
+    # Store a hash of the code, never the plaintext
+    code_hash = models.CharField(max_length=128)
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(blank=True, null=True)
+    attempts = models.PositiveIntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["email", "expires_at"]),
+            models.Index(fields=["email", "consumed_at"]),
+        ]
+
+    def is_expired(self):
+        from django.utils import timezone
+        return timezone.now() >= self.expires_at
+
+    def is_consumed(self):
+        return self.consumed_at is not None
+
+
+def get_encryption_key():
+    """Get or generate encryption key for token storage"""
+    key = getattr(settings, 'GOOGLE_TOKEN_ENCRYPTION_KEY', None)
+    if not key:
+        # Generate a key from Django's SECRET_KEY
+        secret = settings.SECRET_KEY.encode()
+        # Pad or truncate to 32 bytes for Fernet
+        key = base64.urlsafe_b64encode(secret[:32].ljust(32, b'0'))
+    return key
+
+
+class GoogleAuthCredentials(models.Model):
+    """
+    Stores encrypted Google OAuth tokens for authentication.
+    Tokens are encrypted at rest for security.
+    """
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='google_auth_credentials'
+    )
+
+    google_id = models.CharField(max_length=255, unique=True)
+    email_verified = models.BooleanField(default=False)
+    picture_url = models.URLField(blank=True, null=True)
+
+    # Encrypted token storage
+    _access_token = models.TextField(db_column='access_token')
+    _refresh_token = models.TextField(db_column='refresh_token')
+
+    # Token metadata
+    token_expiry = models.DateTimeField(
+        help_text="When the access token expires"
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether the Google auth connection is active"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Google Auth Credentials'
+        verbose_name_plural = 'Google Auth Credentials'
+
+    def __str__(self):
+        status = "active" if self.is_active else "inactive"
+        return f"{self.user.email} - Google Auth ({status})"
+
+    def _get_fernet(self):
+        """Get Fernet instance for encryption/decryption"""
+        return Fernet(get_encryption_key())
+
+    @property
+    def access_token(self):
+        """Decrypt and return access token"""
+        if not self._access_token:
+            return None
+        try:
+            fernet = self._get_fernet()
+            return fernet.decrypt(self._access_token.encode()).decode()
+        except Exception:
+            return None
+
+    @access_token.setter
+    def access_token(self, value):
+        """Encrypt and store access token"""
+        if value:
+            fernet = self._get_fernet()
+            self._access_token = fernet.encrypt(value.encode()).decode()
+        else:
+            self._access_token = ''
+
+    @property
+    def refresh_token(self):
+        """Decrypt and return refresh token"""
+        if not self._refresh_token:
+            return None
+        try:
+            fernet = self._get_fernet()
+            return fernet.decrypt(self._refresh_token.encode()).decode()
+        except Exception:
+            return None
+
+    @refresh_token.setter
+    def refresh_token(self, value):
+        """Encrypt and store refresh token"""
+        if value:
+            fernet = self._get_fernet()
+            self._refresh_token = fernet.encrypt(value.encode()).decode()
+        else:
+            self._refresh_token = ''
+
+    def is_token_expired(self):
+        """Check if the access token has expired"""
+        from django.utils import timezone
+        if not self.token_expiry:
+            return True
+        return timezone.now() >= self.token_expiry
 
 
 # ======================

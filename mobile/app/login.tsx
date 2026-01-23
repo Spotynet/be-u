@@ -18,16 +18,21 @@ import {useRouter} from "expo-router";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
 import {useAuth} from "@/features/auth";
+import {useGoogleAuth} from "@/hooks/useGoogleAuth";
 
 export default function Login() {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const {login, isLoading} = useAuth();
+  const {login, requestEmailCode, loginWithEmailCode, isLoading} = useAuth();
+  const {connectWithGoogle, isConnecting, error: googleAuthError} = useGoogleAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loginMode, setLoginMode] = useState<"password" | "code">("password");
+  const [emailCode, setEmailCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({email: "", password: ""});
   const [successMessage, setSuccessMessage] = useState("");
@@ -106,12 +111,14 @@ export default function Login() {
       isValid = false;
     }
 
-    if (!password) {
-      newErrors.password = "La contraseña es requerida";
-      isValid = false;
-    } else if (password.length < 6) {
-      newErrors.password = "La contraseña debe tener al menos 6 caracteres";
-      isValid = false;
+    if (loginMode === "password") {
+      if (!password) {
+        newErrors.password = "La contraseña es requerida";
+        isValid = false;
+      } else if (password.length < 6) {
+        newErrors.password = "La contraseña debe tener al menos 6 caracteres";
+        isValid = false;
+      }
     }
 
     setErrors(newErrors);
@@ -127,12 +134,22 @@ export default function Login() {
     if (!validateForm()) return;
 
     try {
-      await login({email, password});
-      setSuccessMessage("¡Inicio de sesión exitoso!");
-      // Navigate to home after a brief success message
-      setTimeout(() => {
-        router.replace("/(tabs)");
-      }, 1000);
+      if (loginMode === "password") {
+        await login({email, password});
+        setSuccessMessage("¡Inicio de sesión exitoso!");
+        setTimeout(() => router.replace("/(tabs)"), 1000);
+      } else {
+        // Code mode: if no code yet, send it; otherwise verify it.
+        if (!codeSent) {
+          await requestEmailCode(email);
+          setCodeSent(true);
+          setSuccessMessage("Te enviamos un código a tu correo.");
+        } else {
+          await loginWithEmailCode({email, code: emailCode});
+          setSuccessMessage("¡Inicio de sesión exitoso!");
+          setTimeout(() => router.replace("/(tabs)"), 800);
+        }
+      }
     } catch (error: any) {
       // Handle specific error types with beautiful inline messages
       if (
@@ -156,6 +173,26 @@ export default function Login() {
       } else {
         setGeneralError(error.message || "Ocurrió un error inesperado. Intenta nuevamente.");
       }
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setSuccessMessage("");
+    setGeneralError("");
+
+    const success = await connectWithGoogle();
+    if (success) {
+      setSuccessMessage("¡Inicio de sesión con Google exitoso!");
+      setTimeout(() => {
+        router.replace("/(tabs)");
+      }, 800);
+      return;
+    }
+
+    if (googleAuthError) {
+      setGeneralError(googleAuthError);
+    } else {
+      setGeneralError("No se pudo completar el inicio de sesión con Google.");
     }
   };
 
@@ -240,6 +277,37 @@ export default function Login() {
 
         {/* Login Form */}
         <View style={styles.formContainer}>
+          {/* Mode toggle */}
+          <View style={styles.modeToggleRow}>
+            <TouchableOpacity
+              style={[
+                styles.modePill,
+                loginMode === "password" ? {backgroundColor: colors.primary} : {backgroundColor: colors.card, borderColor: colors.border},
+              ]}
+              onPress={() => {
+                setLoginMode("password");
+                setCodeSent(false);
+                setEmailCode("");
+              }}>
+              <Text style={[styles.modePillText, {color: loginMode === "password" ? "#fff" : colors.foreground}]}>
+                Contraseña
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.modePill,
+                loginMode === "code" ? {backgroundColor: colors.primary} : {backgroundColor: colors.card, borderColor: colors.border},
+              ]}
+              onPress={() => {
+                setLoginMode("code");
+                setPassword("");
+              }}>
+              <Text style={[styles.modePillText, {color: loginMode === "code" ? "#fff" : colors.foreground}]}>
+                Código por email
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.inputGroup}>
             <Text style={[styles.inputLabel, {color: colors.foreground}]}>Email</Text>
             <View
@@ -264,44 +332,68 @@ export default function Login() {
             ) : null}
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, {color: colors.foreground}]}>Contraseña</Text>
-            <View
-              style={[
-                styles.inputWrapper,
-                {backgroundColor: colors.input, borderColor: colors.border},
-              ]}>
-              <Ionicons name="lock-closed" color={colors.mutedForeground} size={20} />
-              <TextInput
-                style={[styles.textInput, {color: colors.foreground}]}
-                placeholder="Tu contraseña"
-                placeholderTextColor={colors.mutedForeground}
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-                editable={!isLoading}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons
-                  name={showPassword ? "eye-off" : "eye"}
-                  color={colors.mutedForeground}
-                  size={20}
+          {loginMode === "password" ? (
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, {color: colors.foreground}]}>Contraseña</Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  {backgroundColor: colors.input, borderColor: colors.border},
+                ]}>
+                <Ionicons name="lock-closed" color={colors.mutedForeground} size={20} />
+                <TextInput
+                  style={[styles.textInput, {color: colors.foreground}]}
+                  placeholder="Tu contraseña"
+                  placeholderTextColor={colors.mutedForeground}
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                  editable={!isLoading}
                 />
-              </TouchableOpacity>
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons
+                    name={showPassword ? "eye-off" : "eye"}
+                    color={colors.mutedForeground}
+                    size={20}
+                  />
+                </TouchableOpacity>
+              </View>
+              {errors.password ? (
+                <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.password}</Text>
+              ) : null}
             </View>
-            {errors.password ? (
-              <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.password}</Text>
-            ) : null}
-          </View>
+          ) : (
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, {color: colors.foreground}]}>Código</Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  {backgroundColor: colors.input, borderColor: colors.border},
+                ]}>
+                <Ionicons name="key" color={colors.mutedForeground} size={20} />
+                <TextInput
+                  style={[styles.textInput, {color: colors.foreground}]}
+                  placeholder={codeSent ? "Ingresa el código" : "Primero envía el código"}
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="number-pad"
+                  value={emailCode}
+                  onChangeText={setEmailCode}
+                  editable={!isLoading && codeSent}
+                />
+              </View>
+            </View>
+          )}
 
-          {/* Forgot Password */}
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={[styles.forgotPasswordText, {color: colors.primary}]}>
-              ¿Olvidaste tu contraseña?
-            </Text>
-          </TouchableOpacity>
+          {/* Forgot Password (only for password mode) */}
+          {loginMode === "password" ? (
+            <TouchableOpacity style={styles.forgotPassword}>
+              <Text style={[styles.forgotPasswordText, {color: colors.primary}]}>
+                ¿Olvidaste tu contraseña?
+              </Text>
+            </TouchableOpacity>
+          ) : null}
 
-          {/* Login Button */}
+          {/* Login / Send code / Verify button */}
           <TouchableOpacity
             style={[
               styles.loginButton,
@@ -313,22 +405,36 @@ export default function Login() {
             {isLoading ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text style={[styles.loginButtonText, {color: "#ffffff"}]}>Iniciar Sesión</Text>
+              <Text style={[styles.loginButtonText, {color: "#ffffff"}]}>
+                {loginMode === "password"
+                  ? "Iniciar Sesión"
+                  : codeSent
+                    ? "Verificar código"
+                    : "Enviar código"}
+              </Text>
             )}
           </TouchableOpacity>
 
-        {/* Google Login (placeholder) */}
+        {/* Google Login */}
         <TouchableOpacity
           style={[
             styles.googleButton,
             {backgroundColor: colors.card, borderColor: colors.border},
+            isConnecting && styles.loginButtonDisabled,
           ]}
-          onPress={() => {}}
+          onPress={handleGoogleLogin}
+          disabled={isConnecting}
           activeOpacity={0.8}>
-          <Ionicons name="logo-google" size={20} color={colors.foreground} />
-          <Text style={[styles.googleButtonText, {color: colors.foreground}]}>
-            Continuar con Google
-          </Text>
+          {isConnecting ? (
+            <ActivityIndicator color={colors.foreground} />
+          ) : (
+            <>
+              <Ionicons name="logo-google" size={20} color={colors.foreground} />
+              <Text style={[styles.googleButtonText, {color: colors.foreground}]}>
+                Continuar con Google
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
         </View>
 
@@ -505,6 +611,23 @@ const styles = StyleSheet.create({
   googleButtonText: {
     fontSize: 15,
     fontWeight: "600",
+  },
+  modeToggleRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 18,
+  },
+  modePill: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modePillText: {
+    fontSize: 13,
+    fontWeight: "700",
   },
   errorText: {
     fontSize: 12,

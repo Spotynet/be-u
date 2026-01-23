@@ -416,6 +416,14 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
       connectingRef.current = true;
       setError(null);
 
+      // If calendar already connected (e.g., via Google Sign-In), skip OAuth flow
+      const currentStatus = await refreshStatus();
+      if (currentStatus?.is_connected) {
+        setIsConnecting(false);
+        connectingRef.current = false;
+        return true;
+      }
+
       // Step 1: Get auth URL from backend with mobile redirect URI
       const mobileRedirectUri = getRedirectUri();
       console.log('📱 Getting auth URL with redirect:', mobileRedirectUri);

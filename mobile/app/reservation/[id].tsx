@@ -8,6 +8,7 @@ import {reservationApi} from "@/lib/api";
 import {Reservation} from "@/types/global";
 import {parseISODateAsLocal} from "@/lib/dateUtils";
 import {useAuth} from "@/features/auth";
+import ReservationQRCode from "@/components/reservation/ReservationQRCode";
 
 export default function ReservationDetailsScreen() {
   const {colors} = useThemeVariant();
@@ -139,12 +140,15 @@ export default function ReservationDetailsScreen() {
           {/* Summary */}
           <View style={[styles.summaryCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
             <View style={styles.summaryTop}>
-              <Text style={[styles.code, {color: colors.mutedForeground}]}>{reservation.code}</Text>
+              <ReservationQRCode code={reservation.code} size={120} showCodeText />
               <View style={[styles.statusBadge, {backgroundColor: statusColor(reservation.status) + "15"}]}>
                 <Text style={[styles.statusText, {color: statusColor(reservation.status)}]}>{reservation.status_display}</Text>
               </View>
             </View>
             <Text style={[styles.serviceName, {color: colors.foreground}]}>{serviceName}</Text>
+            <Text style={[styles.qrHint, {color: colors.mutedForeground}]}>
+              Escanea este código para verificar la reserva
+            </Text>
           </View>
 
           {/* Details */}
@@ -250,11 +254,17 @@ const styles = StyleSheet.create({
   retryButtonText: {color: "#fff", fontSize: 14, fontWeight: "800"},
   content: {padding: 16, paddingBottom: 32, gap: 12},
   summaryCard: {padding: 16, borderRadius: 16, borderWidth: 1},
-  summaryTop: {flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10},
-  code: {fontSize: 12, fontWeight: "700"},
+  summaryTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 10,
+  },
   statusBadge: {paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999},
   statusText: {fontSize: 11, fontWeight: "800", textTransform: "uppercase"},
   serviceName: {fontSize: 22, fontWeight: "900", letterSpacing: -0.4},
+  qrHint: {fontSize: 12, fontWeight: "600", marginTop: 6},
   sectionCard: {padding: 14, borderRadius: 16, borderWidth: 1, gap: 12},
   prominentBlock: {gap: 4, paddingBottom: 8},
   prominentLabel: {fontSize: 12, fontWeight: "800", letterSpacing: 0.2},

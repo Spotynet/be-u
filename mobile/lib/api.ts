@@ -211,6 +211,15 @@ export const authApi = {
       credentials
     ),
 
+  requestEmailCode: (payload: {email: string}) =>
+    api.post<{message: string}>("/auth/email/request-code/", payload),
+
+  verifyEmailCode: (payload: {email: string; code: string}) =>
+    api.post<{message: string; user: any; access: string; refresh: string}>(
+      "/auth/email/verify-code/",
+      payload
+    ),
+
   register: (userData: {
     email: string;
     password: string;
@@ -243,6 +252,17 @@ export const authApi = {
   getProfile: () => api.get<{user: any}>("/auth/profile/"),
 
   updateProfile: (data: any) => api.put<{user: any}>("/auth/profile/", data),
+
+  googleAuthUrl: (redirectUri?: string) =>
+    api.get<{auth_url: string; state: string}>("/auth/google/auth-url/", {
+      params: redirectUri ? {redirect_uri: redirectUri} : undefined,
+    }),
+
+  googleCallback: (payload: {code: string; state?: string; redirect_uri?: string}) =>
+    api.post<{message: string; user: any; access: string; refresh: string}>(
+      "/auth/google/callback/",
+      payload
+    ),
 };
 
 // Profile management API functions
@@ -896,6 +916,10 @@ export const notificationApi = {
 
   // Delete notification
   deleteNotification: (id: number) => api.delete(`/notifications/notifications/${id}/`),
+
+  // Register push token
+  registerPushToken: (data: {token: string; platform: "ios" | "android" | "web" | "unknown"}) =>
+    api.post<any>("/notifications/push-tokens/", data),
 };
 
 // Place–Professional Links API

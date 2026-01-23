@@ -4,27 +4,76 @@ from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 import logging
 
-from .models import Notification, NotificationTemplate
+from .models import Notification, NotificationTemplate, ReservationReminder
 from reservations.models import Reservation
 from reviews.models import PlaceReview, ProfessionalReview
 
 logger = logging.getLogger(__name__)
 
-# Store previous status to detect changes
-_previous_status_cache = {}
+# Store previous reservation fields to detect changes
+_previous_reservation_cache = {}
 
 
 @receiver(pre_save, sender=Reservation)
 def store_previous_status(sender, instance, **kwargs):
-    """Store previous status before save to detect changes"""
+    """Store previous status/date/time before save to detect changes"""
     if instance.pk:
         try:
             old_instance = Reservation.objects.get(pk=instance.pk)
-            _previous_status_cache[instance.pk] = old_instance.status
+            _previous_reservation_cache[instance.pk] = {
+                'status': old_instance.status,
+                'date': old_instance.date,
+                'time': old_instance.time,
+            }
         except Reservation.DoesNotExist:
-            _previous_status_cache[instance.pk] = None
+            _previous_reservation_cache[instance.pk] = None
     else:
-        _previous_status_cache[instance.pk] = None
+        _previous_reservation_cache[instance.pk] = None
+
+
+def _get_reservation_datetime(instance):
+    """Return timezone-aware datetime for reservation date/time"""
+    from datetime import datetime
+    tz = timezone.get_default_timezone()
+    naive = datetime.combine(instance.date, instance.time)
+    return timezone.make_aware(naive, tz)
+
+
+def _schedule_reminders_for_user(reservation, user):
+    """Create/update reminders for a reservation and user"""
+    if not user:
+        return
+
+    reminder_offsets = {
+        ReservationReminder.ReminderType.H24: timezone.timedelta(hours=24),
+        ReservationReminder.ReminderType.H12: timezone.timedelta(hours=12),
+        ReservationReminder.ReminderType.H4: timezone.timedelta(hours=4),
+        ReservationReminder.ReminderType.M30: timezone.timedelta(minutes=30),
+    }
+
+    reservation_dt = _get_reservation_datetime(reservation)
+    for reminder_type, delta in reminder_offsets.items():
+        send_at = reservation_dt - delta
+        ReservationReminder.objects.update_or_create(
+            reservation=reservation,
+            user=user,
+            reminder_type=reminder_type,
+            defaults={
+                'send_at': send_at,
+                'status': ReservationReminder.Status.PENDING,
+                'last_error': None,
+            }
+        )
+
+
+def _cancel_reminders(reservation):
+    ReservationReminder.objects.filter(
+        reservation=reservation,
+        status=ReservationReminder.Status.PENDING
+    ).update(
+        status=ReservationReminder.Status.CANCELLED,
+        updated_at=timezone.now()
+    )
 
 
 # ======================
@@ -256,6 +305,11 @@ def create_reservation_notification(sender, instance, created, **kwargs):
                 # Log error but don't let it prevent reservation creation
                 logger.error(f"Could not create calendar event for reservation {instance.code}: {e}", exc_info=True)
         
+        # Schedule reminders for confirmed reservations
+        if instance.status == Reservation.Status.CONFIRMED:
+            _schedule_reminders_for_user(instance, instance.client.user)
+            _schedule_reminders_for_user(instance, provider_user)
+
         # Log summary
         if provider_notif_created and client_notif_created:
             logger.info(f"✅ Both notifications created successfully for reservation {instance.code}")
@@ -267,8 +321,11 @@ def create_reservation_notification(sender, instance, created, **kwargs):
             logger.error(f"❌ No notifications created for reservation {instance.code}")
     
     else:
-        # Reservation updated - check status changes
-        previous_status = _previous_status_cache.get(instance.pk)
+        # Reservation updated - check status/date/time changes
+        previous_data = _previous_reservation_cache.get(instance.pk) or {}
+        previous_status = previous_data.get('status')
+        previous_date = previous_data.get('date')
+        previous_time = previous_data.get('time')
         
         if instance.status == Reservation.Status.CONFIRMED and previous_status != Reservation.Status.CONFIRMED:
             # Notify client that reservation was confirmed
@@ -311,6 +368,10 @@ def create_reservation_notification(sender, instance, created, **kwargs):
                     )
             except Exception as e:
                 logger.warning(f"Could not create calendar event for reservation {instance.code}: {e}")
+
+            # Schedule reminders for client and provider
+            _schedule_reminders_for_user(instance, instance.client.user)
+            _schedule_reminders_for_user(instance, provider_user)
         
         elif instance.status == Reservation.Status.CANCELLED and previous_status != Reservation.Status.CANCELLED:
             # Notify client that reservation was cancelled
@@ -326,6 +387,7 @@ def create_reservation_notification(sender, instance, created, **kwargs):
                     'cancellation_reason': instance.cancellation_reason
                 }
             )
+            _cancel_reminders(instance)
         
         elif instance.status == Reservation.Status.REJECTED and previous_status != Reservation.Status.REJECTED:
             # Notify client that reservation was rejected
@@ -341,6 +403,15 @@ def create_reservation_notification(sender, instance, created, **kwargs):
                     'rejection_reason': instance.rejection_reason
                 }
             )
+            _cancel_reminders(instance)
+        
+        # If date/time changed for confirmed reservations, reschedule reminders
+        if instance.status == Reservation.Status.CONFIRMED and (
+            instance.date != previous_date or instance.time != previous_time
+        ):
+            provider_user, _ = get_provider_user_from_reservation(instance)
+            _schedule_reminders_for_user(instance, instance.client.user)
+            _schedule_reminders_for_user(instance, provider_user)
         
         elif instance.status == Reservation.Status.COMPLETED and previous_status != Reservation.Status.COMPLETED:
             # Notify client that reservation was completed

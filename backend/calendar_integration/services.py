@@ -20,6 +20,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from .models import GoogleCalendarCredentials, CalendarEvent
+from users.models import GoogleAuthCredentials
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,35 @@ class GoogleCalendarService:
         Returns:
             Google Credentials object or None
         """
+        # Prefer Google auth credentials if available
+        try:
+            auth_creds = user.google_auth_credentials
+        except GoogleAuthCredentials.DoesNotExist:
+            auth_creds = None
+
+        if auth_creds and auth_creds.is_active:
+            credentials = Credentials(
+                token=auth_creds.access_token,
+                refresh_token=auth_creds.refresh_token,
+                token_uri='https://oauth2.googleapis.com/token',
+                client_id=self.client_id,
+                client_secret=self.client_secret,
+            )
+
+            if auth_creds.is_token_expired():
+                try:
+                    credentials.refresh(Request())
+                    auth_creds.access_token = credentials.token
+                    auth_creds.token_expiry = credentials.expiry
+                    auth_creds.save(update_fields=['_access_token', 'token_expiry', 'updated_at'])
+                except Exception as e:
+                    logger.error(f"Failed to refresh auth token for user {user.id}: {e}")
+                    auth_creds.is_active = False
+                    auth_creds.save(update_fields=['is_active', 'updated_at'])
+                    return None
+
+            return credentials
+
         try:
             cal_creds = user.google_calendar_credentials
         except GoogleCalendarCredentials.DoesNotExist:
