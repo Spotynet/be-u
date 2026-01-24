@@ -145,7 +145,7 @@ export default function Login() {
     if (result === true) {
       setSuccessMessage("¡Inicio de sesión con Google exitoso!");
       setTimeout(() => {
-        router.replace("/(tabs)");
+        router.replace("/(tabs)/perfil");
       }, 800);
       return;
     } else if (result === "requires_registration") {

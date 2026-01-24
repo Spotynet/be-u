@@ -1,8 +1,9 @@
-import {useCallback, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {authApi, errorUtils, tokenRefreshScheduler, tokenUtils} from "@/lib/api";
 import {useAuth} from "@/features/auth";
 import {getGoogleAuthRedirectUri, openGoogleAuth, parseGoogleAuthCode} from "@/lib/googleAuth";
 import {useRouter} from "expo-router";
+import {AppState, AppStateStatus, Linking} from "react-native";
 
 type GoogleAuthResult = boolean | "requires_registration";
 
@@ -17,6 +18,8 @@ export const useGoogleAuth = (): UseGoogleAuthReturn => {
   const [error, setError] = useState<string | null>(null);
   const {refreshToken} = useAuth();
   const router = useRouter();
+  const pendingStateRef = useRef<string | null>(null);
+  const connectingRef = useRef(false);
 
   const pollForGoogleLogin = useCallback(
     async (state: string, redirectUri: string, maxAttempts = 8) => {
@@ -37,6 +40,106 @@ export const useGoogleAuth = (): UseGoogleAuthReturn => {
     []
   );
 
+  const completeLoginFromState = useCallback(
+    async (state: string) => {
+      const redirectUri = getGoogleAuthRedirectUri();
+      // Production backend flow can take a bit; be more generous here.
+      const callbackResp = await pollForGoogleLogin(state, redirectUri, 20);
+
+      // Check if registration is required
+      if (callbackResp.data.requires_registration === true) {
+        setIsConnecting(false);
+        router.push({
+          pathname: "/register",
+          params: {
+            googleEmail: callbackResp.data.google_user_data?.email || "",
+            googleFirstName: callbackResp.data.google_user_data?.first_name || "",
+            googleLastName: callbackResp.data.google_user_data?.last_name || "",
+            googlePicture: callbackResp.data.google_user_data?.picture || "",
+            googleId: callbackResp.data.google_id || "",
+            googleAccessToken: callbackResp.data.tokens?.access_token || "",
+            googleRefreshToken: callbackResp.data.tokens?.refresh_token || "",
+          },
+        });
+        return "requires_registration" as const;
+      }
+
+      await tokenUtils.setTokens(callbackResp.data.access, callbackResp.data.refresh);
+      tokenRefreshScheduler.start();
+      await refreshToken();
+      // Navigate to perfil page after successful login
+      router.replace("/(tabs)/perfil");
+      return true;
+    },
+    [pollForGoogleLogin, refreshToken, router]
+  );
+
+  // Enterprise-grade: handle deep-link return AND "app becomes active" (Safari closed manually).
+  useEffect(() => {
+    const handleUrl = async (url: string) => {
+      if (!url || !url.includes("google-auth-callback")) return;
+
+      try {
+        const u = new URL(url);
+        const success = u.searchParams.get("success") === "true";
+        const errorParam = u.searchParams.get("error");
+        const stateFromUrl = u.searchParams.get("state") || pendingStateRef.current;
+
+        if (!connectingRef.current) return;
+
+        if (errorParam) {
+          setError(`Google auth error: ${errorParam}`);
+          setIsConnecting(false);
+          connectingRef.current = false;
+          pendingStateRef.current = null;
+          return;
+        }
+
+        if (success && stateFromUrl) {
+          await completeLoginFromState(stateFromUrl);
+          setIsConnecting(false);
+          connectingRef.current = false;
+          pendingStateRef.current = null;
+        }
+      } catch {
+        // ignore parse errors
+      }
+    };
+
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl(url);
+    });
+
+    const sub = Linking.addEventListener("url", (event) => {
+      handleUrl(event.url);
+    });
+
+    const onAppStateChange = async (next: AppStateStatus) => {
+      if (next !== "active") return;
+      if (!connectingRef.current || !pendingStateRef.current) return;
+
+      // If we returned to the app without a deep link, poll by state.
+      try {
+        await new Promise((r) => setTimeout(r, 500));
+        await completeLoginFromState(pendingStateRef.current);
+      } catch (e: any) {
+        // keep error but allow user to retry
+        setError(errorUtils.getErrorMessage(e));
+      } finally {
+        setIsConnecting(false);
+        connectingRef.current = false;
+        pendingStateRef.current = null;
+      }
+    };
+
+    const appStateSub = AppState.addEventListener("change", onAppStateChange);
+
+    return () => {
+      sub.remove();
+      appStateSub.remove();
+    };
+  }, [completeLoginFromState]);
+
   const connectWithGoogle = useCallback(async (): Promise<GoogleAuthResult> => {
     try {
       setIsConnecting(true);
@@ -49,6 +152,10 @@ export const useGoogleAuth = (): UseGoogleAuthReturn => {
       if (!auth_url) {
         throw new Error("No auth URL received from server");
       }
+
+      // Track this attempt so deep-links / AppState can complete the flow reliably.
+      pendingStateRef.current = state;
+      connectingRef.current = true;
 
       const result = await openGoogleAuth(auth_url);
       const isBackendRedirect = redirectUri.includes("/api/auth/google/callback");
@@ -86,9 +193,11 @@ export const useGoogleAuth = (): UseGoogleAuthReturn => {
         }
       } else if (result.type === "dismiss" && isBackendRedirect) {
         // Common in Expo preview / iOS: user completes in browser, then closes manually.
-        callbackResp = await pollForGoogleLogin(state, redirectUri, 12);
+        callbackResp = await pollForGoogleLogin(state, redirectUri, 20);
       } else if (result.type === "cancel") {
         setIsConnecting(false);
+        connectingRef.current = false;
+        pendingStateRef.current = null;
         return false;
       } else {
         throw new Error("Google authentication was not completed");
@@ -122,9 +231,15 @@ export const useGoogleAuth = (): UseGoogleAuthReturn => {
       await refreshToken();
 
       setIsConnecting(false);
+      connectingRef.current = false;
+      pendingStateRef.current = null;
+      // Navigate to perfil page after successful login
+      router.replace("/(tabs)/perfil");
       return true;
     } catch (err: any) {
       setIsConnecting(false);
+      connectingRef.current = false;
+      pendingStateRef.current = null;
       setError(errorUtils.getErrorMessage(err));
       return false;
     }
