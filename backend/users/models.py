@@ -185,6 +185,47 @@ class GoogleAuthCredentials(models.Model):
         return timezone.now() >= self.token_expiry
 
 
+class GoogleAuthPendingCode(models.Model):
+    """
+    Temporary storage for Google Auth authorization codes received from Google (GET redirect).
+    Used to bridge web redirect (GET) and mobile app token exchange (POST) in production.
+    """
+    state = models.CharField(
+        max_length=255,
+        unique=True,
+        db_index=True,
+        help_text="OAuth state parameter used to link authorization code",
+    )
+    code = models.TextField(
+        help_text="Authorization code from Google OAuth",
+    )
+    redirect_uri = models.URLField(
+        help_text="Redirect URI used in the OAuth flow",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When this code was received",
+    )
+
+    class Meta:
+        verbose_name = "Pending Google Auth Code"
+        verbose_name_plural = "Pending Google Auth Codes"
+        indexes = [
+            models.Index(fields=["state"]),
+        ]
+
+    def __str__(self):
+        return f"Google auth code for state {self.state[:8]}..."
+
+    def is_expired(self, max_age_minutes=10):
+        """Check if the code has expired (default 10 minutes)"""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        age = timezone.now() - self.created_at
+        return age > timedelta(minutes=max_age_minutes)
+
+
 # ======================
 # PERFILES DE USUARIO
 # ======================

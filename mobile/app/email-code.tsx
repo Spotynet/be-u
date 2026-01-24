@@ -11,25 +11,22 @@ import {
   Platform,
 } from "react-native";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
-import {useRouter} from "expo-router";
+import {useRouter, useLocalSearchParams} from "expo-router";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
 import {useAuth} from "@/features/auth";
-import {useGoogleAuth} from "@/hooks/useGoogleAuth";
 
-export default function Login() {
-  const colorScheme = useColorScheme();
+export default function EmailCode() {
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const {requestEmailCode, isLoading} = useAuth();
-  const {connectWithGoogle, isConnecting, error: googleAuthError} = useGoogleAuth();
+  const params = useLocalSearchParams<{email: string}>();
+  const {loginWithEmailCode, requestEmailCode, isLoading} = useAuth();
 
-  const [email, setEmail] = useState("");
-  const [errors, setErrors] = useState({email: ""});
+  const email = params.email || "";
+  const [emailCode, setEmailCode] = useState("");
+  const [errors, setErrors] = useState({code: ""});
   const [successMessage, setSuccessMessage] = useState("");
   const [generalError, setGeneralError] = useState("");
 
@@ -94,15 +91,15 @@ export default function Login() {
     outputRange: ["-5deg", "5deg"],
   });
 
-  const validateEmail = (): boolean => {
-    const newErrors = {email: ""};
+  const validateCode = (): boolean => {
+    const newErrors = {code: ""};
     let isValid = true;
 
-    if (!email) {
-      newErrors.email = "El email es requerido";
+    if (!emailCode) {
+      newErrors.code = "El código es requerido";
       isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = "Email inválido";
+    } else if (!/^\d{6}$/.test(emailCode)) {
+      newErrors.code = "El código debe tener 6 dígitos";
       isValid = false;
     }
 
@@ -110,24 +107,28 @@ export default function Login() {
     return isValid;
   };
 
-  const handleSendCode = async () => {
+  const handleVerifyCode = async () => {
     // Clear previous messages
     setSuccessMessage("");
     setGeneralError("");
-    setErrors({email: ""});
+    setErrors({code: ""});
 
-    if (!validateEmail()) return;
+    if (!validateCode()) return;
 
     try {
-      await requestEmailCode(email);
-      // Navigate to email code entry screen
-      router.push({
-        pathname: "/email-code",
-        params: {email},
-      });
+      await loginWithEmailCode({email, code: emailCode});
+      setSuccessMessage("¡Inicio de sesión exitoso!");
+      setTimeout(() => router.replace("/(tabs)"), 800);
     } catch (error: any) {
       // Handle specific error types with beautiful inline messages
-      if (error.message?.includes("Network") || error.message?.includes("timeout")) {
+      if (
+        error.message?.includes("Código inválido") ||
+        error.message?.includes("Invalid code")
+      ) {
+        setGeneralError("El código ingresado no es correcto. Verifica e intenta nuevamente.");
+      } else if (error.message?.includes("expirado") || error.message?.includes("expired")) {
+        setGeneralError("El código ha expirado. Solicita un nuevo código.");
+      } else if (error.message?.includes("Network") || error.message?.includes("timeout")) {
         setGeneralError("Error de conexión. Verifica tu internet e intenta nuevamente.");
       } else if (error.message?.includes("Server") || error.message?.includes("500")) {
         setGeneralError("Error del servidor. Por favor intenta más tarde.");
@@ -137,26 +138,22 @@ export default function Login() {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleResendCode = async () => {
     setSuccessMessage("");
     setGeneralError("");
+    setEmailCode("");
 
-    const result = await connectWithGoogle();
-    if (result === true) {
-      setSuccessMessage("¡Inicio de sesión con Google exitoso!");
-      setTimeout(() => {
-        router.replace("/(tabs)");
-      }, 800);
-      return;
-    } else if (result === "requires_registration") {
-      // User will be redirected to register page by the hook
-      return;
-    }
-
-    if (googleAuthError) {
-      setGeneralError(googleAuthError);
-    } else {
-      setGeneralError("No se pudo completar el inicio de sesión con Google.");
+    try {
+      await requestEmailCode(email);
+      setSuccessMessage("Te enviamos un nuevo código a tu correo.");
+    } catch (error: any) {
+      if (error.message?.includes("Network") || error.message?.includes("timeout")) {
+        setGeneralError("Error de conexión. Verifica tu internet e intenta nuevamente.");
+      } else if (error.message?.includes("Server") || error.message?.includes("500")) {
+        setGeneralError("Error del servidor. Por favor intenta más tarde.");
+      } else {
+        setGeneralError(error.message || "Ocurrió un error inesperado. Intenta nuevamente.");
+      }
     }
   };
 
@@ -177,7 +174,7 @@ export default function Login() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" color="#ffffff" size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: "#ffffff"}]}>Iniciar Sesión</Text>
+        <Text style={[styles.headerTitle, {color: "#ffffff"}]}>Verificar código</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -196,7 +193,7 @@ export default function Login() {
               },
             ]}>
             <View style={[styles.logoBg, {backgroundColor: colors.primary}]}>
-              <Ionicons name="sparkles" color="#ffffff" size={32} />
+              <Ionicons name="key" color="#ffffff" size={32} />
             </View>
             {/* Floating sparkles */}
             <Animated.View style={[styles.sparkle, styles.sparkle1, {opacity: sparkleOpacity1}]}>
@@ -215,7 +212,11 @@ export default function Login() {
         {/* Welcome Text */}
         <View style={styles.welcomeContainer}>
           <Text style={[styles.welcomeTitle, {color: colors.foreground}]}>
-            ¡Bienvenido de vuelta!
+            Ingresa el código
+          </Text>
+          <Text style={[styles.welcomeSubtitle, {color: colors.mutedForeground}]}>
+            Te enviamos un código de 6 dígitos a{"\n"}
+            <Text style={{fontWeight: "600"}}>{email}</Text>
           </Text>
         </View>
 
@@ -239,87 +240,64 @@ export default function Login() {
           </View>
         ) : null}
 
-        {/* Login Form */}
+        {/* Code Form */}
         <View style={styles.formContainer}>
           <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, {color: colors.foreground}]}>Email</Text>
+            <Text style={[styles.inputLabel, {color: colors.foreground}]}>Código</Text>
             <View
               style={[
                 styles.inputWrapper,
                 {backgroundColor: colors.input, borderColor: colors.border},
               ]}>
-              <Ionicons name="mail" color={colors.mutedForeground} size={20} />
+              <Ionicons name="key" color={colors.mutedForeground} size={20} />
               <TextInput
                 style={[styles.textInput, {color: colors.foreground}]}
-                placeholder="tu@email.com"
+                placeholder="123456"
                 placeholderTextColor={colors.mutedForeground}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
+                keyboardType="number-pad"
+                value={emailCode}
+                onChangeText={(text) => {
+                  // Only allow numeric input and limit to 6 digits
+                  const numericText = text.replace(/[^0-9]/g, "").slice(0, 6);
+                  setEmailCode(numericText);
+                }}
                 editable={!isLoading}
+                maxLength={6}
+                autoFocus
               />
             </View>
-            {errors.email ? (
-              <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.email}</Text>
+            {errors.code ? (
+              <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.code}</Text>
             ) : null}
           </View>
 
-          {/* Send code button */}
+          {/* Verify button */}
           <TouchableOpacity
             style={[
               styles.loginButton,
               {backgroundColor: colors.primary},
               isLoading && styles.loginButtonDisabled,
             ]}
-            onPress={handleSendCode}
+            onPress={handleVerifyCode}
             disabled={isLoading}>
             {isLoading ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
               <Text style={[styles.loginButtonText, {color: "#ffffff"}]}>
-                Enviar código
+                Verificar código
               </Text>
             )}
           </TouchableOpacity>
 
-          {/* Divider */}
-          <View style={styles.dividerContainer}>
-            <View style={[styles.dividerLine, {backgroundColor: colors.border}]} />
-            <Text style={[styles.dividerText, {color: colors.mutedForeground}]}>o</Text>
-            <View style={[styles.dividerLine, {backgroundColor: colors.border}]} />
-          </View>
-
-          {/* Google Login */}
+          {/* Resend code */}
           <TouchableOpacity
-            style={[
-              styles.googleButton,
-              {backgroundColor: colors.card, borderColor: colors.border},
-              isConnecting && styles.loginButtonDisabled,
-            ]}
-            onPress={handleGoogleLogin}
-            disabled={isConnecting}
-            activeOpacity={0.8}>
-            {isConnecting ? (
-              <ActivityIndicator color={colors.foreground} />
-            ) : (
-              <>
-                <Ionicons name="logo-google" size={20} color={colors.foreground} />
-                <Text style={[styles.googleButtonText, {color: colors.foreground}]}>
-                  Continuar con Google
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Register Link */}
-        <View style={styles.registerContainer}>
-          <Text style={[styles.registerText, {color: colors.mutedForeground}]}>
-            ¿No tienes cuenta?{" "}
-          </Text>
-          <TouchableOpacity onPress={() => router.push("/register")}>
-            <Text style={[styles.registerLink, {color: colors.primary}]}>Crear cuenta</Text>
+            style={styles.resendContainer}
+            onPress={handleResendCode}
+            disabled={isLoading}>
+            <Text style={[styles.resendText, {color: colors.primary}]}>
+              ¿No recibiste el código?{" "}
+              <Text style={styles.resendLink}>Reenviar</Text>
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -411,6 +389,12 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textAlign: "center",
     letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
+    textAlign: "center",
+    lineHeight: 24,
   },
   formContainer: {
     marginBottom: 32,
@@ -443,6 +427,8 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 16,
+    letterSpacing: 2,
+    fontWeight: "600",
   },
   loginButton: {
     paddingVertical: 18,
@@ -465,33 +451,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  googleButton: {
-    flexDirection: "row",
+  resendContainer: {
     alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 16,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    marginBottom: 8,
+    marginTop: 8,
   },
-  googleButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  dividerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 24,
-    gap: 12,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
+  resendText: {
     fontSize: 14,
     fontWeight: "500",
+  },
+  resendLink: {
+    fontWeight: "700",
+    textDecorationLine: "underline",
   },
   errorText: {
     fontSize: 12,
@@ -524,18 +494,5 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     flex: 1,
     lineHeight: 20,
-  },
-  registerContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingBottom: 32,
-  },
-  registerText: {
-    fontSize: 16,
-  },
-  registerLink: {
-    fontSize: 16,
-    fontWeight: "600",
   },
 });

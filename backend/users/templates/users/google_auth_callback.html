@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Iniciando sesión con Google…</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        background: linear-gradient(135deg, #0f172a 0%, #312e81 100%);
+        color: white;
+      }
+      .container {
+        text-align: center;
+        padding: 2rem;
+        max-width: 92%;
+      }
+      .icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+      }
+      h1 {
+        margin: 0 0 0.75rem 0;
+        font-size: 1.5rem;
+      }
+      p {
+        margin: 0.5rem 0;
+        opacity: 0.9;
+        line-height: 1.5;
+      }
+      .box {
+        background: rgba(255, 255, 255, 0.14);
+        padding: 1.25rem;
+        border-radius: 12px;
+        margin-top: 1.25rem;
+        backdrop-filter: blur(10px);
+      }
+      .btn {
+        display: inline-block;
+        margin-top: 1.25rem;
+        padding: 14px 36px;
+        background: white;
+        border: none;
+        border-radius: 30px;
+        color: #312e81;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      }
+      .btn:hover,
+      .btn:active {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+      }
+      .subtitle {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        margin-top: 1rem;
+      }
+      .error {
+        background: rgba(255, 255, 255, 0.18);
+        padding: 1rem;
+        border-radius: 10px;
+        margin-top: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      {% if error %}
+        <div class="error">
+          <div class="icon">❌</div>
+          <h1>Error al iniciar sesión</h1>
+          <p><strong>{{ error }}</strong></p>
+          {% if error_description %}
+            <p>{{ error_description }}</p>
+          {% endif %}
+          <a href="mypikapp://google-auth-callback?error={{ error }}" class="btn">Volver a la app</a>
+        </div>
+      {% else %}
+        <div class="icon">✅</div>
+        <h1>Inicio de sesión completado</h1>
+        <p>Regresando a la app…</p>
+
+        <div class="box">
+          <p>Si no regresa automáticamente, cierra esta ventana para volver a la app.</p>
+        </div>
+
+        <button id="close-btn" class="btn" onclick="tryReturn()">Volver a la app</button>
+
+        <p class="subtitle">Puedes cerrar esta ventana con seguridad.</p>
+      {% endif %}
+    </div>
+
+    <script>
+      function tryReturn() {
+        try {
+          var deepLink = "mypikapp://google-auth-callback?success=true{% if state %}&state={{ state }}{% endif %}";
+          window.location.href = deepLink;
+        } catch (e) {}
+
+        setTimeout(function () {
+          try { window.close(); } catch (e) {}
+        }, 300);
+      }
+
+      // Try automatically on load (best effort)
+      (function () {
+        setTimeout(function () {
+          tryReturn();
+        }, 800);
+      })();
+    </script>
+  </body>
+</html>
+

@@ -199,7 +199,7 @@ export const CalendarView = ({
       </View>
 
       <View
-        style={[styles.weekStripContainer, {borderColor: colors.border, backgroundColor: colors.background}]}
+        style={[styles.weekStripContainer, {backgroundColor: colors.background}]}
         onLayout={(e) => {
           const w = Math.round(e.nativeEvent.layout.width);
           if (w && w !== weekWidth) setWeekWidth(w);
@@ -383,12 +383,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   weekStripContainer: {
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: 14,
     overflow: "hidden",
-    paddingVertical: 10,
+    paddingVertical: 0,
     paddingHorizontal: 8,
-    marginBottom: 10,
+    marginBottom: 0,
   },
   weekPage: {
     flexDirection: "row",

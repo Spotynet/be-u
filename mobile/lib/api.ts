@@ -258,8 +258,25 @@ export const authApi = {
       params: redirectUri ? {redirect_uri: redirectUri} : undefined,
     }),
 
-  googleCallback: (payload: {code: string; state?: string; redirect_uri?: string}) =>
-    api.post<{message: string; user: any; access: string; refresh: string}>(
+  googleCallback: (payload: {code?: string; state?: string; redirect_uri?: string}) =>
+    api.post<{
+      message: string;
+      user: any;
+      access: string;
+      refresh: string;
+      requires_registration?: boolean;
+      google_user_data?: {
+        email: string;
+        first_name: string;
+        last_name: string;
+        picture?: string;
+      };
+      google_id?: string;
+      tokens?: {
+        access_token: string;
+        refresh_token: string;
+      };
+    }>(
       "/auth/google/callback/",
       payload
     ),

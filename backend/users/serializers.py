@@ -29,7 +29,9 @@ class GoogleAuthUrlSerializer(serializers.Serializer):
 
 
 class GoogleCallbackSerializer(serializers.Serializer):
-    code = serializers.CharField()
+    # In production we may receive the code via the backend GET redirect and
+    # exchange it later using only the state (see pending-code flow).
+    code = serializers.CharField(required=False, allow_blank=True)
     state = serializers.CharField(required=False, allow_blank=True)
     redirect_uri = serializers.URLField(required=False, allow_blank=True)
 

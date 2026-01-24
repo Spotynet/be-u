@@ -25,7 +25,8 @@ import hmac
 from django.conf import settings
 from django.core.mail import send_mail
 from django.utils import timezone
-from django.http import HttpResponse
+from django.shortcuts import render
+from .models import GoogleAuthPendingCode
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -94,57 +95,65 @@ def google_callback_view(request):
     - POST: Exchange code for tokens, create/update user, and return JWT tokens.
     """
     if request.method == 'GET':
-        # Google redirects via GET. We don't exchange tokens here; the mobile app will POST the code.
+        # Google redirects via GET. In production, we persist the code so the mobile app can
+        # exchange it later via POST even if the browser doesn't return cleanly to the app.
+        code = request.query_params.get('code')
+        state = request.query_params.get('state')
         error = request.query_params.get('error')
         error_description = request.query_params.get('error_description', '')
-        code = request.query_params.get('code')
 
         if error:
-            html = f"""<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Google Sign-In</title>
-  </head>
-  <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 24px;">
-    <h2>Google Sign-In failed</h2>
-    <p><strong>{error}</strong></p>
-    <p>{error_description}</p>
-    <p>You can close this window and return to the app.</p>
-  </body>
-</html>"""
-            return HttpResponse(html, content_type='text/html')
+          return render(
+              request,
+              "users/google_auth_callback.html",
+              {"error": error, "error_description": error_description},
+          )
 
-        if code:
-            html = """<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Google Sign-In</title>
-  </head>
-  <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 24px;">
-    <h2>Google Sign-In complete</h2>
-    <p>Returning to the app…</p>
-    <script>
-      // Some browsers won't allow window.close(); it's fine.
-      try { window.close(); } catch (e) {}
-    </script>
-  </body>
-</html>"""
-            return HttpResponse(html, content_type='text/html')
+        if code and state:
+            redirect_uri_used = request.build_absolute_uri(request.path)
+
+            # Replace any existing pending code for this state
+            GoogleAuthPendingCode.objects.filter(state=state).delete()
+            GoogleAuthPendingCode.objects.create(
+                state=state,
+                code=code,
+                redirect_uri=redirect_uri_used,
+            )
+
+            logger.info(f"Stored Google auth code for state {state[:8]}... (production callback)")
+            return render(request, "users/google_auth_callback.html", {"success": True, "state": state})
 
         # Fallback (no params)
-        return HttpResponse("OK", content_type='text/plain')
+        return render(request, "users/google_auth_callback.html", {"success": True, "state": state})
 
     serializer = GoogleCallbackSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    code = serializer.validated_data.get('code')
-    state = serializer.validated_data.get('state')
-    redirect_uri = serializer.validated_data.get('redirect_uri')
+    code = serializer.validated_data.get('code') or None
+    state = serializer.validated_data.get('state') or None
+    redirect_uri = serializer.validated_data.get('redirect_uri') or None
+
+    # Production flow: allow exchanging using only state (code was stored during GET redirect)
+    if not code and state:
+        try:
+            pending = GoogleAuthPendingCode.objects.get(state=state)
+            if pending.is_expired():
+                pending.delete()
+                return Response(
+                    {'error': 'Authorization code has expired. Please try again.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            code = pending.code
+            if not redirect_uri:
+                redirect_uri = pending.redirect_uri
+            pending.delete()
+        except GoogleAuthPendingCode.DoesNotExist:
+            # Client may be polling before the GET redirect is processed
+            return Response(
+                {'error': 'Authorization code not found yet. Please try again.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     stored_state = request.session.get('google_auth_state')
     if stored_state and state and stored_state != state:
@@ -153,6 +162,8 @@ def google_callback_view(request):
         del request.session['google_auth_state']
 
     try:
+        if not code:
+            return Response({'error': 'No authorization code provided.'}, status=status.HTTP_400_BAD_REQUEST)
         tokens = google_auth_service.exchange_code_for_tokens(code, redirect_uri=redirect_uri)
         google_user_data = google_auth_service.get_user_info(tokens['access_token'])
 
@@ -160,10 +171,32 @@ def google_callback_view(request):
             return Response({'error': 'Email not verified with Google'}, status=status.HTTP_400_BAD_REQUEST)
 
         google_id = google_user_data.get('sub') or google_user_data.get('id')
+        email = google_user_data.get('email', '').strip().lower()
+        
+        # Check if user exists by Google ID or email
         if google_id and User.objects.filter(google_auth_credentials__google_id=google_id).exists():
             existing_user = User.objects.filter(google_auth_credentials__google_id=google_id).first()
+        elif email and User.objects.filter(email=email).exists():
+            existing_user = User.objects.filter(email=email).first()
         else:
             existing_user = None
+
+        # If user doesn't exist, return Google data for registration
+        if not existing_user:
+            return Response({
+                'requires_registration': True,
+                'google_user_data': {
+                    'email': email,
+                    'first_name': google_user_data.get('given_name', ''),
+                    'last_name': google_user_data.get('family_name', ''),
+                    'picture': google_user_data.get('picture'),
+                },
+                'google_id': google_id,
+                'tokens': {
+                    'access_token': tokens.get('access_token'),
+                    'refresh_token': tokens.get('refresh_token'),
+                }
+            }, status=status.HTTP_200_OK)
 
         user = google_auth_service.create_or_update_user(google_user_data)
         if existing_user and existing_user.id != user.id:
@@ -236,18 +269,34 @@ def email_request_code_view(request):
     EmailAuthCode.objects.create(email=email, code_hash=code_hash, expires_at=expires_at)
 
     # Send email (best-effort)
+    email_sent = False
     try:
         send_mail(
             subject="Tu código de acceso - Be-U",
             message=f"Tu código de acceso es: {code}\n\nEste código expira en 10 minutos.",
             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
             recipient_list=[email],
-            fail_silently=True,
+            fail_silently=False,  # Changed to False to catch errors
         )
+        email_sent = True
+        logger.info(f"Email code sent successfully to {email}")
     except Exception as e:
-        logger.warning(f"Failed sending email code to {email}: {e}")
-
-    return Response({"message": "Si el correo existe, te enviamos un código."}, status=status.HTTP_200_OK)
+        logger.error(f"Failed sending email code to {email}: {e}")
+        # In development, if console backend is used, email will be printed to console
+        # In production, this should be configured with proper SMTP credentials
+    
+    # For development: Log the code to console for easy testing
+    # IMPORTANT: Remove this in production or make it DEBUG-only
+    if settings.DEBUG or settings.EMAIL_BACKEND == 'django.core.mail.backends.console.EmailBackend':
+        logger.info(f"🔐 EMAIL CODE FOR {email}: {code} (This is only shown in development)")
+        print(f"\n{'='*60}")
+        print(f"🔐 EMAIL CODE FOR {email}: {code}")
+        print(f"{'='*60}\n")
+    
+    return Response({
+        "message": "Si el correo existe, te enviamos un código.",
+        "email_sent": email_sent,  # Include status for debugging
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])

@@ -11,25 +11,48 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
-import {useRouter} from "expo-router";
+import {useRouter, useLocalSearchParams} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {authApi, errorUtils, tokenUtils} from "@/lib/api";
+import {useEffect} from "react";
 
 export default function RegisterClient() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    googleEmail?: string;
+    googleFirstName?: string;
+    googleLastName?: string;
+    googlePicture?: string;
+    googleId?: string;
+    googleAccessToken?: string;
+    googleRefreshToken?: string;
+  }>();
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const [values, setValues] = useState({
-    email: "",
+    email: params.googleEmail || "",
     password: "",
-    firstName: "",
-    lastName: "",
-    username: "",
+    firstName: params.googleFirstName || "",
+    lastName: params.googleLastName || "",
+    username: params.googleEmail ? params.googleEmail.split("@")[0] : "",
     role: "client" as "client",
   });
   const [loading, setLoading] = useState(false);
+  const [googleInfo, setGoogleInfo] = useState<{
+    googleId?: string;
+    googleAccessToken?: string;
+    googleRefreshToken?: string;
+  } | null>(
+    params.googleId
+      ? {
+          googleId: params.googleId,
+          googleAccessToken: params.googleAccessToken,
+          googleRefreshToken: params.googleRefreshToken,
+        }
+      : null
+  );
 
   const onSubmit = async () => {
     if (!values.email || !values.password || !values.firstName) {
@@ -40,6 +63,10 @@ export default function RegisterClient() {
       setLoading(true);
       const {data} = await authApi.register(values);
       await tokenUtils.setTokens(data.access, data.refresh);
+      
+      // Note: Google account linking will be handled separately
+      // The user can link their Google account from settings if needed
+      
       router.replace("/(tabs)/perfil");
     } catch (err) {
       Alert.alert("Error", errorUtils.getErrorMessage(err));

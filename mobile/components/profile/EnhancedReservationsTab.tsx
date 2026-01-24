@@ -24,16 +24,25 @@ import {Image} from "react-native";
 
 interface EnhancedReservationsTabProps {
   userRole: "CLIENT" | "PROFESSIONAL" | "PLACE";
+  selectedDate?: string;
+  onSelectDate?: (date: string | undefined) => void;
 }
 
-export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps) {
+export function EnhancedReservationsTab({
+  userRole,
+  selectedDate: controlledDate,
+  onSelectDate,
+}: EnhancedReservationsTabProps) {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
   const router = useRouter();
   const {user, isAuthenticated} = useAuth();
 
   const [isCalendarExpanded] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<string | undefined>();
+  const [internalDate, setInternalDate] = useState<string | undefined>();
+  const isControlled = onSelectDate != null;
+  const selectedDate = isControlled ? controlledDate : internalDate;
+  const setSelectedDate = isControlled ? onSelectDate : setInternalDate;
   const [timeTab, setTimeTab] = useState<"upcoming" | "history">("upcoming");
   const [teamLinks, setTeamLinks] = useState<any[]>([]);
   const [teamFilterProfessionalId, setTeamFilterProfessionalId] = useState<number | "all">("all");
