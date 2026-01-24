@@ -25,6 +25,7 @@ import hmac
 from django.conf import settings
 from django.core.mail import send_mail
 from django.utils import timezone
+from django.http import HttpResponse
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -82,15 +83,61 @@ def google_auth_url_view(request):
     return Response(serializer.data)
 
 
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 @csrf_exempt
 def google_callback_view(request):
     """
-    POST /api/auth/google/callback/
+    GET/POST /api/auth/google/callback/
 
-    Exchange code for tokens, create/update user, and return JWT tokens.
+    - GET: OAuth redirect target from Google (must be allowed + will contain ?code=...&state=...)
+    - POST: Exchange code for tokens, create/update user, and return JWT tokens.
     """
+    if request.method == 'GET':
+        # Google redirects via GET. We don't exchange tokens here; the mobile app will POST the code.
+        error = request.query_params.get('error')
+        error_description = request.query_params.get('error_description', '')
+        code = request.query_params.get('code')
+
+        if error:
+            html = f"""<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Google Sign-In</title>
+  </head>
+  <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 24px;">
+    <h2>Google Sign-In failed</h2>
+    <p><strong>{error}</strong></p>
+    <p>{error_description}</p>
+    <p>You can close this window and return to the app.</p>
+  </body>
+</html>"""
+            return HttpResponse(html, content_type='text/html')
+
+        if code:
+            html = """<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Google Sign-In</title>
+  </head>
+  <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 24px;">
+    <h2>Google Sign-In complete</h2>
+    <p>Returning to the app…</p>
+    <script>
+      // Some browsers won't allow window.close(); it's fine.
+      try { window.close(); } catch (e) {}
+    </script>
+  </body>
+</html>"""
+            return HttpResponse(html, content_type='text/html')
+
+        # Fallback (no params)
+        return HttpResponse("OK", content_type='text/plain')
+
     serializer = GoogleCallbackSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

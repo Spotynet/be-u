@@ -12,8 +12,14 @@ WebBrowser.maybeCompleteAuthSession();
 
 export const getGoogleAuthRedirectUri = (): string => {
   const apiUrl = process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL;
-  const isDevelopment =
-    __DEV__ || !apiUrl || apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1');
+  // IMPORTANT:
+  // - In dev (Expo Go / dev client), we must use an app redirect URI (exp://... / mypikapp://...).
+  // - In production builds, we should use an HTTPS redirect URI that is whitelisted
+  //   in Google Cloud Console for the Web OAuth client.
+  //
+  // Rely only on __DEV__ here: env vars may be missing in production builds, which would
+  // incorrectly route us into the dev branch and produce an exp:// redirect URI.
+  const isDevelopment = __DEV__;
 
   if (isDevelopment) {
     const uri = AuthSession.makeRedirectUri({
@@ -24,11 +30,9 @@ export const getGoogleAuthRedirectUri = (): string => {
     return uri;
   }
 
-  // Production: still use custom scheme for mobile
-  const uri = AuthSession.makeRedirectUri({
-    scheme: 'mypikapp',
-    path: 'google-auth-callback',
-  });
+  // Production: use backend HTTPS callback (allowed by Google OAuth "Web application" client)
+  const backendUrl = apiUrl || 'https://stg.be-u.ai/api';
+  const uri = `${backendUrl.replace('/api', '')}/api/auth/google/callback/`;
   console.log('📱 Google Auth Redirect URI (Prod):', uri);
   return uri;
 };

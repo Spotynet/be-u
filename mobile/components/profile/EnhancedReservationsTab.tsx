@@ -347,22 +347,6 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
 
   return (
     <View style={styles.container}>
-      {/* Collapsible Calendar Header */}
-      <View
-        style={[
-          styles.calendarHeader,
-          {backgroundColor: colors.card, borderBottomColor: colors.border},
-        ]}>
-        <View style={styles.calendarHeaderContent}>
-          <View style={styles.calendarHeaderLeft}>
-            <Ionicons name="calendar-outline" size={20} color={colors.primary} />
-            <Text style={[styles.calendarHeaderText, {color: colors.foreground}]}>
-              {selectedDate ? `Filtrar por fecha: ${selectedDate}` : "Filtrar por fecha"}
-            </Text>
-          </View>
-        </View>
-      </View>
-
       {/* Expandable Calendar */}
       <View style={[styles.calendarContainer, {backgroundColor: colors.card}]}>
         <CalendarView
@@ -536,25 +520,6 @@ export function EnhancedReservationsTab({userRole}: EnhancedReservationsTabProps
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  calendarHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  calendarHeaderContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  calendarHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  calendarHeaderText: {
-    fontSize: 15,
-    fontWeight: "600",
   },
   calendarContainer: {
     paddingHorizontal: 16,
