@@ -233,6 +233,8 @@ class ClientProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="client_profile")
     phone = models.CharField(max_length=20, blank=True, null=True)
     photo = models.ImageField(upload_to="clients/photos/", blank=True, null=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 
     def __str__(self):
         return f"Client: {self.user.username}"

@@ -116,7 +116,17 @@ export default function EmailCode() {
     if (!validateCode()) return;
 
     try {
-      await loginWithEmailCode({email, code: emailCode});
+      const result = await loginWithEmailCode({email, code: emailCode});
+      if (result === "requires_registration") {
+        router.replace({
+          pathname: "/register",
+          params: {
+            googleEmail: email,
+          },
+        });
+        return;
+      }
+
       setSuccessMessage("¡Inicio de sesión exitoso!");
       setTimeout(() => router.replace("/(tabs)"), 800);
     } catch (error: any) {

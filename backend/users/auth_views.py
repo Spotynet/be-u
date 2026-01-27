@@ -338,12 +338,17 @@ def email_verify_code_view(request):
     auth_code.consumed_at = timezone.now()
     auth_code.save(update_fields=["consumed_at", "updated_at"])
 
-    user, created = User.objects.get_or_create(email=email, defaults={})
-    if created:
-        user.set_unusable_password()
-        user.role = User.Role.CLIENT
-        user.save()
-        ClientProfile.objects.get_or_create(user=user)
+    # IMPORTANT: do not auto-create accounts anymore.
+    # If the user doesn't exist, redirect the client app to the registration flow.
+    user = User.objects.filter(email=email).first()
+    if not user:
+        return Response(
+            {
+                "requires_registration": True,
+                "email": email,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     refresh = RefreshToken.for_user(user)
     access_token = refresh.access_token
@@ -426,7 +431,7 @@ def register_view(request):
         logger.info(f"Parsed JSON data: {data}")
         
         email = data.get('email')
-        password = data.get('password')
+        password = data.get('password') or None
         first_name = data.get('firstName', '')
         last_name = data.get('lastName', '')
         username = data.get('username', '')
@@ -442,12 +447,12 @@ def register_view(request):
         logger.info(f"  - category: {data.get('category', 'NOT PROVIDED')}")
         logger.info(f"  - subcategory: {data.get('subcategory', 'NOT PROVIDED')}")
         
-        if not email or not password or not username:
+        # Password is no longer required (login is code/google only)
+        if not email or not username:
             logger.warning("Missing required fields")
             logger.warning(f"  - email present: {bool(email)}")
-            logger.warning(f"  - password present: {bool(password)}")
             logger.warning(f"  - username present: {bool(username)}")
-            return Response({'error': 'Email, password, and username are required'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Email and username are required'}, status=status.HTTP_400_BAD_REQUEST)
         
         # Check if user already exists
         logger.info("Checking if email already exists...")
@@ -471,13 +476,17 @@ def register_view(request):
         logger.info(f"  - first_name: {first_name}")
         logger.info(f"  - last_name: {last_name}")
         
+        # Create user. If password is omitted, set an unusable password.
         user = User.objects.create_user(
             username=username,
             email=email,
             password=password,
             first_name=first_name,
-            last_name=last_name
+            last_name=last_name,
         )
+        if not password:
+            user.set_unusable_password()
+            user.save(update_fields=["password"])
         # Assign role if provided and valid
         # Accept both lowercase and uppercase, convert to uppercase for database
         try:

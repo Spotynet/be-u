@@ -313,15 +313,6 @@ export default function Login() {
           </TouchableOpacity>
         </View>
 
-        {/* Register Link */}
-        <View style={styles.registerContainer}>
-          <Text style={[styles.registerText, {color: colors.mutedForeground}]}>
-            ¿No tienes cuenta?{" "}
-          </Text>
-          <TouchableOpacity onPress={() => router.push("/register")}>
-            <Text style={[styles.registerLink, {color: colors.primary}]}>Crear cuenta</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -524,18 +515,5 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     flex: 1,
     lineHeight: 20,
-  },
-  registerContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingBottom: 32,
-  },
-  registerText: {
-    fontSize: 16,
-  },
-  registerLink: {
-    fontSize: 16,
-    fontWeight: "600",
   },
 });

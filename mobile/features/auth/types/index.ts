@@ -12,12 +12,14 @@ export interface EmailCodeCredentials {
 
 export interface RegisterCredentials {
   email: string;
-  password: string;
+  password?: string;
   firstName: string;
   lastName: string;
   username: string;
   role?: "CLIENT" | "PROFESSIONAL" | "PLACE";
 }
+
+export type EmailCodeLoginResult = true | "requires_registration";
 
 export interface AuthContextType {
   user: User | null;
@@ -25,7 +27,7 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   requestEmailCode: (email: string) => Promise<void>;
-  loginWithEmailCode: (credentials: EmailCodeCredentials) => Promise<void>;
+  loginWithEmailCode: (credentials: EmailCodeCredentials) => Promise<EmailCodeLoginResult>;
   register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => void;
   refreshToken: () => Promise<void>;

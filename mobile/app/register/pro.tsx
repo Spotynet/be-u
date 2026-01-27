@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import {useRouter} from "expo-router";
+import {useLocalSearchParams, useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
@@ -23,16 +23,20 @@ import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector"
 
 export default function RegisterPro() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    googleEmail?: string;
+    googleFirstName?: string;
+    googleLastName?: string;
+  }>();
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const {subcategoriesByMainCategory} = useCategory();
 
   const [values, setValues] = useState({
-    email: "",
-    password: "",
-    username: "",
-    firstName: "",
-    lastName: "",
+    email: params.googleEmail || "",
+    username: params.googleEmail ? params.googleEmail.split("@")[0] : "",
+    firstName: params.googleFirstName || "",
+    lastName: params.googleLastName || "",
     phone: "",
     city: "",
     bio: "",
@@ -50,8 +54,8 @@ export default function RegisterPro() {
   const set = (k: keyof typeof values) => (t: string) => setValues((s) => ({...s, [k]: t}));
 
   const onSubmit = async () => {
-    if (!values.email || !values.password || !values.username || !values.firstName || !values.lastName) {
-      Alert.alert("Campos requeridos", "Ingresa email, contraseña, nombre de usuario, nombre y apellido");
+    if (!values.email || !values.username || !values.firstName || !values.lastName) {
+      Alert.alert("Campos requeridos", "Ingresa email, nombre de usuario, nombre y apellido");
       return;
     }
     if (selectedCategories.length === 0 || selectedSubCategories.length === 0) {
@@ -175,14 +179,6 @@ export default function RegisterPro() {
           style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
           value={values.email}
           onChangeText={set("email")}
-        />
-        <TextInput
-          placeholder="Contraseña"
-          secureTextEntry
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.password}
-          onChangeText={set("password")}
         />
         <TextInput
           placeholder="Teléfono (opcional)"

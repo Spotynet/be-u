@@ -47,6 +47,9 @@ class Reservation(models.Model):
     notes = models.TextField(blank=True, null=True, help_text="Client notes for the provider")
     cancellation_reason = models.TextField(blank=True, null=True)
     rejection_reason = models.TextField(blank=True, null=True)
+    service_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    service_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    service_address = models.CharField(max_length=255, blank=True, null=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

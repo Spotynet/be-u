@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Q
 from .models import PublicProfile, User
+from .location_utils import filter_by_radius
 from .public_profile_serializers import (
     PublicProfileSerializer, 
     PublicProfileCreateSerializer,
@@ -67,8 +68,46 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
                 Q(description__icontains=search) |
                 Q(bio__icontains=search)
             )
-        
+
+        latitude = self.request.query_params.get("latitude")
+        longitude = self.request.query_params.get("longitude")
+        radius = self.request.query_params.get("radius")
+        if latitude is not None and longitude is not None:
+            try:
+                latitude = float(latitude)
+                longitude = float(longitude)
+                radius_km = float(radius) if radius is not None else 10.0
+            except (TypeError, ValueError):
+                return queryset
+
+            items = list(queryset)
+            items = filter_by_radius(items, latitude, longitude, radius_km)
+            items.sort(key=lambda item: item.distance_km if item.distance_km is not None else float("inf"))
+            return items
+
         return queryset
+
+    @action(detail=False, methods=["get"], url_path="nearby", permission_classes=[AllowAny])
+    def nearby(self, request):
+        latitude = request.query_params.get("latitude")
+        longitude = request.query_params.get("longitude")
+        radius = request.query_params.get("radius")
+
+        if latitude is None or longitude is None:
+            return Response({"detail": "latitude and longitude are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            latitude = float(latitude)
+            longitude = float(longitude)
+            radius_km = float(radius) if radius is not None else 10.0
+        except (TypeError, ValueError):
+            return Response({"detail": "Invalid latitude/longitude/radius values."}, status=status.HTTP_400_BAD_REQUEST)
+
+        items = filter_by_radius(list(self.get_queryset()), latitude, longitude, radius_km)
+        items.sort(key=lambda item: item.distance_km if item.distance_km is not None else float("inf"))
+
+        serializer = PublicProfileListSerializer(items, many=True)
+        return Response(serializer.data)
     
     def perform_create(self, serializer):
         """Set user to current user when creating profile"""

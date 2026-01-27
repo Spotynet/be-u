@@ -18,6 +18,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     availability = serializers.SerializerMethodField()
     professional_profile_id = serializers.SerializerMethodField()
     place_profile_id = serializers.SerializerMethodField()
+    distance = serializers.SerializerMethodField()
     
     def get_user_image(self, obj):
         """Get user image URL with proper absolute URL handling"""
@@ -54,6 +55,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
             'last_name', 'bio', 'rating', 'display_name', 'availability',
             'professional_profile_id', 'place_profile_id',
             'latitude', 'longitude',
+            'distance',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'user', 'rating', 'created_at', 'updated_at']
@@ -135,6 +137,9 @@ class PublicProfileSerializer(serializers.ModelSerializer):
                 return None
         return None
 
+    def get_distance(self, obj):
+        return getattr(obj, "distance_km", None)
+
 
 class PublicProfileCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating PublicProfile"""
@@ -209,11 +214,15 @@ class PublicProfileListSerializer(serializers.ModelSerializer):
     
     user_email = serializers.EmailField(source='user.email', read_only=True)
     display_name = serializers.CharField(read_only=True)
+    distance = serializers.SerializerMethodField()
     
     class Meta:
         model = PublicProfile
         fields = [
             'id', 'user_email', 'profile_type', 'name', 'display_name',
             'category', 'city', 'rating', 'has_calendar', 'created_at',
-            'latitude', 'longitude'
+            'latitude', 'longitude', 'distance'
         ]
+
+    def get_distance(self, obj):
+        return getattr(obj, "distance_km", None)

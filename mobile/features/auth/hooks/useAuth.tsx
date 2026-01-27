@@ -1,7 +1,14 @@
 import React, {createContext, useContext, useState, useEffect, ReactNode} from "react";
 import {authApi, tokenUtils, tokenRefreshScheduler, notificationApi} from "@/lib/api";
 import {getExpoPushToken, getPlatformLabel} from "@/lib/pushNotifications";
-import {AuthContextType, AuthState, LoginCredentials, RegisterCredentials, EmailCodeCredentials} from "../types";
+import {
+  AuthContextType,
+  AuthState,
+  LoginCredentials,
+  RegisterCredentials,
+  EmailCodeCredentials,
+  EmailCodeLoginResult,
+} from "../types";
 import {User} from "@/types/global";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -115,10 +122,19 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
     }
   };
 
-  const loginWithEmailCode = async (credentials: EmailCodeCredentials) => {
+  const loginWithEmailCode = async (credentials: EmailCodeCredentials): Promise<EmailCodeLoginResult> => {
     try {
       setState((prev) => ({...prev, isLoading: true, error: null}));
       const response = await authApi.verifyEmailCode(credentials);
+
+      if ((response.data as any)?.requires_registration === true) {
+        setState((prev) => ({...prev, isLoading: false}));
+        return "requires_registration";
+      }
+
+      if (!response.data?.access || !response.data?.refresh || !response.data?.user) {
+        throw new Error(response.data?.error || "Login failed");
+      }
 
       await tokenUtils.setTokens(response.data.access, response.data.refresh);
       setState((prev) => ({
@@ -138,6 +154,7 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
       } catch (_) {
         // ignore push registration errors
       }
+      return true;
     } catch (error: any) {
       setState((prev) => ({
         ...prev,

@@ -125,7 +125,7 @@ class ChangePasswordSerializer(serializers.Serializer):
 class ClientProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClientProfile
-        fields = ['phone', 'photo']
+        fields = ['phone', 'photo', 'latitude', 'longitude']
 
 
 class ProfessionalProfileSerializer(serializers.ModelSerializer):

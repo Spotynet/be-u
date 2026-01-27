@@ -42,6 +42,7 @@ class ReservationSerializer(serializers.ModelSerializer):
             'date', 'time', 'duration', 'duration_minutes', 'end_time',
             'status', 'status_display',
             'notes', 'cancellation_reason', 'rejection_reason',
+            'service_latitude', 'service_longitude', 'service_address',
             'calendar_event_link', 'calendar_event_id', 'calendar_event_created',
             'created_at', 'updated_at'
         ]
@@ -75,6 +76,19 @@ class ReservationSerializer(serializers.ModelSerializer):
     def get_provider_details(self, obj):
         provider = obj.provider
         provider_type = self.get_provider_type(obj)
+        public_profile = None
+        if provider and hasattr(provider, "user") and hasattr(provider.user, "public_profile"):
+            public_profile = provider.user.public_profile
+
+        provider_location = None
+        if public_profile and public_profile.latitude is not None and public_profile.longitude is not None:
+            address_parts = [public_profile.street, public_profile.number_ext, public_profile.city]
+            address = " ".join([part for part in address_parts if part])
+            provider_location = {
+                "latitude": float(public_profile.latitude),
+                "longitude": float(public_profile.longitude),
+                "address": address or None,
+            }
         
         if provider_type == 'professional':
             return {
@@ -82,7 +96,8 @@ class ReservationSerializer(serializers.ModelSerializer):
                 'name': f"{provider.name} {provider.last_name}",
                 'bio': provider.bio,
                 'city': provider.city,
-                'rating': float(provider.rating) if provider.rating else 0.0
+                'rating': float(provider.rating) if provider.rating else 0.0,
+                'location': provider_location,
             }
         elif provider_type == 'place':
             return {
@@ -90,7 +105,8 @@ class ReservationSerializer(serializers.ModelSerializer):
                 'name': provider.name,
                 'address': f"{provider.street} {provider.number_ext or ''}",
                 'city': provider.city,
-                'country': provider.country
+                'country': provider.country,
+                'location': provider_location,
             }
         return None
     

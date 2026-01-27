@@ -33,7 +33,6 @@ export default function RegisterClient() {
   const insets = useSafeAreaInsets();
   const [values, setValues] = useState({
     email: params.googleEmail || "",
-    password: "",
     firstName: params.googleFirstName || "",
     lastName: params.googleLastName || "",
     username: params.googleEmail ? params.googleEmail.split("@")[0] : "",
@@ -55,8 +54,8 @@ export default function RegisterClient() {
   );
 
   const onSubmit = async () => {
-    if (!values.email || !values.password || !values.firstName) {
-      Alert.alert("Campos requeridos", "Ingresa al menos email, contraseña y nombre");
+    if (!values.email || !values.firstName || !values.username) {
+      Alert.alert("Campos requeridos", "Ingresa al menos email, usuario y nombre");
       return;
     }
     try {
@@ -133,14 +132,6 @@ export default function RegisterClient() {
           style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
           value={values.email}
           onChangeText={set("email")}
-        />
-        <TextInput
-          placeholder="Contraseña"
-          secureTextEntry
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.password}
-          onChangeText={set("password")}
         />
 
         <TouchableOpacity
