@@ -46,16 +46,25 @@ export const CalendarView = ({
 
   const todayString = useMemo(() => toISODate(new Date()), []);
   const [currentDate, setCurrentDate] = useState<string>(selectedDate || todayString);
-  const [showMonthPicker, setShowMonthPicker] = useState(false);
-  const [showYearPicker, setShowYearPicker] = useState(false);
   const [weekWidth, setWeekWidth] = useState<number>(0);
   const weekListRef = useRef<FlatList<Date> | null>(null);
 
   useEffect(() => {
     if (selectedDate) {
       setCurrentDate(selectedDate);
+      // Update visible week when selected date changes
+      const selectedDateObj = parseISO(selectedDate);
+      setVisibleWeekStart(startOfWeekMon(selectedDateObj));
     }
   }, [selectedDate]);
+  
+  // Initialize visible week on mount
+  useEffect(() => {
+    if (!visibleWeekStart) {
+      const initialDate = parseISO(currentDate);
+      setVisibleWeekStart(startOfWeekMon(initialDate));
+    }
+  }, []);
 
   const monthNames = [
     "Enero",
@@ -73,21 +82,21 @@ export const CalendarView = ({
   ];
 
   const currentDateObj = useMemo(() => new Date(currentDate), [currentDate]);
-  const currentMonthIndex = currentDateObj.getMonth();
-  const currentYear = currentDateObj.getFullYear();
-
-  const yearOptions = useMemo(() => {
-    const years: number[] = [];
-    for (let y = currentYear - 2; y <= currentYear + 3; y += 1) {
-      years.push(y);
+  
+  // Track the visible week to update month/year display
+  const [visibleWeekStart, setVisibleWeekStart] = useState<Date | null>(null);
+  
+  // Calculate month/year from visible week or current date
+  const displayDate = useMemo(() => {
+    if (visibleWeekStart) {
+      return visibleWeekStart;
     }
-    return years;
-  }, [currentYear]);
+    return currentDateObj;
+  }, [visibleWeekStart, currentDateObj]);
+  
+  const currentMonthIndex = displayDate.getMonth();
+  const currentYear = displayDate.getFullYear();
 
-  const updateMonthYear = (monthIndex: number, year: number) => {
-    const newDate = new Date(year, monthIndex, 1);
-    setCurrentDate(newDate.toISOString().split("T")[0]);
-  };
 
   const getStatusColor = (status: ReservationStatus) => {
     switch (status) {
@@ -180,22 +189,9 @@ export const CalendarView = ({
   return (
     <View style={styles.container}>
       <View style={styles.dropdownRow}>
-        <TouchableOpacity
-          style={[styles.dropdownButton, {borderColor: colors.border, backgroundColor: colors.background}]}
-          onPress={() => setShowMonthPicker(true)}
-          activeOpacity={0.7}>
-          <Text style={[styles.dropdownText, {color: colors.foreground}]}>
-            {monthNames[currentMonthIndex]}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color={colors.mutedForeground} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.dropdownButton, {borderColor: colors.border, backgroundColor: colors.background}]}
-          onPress={() => setShowYearPicker(true)}
-          activeOpacity={0.7}>
-          <Text style={[styles.dropdownText, {color: colors.foreground}]}>{currentYear}</Text>
-          <Ionicons name="chevron-down" size={16} color={colors.mutedForeground} />
-        </TouchableOpacity>
+        <Text style={[styles.monthYearText, {color: colors.foreground}]}>
+          {monthNames[currentMonthIndex]} {currentYear}
+        </Text>
       </View>
 
       <View
@@ -219,8 +215,25 @@ export const CalendarView = ({
             onMomentumScrollEnd={(e) => {
               const idx = Math.round(e.nativeEvent.contentOffset.x / weekWidth);
               const wkStart = weeks[idx] || weeks[selectedWeekIndex];
-              const iso = toISODate(wkStart);
-              if (iso && iso !== selectedWeekStartISO) setCurrentDate(iso);
+              if (wkStart) {
+                const iso = toISODate(wkStart);
+                // Update visible week for month/year display
+                setVisibleWeekStart(new Date(wkStart));
+                if (iso && iso !== selectedWeekStartISO) {
+                  setCurrentDate(iso);
+                }
+              }
+            }}
+            onScrollBeginDrag={() => {
+              // Keep track when user starts scrolling
+            }}
+            onScrollEndDrag={(e) => {
+              // Update on scroll end as well for immediate feedback
+              const idx = Math.round(e.nativeEvent.contentOffset.x / weekWidth);
+              const wkStart = weeks[idx];
+              if (wkStart) {
+                setVisibleWeekStart(new Date(wkStart));
+              }
             }}
             renderItem={({item: weekStart}) => {
               const days = Array.from({length: 7}).map((_, i) => addDays(weekStart, i));
@@ -287,51 +300,6 @@ export const CalendarView = ({
         )}
       </View>
 
-      <Modal
-        visible={showMonthPicker}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowMonthPicker(false)}>
-        <TouchableOpacity style={styles.modalBackdrop} onPress={() => setShowMonthPicker(false)} />
-        <View style={[styles.modalCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {monthNames.map((month, index) => (
-              <TouchableOpacity
-                key={month}
-                style={styles.modalItem}
-                onPress={() => {
-                  updateMonthYear(index, currentYear);
-                  setShowMonthPicker(false);
-                }}>
-                <Text style={[styles.modalItemText, {color: colors.foreground}]}>{month}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={showYearPicker}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowYearPicker(false)}>
-        <TouchableOpacity style={styles.modalBackdrop} onPress={() => setShowYearPicker(false)} />
-        <View style={[styles.modalCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {yearOptions.map((year) => (
-              <TouchableOpacity
-                key={year}
-                style={styles.modalItem}
-                onPress={() => {
-                  updateMonthYear(currentMonthIndex, year);
-                  setShowYearPicker(false);
-                }}>
-                <Text style={[styles.modalItemText, {color: colors.foreground}]}>{year}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </Modal>
 
       {/* Legend */}
       {showLegend && (
@@ -364,22 +332,11 @@ const styles = StyleSheet.create({
   dropdownRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
+    justifyContent: "center",
     marginBottom: 8,
   },
-  dropdownButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderRadius: 10,
-  },
-  dropdownText: {
-    fontSize: 14,
+  monthYearText: {
+    fontSize: 16,
     fontWeight: "600",
   },
   weekStripContainer: {
@@ -468,27 +425,5 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 12,
     fontWeight: "500",
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
-  },
-  modalCard: {
-    position: "absolute",
-    top: "30%",
-    left: 24,
-    right: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    maxHeight: 320,
-    paddingVertical: 8,
-  },
-  modalItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  modalItemText: {
-    fontSize: 15,
-    fontWeight: "600",
   },
 });

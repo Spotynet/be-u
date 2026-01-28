@@ -83,7 +83,7 @@
           {% if error_description %}
             <p>{{ error_description }}</p>
           {% endif %}
-          <a href="mypikapp://google-auth-callback?error={{ error }}" class="btn">Volver a la app</a>
+          <a href="mypikapp://google-auth-callback?error={{ error }}" class="btn" onclick="event.preventDefault(); window.location.replace('mypikapp://google-auth-callback?error={{ error }}'); return false;">Volver a la app</a>
         </div>
       {% else %}
         <div class="icon">✅</div>
@@ -101,23 +101,63 @@
     </div>
 
     <script>
-      function tryReturn() {
-        try {
-          var deepLink = "mypikapp://google-auth-callback?success=true{% if state %}&state={{ state }}{% endif %}";
-          window.location.href = deepLink;
-        } catch (e) {}
+      var deepLink = "mypikapp://google-auth-callback?success=true{% if state %}&state={{ state }}{% endif %}";
+      var redirectAttempted = false;
 
+      function tryReturn() {
+        if (redirectAttempted) return;
+        redirectAttempted = true;
+
+        // Try multiple redirect methods for maximum compatibility
+        try {
+          // Method 1: location.replace (preferred - doesn't add to history)
+          window.location.replace(deepLink);
+        } catch (e1) {
+          try {
+            // Method 2: location.href (fallback)
+            window.location.href = deepLink;
+          } catch (e2) {
+            try {
+              // Method 3: window.open with _self (fallback)
+              window.open(deepLink, '_self');
+            } catch (e3) {
+              // Method 4: Create and click a link (last resort)
+              try {
+                var link = document.createElement('a');
+                link.href = deepLink;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              } catch (e4) {
+                console.error('All redirect methods failed');
+              }
+            }
+          }
+        }
+
+        // Try to close window after redirect (may not work in all browsers)
         setTimeout(function () {
           try { window.close(); } catch (e) {}
-        }, 300);
+        }, 200);
       }
 
-      // Try automatically on load (best effort)
-      (function () {
-        setTimeout(function () {
+      // Immediate redirect attempt (no delay) - best for auto-close
+      tryReturn();
+
+      // Fallback: Try again after short delay (150ms) in case immediate attempt failed
+      setTimeout(function () {
+        if (!redirectAttempted) {
           tryReturn();
-        }, 800);
-      })();
+        }
+      }, 150);
+
+      // Final fallback: Try after longer delay (500ms) for slower connections
+      setTimeout(function () {
+        if (!redirectAttempted) {
+          tryReturn();
+        }
+      }, 500);
     </script>
   </body>
 </html>

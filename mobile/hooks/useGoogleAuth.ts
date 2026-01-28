@@ -1,9 +1,11 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {authApi, errorUtils, tokenRefreshScheduler, tokenUtils} from "@/lib/api";
 import {useAuth} from "@/features/auth";
-import {getGoogleAuthRedirectUri, openGoogleAuth, parseGoogleAuthCode} from "@/lib/googleAuth";
+import {getGoogleAuthRedirectUri, openGoogleAuth, parseGoogleAuthCode, generateGoogleAuthUrl, getGoogleClientId} from "@/lib/googleAuth";
 import {useRouter} from "expo-router";
 import {AppState, AppStateStatus, Linking} from "react-native";
+import * as WebBrowser from "expo-web-browser";
+import {Platform} from "react-native";
 
 type GoogleAuthResult = boolean | "requires_registration";
 
@@ -87,6 +89,13 @@ export const useGoogleAuth = (): UseGoogleAuthReturn => {
 
         if (!connectingRef.current) return;
 
+        // Dismiss browser when deep link is detected (helps auto-close the modal)
+        try {
+          await WebBrowser.dismissBrowser();
+        } catch (e) {
+          // Browser may already be closed, ignore errors
+        }
+
         if (errorParam) {
           setError(`Google auth error: ${errorParam}`);
           setIsConnecting(false);
@@ -146,11 +155,29 @@ export const useGoogleAuth = (): UseGoogleAuthReturn => {
       setError(null);
 
       const redirectUri = getGoogleAuthRedirectUri();
-      const authUrlResp = await authApi.googleAuthUrl(redirectUri);
-      const {auth_url, state} = authUrlResp.data;
-
-      if (!auth_url) {
-        throw new Error("No auth URL received from server");
+      
+      // Check if we should use native OAuth flow (iOS/Android clients configured)
+      const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+      const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+      const hasNativeClient = (Platform.OS === 'ios' && iosClientId) || (Platform.OS === 'android' && androidClientId);
+      
+      let auth_url: string;
+      let state: string;
+      
+      if (hasNativeClient && !__DEV__) {
+        // Native flow: Generate auth URL directly in the app (fully native experience)
+        const authData = generateGoogleAuthUrl(redirectUri);
+        auth_url = authData.authUrl;
+        state = authData.state;
+      } else {
+        // Web client flow: Get auth URL from backend (current approach)
+        const authUrlResp = await authApi.googleAuthUrl(redirectUri);
+        auth_url = authUrlResp.data.auth_url;
+        state = authUrlResp.data.state;
+        
+        if (!auth_url) {
+          throw new Error("No auth URL received from server");
+        }
       }
 
       // Track this attempt so deep-links / AppState can complete the flow reliably.
@@ -165,6 +192,14 @@ export const useGoogleAuth = (): UseGoogleAuthReturn => {
         | undefined;
 
       if (result.type === "success" && result.url) {
+        // Dismiss browser immediately when we get a successful redirect
+        // This ensures the modal closes automatically
+        try {
+          await WebBrowser.dismissBrowser();
+        } catch (e) {
+          // Browser may already be closed, ignore errors
+        }
+
         // Dev: mobile receives callback directly (mypikapp://... contains code)
         if (!isBackendRedirect) {
           const {code, state: returnedState, error: callbackError} = parseGoogleAuthCode(result.url);
