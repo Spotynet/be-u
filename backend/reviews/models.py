@@ -11,35 +11,10 @@ from services.models import ServicesType, Service
 # REVIEWS
 # ======================
 
-# Legacy models (keeping for backward compatibility)
-class PlaceReview(models.Model):
-    user = models.ForeignKey(ClientProfile, on_delete=models.CASCADE, related_name="place_reviews")
-    place = models.ForeignKey(PlaceProfile, on_delete=models.CASCADE, related_name="reviews")
-    service = models.ForeignKey(ServicesType, on_delete=models.SET_NULL, null=True, blank=True, related_name="place_reviews")
-    qualification = models.PositiveIntegerField()  # 1–5 stars
-    opinion = models.TextField(blank=True, null=True)
-    photo = models.ImageField(upload_to="reviews/photos/", blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Review by {self.user.user.username} for {self.place.name}"
-
-
-class ProfessionalReview(models.Model):
-    user = models.ForeignKey(ClientProfile, on_delete=models.CASCADE, related_name="professional_reviews")
-    professional = models.ForeignKey(ProfessionalProfile, on_delete=models.CASCADE, related_name="reviews")
-    service = models.ForeignKey(ServicesType, on_delete=models.SET_NULL, null=True, blank=True, related_name="professional_reviews")
-    qualification = models.PositiveIntegerField()  # 1–5 stars
-    opinion = models.TextField(blank=True, null=True)
-    photo = models.ImageField(upload_to="reviews/photos/", blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Review by {self.user.user.username} for {self.professional.name}"
-
-
 # ======================
 # UNIFIED REVIEW MODEL (as per diagram)
+# Note: Legacy PlaceReview and ProfessionalReview models have been removed.
+# Use the unified Review model instead.
 # ======================
 class Review(models.Model):
     """Unified review model that matches the diagram requirements"""

@@ -8,6 +8,7 @@ import {User, PlaceProfile} from "@/types/global";
 import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector";
 import {profileCustomizationApi} from "@/lib/api";
 import * as ImagePicker from "expo-image-picker";
+import {AddressSearch} from "@/components/location/AddressSearch";
 
 // Helper function to normalize category/subcategory data from API
 const normalizeCategoryData = (data: any): string[] => {
@@ -95,6 +96,7 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [location, setLocation] = useState<{latitude: number; longitude: number; address?: string} | null>(null);
 
   // Load public profile to get categories and subcategories
   useEffect(() => {
@@ -118,6 +120,16 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
           // Load profile photo
           if (publicProfile.user_image) {
             setProfilePhoto(publicProfile.user_image);
+          }
+          if (publicProfile.latitude && publicProfile.longitude) {
+            const addressParts = [publicProfile.street, publicProfile.city, publicProfile.country]
+              .filter(Boolean)
+              .join(", ");
+            setLocation({
+              latitude: Number(publicProfile.latitude),
+              longitude: Number(publicProfile.longitude),
+              address: addressParts || undefined,
+            });
           }
           console.log("📋 Raw category from API:", publicProfile.category);
           console.log("📋 Parsed categories:", categories);
@@ -284,6 +296,10 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
         category: selectedCategories,
         sub_categories: selectedSubcategories,
       };
+      if (location) {
+        publicProfileData.latitude = location.latitude;
+        publicProfileData.longitude = location.longitude;
+      }
       // Update name (which controls display_name for places) if displayName is provided
       if (displayName && displayName.trim() && displayName !== name) {
         publicProfileData.name = displayName.trim();
@@ -500,6 +516,28 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
         </View>
 
         <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Dirección</Text>
+          <AddressSearch
+            placeholder="Buscar dirección..."
+            value={location?.address}
+            onSelect={(selectedLocation) => {
+              console.log("Location selected in PlaceSettingsForm:", selectedLocation);
+              setLocation(selectedLocation);
+            }}
+          />
+          {location && (
+            <View style={[styles.locationInfo, {backgroundColor: colors.card, borderColor: colors.border}]}>
+              <Text style={[styles.locationInfoText, {color: colors.mutedForeground}]}>
+                {location.address}
+              </Text>
+              <Text style={[styles.locationCoords, {color: colors.mutedForeground}]}>
+                {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.formGroup}>
           <Text style={[styles.label, {color: colors.foreground}]}>Calle</Text>
           <View
             style={[
@@ -610,6 +648,7 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
           </View>
         </View>
       </View>
+
 
       {/* Categories Section */}
       <View style={styles.section}>
@@ -727,6 +766,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontStyle: "italic",
+  },
+  locationInfo: {
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  locationInfoText: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  locationCoords: {
+    fontSize: 11,
+    fontFamily: "monospace",
   },
   photoContainer: {
     alignItems: "center",

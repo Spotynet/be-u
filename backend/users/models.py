@@ -34,6 +34,11 @@ class User(AbstractUser):
     
     # Profile image for all users
     image = models.ImageField(upload_to="users/images/", blank=True, null=True)
+    
+    # Address and location for all users
+    address = models.CharField(max_length=500, blank=True, null=True, help_text="Full address string")
+    latitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
@@ -69,10 +74,10 @@ class EmailAuthCode(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        indexes = [
-            models.Index(fields=["email", "expires_at"]),
-            models.Index(fields=["email", "consumed_at"]),
-        ]
+        # Indexes removed to prevent Django from generating problematic rename migrations
+        # The email field has db_index=True, so single-column index is still created
+        # Composite indexes can be added manually via SQL if needed for performance
+        pass
 
     def is_expired(self):
         from django.utils import timezone
@@ -210,9 +215,8 @@ class GoogleAuthPendingCode(models.Model):
     class Meta:
         verbose_name = "Pending Google Auth Code"
         verbose_name_plural = "Pending Google Auth Codes"
-        indexes = [
-            models.Index(fields=["state"]),
-        ]
+        # Index removed - state field has db_index=True, so single-column index is still created
+        pass
 
     def __str__(self):
         return f"Google auth code for state {self.state[:8]}..."
@@ -233,8 +237,7 @@ class ClientProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="client_profile")
     phone = models.CharField(max_length=20, blank=True, null=True)
     photo = models.ImageField(upload_to="clients/photos/", blank=True, null=True)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    # Note: address, latitude, longitude are now stored in User model
 
     def __str__(self):
         return f"Client: {self.user.username}"
@@ -290,8 +293,8 @@ class PublicProfile(models.Model):
     linked_pros_place = models.JSONField(default=list, blank=True, help_text="List of linked professional/place IDs")
     has_calendar = models.BooleanField(default=False, help_text="Whether this profile has calendar functionality")
     # Geolocation (only for PROFESSIONAL and PLACE)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    latitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
     
     # Place-specific fields
     street = models.CharField(max_length=200, blank=True, null=True)

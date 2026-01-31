@@ -19,6 +19,8 @@ from django.urls import path, include
 from django.http import HttpResponse
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.staticfiles.views import serve
+from django.views.decorators.cache import never_cache
 from rest_framework.routers import DefaultRouter
 
 # Create a router for API endpoints
@@ -44,6 +46,15 @@ urlpatterns = [
 ]
 
 # Serve static and media files in development
+# Also serve when DEBUG=False but running locally (for admin panel)
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    # When DEBUG=False, explicitly serve static files for local development
+    # This is needed for the admin panel to work properly
+    if '127.0.0.1' in settings.ALLOWED_HOSTS or 'localhost' in settings.ALLOWED_HOSTS:
+        urlpatterns += [
+            path('static/<path:path>', never_cache(serve), {'document_root': settings.STATIC_ROOT}),
+        ]
+        urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

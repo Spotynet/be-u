@@ -17,9 +17,19 @@
       "infoPlist": {
         "CFBundleURLTypes": [
           {
-            "CFBundleURLSchemes": ["mypikapp", "com.googleusercontent.apps.YOUR_IOS_CLIENT_ID"]
+            "CFBundleURLSchemes": [
+              "mypikapp",
+              "com.googleusercontent.apps.YOUR_IOS_CLIENT_ID"
+            ]
+          },
+          {
+            "CFBundleURLSchemes": [
+              "mypikapp",
+              "com.googleusercontent.apps.YOUR_IOS_CLIENT_ID"
+            ]
           }
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -36,7 +46,11 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.beu.mypikapp"
+      "package": "com.beu.mypikapp",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",

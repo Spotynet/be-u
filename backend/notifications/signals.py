@@ -6,7 +6,7 @@ import logging
 
 from .models import Notification, NotificationTemplate, ReservationReminder
 from reservations.models import Reservation
-from reviews.models import PlaceReview, ProfessionalReview
+from reviews.models import Review
 
 logger = logging.getLogger(__name__)
 
@@ -428,41 +428,25 @@ def create_reservation_notification(sender, instance, created, **kwargs):
             )
 
 
-@receiver(post_save, sender=PlaceReview)
-def create_place_review_notification(sender, instance, created, **kwargs):
-    """Create notification when place review is created"""
+@receiver(post_save, sender=Review)
+def create_review_notification(sender, instance, created, **kwargs):
+    """Create notification when review is created (unified Review model)"""
     if created:
-        # Notify the place owner
+        # Notify the profile owner
+        profile_user = instance.to_public_profile.user
+        reviewer_name = instance.reviewer_name
+        
         _create_notification(
-            user=instance.place.user,
+            user=profile_user,
             type=Notification.NotificationType.REVIEW,
             title="Nueva reseña recibida",
-            message=f"Has recibido una nueva reseña de {instance.user.user.first_name} {instance.user.user.last_name}",
+            message=f"Has recibido una nueva reseña de {reviewer_name}",
             content_object=instance,
             metadata={
-                'reviewer_name': f"{instance.user.user.first_name} {instance.user.user.last_name}",
-                'rating': instance.qualification,
-                'place_name': instance.place.name,
-                'service_name': instance.service.name if instance.service else 'N/A'
-            }
-        )
-
-
-@receiver(post_save, sender=ProfessionalReview)
-def create_professional_review_notification(sender, instance, created, **kwargs):
-    """Create notification when professional review is created"""
-    if created:
-        # Notify the professional
-        _create_notification(
-            user=instance.professional.user,
-            type=Notification.NotificationType.REVIEW,
-            title="Nueva reseña recibida",
-            message=f"Has recibido una nueva reseña de {instance.user.user.first_name} {instance.user.user.last_name}",
-            content_object=instance,
-            metadata={
-                'reviewer_name': f"{instance.user.user.first_name} {instance.user.user.last_name}",
-                'rating': instance.qualification,
-                'professional_name': f"{instance.professional.name} {instance.professional.last_name}",
+                'reviewer_name': reviewer_name,
+                'rating': instance.rating,
+                'profile_name': instance.reviewed_name,
+                'profile_type': instance.to_public_profile.profile_type,
                 'service_name': instance.service.name if instance.service else 'N/A'
             }
         )

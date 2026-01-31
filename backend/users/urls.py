@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from . import views, auth_views, profile_views
+from . import views, auth_views, profile_views, google_maps_views
 from .public_profile_views import PublicProfileViewSet
 from .link_views import PlaceProfessionalLinkViewSet
 
@@ -35,4 +35,9 @@ urlpatterns = [
     # Public availability endpoints
     path('availability/public/', profile_views.public_availability_view, name='public-availability'),
     path('availability/slots/', profile_views.available_slots_view, name='available-slots'),
+    
+    # Google Maps API proxy endpoints (to avoid CORS)
+    path('google-maps/places/autocomplete/', google_maps_views.google_places_autocomplete, name='google-places-autocomplete'),
+    path('google-maps/places/details/', google_maps_views.google_place_details, name='google-place-details'),
+    path('google-maps/reverse-geocode/', google_maps_views.google_reverse_geocode, name='google-reverse-geocode'),
 ]

@@ -14,11 +14,18 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+# This needs to be defined before load_dotenv() so we can specify the .env file path
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file in the backend directory (where manage.py is)
+# BASE_DIR points to backend/ (where manage.py is), so .env should be at BASE_DIR / '.env'
+env_path = BASE_DIR / '.env'
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path, override=True)
+else:
+    # Fallback: try loading from current directory
+    load_dotenv(override=True)
 
 
 # Quick-start development settings - unsuitable for production
@@ -28,7 +35,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-t+roqsej)7g3t9t#@t1s&)b%i-7euhxd7_do1wjtz#6hpv20uc'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+# Enable DEBUG for local development - set DEBUG=False via environment variable for production
+# Default to True for localhost development
+DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'stg.be-u.ai', 'be-u.ai', '*.be-u.ai']
 CORS_ALLOW_ALL_ORIGINS = True
@@ -138,7 +147,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Media files

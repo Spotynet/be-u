@@ -159,26 +159,71 @@ def profile_view(request):
         print(f"🔧 Username in request.data: {request.data.get('username', 'NOT FOUND')}")
         print(f"🔧 User before update - phone: {user.phone}, username: {user.username}")
         
-        # Extract user-specific fields from request.data
+        # Extract user-specific fields from request.data (including address and coordinates)
         user_fields = {
             'email': request.data.get('email'),
             'phone': request.data.get('phone'),
             'firstName': request.data.get('firstName'),
             'lastName': request.data.get('lastName'),
             'username': request.data.get('username'),
+            'address': request.data.get('address'),
+            'latitude': request.data.get('latitude'),
+            'longitude': request.data.get('longitude'),
+            'country': request.data.get('country'),
         }
         # Remove None values to avoid overwriting with None
         user_fields = {k: v for k, v in user_fields.items() if v is not None}
         
         print(f"🔧 Extracted user_fields: {user_fields}")
         
-        # Update user data
+        # If coordinates are provided but country is not, try to get country from reverse geocoding
+        latitude = user_fields.get('latitude') or (user.latitude if hasattr(user, 'latitude') else None)
+        longitude = user_fields.get('longitude') or (user.longitude if hasattr(user, 'longitude') else None)
+        country = user_fields.get('country') or (user.country if hasattr(user, 'country') else None)
+        
+        if latitude and longitude and not country:
+            # Try to get country from reverse geocoding
+            try:
+                import requests
+                from django.conf import settings
+                import os
+                from pathlib import Path
+                from dotenv import load_dotenv
+                
+                # Get API key (same logic as google_maps_views)
+                api_key = os.getenv('GOOGLE_MAPS_API_KEY', '')
+                if not api_key:
+                    env_path = settings.BASE_DIR / '.env'
+                    if env_path.exists():
+                        load_dotenv(dotenv_path=env_path, override=True)
+                        api_key = os.getenv('GOOGLE_MAPS_API_KEY', '')
+                
+                if api_key:
+                    url = 'https://maps.googleapis.com/maps/api/geocode/json'
+                    params = {
+                        'latlng': f'{latitude},{longitude}',
+                        'key': api_key,
+                    }
+                    response = requests.get(url, params=params, timeout=5)
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data.get('status') == 'OK' and data.get('results'):
+                            address_components = data['results'][0].get('address_components', [])
+                            for component in address_components:
+                                if 'country' in component.get('types', []):
+                                    user_fields['country'] = component.get('long_name')
+                                    break
+            except Exception as e:
+                # If reverse geocoding fails, just continue without country
+                print(f"⚠️ Failed to get country from coordinates: {e}")
+        
+        # Update user data (including address and coordinates)
         user_serializer = UserSerializer(user, data=user_fields, partial=True)
         if user_serializer.is_valid():
             user_serializer.save()
             # Refresh user from database to get updated values
             user.refresh_from_db()
-            print(f"🔧 User after update - phone: {user.phone}, username: {user.username}")
+            print(f"🔧 User after update - phone: {user.phone}, username: {user.username}, address: {user.address}, country: {user.country}")
         else:
             print(f"🔧 UserSerializer validation errors: {user_serializer.errors}")
             return Response({
@@ -190,19 +235,29 @@ def profile_view(request):
         profile_data = None
         if user.role == 'CLIENT':
             if hasattr(user, 'client_profile'):
-                profile_serializer = ClientProfileSerializer(
-                    user.client_profile, 
-                    data=request.data, 
-                    partial=True
-                )
-                if profile_serializer.is_valid():
-                    profile_serializer.save()
-                    profile_data = profile_serializer.data
+                # ClientProfile no longer stores address/coordinates - they're in User model
+                # Only update phone if it's different (for backward compatibility)
+                client_profile_fields = {}
+                if request.data.get('phone') is not None and request.data.get('phone') != user.phone:
+                    client_profile_fields['phone'] = request.data.get('phone')
+                
+                if client_profile_fields:
+                    profile_serializer = ClientProfileSerializer(
+                        user.client_profile, 
+                        data=client_profile_fields, 
+                        partial=True
+                    )
+                    if profile_serializer.is_valid():
+                        profile_serializer.save()
+                        profile_data = profile_serializer.data
+                    else:
+                        return Response({
+                            'error': 'Profile data validation failed',
+                            'details': profile_serializer.errors
+                        }, status=status.HTTP_400_BAD_REQUEST)
                 else:
-                    return Response({
-                        'error': 'Profile data validation failed',
-                        'details': profile_serializer.errors
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                    # Return existing profile data
+                    profile_data = ClientProfileSerializer(user.client_profile).data
         elif user.role == 'PROFESSIONAL':
             if hasattr(user, 'professional_profile'):
                 profile_serializer = ProfessionalProfileSerializer(

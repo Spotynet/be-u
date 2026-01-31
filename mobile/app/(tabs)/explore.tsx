@@ -10,24 +10,33 @@ import {
   ActivityIndicator,
   Dimensions,
 } from "react-native";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
+import {SafeMapView, Region} from "@/components/map/SafeMapView";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useCategory} from "@/contexts/CategoryContext";
 import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
 import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
-import {ProfessionalProfile, PlaceProfile, PublicProfile} from "@/types/global";
+import {ProfessionalProfile, PlaceProfile} from "@/types/global";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 import {providerApi} from "@/lib/api";
-import {errorUtils} from "@/lib/api";
 import {getAvatarColorFromSubcategory} from "@/constants/categories";
+import {getCurrentLocation, calculateDistance} from "@/lib/googleMaps";
+import {ProviderMarker} from "@/components/map/ProviderMarker";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
+type MapItem = (ProfessionalProfile | PlaceProfile) & {
+  type: "professional" | "place";
+  latitude?: number;
+  longitude?: number;
+  distance_km?: number;
+  address?: string;
+  profile_type?: "PROFESSIONAL" | "PLACE";
+  photo?: string;
+};
+
 export default function Explore() {
-  const colorScheme = useColorScheme();
   const {colors, setVariant} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const {
@@ -39,9 +48,13 @@ export default function Explore() {
   } = useCategory();
   const router = useRouter();
 
-  const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<number | null>(null);
   const [isListExpanded, setIsListExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
+  const [mapRegion, setMapRegion] = useState<Region | null>(null);
+  const [useLocationFilter, setUseLocationFilter] = useState(false);
+  const [radiusKm] = useState(10);
 
   // Keep Mascotas logic in codebase, but hide it from the UI for now.
   const ALL_CATEGORIES = [
@@ -77,162 +90,76 @@ export default function Explore() {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   // Real data states
-  const [professionals, setProfessionals] = useState<ProfessionalProfile[]>([]);
-  const [places, setPlaces] = useState<PlaceProfile[]>([]);
+  const [professionals, setProfessionals] = useState<MapItem[]>([]);
+  const [places, setPlaces] = useState<MapItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch providers from API
-  const fetchProviders = async () => {
+  const fetchProviders = async (coords?: {latitude: number; longitude: number}) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      console.log("🔍 Fetching providers from API...");
-
-      // Function to fetch all pages of data
-      const fetchAllPages = async (apiCall: any, initialParams: any) => {
-        let allResults: any[] = [];
-        let page = 1;
-        let hasNext = true;
-
-        while (hasNext) {
-          try {
-            const response = await apiCall({
-              ...initialParams,
-              page,
-              page_size: 50, // Use smaller page size for better performance
-            });
-
-            const results = response.data.results || [];
-            allResults = [...allResults, ...results];
-
-            // Check if there are more pages
-            hasNext = response.data.next !== null && response.data.next !== undefined;
-            page++;
-
-            // Safety check to prevent infinite loops
-            if (page > 10) {
-              console.log("🔍 Safety limit reached, stopping pagination");
-              break;
-            }
-          } catch (error) {
-            console.error("🔍 Error fetching page", page, error);
-            break;
-          }
+      const fetchAllPages = async (page = 1, acc: any[] = []): Promise<any[]> => {
+        const response = await providerApi.getPublicProfiles({
+          page,
+          page_size: 50,
+          ...(coords ? {latitude: coords.latitude, longitude: coords.longitude, radius: radiusKm} : {}),
+        } as any);
+        const results = response.data.results || [];
+        const next = response.data.next;
+        const merged = [...acc, ...results];
+        if (next && page < 10) {
+          return fetchAllPages(page + 1, merged);
         }
-
-        return allResults;
+        return merged;
       };
 
-      // Fetch all professionals and places
-      const [allProfessionals, allPlaces] = await Promise.all([
-        fetchAllPages(providerApi.getProfessionalProfiles, {}),
-        fetchAllPages(providerApi.getPlaceProfiles, {}),
-      ]);
+      const allProfiles = await fetchAllPages();
+      const transformProfile = (profile: any, index: number): MapItem => {
+        const latitude = profile.latitude != null ? Number(profile.latitude) : undefined;
+        const longitude = profile.longitude != null ? Number(profile.longitude) : undefined;
+        const distanceFromApi =
+          typeof profile.distance === "number" ? profile.distance : Number(profile.distance) || undefined;
+        const distanceComputed =
+          coords && latitude != null && longitude != null
+            ? calculateDistance(coords.latitude, coords.longitude, latitude, longitude)
+            : undefined;
+        const distance_km = distanceFromApi ?? distanceComputed;
 
-      console.log("🔍 Total professionals fetched:", allProfessionals.length);
-      console.log("🔍 Total places fetched:", allPlaces.length);
+        return {
+          id: profile.id,
+          user_id: profile.user,
+          email: profile.user_email || "",
+          name: profile.name || `Proveedor ${index + 1}`,
+          bio: profile.bio || profile.description || "",
+          city: profile.city || "Ciudad no especificada",
+          rating: typeof profile.rating === "number" ? profile.rating : Number(profile.rating) || 0,
+          services_count: 0,
+          type: profile.profile_type === "PLACE" ? "place" : "professional",
+          profile_type: profile.profile_type,
+          category: profile.category,
+          sub_categories: profile.sub_categories || [],
+          images: profile.images || [],
+          has_calendar: profile.has_calendar || false,
+          photo: profile.user_image,
+          street: profile.street,
+          postal_code: profile.postal_code,
+          number_ext: profile.number_ext,
+          number_int: profile.number_int,
+          country: profile.country,
+          address: profile.street || profile.address || "",
+          latitude,
+          longitude,
+          distance_km,
+        } as MapItem;
+      };
 
-      // Transform professionals data (from PublicProfile)
-      const transformedProfessionals = allProfessionals.map((prof: any, index: number) => ({
-        id: prof.id, // Use the actual PublicProfile ID
-        user_id: prof.user,
-        email: prof.user_email || "",
-        name: prof.name || `Profesional ${index + 1}`,
-        bio: prof.bio || prof.description || `Profesional especializado en belleza ${index + 1}`,
-        city: prof.city || "Ciudad no especificada",
-        rating:
-          typeof prof.rating === "number" ? prof.rating : Number(prof.rating) || 4.0 + index * 0.1,
-        services_count: 0, // Will be updated when we implement service counting
-        type: "professional",
-        // Add mock coordinates for map display
-        coordinates: {
-          top: `${25 + ((index * 15) % 50)}%`,
-          left: `${20 + ((index * 20) % 60)}%`,
-        },
-        avatar: "💇‍♀️",
-        distance: `${(0.5 + index * 0.3).toFixed(1)} km`,
-        // Add PublicProfile specific fields
-        profile_type: prof.profile_type,
-        category: prof.category,
-        sub_categories: prof.sub_categories || [],
-        images: prof.images || [],
-        has_calendar: prof.has_calendar || false,
-        photo: prof.user_image, // Add profile photo
-      }));
-
-      // Transform places data (from PublicProfile)
-      const transformedPlaces = allPlaces.map((place: any, index: number) => ({
-        id: place.id, // Use the actual PublicProfile ID
-        user_id: place.user,
-        email: place.user_email || "",
-        name: place.name || `Lugar ${index + 1}`,
-        street: place.street || "",
-        city: place.city || "Ciudad no especificada",
-        country: place.country || "México",
-        services_count: 0, // Will be updated when we implement service counting
-        address: place.street || "Dirección no disponible",
-        bio: place.bio || place.description || `Descripción del lugar ${index + 1}`,
-        rating:
-          typeof place.rating === "number"
-            ? place.rating
-            : Number(place.rating) || 4.0 + index * 0.1,
-        type: "place",
-        // Add mock coordinates for map display
-        coordinates: {
-          top: `${30 + ((index * 18) % 45)}%`,
-          left: `${25 + ((index * 25) % 55)}%`,
-        },
-        avatar: "🏢",
-        distance: `${(0.6 + index * 0.4).toFixed(1)} km`,
-        // Add PublicProfile specific fields
-        profile_type: place.profile_type,
-        category: place.category,
-        sub_categories: place.sub_categories || [],
-        images: place.images || [],
-        has_calendar: place.has_calendar || false,
-        postal_code: place.postal_code,
-        number_ext: place.number_ext,
-        number_int: place.number_int,
-        photo: place.user_image, // Add profile photo
-      }));
-
-      console.log(
-        "🔍 Transformed professionals:",
-        transformedProfessionals.map((p) => ({id: p.id, name: p.name, type: p.type}))
-      );
-      console.log(
-        "🔍 Transformed places:",
-        transformedPlaces.map((p) => ({id: p.id, name: p.name, type: p.type}))
-      );
-
-      console.log("🔍 Setting professionals:", transformedProfessionals.length);
-      console.log("🔍 Setting places:", transformedPlaces.length);
-      console.log(
-        "🔍 Total items to display:",
-        transformedProfessionals.length + transformedPlaces.length
-      );
-
-      // Always use real data from database
-      setProfessionals(transformedProfessionals);
-
-      // Always use real data from database
-      setPlaces(transformedPlaces);
-
-      // Log the first few items to verify data structure
-      console.log("🔍 First professional:", transformedProfessionals[0]);
-      console.log("🔍 First place:", transformedPlaces[0]);
+      const transformed = allProfiles.map(transformProfile);
+      setProfessionals(transformed.filter((p) => p.profile_type === "PROFESSIONAL"));
+      setPlaces(transformed.filter((p) => p.profile_type === "PLACE"));
     } catch (err: any) {
-      console.error("❌ Error loading providers:", {
-        message: err.message,
-        code: err.code,
-        status: err.status,
-        response: err.response?.data,
-        stack: err.stack,
-      });
-
-      // Provide more specific error messages
       let errorMessage = "Error al cargar los datos";
       if (err.message?.includes("Network Error")) {
         errorMessage = "Error de conexión. Verifica tu internet e intenta de nuevo.";
@@ -243,21 +170,55 @@ export default function Explore() {
       } else if (err.status >= 500) {
         errorMessage = "Error del servidor. Intenta más tarde.";
       }
-
       setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    // Debug environment variables
-    console.log("🔧 Explore Page Environment:", {
-      EXPO_PUBLIC_API_URL: "https://stg.be-u.ai/api",
-      NODE_ENV: process.env.NODE_ENV,
-    });
+  const loadInitialLocation = async () => {
+    const current = await getCurrentLocation();
+    if (current) {
+      setUserLocation({latitude: current.latitude, longitude: current.longitude});
+      setMapRegion({
+        latitude: current.latitude,
+        longitude: current.longitude,
+        latitudeDelta: 0.06,
+        longitudeDelta: 0.06,
+      });
+    }
+    if (useLocationFilter && current) {
+      fetchProviders({latitude: current.latitude, longitude: current.longitude});
+    } else {
+      fetchProviders();
+    }
+  };
 
-    fetchProviders();
+  const toggleNearMe = async () => {
+    if (useLocationFilter) {
+      setUseLocationFilter(false);
+      fetchProviders();
+      return;
+    }
+    const current = await getCurrentLocation();
+    if (!current) {
+      setError("No se pudo obtener tu ubicación");
+      return;
+    }
+    setUseLocationFilter(true);
+    setUserLocation({latitude: current.latitude, longitude: current.longitude});
+    setMapRegion({
+      latitude: current.latitude,
+      longitude: current.longitude,
+      latitudeDelta: 0.06,
+      longitudeDelta: 0.06,
+    });
+    fetchProviders({latitude: current.latitude, longitude: current.longitude});
+  };
+
+  useEffect(() => {
+    loadInitialLocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -305,6 +266,14 @@ export default function Explore() {
     );
   });
 
+  const getDistanceLabel = (item: any) => {
+    if (typeof item.distance_km === "number") {
+      return `${item.distance_km.toFixed(1)} km`;
+    }
+    if (typeof item.distance === "string") return item.distance;
+    return "";
+  };
+
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* Header */}
@@ -351,7 +320,39 @@ export default function Explore() {
               ))}
             </View>
           </View>
-          <TouchableOpacity style={[styles.locationButton, {backgroundColor: colors.primary}]}>
+          <TouchableOpacity
+            style={[
+              styles.nearMeButton,
+              {backgroundColor: useLocationFilter ? colors.primary : colors.card},
+            ]}
+            onPress={toggleNearMe}>
+            <Ionicons
+              name="locate-outline"
+              color={useLocationFilter ? "#ffffff" : colors.mutedForeground}
+              size={18}
+            />
+            <Text
+              style={[
+                styles.nearMeText,
+                {color: useLocationFilter ? "#ffffff" : colors.mutedForeground},
+              ]}>
+              Cerca de mí
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.locationButton, {backgroundColor: colors.primary}]}
+            onPress={() => {
+              if (userLocation) {
+                setMapRegion({
+                  latitude: userLocation.latitude,
+                  longitude: userLocation.longitude,
+                  latitudeDelta: 0.06,
+                  longitudeDelta: 0.06,
+                });
+              } else {
+                toggleNearMe();
+              }
+            }}>
             <Ionicons name="navigate" color="#ffffff" size={20} />
           </TouchableOpacity>
         </View>
@@ -387,10 +388,7 @@ export default function Explore() {
       </View>
 
       {/* Map Area */}
-      <TouchableOpacity
-        style={styles.mapContainer}
-        onPress={() => setIsListExpanded(!isListExpanded)}
-        activeOpacity={1}>
+      <View style={styles.mapContainer}>
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -406,90 +404,48 @@ export default function Explore() {
             <TouchableOpacity
               style={[styles.retryButton, {backgroundColor: colors.primary}]}
               onPress={() => {
-                fetchProviders();
+                if (useLocationFilter && userLocation) {
+                  fetchProviders(userLocation);
+                } else {
+                  fetchProviders();
+                }
               }}>
               <Text style={styles.retryButtonText}>Reintentar</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
-            {/* Map Background */}
-            <View style={[styles.mapBackground, {backgroundColor: colors.muted}]}>
-              {/* Grid pattern */}
-              <View style={styles.mapGrid}>
-                {[...Array(8)].map((_, i) => (
-                  <View
-                    key={`v${i}`}
-                    style={[styles.gridLineVertical, {left: `${(i + 1) * 12.5}%`}]}
-                  />
-                ))}
-                {[...Array(8)].map((_, i) => (
-                  <View
-                    key={`h${i}`}
-                    style={[styles.gridLineHorizontal, {top: `${(i + 1) * 12.5}%`}]}
-                  />
-                ))}
-              </View>
-
-              {/* User Location */}
-              <View style={styles.userLocation}>
-                <View style={[styles.userPulse, {backgroundColor: colors.primary}]} />
-                <View style={[styles.userDot, {backgroundColor: colors.primary}]}>
-                  <View style={styles.userDotInner} />
-                </View>
-              </View>
-
-              {/* Map Pins */}
-              <View style={styles.pinsContainer}>
-                {filteredItems.map((item: any) => {
+            <SafeMapView
+              style={styles.map}
+              region={
+                mapRegion ?? {
+                  latitude: 19.4326,
+                  longitude: -99.1332,
+                  latitudeDelta: 0.08,
+                  longitudeDelta: 0.08,
+                }
+              }
+              onRegionChangeComplete={setMapRegion}
+              showsUserLocation={!!userLocation}
+              showsMyLocationButton={false}>
+              {filteredItems
+                .filter((item: any) => typeof item.latitude === "number" && typeof item.longitude === "number")
+                .map((item: any) => {
                   const isSelected = selectedItem === item.id;
                   return (
-                    <Animated.View
+                    <ProviderMarker
                       key={item.id}
-                      style={[
-                        styles.pinWrapper,
-                        {
-                          top: item.coordinates.top,
-                          left: item.coordinates.left,
-                          transform: [{scale: isSelected ? scaleAnim : 1}],
-                        },
-                      ]}>
-                      <TouchableOpacity
-                        style={[
-                          styles.pin,
-                          isSelected && styles.pinSelected,
-                          {
-                            backgroundColor: isSelected ? colors.primary : "#ffffff",
-                            borderColor: colors.primary,
-                          },
-                        ]}
-                        onPress={() => {
-                          console.log("📍 Pin clicked - Item:", {
-                            id: item.id,
-                            name: item.name,
-                            type: item.type,
-                          });
-                          setSelectedItem(isSelected ? null : item.id);
-                        }}
-                        activeOpacity={0.9}>
-                        <Text style={styles.pinAvatar}>{item.avatar}</Text>
-                      </TouchableOpacity>
-
-                      {/* Name Label */}
-                      {isSelected && (
-                        <View style={[styles.pinLabel, {backgroundColor: colors.primary}]}>
-                          <Text style={styles.pinLabelText}>
-                            {item.name || (item.type === "professional" ? "Profesional" : "Lugar")}
-                          </Text>
-                        </View>
-                      )}
-                    </Animated.View>
+                      id={item.id}
+                      name={item.name || (item.type === "professional" ? "Profesional" : "Lugar")}
+                      profileType={item.profile_type || (item.type === "place" ? "PLACE" : "PROFESSIONAL")}
+                      latitude={Number(item.latitude)}
+                      longitude={Number(item.longitude)}
+                      onPress={() => setSelectedItem(isSelected ? null : item.id)}
+                    />
                   );
                 })}
-              </View>
-            </View>
+            </SafeMapView>
 
-            {/* Legend */}
             <View style={[styles.legend, {backgroundColor: colors.card}]}>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, {backgroundColor: colors.primary}]} />
@@ -498,7 +454,7 @@ export default function Explore() {
             </View>
           </>
         )}
-      </TouchableOpacity>
+      </View>
 
       {/* Bottom Sheet - List of Items */}
       {!selectedItem && !isLoading && (
@@ -578,9 +534,11 @@ export default function Explore() {
                         </Text>
                       </View>
                     )}
-                    <Text style={[styles.itemDistanceVertical, {color: colors.mutedForeground}]}>
-                      {item.distance}
-                    </Text>
+                    {getDistanceLabel(item) ? (
+                      <Text style={[styles.itemDistanceVertical, {color: colors.mutedForeground}]}>
+                        {getDistanceLabel(item)}
+                      </Text>
+                    ) : null}
                     {item.type === "professional" && (
                       <View style={[styles.itemTypeBadge, {backgroundColor: "#FFB6C1"}]}>
                         <Text style={styles.itemTypeText}>💅 Profesional</Text>
@@ -659,9 +617,11 @@ export default function Explore() {
                       </View>
                     )}
                     <Text style={[styles.detailDot, {color: colors.mutedForeground}]}>•</Text>
-                    <Text style={[styles.detailDistance, {color: colors.mutedForeground}]}>
-                      {selectedItemData.distance}
-                    </Text>
+                    {getDistanceLabel(selectedItemData) ? (
+                      <Text style={[styles.detailDistance, {color: colors.mutedForeground}]}>
+                        {getDistanceLabel(selectedItemData)}
+                      </Text>
+                    ) : null}
                     {selectedItemData.type === "professional" && (
                       <View style={[styles.detailTypeBadge, {backgroundColor: "#FFB6C1"}]}>
                         <Text style={styles.detailTypeText}>💅 Profesional</Text>
@@ -838,6 +798,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  nearMeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: 20,
+  },
+  nearMeText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
   subCategoryContainer: {
     marginBottom: 12,
   },
@@ -867,6 +839,9 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
     position: "relative",
+  },
+  map: {
+    flex: 1,
   },
   mapBackground: {
     flex: 1,

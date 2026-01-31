@@ -13,12 +13,15 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     user_last_name = serializers.CharField(source='user.last_name', read_only=True)
     user_phone = serializers.CharField(source='user.phone', read_only=True)
     user_country = serializers.CharField(source='user.country', read_only=True)
+    user_address = serializers.CharField(source='user.address', read_only=True)
     user_image = serializers.SerializerMethodField()
     display_name = serializers.CharField(read_only=True)
     availability = serializers.SerializerMethodField()
     professional_profile_id = serializers.SerializerMethodField()
     place_profile_id = serializers.SerializerMethodField()
     distance = serializers.SerializerMethodField()
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
     
     def get_user_image(self, obj):
         """Get user image URL with proper absolute URL handling"""
@@ -48,7 +51,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
         model = PublicProfile
         fields = [
             'id', 'user', 'user_email', 'user_first_name', 'user_last_name', 
-            'user_phone', 'user_country', 'user_image',
+            'user_phone', 'user_country', 'user_address', 'user_image',
             'profile_type', 'name', 'description', 'category', 'sub_categories',
             'images', 'linked_pros_place', 'has_calendar',
             'street', 'number_ext', 'number_int', 'postal_code', 'city', 'country',
@@ -215,6 +218,8 @@ class PublicProfileListSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source='user.email', read_only=True)
     display_name = serializers.CharField(read_only=True)
     distance = serializers.SerializerMethodField()
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
     
     class Meta:
         model = PublicProfile
@@ -226,3 +231,17 @@ class PublicProfileListSerializer(serializers.ModelSerializer):
 
     def get_distance(self, obj):
         return getattr(obj, "distance_km", None)
+    
+    def get_latitude(self, obj):
+        """Get latitude from User model (preferred) or PublicProfile (fallback)"""
+        if obj.user and obj.user.latitude is not None:
+            return float(obj.user.latitude)
+        # Fallback to PublicProfile coordinates for backward compatibility
+        return float(obj.latitude) if obj.latitude is not None else None
+    
+    def get_longitude(self, obj):
+        """Get longitude from User model (preferred) or PublicProfile (fallback)"""
+        if obj.user and obj.user.longitude is not None:
+            return float(obj.user.longitude)
+        # Fallback to PublicProfile coordinates for backward compatibility
+        return float(obj.longitude) if obj.longitude is not None else None

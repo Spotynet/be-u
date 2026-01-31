@@ -4,6 +4,12 @@
 
 export type UserRole = "CLIENT" | "PROFESSIONAL" | "PLACE";
 
+export interface Location {
+  latitude: number;
+  longitude: number;
+  address?: string;
+}
+
 export interface User {
   id: number;
   email: string;
@@ -16,6 +22,9 @@ export interface User {
   lastLogin: string | null;
   isStaff: boolean;
   isSuperuser: boolean;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface ClientProfile {
@@ -23,6 +32,9 @@ export interface ClientProfile {
   user: number;
   phone?: string;
   photo?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface ProfessionalProfile {
@@ -81,6 +93,9 @@ export interface PublicProfile {
   bio?: string;
   rating: number;
   display_name: string;
+  latitude?: number;
+  longitude?: number;
+  distance?: number;
   created_at: string;
   updated_at: string;
 }
@@ -165,6 +180,10 @@ export interface Reservation {
   notes?: string;
   cancellation_reason?: string;
   rejection_reason?: string;
+  service_latitude?: number;
+  service_longitude?: number;
+  service_address?: string;
+  provider_location?: Location;
   // Google Calendar integration
   calendar_event_created?: boolean;
   calendar_event_link?: string;

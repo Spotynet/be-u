@@ -8,6 +8,7 @@ import {User, ProfessionalProfile} from "@/types/global";
 import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector";
 import {profileCustomizationApi} from "@/lib/api";
 import * as ImagePicker from "expo-image-picker";
+import {AddressSearch} from "@/components/location/AddressSearch";
 
 // Helper function to normalize category/subcategory data from API
 const normalizeCategoryData = (data: any): string[] => {
@@ -90,6 +91,7 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [location, setLocation] = useState<{latitude: number; longitude: number; address?: string} | null>(null);
 
   // Load public profile to get categories and subcategories
   useEffect(() => {
@@ -113,6 +115,16 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
           // Load profile photo
           if (publicProfile.user_image) {
             setProfilePhoto(publicProfile.user_image);
+          }
+          if (publicProfile.latitude && publicProfile.longitude) {
+            const addressParts = [publicProfile.street, publicProfile.city, publicProfile.country]
+              .filter(Boolean)
+              .join(", ");
+            setLocation({
+              latitude: Number(publicProfile.latitude),
+              longitude: Number(publicProfile.longitude),
+              address: addressParts || undefined,
+            });
           }
           console.log("📋 Raw category from API:", publicProfile.category);
           console.log("📋 Parsed categories:", categories);
@@ -292,6 +304,10 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
         category: selectedCategories,
         sub_categories: selectedSubcategories,
       };
+      if (location) {
+        publicProfileData.latitude = location.latitude;
+        publicProfileData.longitude = location.longitude;
+      }
       // Update name and last_name (which control display_name for professionals) if displayName is provided
       if (displayName && displayName.trim()) {
         const nameParts = displayName.trim().split(' ');
@@ -524,6 +540,34 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
         )}
       </View>
 
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="location" color={colors.primary} size={20} />
+          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Ubicación</Text>
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Dirección</Text>
+          <AddressSearch
+            placeholder="Buscar dirección..."
+            value={location?.address}
+            onSelect={(selectedLocation) => {
+              setLocation(selectedLocation);
+            }}
+          />
+          {location && (
+            <View style={[styles.locationInfo, {backgroundColor: colors.card, borderColor: colors.border}]}>
+              <Text style={[styles.locationInfoText, {color: colors.mutedForeground}]}>
+                {location.address}
+              </Text>
+              <Text style={[styles.locationCoords, {color: colors.mutedForeground}]}>
+                {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+
     </View>
   );
 });
@@ -615,6 +659,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontStyle: "italic",
+  },
+  locationInfo: {
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  locationInfoText: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  locationCoords: {
+    fontSize: 11,
+    fontFamily: "monospace",
   },
   photoContainer: {
     alignItems: "center",

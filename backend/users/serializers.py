@@ -18,7 +18,8 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'username', 'firstName', 'lastName', 'phone', 'isActive',
-            'dateJoined', 'lastLogin', 'role', 'isStaff', 'isSuperuser'
+            'dateJoined', 'lastLogin', 'role', 'isStaff', 'isSuperuser',
+            'address', 'latitude', 'longitude'
         ]
         read_only_fields = ['id', 'dateJoined', 'lastLogin']
 
@@ -125,7 +126,8 @@ class ChangePasswordSerializer(serializers.Serializer):
 class ClientProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClientProfile
-        fields = ['phone', 'photo', 'latitude', 'longitude']
+        fields = ['phone', 'photo']
+        # Note: address, latitude, longitude are now in User model
 
 
 class ProfessionalProfileSerializer(serializers.ModelSerializer):

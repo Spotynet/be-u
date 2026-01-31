@@ -5,10 +5,11 @@ import {Ionicons} from "@expo/vector-icons";
 import {useLocalSearchParams, useRouter} from "expo-router";
 import {useEffect, useMemo, useState} from "react";
 import {reservationApi} from "@/lib/api";
-import {Reservation} from "@/types/global";
+import {Location, Reservation} from "@/types/global";
 import {parseISODateAsLocal} from "@/lib/dateUtils";
 import {useAuth} from "@/features/auth";
 import ReservationQRCode from "@/components/reservation/ReservationQRCode";
+import {BookingLocationView} from "@/components/booking/BookingLocationView";
 
 export default function ReservationDetailsScreen() {
   const {colors} = useThemeVariant();
@@ -101,6 +102,25 @@ export default function ReservationDetailsScreen() {
     if (typeof d.city === "string" && d.city.trim()) parts.push(d.city.trim());
     if (typeof d.country === "string" && d.country.trim()) parts.push(d.country.trim());
     return parts.join(", ");
+  })();
+
+  const locationForMap = (() => {
+    if (reservation?.service_latitude && reservation?.service_longitude) {
+      return {
+        latitude: reservation.service_latitude,
+        longitude: reservation.service_longitude,
+        address: reservation.service_address || addressLabel || undefined,
+      } satisfies Location;
+    }
+    const fallback = (reservation as any)?.provider_details?.location;
+    if (fallback?.latitude && fallback?.longitude) {
+      return {
+        latitude: Number(fallback.latitude),
+        longitude: Number(fallback.longitude),
+        address: fallback.address || addressLabel || undefined,
+      } satisfies Location;
+    }
+    return null;
   })();
 
   return (
@@ -210,6 +230,11 @@ export default function ReservationDetailsScreen() {
               </View>
             )}
           </View>
+
+          <BookingLocationView
+            location={locationForMap}
+            address={reservation?.service_address || addressLabel}
+          />
 
           {/* Google Calendar */}
           {reservation.calendar_event_created && (

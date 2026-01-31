@@ -109,6 +109,63 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
         serializer = PublicProfileListSerializer(items, many=True)
         return Response(serializer.data)
     
+    @action(detail=False, methods=["get"], url_path="recommendations", permission_classes=[IsAuthenticated])
+    def recommendations(self, request):
+        """
+        Get recommended places/professionals based on authenticated user's saved location.
+        GET /api/public-profiles/recommendations/?radius=10&limit=20
+        """
+        user = request.user
+        
+        # Get user's saved location
+        if not user.latitude or not user.longitude:
+            return Response(
+                {"detail": "User location not set. Please update your profile with an address."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        radius = request.query_params.get("radius", "10")
+        limit = int(request.query_params.get("limit", "20"))
+        profile_type = request.query_params.get("profile_type")  # Optional: filter by PROFESSIONAL or PLACE
+        
+        try:
+            radius_km = float(radius)
+        except (TypeError, ValueError):
+            radius_km = 10.0
+        
+        # Get queryset
+        queryset = self.get_queryset()
+        
+        # Filter by profile type if specified
+        if profile_type:
+            queryset = queryset.filter(profile_type=profile_type)
+        
+        # Filter by radius using user's saved location
+        items = filter_by_radius(
+            list(queryset),
+            float(user.latitude),
+            float(user.longitude),
+            radius_km
+        )
+        
+        # Sort by distance (closest first)
+        items.sort(key=lambda item: item.distance_km if item.distance_km is not None else float("inf"))
+        
+        # Limit results
+        items = items[:limit]
+        
+        serializer = PublicProfileListSerializer(items, many=True)
+        return Response({
+            "results": serializer.data,
+            "count": len(items),
+            "user_location": {
+                "latitude": float(user.latitude),
+                "longitude": float(user.longitude),
+                "address": user.address
+            },
+            "radius_km": radius_km
+        })
+    
     def perform_create(self, serializer):
         """Set user to current user when creating profile"""
         serializer.save(user=self.request.user)

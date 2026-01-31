@@ -6,6 +6,8 @@ import {ClientProfile, ProfessionalProfile, PlaceProfile} from "@/types/global";
 interface UpdateClientData {
   phone?: string;
   photo?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface UpdateProfessionalData {

@@ -18,6 +18,22 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
 
 
 def _get_coords(item) -> Tuple[Optional[float], Optional[float]]:
+    """
+    Get coordinates from item. Checks User model first (user.latitude, user.longitude),
+    then falls back to PublicProfile coordinates for backward compatibility.
+    """
+    # First try to get from User model (preferred - coordinates are now stored in User)
+    if hasattr(item, 'user'):
+        user = item.user
+        latitude = getattr(user, "latitude", None)
+        longitude = getattr(user, "longitude", None)
+        if latitude is not None and longitude is not None:
+            try:
+                return float(latitude), float(longitude)
+            except (TypeError, ValueError):
+                pass
+    
+    # Fallback to PublicProfile coordinates (for backward compatibility)
     latitude = getattr(item, "latitude", None)
     longitude = getattr(item, "longitude", None)
     if latitude is None or longitude is None:

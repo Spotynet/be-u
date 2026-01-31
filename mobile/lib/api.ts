@@ -22,8 +22,8 @@ export interface ApiError {
 
 // API Configuration - HARDCODED for testing
 
-//const API_BASE_URL = "http://127.0.0.1:8000/api";
-const API_BASE_URL = "https://stg.be-u.ai/api";
+const API_BASE_URL = "http://127.0.0.1:8000/api";
+//const API_BASE_URL = "https://stg.be-u.ai/api";
 
 console.log("🔧 HARDCODED API URL:", API_BASE_URL);
 const AUTH_TOKEN_KEY = "@auth_token";
@@ -453,11 +453,44 @@ export const providerApi = {
   getPublicProfiles: (params?: {
     search?: string;
     city?: string;
+    latitude?: number;
+    longitude?: number;
+    radius?: number;
+    profile_type?: "PROFESSIONAL" | "PLACE";
+    category?: string;
     page?: number;
-    profile_type?: string;
+    page_size?: number;
   }) =>
-    api.get<{results: any[]; count: number; next?: string; previous?: string}>(
+    api.get<{results: any[]; count: number; next: string | null; previous: string | null}>(
       "/public-profiles/",
+      {params}
+    ),
+
+  // Get recommended places/professionals based on authenticated user's saved location
+  getRecommendations: (params?: {
+    radius?: number;
+    limit?: number;
+    profile_type?: "PROFESSIONAL" | "PLACE";
+  }) =>
+    api.get<{
+      results: any[];
+      count: number;
+      user_location: {
+        latitude: number;
+        longitude: number;
+        address: string | null;
+      };
+      radius_km: number;
+    }>("/public-profiles/recommendations/", {params}),
+
+  // Get nearby profiles (requires latitude/longitude) - uses nearby endpoint
+  getNearby: (params: {
+    latitude: number;
+    longitude: number;
+    radius?: number;
+  }) =>
+    api.get<{results: any[]; count: number}>(
+      "/public-profiles/nearby/",
       {
         params,
       }
