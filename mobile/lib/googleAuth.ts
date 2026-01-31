@@ -43,7 +43,9 @@ export const getGoogleAuthRedirectUri = (): string => {
   // The backend HTML template handles redirect and auto-close
   if (inExpoGo) {
     const backendUrl = apiUrl || 'https://stg.be-u.ai/api';
-    const uri = `${backendUrl.replace('/api', '')}/api/auth/google/callback/`;
+    // Ensure we construct the URI correctly - remove trailing /api if present, then add the callback path
+    const baseUrl = backendUrl.endsWith('/api') ? backendUrl.slice(0, -4) : backendUrl.replace('/api', '');
+    const uri = `${baseUrl}/api/auth/google/callback/`;
     console.log('📱 Google Auth Redirect URI (Expo Go - Backend):', uri);
     return uri;
   }
@@ -74,7 +76,9 @@ export const getGoogleAuthRedirectUri = (): string => {
   // This requires the browser modal but works without separate iOS/Android clients
   // The backend HTML template handles redirect and auto-close
   const backendUrl = apiUrl || 'https://stg.be-u.ai/api';
-  const uri = `${backendUrl.replace('/api', '')}/api/auth/google/callback/`;
+  // Ensure we construct the URI correctly - remove trailing /api if present, then add the callback path
+  const baseUrl = backendUrl.endsWith('/api') ? backendUrl.slice(0, -4) : backendUrl.replace('/api', '');
+  const uri = `${baseUrl}/api/auth/google/callback/`;
   console.log('📱 Google Auth Redirect URI (Web Client - Backend):', uri);
   return uri;
 };

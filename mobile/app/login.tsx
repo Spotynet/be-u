@@ -19,12 +19,14 @@ import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
 import {useAuth} from "@/features/auth";
 import {useGoogleAuth} from "@/hooks/useGoogleAuth";
+import {useNavigation} from "@/hooks/useNavigation";
 
 export default function Login() {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const {goBack} = useNavigation();
   const {requestEmailCode, isLoading} = useAuth();
   const {connectWithGoogle, isConnecting, error: googleAuthError} = useGoogleAuth();
 
@@ -174,7 +176,12 @@ export default function Login() {
             paddingTop: Math.max(insets.top + 16, 20),
           },
         ]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => {
+            // Navigate to home screen as guest if can't go back
+            goBack("/(tabs)/");
+          }}>
           <Ionicons name="arrow-back" color="#ffffff" size={24} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, {color: "#ffffff"}]}>Iniciar Sesión</Text>

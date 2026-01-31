@@ -120,11 +120,18 @@ def google_callback_view(request):
                 redirect_uri=redirect_uri_used,
             )
 
-            logger.info(f"Stored Google auth code for state {state[:8]}... (production callback)")
+            logger.info(f"✅ Stored Google auth code for state {state[:8]}... (production callback)")
+            logger.info(f"   Redirect URI used: {redirect_uri_used}")
             return render(request, "users/google_auth_callback.html", {"success": True, "state": state})
 
-        # Fallback (no params)
-        return render(request, "users/google_auth_callback.html", {"success": True, "state": state})
+        # Fallback (no params) - log for debugging
+        if not code:
+            logger.warning(f"⚠️  Google callback GET received without code. Query params: {dict(request.query_params)}")
+        if not state:
+            logger.warning(f"⚠️  Google callback GET received without state. Query params: {dict(request.query_params)}")
+        
+        # Still render success page even if params are missing (user might have already completed)
+        return render(request, "users/google_auth_callback.html", {"success": True, "state": state or ""})
 
     serializer = GoogleCallbackSerializer(data=request.data)
     if not serializer.is_valid():
@@ -140,6 +147,7 @@ def google_callback_view(request):
             pending = GoogleAuthPendingCode.objects.get(state=state)
             if pending.is_expired():
                 pending.delete()
+                logger.warning(f"⚠️  Expired Google auth code for state {state[:8]}...")
                 return Response(
                     {'error': 'Authorization code has expired. Please try again.'},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -147,9 +155,22 @@ def google_callback_view(request):
             code = pending.code
             if not redirect_uri:
                 redirect_uri = pending.redirect_uri
+            logger.info(f"✅ Retrieved Google auth code for state {state[:8]}... from pending storage")
             pending.delete()
         except GoogleAuthPendingCode.DoesNotExist:
             # Client may be polling before the GET redirect is processed
+            # Check if there are any recent pending codes (within last 2 minutes) that might match
+            from django.utils import timezone
+            from datetime import timedelta
+            recent_codes = GoogleAuthPendingCode.objects.filter(
+                created_at__gte=timezone.now() - timedelta(minutes=2)
+            )
+            if recent_codes.exists():
+                logger.warning(f"⚠️  Google auth code not found for state {state[:8]}... but found {recent_codes.count()} recent pending code(s)")
+                logger.warning(f"   Recent states: {[c.state[:8] + '...' for c in recent_codes]}")
+                logger.warning(f"   Request state: {state[:8] + '...' if state else 'None'}")
+            else:
+                logger.warning(f"⚠️  Google auth code not found for state {state[:8]}... and no recent pending codes")
             return Response(
                 {'error': 'Authorization code not found yet. Please try again.'},
                 status=status.HTTP_400_BAD_REQUEST,
