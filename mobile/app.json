@@ -29,7 +29,9 @@
             ]
           }
         ],
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Allow Be-U to access your camera to take photos for posts.",
+        "NSPhotoLibraryUsageDescription": "Allow Be-U to access your photo library to select images for posts."
       }
     },
     "android": {
@@ -49,7 +51,10 @@
       "package": "com.beu.mypikapp",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -75,6 +80,13 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow Be-U to use your location to find nearby services."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Be-U to access your photos to select images for posts.",
+          "cameraPermission": "Allow Be-U to access your camera to take photos for posts."
         }
       ]
     ],

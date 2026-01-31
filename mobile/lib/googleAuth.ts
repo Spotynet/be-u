@@ -38,48 +38,50 @@ export const getGoogleAuthRedirectUri = (): string => {
   const apiUrl = process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL;
   const isDevelopment = __DEV__;
   const inExpoGo = isExpoGo();
+  const hasNative = hasNativeOAuthClients();
 
-  // Expo Go: Must use backend HTTPS callback (Expo Go doesn't support custom URL schemes)
-  // The backend HTML template handles redirect and auto-close
-  if (inExpoGo) {
+  // Helper to build backend callback URI
+  const buildBackendCallbackUri = (): string => {
     const backendUrl = apiUrl || 'https://stg.be-u.ai/api';
     // Ensure we construct the URI correctly - remove trailing /api if present, then add the callback path
     const baseUrl = backendUrl.endsWith('/api') ? backendUrl.slice(0, -4) : backendUrl.replace('/api', '');
-    const uri = `${baseUrl}/api/auth/google/callback/`;
+    return `${baseUrl}/api/auth/google/callback/`;
+  };
+
+  // Expo Go: Must use backend HTTPS callback (Expo Go doesn't support custom URL schemes)
+  if (inExpoGo) {
+    const uri = buildBackendCallbackUri();
     console.log('📱 Google Auth Redirect URI (Expo Go - Backend):', uri);
     return uri;
   }
 
   // Development Build: Use app scheme (works with dev client, not Expo Go)
-  if (isDevelopment) {
+  // Only use app scheme in development if we're actually in dev mode
+  if (isDevelopment && !inExpoGo) {
     const uri = AuthSession.makeRedirectUri({
       scheme: 'mypikapp',
       path: 'google-auth-callback',
     });
-    console.log('📱 Google Auth Redirect URI (Dev Build):', uri);
+    console.log('📱 Google Auth Redirect URI (Dev Build - App Scheme):', uri);
     return uri;
   }
 
-  // Production/EAS Preview: Use native app scheme if iOS/Android OAuth clients are configured
-  // This provides a native login experience (no browser modal) like other apps
-  // Native clients support app scheme URIs (mypikapp://google-auth-callback)
-  if (hasNativeOAuthClients()) {
+  // Production/EAS Build: 
+  // - If native OAuth clients are configured, use app scheme (native experience)
+  // - Otherwise, use backend HTTPS callback (web OAuth client - works for EAS updates)
+  if (hasNative && !isDevelopment) {
     const uri = AuthSession.makeRedirectUri({
       scheme: 'mypikapp',
       path: 'google-auth-callback',
     });
-    console.log('📱 Google Auth Redirect URI (Native - App Scheme):', uri);
+    console.log('📱 Google Auth Redirect URI (Production - Native App Scheme):', uri);
     return uri;
   }
 
   // Fallback: Use backend HTTPS callback (Web OAuth client)
-  // This requires the browser modal but works without separate iOS/Android clients
-  // The backend HTML template handles redirect and auto-close
-  const backendUrl = apiUrl || 'https://stg.be-u.ai/api';
-  // Ensure we construct the URI correctly - remove trailing /api if present, then add the callback path
-  const baseUrl = backendUrl.endsWith('/api') ? backendUrl.slice(0, -4) : backendUrl.replace('/api', '');
-  const uri = `${baseUrl}/api/auth/google/callback/`;
-  console.log('📱 Google Auth Redirect URI (Web Client - Backend):', uri);
+  // This works for EAS updates, production builds without native clients, etc.
+  const uri = buildBackendCallbackUri();
+  console.log('📱 Google Auth Redirect URI (Production - Backend Callback):', uri);
   return uri;
 };
 

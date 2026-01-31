@@ -45,7 +45,7 @@ export default function CreateCarouselScreen() {
       if (description.trim()) {
         formData.append("content", description);
       }
-      formData.append("post_type", "carousel");
+      // post_type is set by the backend endpoint, no need to send it
       // Hidden setting: default to allow comments
       formData.append("allow_comments", "true");
 
@@ -77,15 +77,7 @@ export default function CreateCarouselScreen() {
       }
 
       // Call the API
-      const response = await postApi.createCarouselPost(formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-        transformRequest: (data, headers) => {
-          delete headers["Content-Type"];
-          return data;
-        },
-      });
+      const response = await postApi.createCarouselPost(formData);
 
       // Navigate back to home/feed upon success
       router.replace("/");

@@ -43,7 +43,7 @@ export default function CreatePhotoPostScreen() {
       // Create FormData for file upload
       const formData = new FormData();
       formData.append("content", description);
-      formData.append("post_type", "photo");
+      // post_type is set by the backend endpoint, no need to send it
 
       // Add photos to FormData
       if (Platform.OS === "web") {
@@ -77,9 +77,13 @@ export default function CreatePhotoPostScreen() {
 
       // Navigate back to home/feed upon success
       router.replace("/");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating post:", error);
-      Alert.alert("Error", "No se pudo publicar la foto. Inténtalo de nuevo.");
+      const errorMessage = error?.response?.data 
+        ? JSON.stringify(error.response.data)
+        : error?.message || "No se pudo publicar la foto";
+      console.error("Error details:", errorMessage);
+      Alert.alert("Error", `No se pudo publicar la foto: ${errorMessage}`);
     } finally {
       setIsUploading(false);
     }

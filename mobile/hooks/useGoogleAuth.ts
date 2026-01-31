@@ -31,7 +31,9 @@ export const useGoogleAuth = (): UseGoogleAuthReturn => {
             state,
             redirect_uri: redirectUri,
           });
+          // Return if we have tokens (successful login) OR if registration is required
           if (resp?.data?.access && resp?.data?.refresh) return resp;
+          if (resp?.data?.requires_registration === true) return resp;
         } catch (_) {
           // not ready yet
         }
@@ -51,6 +53,8 @@ export const useGoogleAuth = (): UseGoogleAuthReturn => {
       // Check if registration is required
       if (callbackResp.data.requires_registration === true) {
         setIsConnecting(false);
+        connectingRef.current = false;
+        pendingStateRef.current = null;
         router.push({
           pathname: "/register",
           params: {
@@ -64,6 +68,11 @@ export const useGoogleAuth = (): UseGoogleAuthReturn => {
           },
         });
         return "requires_registration" as const;
+      }
+
+      // Ensure we have tokens before trying to set them
+      if (!callbackResp.data.access || !callbackResp.data.refresh) {
+        throw new Error("Authentication tokens not received from server");
       }
 
       await tokenUtils.setTokens(callbackResp.data.access, callbackResp.data.refresh);
@@ -245,6 +254,8 @@ export const useGoogleAuth = (): UseGoogleAuthReturn => {
       // Check if registration is required
       if (callbackResp.data.requires_registration === true) {
         setIsConnecting(false);
+        connectingRef.current = false;
+        pendingStateRef.current = null;
         // Navigate to register with Google info
         router.push({
           pathname: "/register",
@@ -259,6 +270,11 @@ export const useGoogleAuth = (): UseGoogleAuthReturn => {
           },
         });
         return "requires_registration" as const;
+      }
+
+      // Ensure we have tokens before trying to set them
+      if (!callbackResp.data.access || !callbackResp.data.refresh) {
+        throw new Error("Authentication tokens not received from server");
       }
 
       await tokenUtils.setTokens(callbackResp.data.access, callbackResp.data.refresh);

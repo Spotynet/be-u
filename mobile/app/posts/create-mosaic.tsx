@@ -74,9 +74,13 @@ export default function CreateMosaicPostScreen() {
 
       // Navigate back to home/feed upon success
       router.replace("/");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating mosaic post:", error);
-      Alert.alert("Error", "No se pudo publicar el mosaico. Inténtalo de nuevo.");
+      const errorMessage = error?.response?.data 
+        ? JSON.stringify(error.response.data)
+        : error?.message || "No se pudo publicar el mosaico";
+      console.error("Error details:", errorMessage);
+      Alert.alert("Error", `No se pudo publicar el mosaico: ${errorMessage}`);
     } finally {
       setIsUploading(false);
     }

@@ -7,7 +7,7 @@ import {getPlaceDetails, searchPlaceAutocomplete} from "@/lib/googleMaps";
 type AddressSearchProps = {
   placeholder?: string;
   value?: string;
-  onSelect: (location: {latitude: number; longitude: number; address?: string}) => void;
+  onSelect: (location: {latitude: number; longitude: number; address?: string; country?: string}) => void;
 };
 
 export function AddressSearch({placeholder = "Buscar dirección...", value, onSelect}: AddressSearchProps) {

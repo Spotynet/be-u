@@ -497,6 +497,13 @@ def register_view(request):
         logger.info(f"  - first_name: {first_name}")
         logger.info(f"  - last_name: {last_name}")
         
+        # Extract address and location data for User model
+        address = data.get('address', '')
+        country = data.get('country', '')
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+        phone = data.get('phone', '')
+        
         # Create user. If password is omitted, set an unusable password.
         user = User.objects.create_user(
             username=username,
@@ -504,6 +511,11 @@ def register_view(request):
             password=password,
             first_name=first_name,
             last_name=last_name,
+            phone=phone if phone else None,
+            address=address if address else None,
+            country=country if country else None,
+            latitude=latitude if latitude is not None else None,
+            longitude=longitude if longitude is not None else None,
         )
         if not password:
             user.set_unusable_password()
@@ -566,6 +578,9 @@ def register_view(request):
                         'city': prof_profile.city,
                         'category': category,
                         'sub_categories': sub_categories,
+                        # Use User model's coordinates if available
+                        'latitude': user.latitude if user.latitude is not None else data.get('latitude'),
+                        'longitude': user.longitude if user.longitude is not None else data.get('longitude'),
                     }
                 )
                 logger.info(f"PublicProfile {'created' if created else 'updated'} for professional: category={category}, subcategory={subcategory}")
@@ -576,10 +591,12 @@ def register_view(request):
                 sub_categories = [subcategory] if subcategory else []
                 
                 place_name = data.get('placeName') or first_name or username or email.split('@')[0]
-                street = data.get('address') or 'Dirección no disponible'
+                # Use User model's address if available, otherwise fallback to data or default
+                street = user.address or data.get('address') or 'Dirección no disponible'
                 postal_code = data.get('postal_code') or '00000'
                 city = data.get('city') or ''
-                country = data.get('country') or ''
+                # Use User model's country if available
+                country = user.country or data.get('country') or ''
                 
                 # Create or update PlaceProfile with category/subcategory
                 place_profile, _ = PlaceProfile.objects.update_or_create(
@@ -610,8 +627,9 @@ def register_view(request):
                         'postal_code': place_profile.postal_code,
                         'city': place_profile.city,
                         'country': place_profile.country,
-                        'latitude': data.get('latitude'),
-                        'longitude': data.get('longitude'),
+                        # Use User model's coordinates if available
+                        'latitude': user.latitude if user.latitude is not None else data.get('latitude'),
+                        'longitude': user.longitude if user.longitude is not None else data.get('longitude'),
                         'category': category,
                         'sub_categories': sub_categories,
                     }

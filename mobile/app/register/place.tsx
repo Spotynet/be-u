@@ -16,7 +16,7 @@ import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {authApi, errorUtils, profileCustomizationApi, tokenUtils} from "@/lib/api";
-import AddressAutocomplete from "@/components/address/AddressAutocomplete";
+import {AddressSearch} from "@/components/location/AddressSearch";
 import {useCategory} from "@/contexts/CategoryContext";
 import {Dropdown} from "@/components/ui/Dropdown";
 import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector";
@@ -34,8 +34,7 @@ export default function RegisterPlace() {
     phone: "",
     city: "",
     address: "",
-    postal_code: "",
-    country: "México",
+    country: "",
     latitude: undefined as number | undefined,
     longitude: undefined as number | undefined,
     role: "place" as "place",
@@ -57,7 +56,15 @@ export default function RegisterPlace() {
     }
     try {
       setLoading(true);
-      const {data} = await authApi.register(values);
+      const registerData = {
+        ...values,
+        // Include address, country, and coordinates for User model
+        address: values.address || undefined,
+        country: values.country || undefined,
+        latitude: values.latitude,
+        longitude: values.longitude,
+      };
+      const {data} = await authApi.register(registerData);
       await tokenUtils.setTokens(data.access, data.refresh);
 
       // Ensure PublicProfile exists (auto-creates if missing) and update it.
@@ -73,7 +80,6 @@ export default function RegisterPlace() {
           updateData.street = values.address;
           updateData.city = values.city;
           updateData.country = values.country;
-          updateData.postal_code = values.postal_code;
           updateData.latitude = values.latitude;
           updateData.longitude = values.longitude;
         }
@@ -147,44 +153,19 @@ export default function RegisterPlace() {
           value={values.phone}
           onChangeText={set("phone")}
         />
-        <TextInput
-          placeholder="Ciudad"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.city}
-          onChangeText={set("city")}
-        />
         <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Dirección</Text>
-        <AddressAutocomplete
+        <AddressSearch
+          placeholder="Buscar dirección"
           value={values.address}
-          onChangeText={(t) => setValues((s) => ({...s, address: t}))}
-          onSelected={(p) =>
+          onSelect={(location) => {
             setValues((s) => ({
               ...s,
-              address: p.address,
-              city: p.city || s.city,
-              country: p.country || s.country,
-              postal_code: p.postal_code || s.postal_code,
-              latitude: p.latitude,
-              longitude: p.longitude,
-            }))
-          }
-          placeholder="Buscar dirección"
-        />
-        <TextInput
-          placeholder="Código postal"
-          keyboardType="number-pad"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.postal_code}
-          onChangeText={set("postal_code")}
-        />
-        <TextInput
-          placeholder="País"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.country}
-          onChangeText={set("country")}
+              address: location.address || "",
+              country: location.country || "",
+              latitude: location.latitude,
+              longitude: location.longitude,
+            }));
+          }}
         />
 
         <MultiCategorySelector

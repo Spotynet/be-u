@@ -24,12 +24,22 @@ export function MediaUploader({
 
   const pickMedia = async () => {
     try {
-      // Request permissions
-      const {status} = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
+      // First check current permission status
+      const {status: currentStatus} = await ImagePicker.getMediaLibraryPermissionsAsync();
+      
+      let finalStatus = currentStatus;
+      
+      // Request permission if not already granted
+      if (currentStatus !== "granted") {
+        const {status} = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        finalStatus = status;
+      }
+      
+      if (finalStatus !== "granted") {
         Alert.alert(
           "Permisos requeridos",
-          "Necesitamos acceso a tu galería para seleccionar fotos"
+          "Necesitamos acceso a tu galería para seleccionar fotos. Por favor, permite el acceso a la galería en la configuración de la aplicación.",
+          [{text: "OK"}]
         );
         return;
       }
@@ -65,9 +75,23 @@ export function MediaUploader({
 
   const takePhoto = async () => {
     try {
-      const {status} = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Permisos requeridos", "Necesitamos acceso a tu cámara para tomar fotos");
+      // First check current permission status
+      const {status: currentStatus} = await ImagePicker.getCameraPermissionsAsync();
+      
+      let finalStatus = currentStatus;
+      
+      // Request permission if not already granted
+      if (currentStatus !== "granted") {
+        const {status} = await ImagePicker.requestCameraPermissionsAsync();
+        finalStatus = status;
+      }
+      
+      if (finalStatus !== "granted") {
+        Alert.alert(
+          "Permisos requeridos",
+          "Necesitamos acceso a tu cámara para tomar fotos. Por favor, permite el acceso a la cámara en la configuración de la aplicación.",
+          [{text: "OK"}]
+        );
         return;
       }
 
@@ -87,7 +111,7 @@ export function MediaUploader({
       }
     } catch (error) {
       console.error("Error taking photo:", error);
-      Alert.alert("Error", "No se pudo tomar la foto");
+      Alert.alert("Error", "No se pudo tomar la foto. Por favor, intenta de nuevo.");
       setUploading(false);
     }
   };

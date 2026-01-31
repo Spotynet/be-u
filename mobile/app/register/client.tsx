@@ -17,6 +17,7 @@ import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {authApi, errorUtils, tokenUtils} from "@/lib/api";
 import {useEffect} from "react";
+import {AddressSearch} from "@/components/location/AddressSearch";
 
 export default function RegisterClient() {
   const router = useRouter();
@@ -36,6 +37,10 @@ export default function RegisterClient() {
     firstName: params.googleFirstName || "",
     lastName: params.googleLastName || "",
     username: params.googleEmail ? params.googleEmail.split("@")[0] : "",
+    address: "",
+    country: "",
+    latitude: undefined as number | undefined,
+    longitude: undefined as number | undefined,
     role: "client" as "client",
   });
   const [loading, setLoading] = useState(false);
@@ -60,7 +65,15 @@ export default function RegisterClient() {
     }
     try {
       setLoading(true);
-      const {data} = await authApi.register(values);
+      const registerData = {
+        ...values,
+        // Include address, country, and coordinates for User model
+        address: values.address || undefined,
+        country: values.country || undefined,
+        latitude: values.latitude,
+        longitude: values.longitude,
+      };
+      const {data} = await authApi.register(registerData);
       await tokenUtils.setTokens(data.access, data.refresh);
       
       // Note: Google account linking will be handled separately
@@ -133,6 +146,20 @@ export default function RegisterClient() {
           value={values.email}
           onChangeText={set("email")}
         />
+        <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Dirección (opcional)</Text>
+        <AddressSearch
+          placeholder="Buscar dirección"
+          value={values.address}
+          onSelect={(location) => {
+            setValues((s) => ({
+              ...s,
+              address: location.address || "",
+              country: location.country || "",
+              latitude: location.latitude,
+              longitude: location.longitude,
+            }));
+          }}
+        />
 
         <TouchableOpacity
           style={[styles.submit, {backgroundColor: colors.primary}]}
@@ -165,6 +192,7 @@ const styles = StyleSheet.create({
   scrollView: {flex: 1},
   scrollContent: {paddingBottom: 40},
   form: {padding: 16, gap: 10},
+  sectionTitle: {fontSize: 14, fontWeight: "700", marginTop: 4, marginBottom: 6},
   input: {
     borderWidth: 1,
     borderRadius: 10,

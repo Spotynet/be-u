@@ -826,62 +826,26 @@ export const postApi = {
 
   // Create photo post
   createPhotoPost: (formData: FormData) => {
-    // Don't set Content-Type manually - let axios set it with the correct boundary
-    return api.post<any>("/posts/photo/", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-      transformRequest: (data, headers) => {
-        // Remove Content-Type to let browser/axios set it automatically with boundary
-        delete headers["Content-Type"];
-        return data;
-      },
-    });
+    // Don't set Content-Type manually - let axios/browser set it with the correct boundary
+    // The interceptor already handles FormData Content-Type removal
+    return api.post<any>("/posts/photo/", formData);
   },
 
   // Create video post
   createVideoPost: (formData: FormData) =>
-    api.post<any>("/posts/video/", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-      transformRequest: (data, headers) => {
-        // Remove Content-Type to let browser/axios set it automatically with boundary
-        delete headers["Content-Type"];
-        return data;
-      },
-    }),
+    api.post<any>("/posts/video/", formData),
 
   // Create carousel post
   createCarouselPost: (formData: FormData, config?: any) =>
-    api.post<any>("/posts/carousel/", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-      transformRequest: (data, headers) => {
-        delete headers["Content-Type"];
-        return data;
-      },
-      ...config,
-    }),
+    api.post<any>("/posts/carousel/", formData, config),
 
   // Create mosaic post
   createMosaicPost: (formData: FormData) =>
-    api.post<any>("/posts/mosaic/", formData, {
-      headers: {"Content-Type": "multipart/form-data"},
-    }),
+    api.post<any>("/posts/mosaic/", formData),
 
   // Create pet adoption post
   createPetAdoptionPost: (formData: FormData) =>
-    api.post<any>("/posts/pet_adoption/", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-      transformRequest: (data, headers) => {
-        delete headers["Content-Type"];
-        return data;
-      },
-    }),
+    api.post<any>("/posts/pet_adoption/", formData),
 
   // Create poll post
   createPollPost: (data: {
