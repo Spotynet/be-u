@@ -79,11 +79,31 @@ export default function CreatePhotoPostScreen() {
       router.replace("/");
     } catch (error: any) {
       console.error("Error creating post:", error);
-      const errorMessage = error?.response?.data 
-        ? JSON.stringify(error.response.data)
-        : error?.message || "No se pudo publicar la foto";
-      console.error("Error details:", errorMessage);
-      Alert.alert("Error", `No se pudo publicar la foto: ${errorMessage}`);
+      
+      // Handle 413 error specifically
+      if (error?.response?.status === 413 || error?.status === 413) {
+        Alert.alert(
+          "Archivo muy grande",
+          "La imagen es demasiado grande. Por favor, intenta con una imagen más pequeña o comprime la imagen antes de subirla."
+        );
+        return;
+      }
+      
+      // Handle other errors
+      let errorMessage = "No se pudo publicar la foto";
+      if (error?.response?.data) {
+        const data = error.response.data;
+        // Check if it's an HTML error response (like from Nginx)
+        if (typeof data === "string" && data.includes("413")) {
+          errorMessage = "La imagen es demasiado grande. Por favor, intenta con una imagen más pequeña.";
+        } else if (data.detail || data.error || data.message) {
+          errorMessage = data.detail || data.error || data.message;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert("Error", errorMessage);
     } finally {
       setIsUploading(false);
     }

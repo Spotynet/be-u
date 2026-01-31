@@ -160,6 +160,29 @@ export const apiCall = async <T = any>(
   } catch (error) {
     const axiosError = error as AxiosError;
     const errorData = axiosError.response?.data as any;
+    const status = axiosError.response?.status;
+
+    // Handle 413 Request Entity Too Large specifically
+    if (status === 413) {
+      throw {
+        message: "El archivo es demasiado grande. Por favor, intenta con una imagen más pequeña.",
+        status: 413,
+        errors: null,
+        response: axiosError.response,
+        data: errorData,
+      } as ApiError;
+    }
+
+    // Handle HTML error responses (like from Nginx)
+    if (typeof errorData === "string" && errorData.includes("413")) {
+      throw {
+        message: "El archivo es demasiado grande. Por favor, intenta con una imagen más pequeña.",
+        status: 413,
+        errors: null,
+        response: axiosError.response,
+        data: errorData,
+      } as ApiError;
+    }
 
     // Handle specific backend errors
     if (errorData?.message?.includes("missing 1 required positional argument")) {
@@ -175,9 +198,26 @@ export const apiCall = async <T = any>(
       );
     }
 
+    // Extract error message from various possible formats
+    let errorMessage = "An error occurred";
+    if (errorData) {
+      if (typeof errorData === "string") {
+        // If it's an HTML string, try to extract meaningful info
+        if (errorData.includes("413")) {
+          errorMessage = "El archivo es demasiado grande. Por favor, intenta con una imagen más pequeña.";
+        } else {
+          errorMessage = errorData;
+        }
+      } else {
+        errorMessage = errorData?.detail || errorData?.error || errorData?.message || axiosError.message || "An error occurred";
+      }
+    } else {
+      errorMessage = axiosError.message || "An error occurred";
+    }
+
     throw {
-      message: errorData?.detail || errorData?.error || errorData?.message || axiosError.message || "An error occurred",
-      status: axiosError.response?.status || 500,
+      message: errorMessage,
+      status: status || 500,
       errors: errorData?.errors,
       response: axiosError.response, // Preserve full response for detailed error extraction
       data: errorData, // Preserve error data

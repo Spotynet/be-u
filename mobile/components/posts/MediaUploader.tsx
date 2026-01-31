@@ -4,6 +4,7 @@ import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useState} from "react";
 import * as ImagePicker from "expo-image-picker";
+import {compressImage} from "@/lib/imageUtils";
 
 interface MediaUploaderProps {
   mediaType: "photo" | "video" | "any";
@@ -57,14 +58,23 @@ export function MediaUploader({
       });
 
       if (!result.canceled && result.assets) {
-        // Simulate upload with loading state
         setUploading(true);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-
-        const newMedia = result.assets.map((asset) => asset.uri);
-        const updatedMedia = [...selectedMedia, ...newMedia].slice(0, maxFiles);
-        onMediaSelected(updatedMedia);
-        setUploading(false);
+        try {
+          // Compress images before returning them
+          const compressedUris = await Promise.all(
+            result.assets.map((asset) => compressImage(asset.uri))
+          );
+          const updatedMedia = [...selectedMedia, ...compressedUris].slice(0, maxFiles);
+          onMediaSelected(updatedMedia);
+        } catch (error) {
+          console.error("Error compressing images:", error);
+          // Fallback to original images if compression fails
+          const newMedia = result.assets.map((asset) => asset.uri);
+          const updatedMedia = [...selectedMedia, ...newMedia].slice(0, maxFiles);
+          onMediaSelected(updatedMedia);
+        } finally {
+          setUploading(false);
+        }
       }
     } catch (error) {
       console.error("Error picking media:", error);
@@ -102,12 +112,20 @@ export function MediaUploader({
 
       if (!result.canceled && result.assets) {
         setUploading(true);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-
-        const newMedia = result.assets.map((asset) => asset.uri);
-        const updatedMedia = [...selectedMedia, ...newMedia].slice(0, maxFiles);
-        onMediaSelected(updatedMedia);
-        setUploading(false);
+        try {
+          // Compress image before returning it
+          const compressedUri = await compressImage(result.assets[0].uri);
+          const updatedMedia = [...selectedMedia, compressedUri].slice(0, maxFiles);
+          onMediaSelected(updatedMedia);
+        } catch (error) {
+          console.error("Error compressing image:", error);
+          // Fallback to original image if compression fails
+          const newMedia = result.assets.map((asset) => asset.uri);
+          const updatedMedia = [...selectedMedia, ...newMedia].slice(0, maxFiles);
+          onMediaSelected(updatedMedia);
+        } finally {
+          setUploading(false);
+        }
       }
     } catch (error) {
       console.error("Error taking photo:", error);
