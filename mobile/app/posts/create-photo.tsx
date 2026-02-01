@@ -15,18 +15,26 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
 import {useState} from "react";
 import {MediaUploader} from "@/components/posts/MediaUploader";
-import {postApi} from "@/lib/api";
+import {postApi, errorUtils} from "@/lib/api";
+import {useAuth} from "@/features/auth/hooks/useAuth";
 
 export default function CreatePhotoPostScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
+  const {user, isAuthenticated} = useAuth();
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [description, setDescription] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
   const handlePublish = async () => {
+    if (!isAuthenticated || !user) {
+      Alert.alert("Error", "Debes iniciar sesión para publicar");
+      router.push("/login");
+      return;
+    }
+
     if (photos.length === 0) {
       Alert.alert("Error", "Agrega al menos una foto");
       return;
@@ -39,11 +47,12 @@ export default function CreatePhotoPostScreen() {
 
     try {
       setIsUploading(true);
+      console.log("📤 Starting post creation with", photos.length, "photos");
 
       // Create FormData for file upload
       const formData = new FormData();
       formData.append("content", description);
-      // post_type is set by the backend endpoint, no need to send it
+      formData.append("post_type", "photo");
 
       // Add photos to FormData
       if (Platform.OS === "web") {
@@ -78,30 +87,15 @@ export default function CreatePhotoPostScreen() {
       // Navigate back to home/feed upon success
       router.replace("/");
     } catch (error: any) {
-      console.error("Error creating post:", error);
+      console.error("❌ Error creating post - Full error object:", JSON.stringify(error, null, 2));
+      console.error("❌ Error response status:", error?.response?.status);
+      console.error("❌ Error response data:", error?.response?.data);
+      console.error("❌ Error message:", error?.message);
+      console.error("❌ Error status:", error?.status);
       
-      // Handle 413 error specifically
-      if (error?.response?.status === 413 || error?.status === 413) {
-        Alert.alert(
-          "Archivo muy grande",
-          "La imagen es demasiado grande. Por favor, intenta con una imagen más pequeña o comprime la imagen antes de subirla."
-        );
-        return;
-      }
-      
-      // Handle other errors
-      let errorMessage = "No se pudo publicar la foto";
-      if (error?.response?.data) {
-        const data = error.response.data;
-        // Check if it's an HTML error response (like from Nginx)
-        if (typeof data === "string" && data.includes("413")) {
-          errorMessage = "La imagen es demasiado grande. Por favor, intenta con una imagen más pequeña.";
-        } else if (data.detail || data.error || data.message) {
-          errorMessage = data.detail || data.error || data.message;
-        }
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
+      // Use errorUtils for consistent error message extraction
+      const errorMessage = errorUtils.getErrorMessage(error);
+      console.error("📢 Showing error to user:", errorMessage);
       
       Alert.alert("Error", errorMessage);
     } finally {

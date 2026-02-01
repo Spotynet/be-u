@@ -287,28 +287,28 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
       country,
     };
 
-    console.log("PlaceSettingsForm - Saving data:", {userData, profileData});
-    await onSave(userData, profileData);
-
-    // Update public profile with categories, subcategories, and display_name
+    // Always update public profile (category/sub_categories) first so it persists even if auth profile update fails
+    const publicProfileData: any = {
+      category: selectedCategories ?? [],
+      sub_categories: selectedSubcategories ?? [],
+    };
+    if (location) {
+      publicProfileData.latitude = location.latitude;
+      publicProfileData.longitude = location.longitude;
+    }
+    if (displayName && displayName.trim() && displayName !== name) {
+      publicProfileData.name = displayName.trim();
+    }
     try {
-      const publicProfileData: any = {
-        category: selectedCategories,
-        sub_categories: selectedSubcategories,
-      };
-      if (location) {
-        publicProfileData.latitude = location.latitude;
-        publicProfileData.longitude = location.longitude;
-      }
-      // Update name (which controls display_name for places) if displayName is provided
-      if (displayName && displayName.trim() && displayName !== name) {
-        publicProfileData.name = displayName.trim();
-      }
       await profileCustomizationApi.updatePublicProfile(publicProfileData);
-      console.log("Public profile updated successfully");
+      console.log("Public profile (categories) updated successfully");
     } catch (error) {
       console.error("Error updating public profile:", error);
+      Alert.alert("Error", "No se pudieron guardar las categorías. Intenta de nuevo.");
     }
+
+    console.log("PlaceSettingsForm - Saving data:", {userData, profileData});
+    await onSave(userData, profileData);
   };
 
   useImperativeHandle(ref, () => ({

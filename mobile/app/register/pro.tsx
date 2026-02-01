@@ -15,14 +15,16 @@ import {useLocalSearchParams, useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
-import {authApi, errorUtils, profileCustomizationApi, tokenUtils} from "@/lib/api";
+import {errorUtils, profileCustomizationApi} from "@/lib/api";
 import {AddressSearch} from "@/components/location/AddressSearch";
 import {useCategory} from "@/contexts/CategoryContext";
 import {Dropdown} from "@/components/ui/Dropdown";
 import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector";
+import {useAuth} from "@/features/auth/hooks/useAuth";
 
 export default function RegisterPro() {
   const router = useRouter();
+  const {register} = useAuth();
   const params = useLocalSearchParams<{
     googleEmail?: string;
     googleFirstName?: string;
@@ -71,8 +73,7 @@ export default function RegisterPro() {
         latitude: values.latitude,
         longitude: values.longitude,
       };
-      const {data} = await authApi.register(registerData);
-      await tokenUtils.setTokens(data.access, data.refresh);
+      await register(registerData);
 
       // Try to update profile, but don't fail registration if it fails
       try {
@@ -100,30 +101,7 @@ export default function RegisterPro() {
 
       router.replace("/(tabs)/perfil");
     } catch (err: any) {
-      // Check if it's a 400 error but user was created (email already exists, etc.)
-      if (err?.response?.status === 400 && err?.response?.data) {
-        const errorData = err.response.data;
-        // If the error contains user data, registration might have succeeded
-        if (errorData.user || errorData.access) {
-          // Registration succeeded but there was a validation error
-          // Try to continue with login
-          try {
-            if (errorData.access) {
-              await tokenUtils.setTokens(errorData.access, errorData.refresh || '');
-              router.replace("/(tabs)/perfil");
-              return;
-            }
-          } catch (loginError) {
-            // If login fails, show error
-            Alert.alert("Error", errorUtils.getErrorMessage(err));
-          }
-        } else {
-          // Show the actual error message
-          Alert.alert("Error", errorUtils.getErrorMessage(err));
-        }
-      } else {
-        Alert.alert("Error", errorUtils.getErrorMessage(err));
-      }
+      Alert.alert("Error", errorUtils.getErrorMessage(err));
     } finally {
       setLoading(false);
     }

@@ -143,6 +143,18 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     def get_distance(self, obj):
         return getattr(obj, "distance_km", None)
 
+    def get_latitude(self, obj):
+        """Get latitude from User model (preferred) or PublicProfile (fallback)"""
+        if obj.user and getattr(obj.user, "latitude", None) is not None:
+            return float(obj.user.latitude)
+        return float(obj.latitude) if obj.latitude is not None else None
+
+    def get_longitude(self, obj):
+        """Get longitude from User model (preferred) or PublicProfile (fallback)"""
+        if obj.user and getattr(obj.user, "longitude", None) is not None:
+            return float(obj.user.longitude)
+        return float(obj.longitude) if obj.longitude is not None else None
+
 
 class PublicProfileCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating PublicProfile"""
@@ -165,6 +177,26 @@ class PublicProfileCreateSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+def _ensure_category_list(value):
+    """Ensure category/sub_categories is a list of strings for JSONField."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(x) for x in value if x is not None and str(x).strip()]
+    if isinstance(value, str):
+        if not value.strip():
+            return []
+        if value.strip().startswith('['):
+            try:
+                import json
+                parsed = json.loads(value)
+                return _ensure_category_list(parsed)
+            except (ValueError, TypeError):
+                return [value.strip()]
+        return [value.strip()]
+    return []
+
+
 class PublicProfileUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating PublicProfile"""
     photo = serializers.ImageField(write_only=True, required=False, allow_null=True, help_text="Profile photo (updates user.image). Send null/empty to delete.")
@@ -178,6 +210,12 @@ class PublicProfileUpdateSerializer(serializers.ModelSerializer):
             'street', 'number_ext', 'number_int', 'postal_code', 'city', 'country',
             'last_name', 'bio', 'latitude', 'longitude', 'photo', 'delete_photo'
         ]
+    
+    def validate_category(self, value):
+        return _ensure_category_list(value)
+    
+    def validate_sub_categories(self, value):
+        return _ensure_category_list(value)
     
     def update(self, instance, validated_data):
         """Update profile and handle photo upload/delete to user.image"""

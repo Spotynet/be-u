@@ -91,6 +91,7 @@ export default function CreateBeforeAfterScreen() {
       form.append("before", beforeFile as any);
       form.append("after", afterFile as any);
       form.append("caption", description);
+      form.append("post_type", "before_after");
 
       await postApi.createBeforeAfterPost(form);
 

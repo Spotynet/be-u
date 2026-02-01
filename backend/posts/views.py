@@ -150,13 +150,33 @@ class PostViewSet(viewsets.ModelViewSet):
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser])
 def create_photo_post(request):
+    if not request.user or not request.user.is_authenticated:
+        return Response({'detail': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    # Log request info for debugging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Creating photo post for user {request.user.id}")
+    logger.info(f"Request FILES keys: {list(request.FILES.keys())}")
+    logger.info(f"Request data keys: {list(request.data.keys())}")
+    
+    # Check if media files are provided
+    if 'media' not in request.FILES and len(request.FILES) == 0:
+        logger.warning("No media files in request")
+        return Response({'detail': 'No media file provided. Please select at least one image.'}, status=status.HTTP_400_BAD_REQUEST)
+    
     serializer = PostCreateSerializer(data=request.data, context={'request': request})
 
     if serializer.is_valid():
         post = serializer.save(post_type='photo')
+        logger.info(f"Photo post created successfully: {post.id}")
         return Response(PostSerializer(post, context={'request': request}).data)
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    logger.error(f"Serializer errors: {serializer.errors}")
+    return Response({
+        'detail': 'Validation failed',
+        'errors': serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser])

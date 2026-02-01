@@ -45,7 +45,7 @@ export default function CreateCarouselScreen() {
       if (description.trim()) {
         formData.append("content", description);
       }
-      // post_type is set by the backend endpoint, no need to send it
+      formData.append("post_type", "carousel");
       // Hidden setting: default to allow comments
       formData.append("allow_comments", "true");
 

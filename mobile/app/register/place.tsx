@@ -15,14 +15,16 @@ import {useLocalSearchParams, useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
-import {authApi, errorUtils, profileCustomizationApi, tokenUtils} from "@/lib/api";
+import {errorUtils, profileCustomizationApi} from "@/lib/api";
 import {AddressSearch} from "@/components/location/AddressSearch";
 import {useCategory} from "@/contexts/CategoryContext";
 import {Dropdown} from "@/components/ui/Dropdown";
 import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector";
+import {useAuth} from "@/features/auth/hooks/useAuth";
 
 export default function RegisterPlace() {
   const router = useRouter();
+  const {register} = useAuth();
   const params = useLocalSearchParams<{googleEmail?: string}>();
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
@@ -64,8 +66,7 @@ export default function RegisterPlace() {
         latitude: values.latitude,
         longitude: values.longitude,
       };
-      const {data} = await authApi.register(registerData);
-      await tokenUtils.setTokens(data.access, data.refresh);
+      await register(registerData);
 
       // Ensure PublicProfile exists (auto-creates if missing) and update it.
       // If update fails, don't block successful registration and navigation.

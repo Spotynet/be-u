@@ -286,42 +286,39 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
       city,
     };
 
+    // Always update public profile (category/sub_categories) first so it persists even if auth profile update fails
+    const publicProfileData: any = {
+      category: selectedCategories ?? [],
+      sub_categories: selectedSubcategories ?? [],
+    };
+    if (location) {
+      publicProfileData.latitude = location.latitude;
+      publicProfileData.longitude = location.longitude;
+    }
+    if (displayName && displayName.trim()) {
+      const nameParts = displayName.trim().split(' ');
+      publicProfileData.name = nameParts[0] || displayName.trim();
+      if (nameParts.length > 1) {
+        publicProfileData.last_name = nameParts.slice(1).join(' ');
+      } else {
+        publicProfileData.last_name = '';
+      }
+    }
+    try {
+      await profileCustomizationApi.updatePublicProfile(publicProfileData);
+      console.log("Public profile (categories) updated successfully");
+    } catch (error) {
+      console.error("Error updating public profile:", error);
+      Alert.alert("Error", "No se pudieron guardar las categorías. Intenta de nuevo.");
+    }
+
     console.log("Saving profile data:", profileData);
     console.log("Saving user data:", userData);
-
     try {
       await onSave(userData, profileData);
-      // After saving, the user object should be updated via refreshToken
-      // But also update local state if user prop changes
     } catch (error) {
       console.error("Error saving profile:", error);
       throw error;
-    }
-
-    // Update public profile with categories, subcategories, and display_name
-    try {
-      const publicProfileData: any = {
-        category: selectedCategories,
-        sub_categories: selectedSubcategories,
-      };
-      if (location) {
-        publicProfileData.latitude = location.latitude;
-        publicProfileData.longitude = location.longitude;
-      }
-      // Update name and last_name (which control display_name for professionals) if displayName is provided
-      if (displayName && displayName.trim()) {
-        const nameParts = displayName.trim().split(' ');
-        publicProfileData.name = nameParts[0] || displayName.trim();
-        if (nameParts.length > 1) {
-          publicProfileData.last_name = nameParts.slice(1).join(' ');
-        } else {
-          publicProfileData.last_name = '';
-        }
-      }
-      await profileCustomizationApi.updatePublicProfile(publicProfileData);
-      console.log("Public profile updated successfully");
-    } catch (error) {
-      console.error("Error updating public profile:", error);
     }
   };
 

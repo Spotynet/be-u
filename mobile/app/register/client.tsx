@@ -15,12 +15,14 @@ import {useRouter, useLocalSearchParams} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
-import {authApi, errorUtils, tokenUtils} from "@/lib/api";
+import {errorUtils} from "@/lib/api";
 import {useEffect} from "react";
 import {AddressSearch} from "@/components/location/AddressSearch";
+import {useAuth} from "@/features/auth/hooks/useAuth";
 
 export default function RegisterClient() {
   const router = useRouter();
+  const {register} = useAuth();
   const params = useLocalSearchParams<{
     googleEmail?: string;
     googleFirstName?: string;
@@ -73,8 +75,7 @@ export default function RegisterClient() {
         latitude: values.latitude,
         longitude: values.longitude,
       };
-      const {data} = await authApi.register(registerData);
-      await tokenUtils.setTokens(data.access, data.refresh);
+      await register(registerData);
       
       // Note: Google account linking will be handled separately
       // The user can link their Google account from settings if needed

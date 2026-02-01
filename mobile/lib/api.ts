@@ -21,7 +21,6 @@ export interface ApiError {
 }
 
 // API Configuration - HARDCODED for testing
-
 //const API_BASE_URL = "http://127.0.0.1:8000/api";
 const API_BASE_URL = "https://stg.be-u.ai/api";
 
@@ -381,7 +380,7 @@ export const profileCustomizationApi = {
           profile_type: profileType,
           name: profileName,
           description: "",
-          category: "",
+          category: [],
           sub_categories: [],
           images: [],
           linked_pros_place: [],
@@ -1233,19 +1232,59 @@ export const tokenRefreshScheduler = {
 export const errorUtils = {
   // Extract error message from API error
   getErrorMessage: (error: any): string => {
+    // Handle 413 errors specifically
+    if (error?.response?.status === 413 || error?.status === 413) {
+      return "La imagen es demasiado grande. Por favor, intenta con una imagen más pequeña.";
+    }
+    
+    // Check if response data is a string (HTML error from Nginx)
+    if (error?.response?.data && typeof error.response.data === "string") {
+      const dataStr = error.response.data;
+      if (dataStr.includes("413") || dataStr.includes("Request Entity Too Large")) {
+        return "La imagen es demasiado grande. Por favor, intenta con una imagen más pequeña.";
+      }
+      // If it's a short string, it might be a useful error message
+      if (dataStr.length < 200 && !dataStr.includes("<html>")) {
+        return dataStr;
+      }
+    }
+    
     // Priority 1: Check for detail field (Django REST Framework standard)
     if (error?.response?.data?.detail) {
       return error.response.data.detail;
     }
+    
     // Priority 2: Check for error field
     if (error?.response?.data?.error) {
-      return error.response.data.error;
+      const errorField = error.response.data.error;
+      return typeof errorField === "string" ? errorField : JSON.stringify(errorField);
     }
-    // Priority 3: Check for message field
+    
+    // Priority 3: Check for serializer errors (Django REST Framework validation errors)
+    if (error?.response?.data?.errors) {
+      const errors = error.response.data.errors;
+      // If it's an object with field errors, extract the first one
+      if (typeof errors === "object" && !Array.isArray(errors)) {
+        const firstKey = Object.keys(errors)[0];
+        if (firstKey) {
+          const firstError = Array.isArray(errors[firstKey]) 
+            ? errors[firstKey][0] 
+            : errors[firstKey];
+          return `${firstKey}: ${firstError}`;
+        }
+      }
+      // If it's an array, return the first error
+      if (Array.isArray(errors) && errors.length > 0) {
+        return errors[0];
+      }
+    }
+    
+    // Priority 4: Check for message field
     if (error?.response?.data?.message) {
       return error.response.data.message;
     }
-    // Priority 4: Check for top-level message (axios error)
+    
+    // Priority 5: Check for top-level message (axios error)
     if (error?.message) {
       // Don't show technical HTTP error messages
       if (error.message.includes('status code') || error.message.includes('Request failed')) {
@@ -1253,6 +1292,7 @@ export const errorUtils = {
       }
       return error.message;
     }
+    
     // Default fallback
     return "Ocurrió un error inesperado. Por favor, intenta de nuevo.";
   },

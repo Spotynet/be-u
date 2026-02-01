@@ -343,14 +343,6 @@ export function EnhancedReservationsTab({
           ? "Aún no has hecho ninguna reserva. Explora profesionales y lugares para agendar tu primera cita."
           : "No tienes reservas pendientes. Cuando recibas reservas aparecerán aquí."}
       </Text>
-      {isClient && filteredReservations.length === 0 && reservations.length === 0 && (
-        <TouchableOpacity
-          style={[styles.exploreButton, {backgroundColor: colors.primary}]}
-          onPress={() => router.push("/(tabs)/explore")}
-          activeOpacity={0.9}>
-          <Text style={styles.exploreButtonText}>Explorar Servicios</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 
@@ -646,17 +638,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: "center",
     lineHeight: 22,
-  },
-  exploreButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  exploreButtonText: {
-    color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "700",
   },
   retryButton: {
     paddingHorizontal: 32,
