@@ -5,28 +5,50 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
+import {useRouter} from "expo-router";
 import {ImageGallery} from "./ImageGallery";
-import {ServiceManager} from "./ServiceManager";
-import {AvailabilityManager} from "./AvailabilityManager";
+import AvailabilityScreen from "@/app/availability";
+import ServiceManagementScreen from "@/app/profile/services";
 
-type CustomizationTab = "images" | "services" | "calendar";
+type CustomizationTab = "images" | "services" | "calendar" | "team";
 
-export const ProfileCustomizationTab = () => {
+interface ProfileCustomizationTabProps {
+  userRole?: "CLIENT" | "PROFESSIONAL" | "PLACE";
+}
+
+export const ProfileCustomizationTab = ({userRole = "PROFESSIONAL"}: ProfileCustomizationTabProps) => {
   const {colors} = useThemeVariant();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<CustomizationTab>("images");
+  const isPlace = userRole === "PLACE";
 
   const renderTabContent = () => {
     switch (activeTab) {
       case "images":
         return <ImageGallery maxImages={10} />;
       case "services":
-        return <ServiceManager />;
+        return <ServiceManagementScreen embedded />;
       case "calendar":
-        return <AvailabilityManager />;
+        return <AvailabilityScreen embedded />;
+      case "team":
+        return (
+          <View style={[styles.teamSection, {backgroundColor: colors.card, borderColor: colors.border}]}>
+            <Text style={[styles.teamTitle, {color: colors.foreground}]}>Equipo de Profesionales</Text>
+            <Text style={[styles.teamDescription, {color: colors.mutedForeground}]}>
+              Invita profesionales a formar parte de tu lugar y configura sus horarios de atención.
+            </Text>
+            <TouchableOpacity
+              style={[styles.teamButton, {backgroundColor: colors.primary}]}
+              onPress={() => router.push("/place/manage-links")}
+              activeOpacity={0.8}>
+              <Ionicons name="people" color="#ffffff" size={20} />
+              <Text style={styles.teamButtonText}>Gestionar Equipo</Text>
+            </TouchableOpacity>
+          </View>
+        );
       default:
         return null;
     }
@@ -46,19 +68,13 @@ export const ProfileCustomizationTab = () => {
             activeTab === "images" && {borderBottomColor: colors.primary},
           ]}
           onPress={() => setActiveTab("images")}
-          activeOpacity={0.7}>
+          activeOpacity={0.7}
+          accessibilityLabel="Imágenes">
           <Ionicons
             name={activeTab === "images" ? "images" : "images-outline"}
-            size={20}
+            size={24}
             color={activeTab === "images" ? colors.primary : colors.mutedForeground}
           />
-          <Text
-            style={[
-              styles.subTabText,
-              {color: activeTab === "images" ? colors.primary : colors.mutedForeground},
-            ]}>
-            Imágenes
-          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -67,19 +83,13 @@ export const ProfileCustomizationTab = () => {
             activeTab === "services" && {borderBottomColor: colors.primary},
           ]}
           onPress={() => setActiveTab("services")}
-          activeOpacity={0.7}>
+          activeOpacity={0.7}
+          accessibilityLabel="Servicios">
           <Ionicons
             name={activeTab === "services" ? "briefcase" : "briefcase-outline"}
-            size={20}
+            size={24}
             color={activeTab === "services" ? colors.primary : colors.mutedForeground}
           />
-          <Text
-            style={[
-              styles.subTabText,
-              {color: activeTab === "services" ? colors.primary : colors.mutedForeground},
-            ]}>
-            Servicios
-          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -88,20 +98,31 @@ export const ProfileCustomizationTab = () => {
             activeTab === "calendar" && {borderBottomColor: colors.primary},
           ]}
           onPress={() => setActiveTab("calendar")}
-          activeOpacity={0.7}>
+          activeOpacity={0.7}
+          accessibilityLabel="Disponibilidad">
           <Ionicons
             name={activeTab === "calendar" ? "calendar" : "calendar-outline"}
-            size={20}
+            size={24}
             color={activeTab === "calendar" ? colors.primary : colors.mutedForeground}
           />
-          <Text
-            style={[
-              styles.subTabText,
-              {color: activeTab === "calendar" ? colors.primary : colors.mutedForeground},
-            ]}>
-            Disponibilidad
-          </Text>
         </TouchableOpacity>
+
+        {isPlace && (
+          <TouchableOpacity
+            style={[
+              styles.subTabButton,
+              activeTab === "team" && {borderBottomColor: colors.primary},
+            ]}
+            onPress={() => setActiveTab("team")}
+            activeOpacity={0.7}
+            accessibilityLabel="Equipo">
+            <Ionicons
+              name={activeTab === "team" ? "people" : "people-outline"}
+              size={24}
+              color={activeTab === "team" ? colors.primary : colors.mutedForeground}
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Tab Content */}
@@ -126,20 +147,43 @@ const styles = StyleSheet.create({
   },
   subTabButton: {
     flex: 1,
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
-    gap: 8,
-  },
-  subTabText: {
-    fontSize: 14,
-    fontWeight: "500",
   },
   content: {
     flex: 1,
+  },
+  teamSection: {
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  teamTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  teamDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  teamButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+  },
+  teamButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
 

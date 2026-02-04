@@ -10,13 +10,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Pressable,
 } from "react-native";
 import {useRouter, useLocalSearchParams} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {errorUtils} from "@/lib/api";
-import {useEffect} from "react";
 import {AddressSearch} from "@/components/location/AddressSearch";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 
@@ -46,40 +46,36 @@ export default function RegisterClient() {
     role: "client" as "client",
   });
   const [loading, setLoading] = useState(false);
-  const [googleInfo, setGoogleInfo] = useState<{
-    googleId?: string;
-    googleAccessToken?: string;
-    googleRefreshToken?: string;
-  } | null>(
-    params.googleId
-      ? {
-          googleId: params.googleId,
-          googleAccessToken: params.googleAccessToken,
-          googleRefreshToken: params.googleRefreshToken,
-        }
-      : null
-  );
 
   const onSubmit = async () => {
-    if (!values.email || !values.firstName || !values.username) {
-      Alert.alert("Campos requeridos", "Ingresa al menos email, usuario y nombre");
+    const trimmed = {
+      email: values.email.trim(),
+      firstName: values.firstName.trim(),
+      lastName: values.lastName.trim(),
+      username: values.username.trim(),
+    };
+    if (!trimmed.email || !trimmed.firstName || !trimmed.username) {
+      Alert.alert(
+        "Campos requeridos",
+        "Completa nombre, usuario y correo electrónico para continuar."
+      );
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(trimmed.email)) {
+      Alert.alert("Correo inválido", "Ingresa un correo electrónico válido.");
       return;
     }
     try {
       setLoading(true);
       const registerData = {
         ...values,
-        // Include address, country, and coordinates for User model
+        ...trimmed,
         address: values.address || undefined,
         country: values.country || undefined,
         latitude: values.latitude,
         longitude: values.longitude,
       };
       await register(registerData);
-      
-      // Note: Google account linking will be handled separately
-      // The user can link their Google account from settings if needed
-      
       router.replace("/(tabs)/perfil");
     } catch (err) {
       Alert.alert("Error", errorUtils.getErrorMessage(err));
@@ -100,79 +96,124 @@ export default function RegisterClient() {
           styles.header,
           {
             borderBottomColor: colors.border,
-            paddingTop: Math.max(insets.top + 16, 20),
+            paddingTop: Math.max(insets.top + 8, 12),
           },
         ]}>
-        <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={() => router.back()}
+          hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
           <Ionicons name="arrow-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Registro (Cliente)</Text>
+        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Registro · Cliente</Text>
         <View style={styles.headerBtn} />
       </View>
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, {paddingBottom: insets.bottom + 40}]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
         <View style={styles.form}>
-        <TextInput
-          placeholder="Nombre"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.firstName}
-          onChangeText={set("firstName")}
-        />
-        <TextInput
-          placeholder="Apellido"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.lastName}
-          onChangeText={set("lastName")}
-        />
-        <TextInput
-          placeholder="Usuario"
-          autoCapitalize="none"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.username}
-          onChangeText={set("username")}
-        />
-        <TextInput
-          placeholder="Email"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.email}
-          onChangeText={set("email")}
-        />
-        <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Dirección (opcional)</Text>
-        <AddressSearch
-          placeholder="Buscar dirección"
-          value={values.address}
-          onSelect={(location) => {
-            setValues((s) => ({
-              ...s,
-              address: location.address || "",
-              country: location.country || "",
-              latitude: location.latitude,
-              longitude: location.longitude,
-            }));
-          }}
-        />
+          <Text style={[styles.sectionLabel, {color: colors.mutedForeground}]}>
+            Datos personales
+          </Text>
 
-        <TouchableOpacity
-          style={[styles.submit, {backgroundColor: colors.primary}]}
-          onPress={onSubmit}
-          disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.submitText}>Crear cuenta</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, {color: colors.foreground}]}>Nombre</Text>
+            <View style={[styles.inputBox, {backgroundColor: colors.input, borderColor: colors.border}]}>
+              <Ionicons name="person-outline" size={20} color={colors.mutedForeground} />
+              <TextInput
+                placeholder="Tu nombre"
+                placeholderTextColor={colors.mutedForeground}
+                style={[styles.input, {color: colors.foreground}]}
+                value={values.firstName}
+                onChangeText={set("firstName")}
+                editable={!loading}
+              />
+            </View>
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, {color: colors.foreground}]}>Apellido</Text>
+            <View style={[styles.inputBox, {backgroundColor: colors.input, borderColor: colors.border}]}>
+              <Ionicons name="person-outline" size={20} color={colors.mutedForeground} />
+              <TextInput
+                placeholder="Tu apellido"
+                placeholderTextColor={colors.mutedForeground}
+                style={[styles.input, {color: colors.foreground}]}
+                value={values.lastName}
+                onChangeText={set("lastName")}
+                editable={!loading}
+              />
+            </View>
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, {color: colors.foreground}]}>Usuario</Text>
+            <View style={[styles.inputBox, {backgroundColor: colors.input, borderColor: colors.border}]}>
+              <Ionicons name="at" size={20} color={colors.mutedForeground} />
+              <TextInput
+                placeholder="nombre_usuario"
+                placeholderTextColor={colors.mutedForeground}
+                style={[styles.input, {color: colors.foreground}]}
+                value={values.username}
+                onChangeText={set("username")}
+                autoCapitalize="none"
+                editable={!loading}
+              />
+            </View>
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, {color: colors.foreground}]}>Correo electrónico</Text>
+            <View style={[styles.inputBox, {backgroundColor: colors.input, borderColor: colors.border}]}>
+              <Ionicons name="mail-outline" size={20} color={colors.mutedForeground} />
+              <TextInput
+                placeholder="tu@correo.com"
+                placeholderTextColor={colors.mutedForeground}
+                style={[styles.input, {color: colors.foreground}]}
+                value={values.email}
+                onChangeText={set("email")}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!loading}
+              />
+            </View>
+          </View>
+
+          <Text style={[styles.sectionLabel, {color: colors.mutedForeground}, styles.sectionLabelTop]}>
+            Dirección (opcional)
+          </Text>
+          <AddressSearch
+            placeholder="Buscar dirección"
+            value={values.address}
+            onSelect={(location) => {
+              setValues((s) => ({
+                ...s,
+                address: location.address || "",
+                country: location.country || "",
+                latitude: location.latitude,
+                longitude: location.longitude,
+              }));
+            }}
+          />
+
+          <Pressable
+            style={({pressed}) => [
+              styles.submit,
+              {backgroundColor: colors.primary},
+              loading && styles.submitDisabled,
+              pressed && !loading && {opacity: 0.9},
+            ]}
+            onPress={onSubmit}
+            disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color={colors.primaryForeground} />
+            ) : (
+              <Text style={[styles.submitText, {color: colors.primaryForeground}]}>
+                Crear cuenta
+              </Text>
+            )}
+          </Pressable>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -185,22 +226,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerBtn: {width: 32, height: 32, alignItems: "center", justifyContent: "center"},
-  headerTitle: {fontSize: 18, fontWeight: "700"},
+  headerBtn: {width: 44, minHeight: 44, alignItems: "flex-start", justifyContent: "center"},
+  headerTitle: {fontSize: 17, fontWeight: "600", flex: 1, textAlign: "center"},
   scrollView: {flex: 1},
-  scrollContent: {paddingBottom: 40},
-  form: {padding: 16, gap: 10},
-  sectionTitle: {fontSize: 14, fontWeight: "700", marginTop: 4, marginBottom: 6},
-  input: {
+  scrollContent: {},
+  form: {padding: 20, paddingBottom: 24},
+  sectionLabel: {fontSize: 13, fontWeight: "600", marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5},
+  sectionLabelTop: {marginTop: 24},
+  inputGroup: {marginBottom: 18},
+  label: {fontSize: 15, fontWeight: "500", marginBottom: 8},
+  inputBox: {
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
+    borderRadius: 12,
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 15,
+    gap: 12,
   },
-  submit: {marginTop: 12, borderRadius: 12, alignItems: "center", paddingVertical: 14},
-  submitText: {color: "#fff", fontSize: 15, fontWeight: "700"},
+  input: {flex: 1, fontSize: 16, paddingVertical: 0},
+  submit: {marginTop: 28, borderRadius: 12, alignItems: "center", justifyContent: "center", paddingVertical: 16},
+  submitDisabled: {opacity: 0.6},
+  submitText: {fontSize: 16, fontWeight: "600"},
 });

@@ -29,8 +29,9 @@ class User(AbstractUser):
     # Phone number for all users
     phone = models.CharField(max_length=20, blank=True, null=True)
     
-    # Country for all users
+    # Country and city for all users
     country = models.CharField(max_length=100, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
     
     # Profile image for all users
     image = models.ImageField(upload_to="users/images/", blank=True, null=True)

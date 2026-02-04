@@ -146,19 +146,28 @@ def google_place_details(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Extract country from address_components
+        # Extract country and city from address_components
         country = None
+        city = None
         address_components = result.get('address_components', [])
         for component in address_components:
-            if 'country' in component.get('types', []):
+            types = component.get('types', [])
+            if 'country' in types:
                 country = component.get('long_name')
-                break
+            if 'locality' in types:
+                city = component.get('long_name')
+        if not city:
+            for component in address_components:
+                if 'administrative_area_level_2' in component.get('types', []):
+                    city = component.get('long_name')
+                    break
         
         return Response({
             'latitude': location.get('lat'),
             'longitude': location.get('lng'),
             'address': result.get('formatted_address'),
             'country': country,
+            'city': city,
         })
     except requests.RequestException as e:
         return Response(
@@ -219,18 +228,27 @@ def google_reverse_geocode(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Extract country from address_components
+        # Extract country and city from address_components
         country = None
+        city = None
         formatted_address = result[0].get('formatted_address')
         address_components = result[0].get('address_components', [])
         for component in address_components:
-            if 'country' in component.get('types', []):
+            types = component.get('types', [])
+            if 'country' in types:
                 country = component.get('long_name')
-                break
+            if 'locality' in types:
+                city = component.get('long_name')
+        if not city:
+            for component in address_components:
+                if 'administrative_area_level_2' in component.get('types', []):
+                    city = component.get('long_name')
+                    break
         
         return Response({
             'address': formatted_address,
             'country': country,
+            'city': city,
         })
     except requests.RequestException as e:
         return Response(

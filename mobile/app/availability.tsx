@@ -23,7 +23,11 @@ import {
   useCalendarEvents,
 } from "@/features/calendar";
 
-export default function AvailabilityScreen() {
+interface AvailabilityScreenProps {
+  embedded?: boolean;
+}
+
+export default function AvailabilityScreen({embedded = false}: AvailabilityScreenProps) {
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const {goBack} = useNavigation();
@@ -215,23 +219,25 @@ export default function AvailabilityScreen() {
   if (loadingProfile) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View
-          style={[
-            styles.header,
-            {
-              backgroundColor: colors.background,
-              borderBottomColor: colors.border,
-              paddingTop: Math.max(insets.top + 16, 20),
-            },
-          ]}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => goBack("/(tabs)/perfil")}>
-            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Disponibilidad</Text>
-          <View style={styles.placeholder} />
-        </View>
+        {!embedded && (
+          <View
+            style={[
+              styles.header,
+              {
+                backgroundColor: colors.background,
+                borderBottomColor: colors.border,
+                paddingTop: Math.max(insets.top + 16, 20),
+              },
+            ]}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => goBack("/(tabs)/perfil")}>
+              <Ionicons name="arrow-back" color={colors.foreground} size={24} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Disponibilidad</Text>
+            <View style={styles.placeholder} />
+          </View>
+        )}
         <View style={styles.centeredContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -243,23 +249,25 @@ export default function AvailabilityScreen() {
   if (!isAuthenticated || !isProvider) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View
-          style={[
-            styles.header,
-            {
-              backgroundColor: colors.background,
-              borderBottomColor: colors.border,
-              paddingTop: Math.max(insets.top + 16, 20),
-            },
-          ]}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => goBack("/(tabs)/perfil")}>
-            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Disponibilidad</Text>
-          <View style={styles.placeholder} />
-        </View>
+        {!embedded && (
+          <View
+            style={[
+              styles.header,
+              {
+                backgroundColor: colors.background,
+                borderBottomColor: colors.border,
+                paddingTop: Math.max(insets.top + 16, 20),
+              },
+            ]}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => goBack("/(tabs)/perfil")}>
+              <Ionicons name="arrow-back" color={colors.foreground} size={24} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Disponibilidad</Text>
+            <View style={styles.placeholder} />
+          </View>
+        )}
         <View style={styles.centeredContainer}>
           <Ionicons name="lock-closed" size={80} color={colors.mutedForeground} />
           <Text style={[styles.errorTitle, {color: colors.foreground}]}>Acceso Restringido</Text>
@@ -307,27 +315,29 @@ export default function AvailabilityScreen() {
           </TouchableOpacity>
         </View>
       )}
-      {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.background,
-            borderBottomColor: colors.border,
-            paddingTop: insets.top + 16,
-          },
-        ]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => goBack("/(tabs)/perfil")}
-          activeOpacity={0.7}>
-          <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>
-          Gestionar Disponibilidad
-        </Text>
-        <View style={styles.placeholder} />
-      </View>
+      {/* Header - hidden when embedded in tab */}
+      {!embedded && (
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: colors.background,
+              borderBottomColor: colors.border,
+              paddingTop: insets.top + 16,
+            },
+          ]}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => goBack("/(tabs)/perfil")}
+            activeOpacity={0.7}>
+            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, {color: colors.foreground}]}>
+            Gestionar Disponibilidad
+          </Text>
+          <View style={styles.placeholder} />
+        </View>
+      )}
 
       {/* Content */}
       {isLoading && Object.keys(schedule).length === 0 ? (

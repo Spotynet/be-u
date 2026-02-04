@@ -500,9 +500,44 @@ def register_view(request):
         # Extract address and location data for User model
         address = data.get('address', '')
         country = data.get('country', '')
+        city = data.get('city', '')
         latitude = data.get('latitude')
         longitude = data.get('longitude')
         phone = data.get('phone', '')
+        
+        # If coordinates are provided but city or country is missing, reverse geocode via Google Maps API
+        if latitude is not None and longitude is not None and (not country or not city):
+            try:
+                import requests
+                import os
+                from pathlib import Path
+                from dotenv import load_dotenv
+                api_key = os.getenv('GOOGLE_MAPS_API_KEY', '')
+                if not api_key:
+                    env_path = settings.BASE_DIR / '.env'
+                    if env_path.exists():
+                        load_dotenv(dotenv_path=env_path, override=True)
+                        api_key = os.getenv('GOOGLE_MAPS_API_KEY', '')
+                if api_key:
+                    resp = requests.get(
+                        'https://maps.googleapis.com/maps/api/geocode/json',
+                        params={'latlng': f'{latitude},{longitude}', 'key': api_key},
+                        timeout=5
+                    )
+                    if resp.status_code == 200 and resp.json().get('status') == 'OK' and resp.json().get('results'):
+                        ac = resp.json()['results'][0].get('address_components', [])
+                        for c in ac:
+                            if not country and 'country' in c.get('types', []):
+                                country = c.get('long_name', '')
+                            if not city and 'locality' in c.get('types', []):
+                                city = c.get('long_name', '')
+                        if not city:
+                            for c in ac:
+                                if 'administrative_area_level_2' in c.get('types', []):
+                                    city = c.get('long_name', '')
+                                    break
+            except Exception as e:
+                logger.warning(f"Reverse geocode failed: {e}")
         
         # Create user. If password is omitted, set an unusable password.
         user = User.objects.create_user(
@@ -514,6 +549,7 @@ def register_view(request):
             phone=phone if phone else None,
             address=address if address else None,
             country=country if country else None,
+            city=city if city else None,
             latitude=latitude if latitude is not None else None,
             longitude=longitude if longitude is not None else None,
         )
@@ -554,13 +590,14 @@ def register_view(request):
                 sub_categories = [subcategory] if subcategory else []
                 
                 # Create or update ProfessionalProfile with category/subcategory
+                # Use user.city (from reverse geocoding if coords provided) for all user types
                 prof_profile, _ = ProfessionalProfile.objects.update_or_create(
                     user=user,
                     defaults={
                         'name': first_name or username or email.split('@')[0],
                         'last_name': last_name or '',
                         'bio': data.get('bio', ''),
-                        'city': data.get('city', ''),
+                        'city': data.get('city') or user.city or '',
                         'category': category,
                         'sub_categories': sub_categories,
                     }
@@ -591,12 +628,11 @@ def register_view(request):
                 sub_categories = [subcategory] if subcategory else []
                 
                 place_name = data.get('placeName') or first_name or username or email.split('@')[0]
-                # Use User model's address if available, otherwise fallback to data or default
+                # Use User model's address/city/country (from reverse geocoding if coords provided) for all user types
                 street = user.address or data.get('address') or 'Dirección no disponible'
                 postal_code = data.get('postal_code') or '00000'
-                city = data.get('city') or ''
-                # Use User model's country if available
-                country = user.country or data.get('country') or ''
+                place_city = data.get('city') or user.city or ''
+                place_country = user.country or data.get('country') or ''
                 
                 # Create or update PlaceProfile with category/subcategory
                 place_profile, _ = PlaceProfile.objects.update_or_create(
@@ -605,8 +641,8 @@ def register_view(request):
                         'name': place_name,
                         'street': street,
                         'postal_code': postal_code,
-                        'city': city,
-                        'country': country,
+                        'city': place_city,
+                        'country': place_country,
                         'number_ext': data.get('number_ext') or '',
                         'number_int': data.get('number_int') or '',
                         'owner': user,

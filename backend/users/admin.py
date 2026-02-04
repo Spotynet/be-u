@@ -6,14 +6,14 @@ from .profile_models import ProfileImage, CustomService, AvailabilitySchedule, T
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'role', 'first_name', 'last_name', 'phone', 'country', 'is_staff')
-    list_filter = ('role', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'country')
-    search_fields = ('username', 'first_name', 'last_name', 'email', 'phone', 'country')
+    list_display = ('username', 'email', 'role', 'first_name', 'last_name', 'phone', 'city', 'country', 'is_staff')
+    list_filter = ('role', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'country', 'city')
+    search_fields = ('username', 'first_name', 'last_name', 'email', 'phone', 'country', 'city')
     ordering = ('username',)
     
     fieldsets = UserAdmin.fieldsets + (
         ('Role Information', {'fields': ('role',)}),
-        ('Contact Information', {'fields': ('phone', 'country')}),
+        ('Contact Information', {'fields': ('phone', 'city', 'country')}),
         ('Profile Image', {'fields': ('image',)}),
     )
 

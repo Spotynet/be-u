@@ -8,45 +8,18 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {useAuth} from "@/features/auth";
 import {EnhancedReservationsTab} from "@/components/profile/EnhancedReservationsTab";
-import {CalendarModal} from "@/components/calendar/CalendarModal";
 import {Ionicons} from "@expo/vector-icons";
 import React, {useState} from "react";
-import {useReservations, useIncomingReservations} from "@/features/reservations";
 
 export default function Calendario() {
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const {user, isAuthenticated} = useAuth();
   const [selectedDate, setSelectedDate] = useState<string | undefined>();
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showMonthView, setShowMonthView] = useState(false);
 
-  // Fetch reservations for calendar indicators
-  // Hooks must be called unconditionally (Rules of Hooks)
-  // But we'll only use the data if authenticated
-  const clientHook = useReservations(user?.id);
-  const providerHook = useIncomingReservations();
-
-  // Determine which reservations to use based on user role
-  // Ensure reservations is always an array to prevent undefined errors
-  const reservations = React.useMemo(() => {
-    if (!isAuthenticated || !user) return [];
-    try {
-      const res = user.role === "CLIENT" ? clientHook.reservations : providerHook.reservations;
-      return Array.isArray(res) ? res : [];
-    } catch (error) {
-      // If there's any error accessing reservations, return empty array
-      console.warn("Error getting reservations for calendar:", error);
-      return [];
-    }
-  }, [isAuthenticated, user?.role, clientHook.reservations, providerHook.reservations]);
-
-  const openCalendarModal = () => {
-    setShowCalendarModal(true);
-  };
-
-  const handleSelectDate = (date: string) => {
-    setSelectedDate(date);
-    setShowCalendarModal(false);
+  const toggleMonthView = () => {
+    setShowMonthView((v) => !v);
   };
 
   if (!isAuthenticated || !user) {
@@ -93,34 +66,27 @@ export default function Calendario() {
             Calendario
           </Text>
           <TouchableOpacity
-            onPress={openCalendarModal}
+            onPress={toggleMonthView}
             activeOpacity={0.7}
             style={styles.headerIconButton}
-            accessibilityLabel="Abrir calendario"
+            accessibilityLabel={showMonthView ? "Ver semana" : "Ver mes completo"}
           >
             <Ionicons
               name="calendar-outline"
               size={24}
-              color={colors.primary}
+              color={showMonthView ? colors.primary : colors.primary}
             />
           </TouchableOpacity>
         </View>
       </View>
-
-      <CalendarModal
-        visible={showCalendarModal}
-        onClose={() => setShowCalendarModal(false)}
-        onSelectDate={handleSelectDate}
-        selectedDate={selectedDate}
-        reservations={reservations}
-      />
-
 
       <View style={styles.tabsContainer}>
         <EnhancedReservationsTab
           userRole={user.role as "CLIENT" | "PROFESSIONAL" | "PLACE"}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
+          showMonthView={showMonthView}
+          onCloseMonthView={() => setShowMonthView(false)}
         />
       </View>
     </View>

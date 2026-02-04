@@ -421,11 +421,6 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
               <Text style={[styles.locationInfoText, {color: colors.mutedForeground}]}>
                 {location.address}
               </Text>
-              {location.latitude && location.longitude && location.latitude !== 0 && location.longitude !== 0 && (
-                <Text style={[styles.locationCoords, {color: colors.mutedForeground}]}>
-                  {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
-                </Text>
-              )}
             </View>
           )}
         </View>

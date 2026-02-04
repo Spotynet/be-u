@@ -30,7 +30,11 @@ interface CustomService {
   updated_at: string;
 }
 
-export default function ServiceManagementScreen() {
+interface ServiceManagementScreenProps {
+  embedded?: boolean;
+}
+
+export default function ServiceManagementScreen({embedded = false}: ServiceManagementScreenProps) {
   const router = useRouter();
   const {goBack} = useNavigation();
   const {colors} = useThemeVariant();
@@ -47,22 +51,24 @@ export default function ServiceManagementScreen() {
   if (!isAuthenticated || !isProvider) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View
-          style={[
-            styles.header,
-            {
-              backgroundColor: colors.background,
-              borderBottomColor: colors.border,
-              paddingTop: Math.max(insets.top + 16, 20),
-            },
-          ]}>
-          <BackButton fallbackRoute="/(tabs)/perfil" style={styles.backButton} />
-          <View style={styles.headerContent}>
-            <Text style={[styles.headerTitle, {color: colors.foreground}]}>
-              Servicios
-            </Text>
+        {!embedded && (
+          <View
+            style={[
+              styles.header,
+              {
+                backgroundColor: colors.background,
+                borderBottomColor: colors.border,
+                paddingTop: Math.max(insets.top + 16, 20),
+              },
+            ]}>
+            <BackButton fallbackRoute="/(tabs)/perfil" style={styles.backButton} />
+            <View style={styles.headerContent}>
+              <Text style={[styles.headerTitle, {color: colors.foreground}]}>
+                Servicios
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
         <View style={styles.centeredContainer}>
           <Ionicons name="lock-closed" size={80} color={colors.mutedForeground} />
           <Text style={[styles.errorTitle, {color: colors.foreground}]}>
@@ -130,13 +136,15 @@ export default function ServiceManagementScreen() {
   if (loading) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View style={[styles.header, {paddingTop: insets.top + 44, paddingBottom: 12}]}>
-          <TouchableOpacity onPress={() => goBack("/(tabs)/perfil")}>
-            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Mis Servicios</Text>
-          <View style={{width: 24}} />
-        </View>
+        {!embedded && (
+          <View style={[styles.header, {paddingTop: insets.top + 44, paddingBottom: 12}]}>
+            <TouchableOpacity onPress={() => goBack("/(tabs)/perfil")}>
+              <Ionicons name="arrow-back" color={colors.foreground} size={24} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Mis Servicios</Text>
+            <View style={{width: 24}} />
+          </View>
+        )}
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -146,23 +154,27 @@ export default function ServiceManagementScreen() {
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Header */}
+      {/* Header - when embedded, show minimal header without back button */}
       <View
         style={[
           styles.header,
           {
-            paddingTop: Math.max(insets.top + 16, 20),
+            paddingTop: embedded ? 12 : Math.max(insets.top + 16, 20),
             paddingBottom: 12,
             borderBottomColor: colors.border,
             borderBottomWidth: 1,
           },
         ]}>
-        <TouchableOpacity
-          onPress={() => goBack("/(tabs)/perfil")}
-          style={styles.backButton}
-          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
-          <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-        </TouchableOpacity>
+        {!embedded ? (
+          <TouchableOpacity
+            onPress={() => goBack("/(tabs)/perfil")}
+            style={styles.backButton}
+            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{width: 24}} />
+        )}
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>Mis Servicios</Text>
         <TouchableOpacity
           onPress={handleAddService}

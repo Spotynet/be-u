@@ -64,11 +64,22 @@ export default function CreateServiceScreen() {
       });
 
       Alert.alert("Éxito", "Servicio creado correctamente", [
-        {text: "OK", onPress: () => goBack("/profile/services")},
+        {text: "OK", onPress: () => goBack("/(tabs)/perfil")},
       ]);
-    } catch (error) {
-      console.error("Error creating service:", error);
-      Alert.alert("Error", "No se pudo crear el servicio");
+    } catch (err: any) {
+      console.error("Error creating service:", err);
+      const data = err?.response?.data;
+      const message =
+        typeof data?.error === "string"
+          ? data.error
+          : typeof data?.detail === "string"
+            ? data.detail
+            : data && typeof data === "object" && !Array.isArray(data)
+              ? Object.entries(data)
+                  .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+                  .join("\n")
+              : err?.message || "No se pudo crear el servicio";
+      Alert.alert("Error", message);
     } finally {
       setLoading(false);
     }

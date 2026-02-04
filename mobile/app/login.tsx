@@ -9,10 +9,9 @@ import {
   Animated,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
 } from "react-native";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useRouter} from "expo-router";
 import {Ionicons} from "@expo/vector-icons";
@@ -22,7 +21,6 @@ import {useGoogleAuth} from "@/hooks/useGoogleAuth";
 import {useNavigation} from "@/hooks/useNavigation";
 
 export default function Login() {
-  const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -34,67 +32,26 @@ export default function Login() {
   const [errors, setErrors] = useState({email: ""});
   const [successMessage, setSuccessMessage] = useState("");
   const [generalError, setGeneralError] = useState("");
+  const [inputFocused, setInputFocused] = useState(false);
 
-  // Animation values
   const logoScale = useRef(new Animated.Value(0)).current;
-  const logoRotate = useRef(new Animated.Value(0)).current;
-  const sparkleOpacity1 = useRef(new Animated.Value(0)).current;
-  const sparkleOpacity2 = useRef(new Animated.Value(0)).current;
-  const sparkleOpacity3 = useRef(new Animated.Value(0)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Logo entrance animation
-    Animated.spring(logoScale, {
-      toValue: 1,
-      tension: 50,
-      friction: 7,
-      useNativeDriver: true,
-    }).start();
-
-    // Continuous subtle rotation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(logoRotate, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(logoRotate, {
-          toValue: 0,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    // Sparkle animations with staggered delays
-    const sparkleAnimation = (opacity: Animated.Value, delay: number) => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(opacity, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacity, {
-            toValue: 0,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    };
-
-    sparkleAnimation(sparkleOpacity1, 0);
-    sparkleAnimation(sparkleOpacity2, 400);
-    sparkleAnimation(sparkleOpacity3, 800);
+    Animated.parallel([
+      Animated.spring(logoScale, {
+        toValue: 1,
+        tension: 60,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentOpacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
-
-  const rotateInterpolate = logoRotate.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["-5deg", "5deg"],
-  });
 
   const validateEmail = (): boolean => {
     const newErrors = {email: ""};
@@ -167,159 +124,144 @@ export default function Login() {
       style={[styles.container, {backgroundColor: colors.background}]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
-      {/* Header */}
+      {/* Minimal header */}
       <View
         style={[
           styles.header,
           {
-            backgroundColor: colors.primary,
-            paddingTop: Math.max(insets.top + 16, 20),
+            backgroundColor: colors.background,
+            borderBottomColor: colors.border,
+            paddingTop: Math.max(insets.top + 8, 12),
           },
         ]}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => {
-            // Navigate to home screen as guest if can't go back
-            goBack("/(tabs)/");
-          }}>
-          <Ionicons name="arrow-back" color="#ffffff" size={24} />
+          onPress={() => goBack("/(tabs)/")}
+          hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
+          <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: "#ffffff"}]}>Iniciar Sesión</Text>
+        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Iniciar sesión</Text>
         <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
         style={styles.content}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, {paddingBottom: insets.bottom + 48}]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        {/* Animated Logo */}
-        <View style={styles.logoContainer}>
-          <Animated.View
-            style={[
-              styles.logoWrapper,
-              {
-                transform: [{scale: logoScale}, {rotate: rotateInterpolate}],
-              },
-            ]}>
-            <View style={[styles.logoBg, {backgroundColor: colors.primary}]}>
-              <Ionicons name="sparkles" color="#ffffff" size={32} />
+        <Animated.View style={{opacity: contentOpacity}}>
+          {/* Logo + brand */}
+          <View style={styles.hero}>
+            <Animated.View style={[styles.logoWrap, {transform: [{scale: logoScale}]}]}>
+              <View style={[styles.logoCircle, {backgroundColor: colors.primary}]}>
+                <Ionicons name="sparkles" color={colors.primaryForeground} size={28} />
+              </View>
+            </Animated.View>
+            <Text style={[styles.brandName, {color: colors.foreground}]}>Be-U</Text>
+            <Text style={[styles.heroSubtitle, {color: colors.mutedForeground}]}>
+              Ingresa tu correo y te enviamos un código para iniciar sesión
+            </Text>
+          </View>
+
+          {/* Messages */}
+          {successMessage ? (
+            <View style={[styles.banner, styles.bannerSuccess, {backgroundColor: colors.success}]}>
+              <Ionicons name="checkmark-circle" color={colors.successForeground} size={20} />
+              <Text style={[styles.bannerText, {color: colors.successForeground}]}>
+                {successMessage}
+              </Text>
             </View>
-            {/* Floating sparkles */}
-            <Animated.View style={[styles.sparkle, styles.sparkle1, {opacity: sparkleOpacity1}]}>
-              <Ionicons name="sparkles" color={colors.primary} size={16} />
-            </Animated.View>
-            <Animated.View style={[styles.sparkle, styles.sparkle2, {opacity: sparkleOpacity2}]}>
-              <Ionicons name="sparkles" color={colors.primary} size={14} />
-            </Animated.View>
-            <Animated.View style={[styles.sparkle, styles.sparkle3, {opacity: sparkleOpacity3}]}>
-              <Ionicons name="sparkles" color={colors.primary} size={12} />
-            </Animated.View>
-          </Animated.View>
-          <Text style={[styles.logoText, {color: colors.foreground}]}>Be-U</Text>
-        </View>
+          ) : null}
+          {generalError ? (
+            <View style={[styles.banner, styles.bannerError, {backgroundColor: colors.destructive}]}>
+              <Ionicons name="alert-circle" color={colors.destructiveForeground} size={20} />
+              <Text style={[styles.bannerText, {color: colors.destructiveForeground}]}>
+                {generalError}
+              </Text>
+            </View>
+          ) : null}
 
-        {/* Welcome Text */}
-        <View style={styles.welcomeContainer}>
-          <Text style={[styles.welcomeTitle, {color: colors.foreground}]}>
-            ¡Bienvenido de vuelta!
-          </Text>
-        </View>
-
-        {/* Success Message */}
-        {successMessage ? (
-          <View style={[styles.successContainer, {backgroundColor: colors.success}]}>
-            <Ionicons name="checkmark-circle" color={colors.successForeground} size={20} />
-            <Text style={[styles.successText, {color: colors.successForeground}]}>
-              {successMessage}
-            </Text>
-          </View>
-        ) : null}
-
-        {/* General Error Message */}
-        {generalError ? (
-          <View style={[styles.errorContainer, {backgroundColor: colors.destructive}]}>
-            <Ionicons name="alert-circle" color={colors.destructiveForeground} size={20} />
-            <Text style={[styles.generalErrorText, {color: colors.destructiveForeground}]}>
-              {generalError}
-            </Text>
-          </View>
-        ) : null}
-
-        {/* Login Form */}
-        <View style={styles.formContainer}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, {color: colors.foreground}]}>Email</Text>
+          {/* Form */}
+          <View style={styles.form}>
+            <Text style={[styles.label, {color: colors.foreground}]}>Correo electrónico</Text>
             <View
               style={[
-                styles.inputWrapper,
-                {backgroundColor: colors.input, borderColor: colors.border},
+                styles.inputBox,
+                {
+                  backgroundColor: colors.input,
+                  borderColor: inputFocused ? colors.primary : colors.border,
+                  borderWidth: inputFocused ? 2 : 1.5,
+                },
               ]}>
-              <Ionicons name="mail" color={colors.mutedForeground} size={20} />
+              <Ionicons
+                name="mail-outline"
+                size={20}
+                color={inputFocused ? colors.primary : colors.mutedForeground}
+              />
               <TextInput
-                style={[styles.textInput, {color: colors.foreground}]}
-                placeholder="tu@email.com"
+                style={[styles.input, {color: colors.foreground}]}
+                placeholder="ejemplo@correo.com"
                 placeholderTextColor={colors.mutedForeground}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
                 value={email}
                 onChangeText={setEmail}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
                 editable={!isLoading}
               />
             </View>
             {errors.email ? (
-              <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.email}</Text>
+              <Text style={[styles.fieldError, {color: colors.destructive}]}>{errors.email}</Text>
             ) : null}
-          </View>
 
-          {/* Send code button */}
-          <TouchableOpacity
-            style={[
-              styles.loginButton,
-              {backgroundColor: colors.primary},
-              isLoading && styles.loginButtonDisabled,
-            ]}
-            onPress={handleSendCode}
-            disabled={isLoading}>
-            {isLoading ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text style={[styles.loginButtonText, {color: "#ffffff"}]}>
-                Enviar código
-              </Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Divider */}
-          <View style={styles.dividerContainer}>
-            <View style={[styles.dividerLine, {backgroundColor: colors.border}]} />
-            <Text style={[styles.dividerText, {color: colors.mutedForeground}]}>o</Text>
-            <View style={[styles.dividerLine, {backgroundColor: colors.border}]} />
-          </View>
-
-          {/* Google Login */}
-          <TouchableOpacity
-            style={[
-              styles.googleButton,
-              {backgroundColor: colors.card, borderColor: colors.border},
-              isConnecting && styles.loginButtonDisabled,
-            ]}
-            onPress={handleGoogleLogin}
-            disabled={isConnecting}
-            activeOpacity={0.8}>
-            {isConnecting ? (
-              <ActivityIndicator color={colors.foreground} />
-            ) : (
-              <>
-                <Ionicons name="logo-google" size={20} color={colors.foreground} />
-                <Text style={[styles.googleButtonText, {color: colors.foreground}]}>
-                  Continuar con Google
+            <Pressable
+              style={({pressed}) => [
+                styles.primaryBtn,
+                {backgroundColor: colors.primary},
+                isLoading && styles.primaryBtnDisabled,
+                pressed && !isLoading && styles.primaryBtnPressed,
+              ]}
+              onPress={handleSendCode}
+              disabled={isLoading}>
+              {isLoading ? (
+                <ActivityIndicator color={colors.primaryForeground} />
+              ) : (
+                <Text style={[styles.primaryBtnText, {color: colors.primaryForeground}]}>
+                  Enviar código
                 </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+              )}
+            </Pressable>
 
+            <View style={styles.divider}>
+              <View style={[styles.dividerLine, {backgroundColor: colors.border}]} />
+              <Text style={[styles.dividerLabel, {color: colors.mutedForeground}]}>o</Text>
+              <View style={[styles.dividerLine, {backgroundColor: colors.border}]} />
+            </View>
+
+            <Pressable
+              style={({pressed}) => [
+                styles.secondaryBtn,
+                {backgroundColor: colors.card, borderColor: colors.border},
+                isConnecting && styles.primaryBtnDisabled,
+                pressed && !isConnecting && styles.secondaryBtnPressed,
+              ]}
+              onPress={handleGoogleLogin}
+              disabled={isConnecting}>
+              {isConnecting ? (
+                <ActivityIndicator color={colors.foreground} />
+              ) : (
+                <>
+                  <Ionicons name="logo-google" size={20} color={colors.foreground} />
+                  <Text style={[styles.secondaryBtnText, {color: colors.foreground}]}>
+                    Continuar con Google
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -332,8 +274,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backButton: {
     padding: 8,
@@ -343,184 +287,132 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "600",
     flex: 1,
     textAlign: "center",
   },
   headerSpacer: {
-    width: 40,
+    width: 44,
   },
   content: {
     flex: 1,
   },
   scrollContent: {
-    padding: 24,
-    paddingBottom: 40,
+    paddingHorizontal: 24,
+    paddingTop: 40,
   },
-  logoContainer: {
+  hero: {
     alignItems: "center",
-    marginTop: 32,
-    marginBottom: 20,
-  },
-  logoWrapper: {
-    position: "relative",
-    marginBottom: 16,
-  },
-  logoBg: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  logoText: {
-    fontSize: 28,
-    fontWeight: "900",
-    letterSpacing: 1.5,
-  },
-  sparkle: {
-    position: "absolute",
-  },
-  sparkle1: {
-    top: -8,
-    right: -8,
-  },
-  sparkle2: {
-    bottom: -4,
-    left: -8,
-  },
-  sparkle3: {
-    top: 8,
-    left: -12,
-  },
-  welcomeContainer: {
-    alignItems: "center",
-    marginTop: 12,
     marginBottom: 40,
   },
-  welcomeTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    textAlign: "center",
+  logoWrap: {
+    marginBottom: 16,
+  },
+  logoCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  brandName: {
+    fontSize: 26,
+    fontWeight: "700",
     letterSpacing: 0.5,
+    marginBottom: 8,
   },
-  formContainer: {
-    marginBottom: 32,
+  heroSubtitle: {
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
+    paddingHorizontal: 16,
+    maxWidth: 320,
   },
-  inputGroup: {
+  banner: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 10,
     marginBottom: 20,
   },
-  inputLabel: {
-    fontSize: 16,
+  bannerSuccess: {},
+  bannerError: {},
+  bannerText: {
+    fontSize: 14,
+    fontWeight: "500",
+    flex: 1,
+  },
+  form: {},
+  label: {
+    fontSize: 15,
     fontWeight: "500",
     marginBottom: 8,
   },
-  inputWrapper: {
+  inputBox: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1.5,
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    gap: 14,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
   },
-  textInput: {
+  input: {
     flex: 1,
     fontSize: 16,
+    paddingVertical: 0,
   },
-  loginButton: {
-    paddingVertical: 18,
-    borderRadius: 16,
+  fieldError: {
+    fontSize: 13,
+    marginTop: 6,
+  },
+  primaryBtn: {
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: "center",
-    marginBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
+    justifyContent: "center",
+    marginTop: 24,
   },
-  loginButtonDisabled: {
+  primaryBtnDisabled: {
     opacity: 0.6,
   },
-  loginButtonText: {
+  primaryBtnPressed: {
+    opacity: 0.9,
+  },
+  primaryBtnText: {
     fontSize: 16,
     fontWeight: "600",
   },
-  googleButton: {
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 24,
+    gap: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  dividerLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  secondaryBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
     borderWidth: 1.5,
-    marginBottom: 8,
   },
-  googleButtonText: {
+  secondaryBtnPressed: {
+    opacity: 0.85,
+  },
+  secondaryBtnText: {
     fontSize: 15,
     fontWeight: "600",
-  },
-  dividerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 24,
-    gap: 12,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  errorText: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  successContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-    gap: 8,
-  },
-  successText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  errorContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-    gap: 8,
-  },
-  generalErrorText: {
-    fontSize: 14,
-    fontWeight: "500",
-    flex: 1,
-    lineHeight: 20,
   },
 });

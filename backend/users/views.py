@@ -5,7 +5,8 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.db import models
-from rest_framework.exceptions import PermissionDenied
+from django.db.models import Q
+from rest_framework.exceptions import PermissionDenied, NotFound
 from .models import User, ProfessionalProfile, PlaceProfile, PublicProfile
 from .profile_models import PlaceProfessionalLink
 from .profile_serializers import PlaceProfessionalLinkSerializer
@@ -170,19 +171,21 @@ def profile_view(request):
             'latitude': request.data.get('latitude'),
             'longitude': request.data.get('longitude'),
             'country': request.data.get('country'),
+            'city': request.data.get('city'),
         }
         # Remove None values to avoid overwriting with None
         user_fields = {k: v for k, v in user_fields.items() if v is not None}
         
         print(f"🔧 Extracted user_fields: {user_fields}")
         
-        # If coordinates are provided but country is not, try to get country from reverse geocoding
+        # If coordinates are provided but city or country is missing, try reverse geocoding via Google Maps API
         latitude = user_fields.get('latitude') or (user.latitude if hasattr(user, 'latitude') else None)
         longitude = user_fields.get('longitude') or (user.longitude if hasattr(user, 'longitude') else None)
         country = user_fields.get('country') or (user.country if hasattr(user, 'country') else None)
+        city = user_fields.get('city') or (getattr(user, 'city', None) if hasattr(user, 'city') else None)
         
-        if latitude and longitude and not country:
-            # Try to get country from reverse geocoding
+        if latitude and longitude and (not country or not city):
+            # Try to get city and country from reverse geocoding
             try:
                 import requests
                 from django.conf import settings
@@ -190,7 +193,6 @@ def profile_view(request):
                 from pathlib import Path
                 from dotenv import load_dotenv
                 
-                # Get API key (same logic as google_maps_views)
                 api_key = os.getenv('GOOGLE_MAPS_API_KEY', '')
                 if not api_key:
                     env_path = settings.BASE_DIR / '.env'
@@ -210,12 +212,19 @@ def profile_view(request):
                         if data.get('status') == 'OK' and data.get('results'):
                             address_components = data['results'][0].get('address_components', [])
                             for component in address_components:
-                                if 'country' in component.get('types', []):
+                                types = component.get('types', [])
+                                if not country and 'country' in types:
                                     user_fields['country'] = component.get('long_name')
-                                    break
+                                if not city and 'locality' in types:
+                                    user_fields['city'] = component.get('long_name')
+                            # Fallback: some regions use administrative_area_level_2 for city
+                            if 'city' not in user_fields:
+                                for component in address_components:
+                                    if 'administrative_area_level_2' in component.get('types', []):
+                                        user_fields['city'] = component.get('long_name')
+                                        break
             except Exception as e:
-                # If reverse geocoding fails, just continue without country
-                print(f"⚠️ Failed to get country from coordinates: {e}")
+                print(f"⚠️ Failed to get city/country from coordinates: {e}")
         
         # Update user data (including address and coordinates)
         user_serializer = UserSerializer(user, data=user_fields, partial=True)
@@ -223,7 +232,7 @@ def profile_view(request):
             user_serializer.save()
             # Refresh user from database to get updated values
             user.refresh_from_db()
-            print(f"🔧 User after update - phone: {user.phone}, username: {user.username}, address: {user.address}, country: {user.country}")
+            print(f"🔧 User after update - phone: {user.phone}, username: {user.username}, address: {user.address}, country: {user.country}, city: {user.city}")
         else:
             print(f"🔧 UserSerializer validation errors: {user_serializer.errors}")
             return Response({
@@ -260,9 +269,12 @@ def profile_view(request):
                     profile_data = ClientProfileSerializer(user.client_profile).data
         elif user.role == 'PROFESSIONAL':
             if hasattr(user, 'professional_profile'):
+                prof_data = dict(request.data)
+                if not prof_data.get('city') and user_fields.get('city'):
+                    prof_data['city'] = user_fields['city']
                 profile_serializer = ProfessionalProfileSerializer(
                     user.professional_profile, 
-                    data=request.data, 
+                    data=prof_data, 
                     partial=True
                 )
                 if profile_serializer.is_valid():
@@ -275,7 +287,7 @@ def profile_view(request):
                     }, status=status.HTTP_400_BAD_REQUEST)
         elif user.role == 'PLACE':
             if hasattr(user, 'place_profile'):
-                # Extract only place profile fields from request.data
+                # Extract only place profile fields from request.data; use reverse-geocoded city/country from user_fields if not in request
                 place_profile_fields = {
                     'name': request.data.get('name'),
                     'bio': request.data.get('bio'),
@@ -283,8 +295,8 @@ def profile_view(request):
                     'number_ext': request.data.get('number_ext'),
                     'number_int': request.data.get('number_int'),
                     'postal_code': request.data.get('postal_code'),
-                    'city': request.data.get('city'),
-                    'country': request.data.get('country'),
+                    'city': request.data.get('city') or user_fields.get('city'),
+                    'country': request.data.get('country') or user_fields.get('country'),
                 }
                 # Remove None values to avoid overwriting with None
                 place_profile_fields = {k: v for k, v in place_profile_fields.items() if v is not None}
@@ -302,7 +314,17 @@ def profile_view(request):
                         'error': 'Profile data validation failed',
                         'details': profile_serializer.errors
                     }, status=status.HTTP_400_BAD_REQUEST)
-        
+
+        # Sync city/country to PublicProfile for PROFESSIONAL and PLACE when address was updated
+        if user.role in ('PROFESSIONAL', 'PLACE') and hasattr(user, 'public_profile'):
+            pub_updates = {}
+            if user_fields.get('city') is not None:
+                pub_updates['city'] = user_fields['city']
+            if user_fields.get('country') is not None:
+                pub_updates['country'] = user_fields['country']
+            if pub_updates:
+                PublicProfile.objects.filter(user=user).update(**pub_updates)
+
         return Response({
             'user': UserSerializer(user).data,
             'profile': profile_data
@@ -310,21 +332,29 @@ def profile_view(request):
 
 
 class ProfessionalProfileViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet for browsing professional profiles"""
+    """ViewSet for browsing professional profiles (same city only)"""
     queryset = ProfessionalProfile.objects.select_related('user').all()
     serializer_class = ProfessionalProfileSerializer
-    permission_classes = [AllowAny]  # Public access for browsing
-    
+    permission_classes = [IsAuthenticated]
+
     def get_serializer_class(self):
-        """Use detail serializer for retrieve action"""
         if self.action == 'retrieve':
             return ProfessionalProfileDetailSerializer
         return ProfessionalProfileSerializer
-    
+
+    def _viewer_city(self):
+        if self.request.user and self.request.user.is_authenticated:
+            return getattr(self.request.user, 'city', None) or ''
+        return ''
+
     def get_queryset(self):
         queryset = super().get_queryset()
-        
-        # Filter by search query
+        viewer_city = self._viewer_city()
+        if viewer_city:
+            queryset = queryset.filter(Q(city__iexact=viewer_city) | Q(user__city__iexact=viewer_city))
+        else:
+            queryset = queryset.none()
+
         search = self.request.query_params.get('search', None)
         if search:
             queryset = queryset.filter(
@@ -335,34 +365,46 @@ class ProfessionalProfileViewSet(viewsets.ReadOnlyModelViewSet):
                 models.Q(city__icontains=search) |
                 models.Q(bio__icontains=search)
             )
-        
-        # Filter by city
         city = self.request.query_params.get('city', None)
         if city:
-            queryset = queryset.filter(city__icontains=city)
-        
-        # Order by rating by default
+            queryset = queryset.filter(Q(city__icontains=city) | Q(user__city__icontains=city))
         queryset = queryset.order_by('-rating', 'name')
-        
         return queryset
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        viewer_city = self._viewer_city()
+        prof_city = (getattr(instance, 'city', None) or '') or (getattr(instance.user, 'city', None) or '')
+        if not viewer_city or not prof_city or viewer_city.lower() != prof_city.lower():
+            raise NotFound('Profile not found')
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
 
 class PlaceProfileViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet for browsing place profiles"""
+    """ViewSet for browsing place profiles (same city only)"""
     queryset = PlaceProfile.objects.select_related('user', 'owner').all()
     serializer_class = PlaceProfileSerializer
-    permission_classes = [AllowAny]  # Public access for browsing
-    
+    permission_classes = [IsAuthenticated]
+
     def get_serializer_class(self):
-        """Use detail serializer for retrieve action"""
         if self.action == 'retrieve':
             return PlaceProfileDetailSerializer
         return PlaceProfileSerializer
-    
+
+    def _viewer_city(self):
+        if self.request.user and self.request.user.is_authenticated:
+            return getattr(self.request.user, 'city', None) or ''
+        return ''
+
     def get_queryset(self):
         queryset = super().get_queryset()
-        
-        # Filter by search query
+        viewer_city = self._viewer_city()
+        if viewer_city:
+            queryset = queryset.filter(Q(city__iexact=viewer_city) | Q(user__city__iexact=viewer_city) | Q(owner__city__iexact=viewer_city))
+        else:
+            queryset = queryset.none()
+
         search = self.request.query_params.get('search', None)
         if search:
             queryset = queryset.filter(
@@ -372,16 +414,20 @@ class PlaceProfileViewSet(viewsets.ReadOnlyModelViewSet):
                 models.Q(country__icontains=search) |
                 models.Q(description__icontains=search)
             )
-        
-        # Filter by city
         city = self.request.query_params.get('city', None)
         if city:
-            queryset = queryset.filter(city__icontains=city)
-        
-        # Order by name
+            queryset = queryset.filter(Q(city__icontains=city) | Q(user__city__icontains=city))
         queryset = queryset.order_by('name')
-        
         return queryset
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        viewer_city = self._viewer_city()
+        place_city = (getattr(instance, 'city', None) or '') or (getattr(instance.user, 'city', None) or '') or (getattr(instance.owner, 'city', None) or '')
+        if not viewer_city or not place_city or viewer_city.lower() != place_city.lower():
+            raise NotFound('Profile not found')
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
     
     @action(detail=True, methods=['get', 'post'], url_path='links', permission_classes=[IsAuthenticated])
     def links(self, request, pk=None):

@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.exceptions import NotFound
 from django.db.models import Q
 from .models import PublicProfile, User
 from .location_utils import filter_by_radius
@@ -21,10 +22,7 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
-        """Allow anyone to list/retrieve public profiles; require auth otherwise."""
-        if self.action in ['list', 'retrieve']:
-            return [AllowAny()]
-        # Default behavior for create/update/destroy and custom actions
+        """Require auth for list/retrieve (city-based filtering); require auth for write."""
         return [IsAuthenticated()]
     
     def get_serializer_class(self):
@@ -37,34 +35,45 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
             return PublicProfileListSerializer
         return PublicProfileSerializer
     
+    def _viewer_city(self):
+        """Return viewer's city if authenticated."""
+        if self.request.user and self.request.user.is_authenticated:
+            return getattr(self.request.user, 'city', None) or ''
+        return ''
+
     def get_queryset(self):
-        """Filter profiles based on user permissions and query parameters"""
+        """Filter profiles: only same city as viewer, plus query parameters."""
         queryset = PublicProfile.objects.select_related('user').all()
-        
+
+        # City-based filter: only show profiles in the same city as the viewer
+        viewer_city = self._viewer_city()
+        if viewer_city:
+            queryset = queryset.filter(Q(user__city__iexact=viewer_city) | Q(city__iexact=viewer_city))
+        else:
+            queryset = queryset.none()
+
         # Filter by profile type
         profile_type = self.request.query_params.get('profile_type')
         if profile_type:
             queryset = queryset.filter(profile_type=profile_type)
-        
-        # Filter by category (supports both single category and array)
+
+        # Filter by category
         category = self.request.query_params.get('category')
         if category:
-            # For JSONField, check if category is in the array
             queryset = queryset.filter(
-                Q(category__contains=[category]) |  # Array contains category
-                Q(category=category)  # Single category match (backward compatibility)
+                Q(category__contains=[category]) | Q(category=category)
             )
-        
-        # Filter by city
+
+        # Optional city param (narrows down further; viewer_city already applied)
         city = self.request.query_params.get('city')
         if city:
-            queryset = queryset.filter(city__icontains=city)
-        
+            queryset = queryset.filter(Q(city__icontains=city) | Q(user__city__icontains=city))
+
         # Search by name or description
         search = self.request.query_params.get('search')
         if search:
             queryset = queryset.filter(
-                Q(name__icontains=search) | 
+                Q(name__icontains=search) |
                 Q(description__icontains=search) |
                 Q(bio__icontains=search)
             )
@@ -79,7 +88,6 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
                 radius_km = float(radius) if radius is not None else 10.0
             except (TypeError, ValueError):
                 return queryset
-
             items = list(queryset)
             items = filter_by_radius(items, latitude, longitude, radius_km)
             items.sort(key=lambda item: item.distance_km if item.distance_km is not None else float("inf"))
@@ -87,7 +95,19 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
 
         return queryset
 
-    @action(detail=False, methods=["get"], url_path="nearby", permission_classes=[AllowAny])
+    def retrieve(self, request, *args, **kwargs):
+        """Ensure profile is only accessible if viewer is in same city."""
+        instance = self.get_object()
+        viewer_city = self._viewer_city()
+        uc = (getattr(instance.user, 'city', None) or '').strip().lower()
+        pc = (getattr(instance, 'city', None) or '').strip().lower()
+        vc = viewer_city.strip().lower() if viewer_city else ''
+        if not vc or (uc != vc and pc != vc):
+            raise NotFound('Profile not found')
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="nearby", permission_classes=[IsAuthenticated])
     def nearby(self, request):
         latitude = request.query_params.get("latitude")
         longitude = request.query_params.get("longitude")
@@ -388,7 +408,7 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
     
-    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
     def links(self, request, pk=None):
         """
         Public endpoint to get links for a profile (professionals or places).

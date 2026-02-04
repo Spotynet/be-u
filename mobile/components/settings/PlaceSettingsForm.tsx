@@ -525,13 +525,10 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
               setLocation(selectedLocation);
             }}
           />
-          {location && (
+          {location && location.address && (
             <View style={[styles.locationInfo, {backgroundColor: colors.card, borderColor: colors.border}]}>
               <Text style={[styles.locationInfoText, {color: colors.mutedForeground}]}>
                 {location.address}
-              </Text>
-              <Text style={[styles.locationCoords, {color: colors.mutedForeground}]}>
-                {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
               </Text>
             </View>
           )}

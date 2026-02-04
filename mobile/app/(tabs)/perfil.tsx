@@ -1,27 +1,38 @@
 import {View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions} from "react-native";
-import {useState, useRef, useEffect} from "react";
+import {useState, useRef, useEffect, useMemo} from "react";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import Settings from "@/app/settings";
 import {FavoritesTab} from "@/components/profile/FavoritesTab";
+import {ProfileCustomizationTab} from "@/components/profile/ProfileCustomizationTab";
 import SettingsMenu from "@/components/profile/SettingsMenu";
+import {useAuth} from "@/features/auth";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
-type TabKey = "settings" | "favorites";
+type TabKey = "settings" | "favorites" | "publicProfile";
 
 export default function Perfil() {
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
+  const {user, isAuthenticated} = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>("settings");
   const [isSettingsMenuVisible, setIsSettingsMenuVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  const tabs: {key: TabKey; label: string; icon: string}[] = [
-    {key: "settings", label: "Perfil", icon: "person-outline"},
-    {key: "favorites", label: "Guardados", icon: "heart-outline"},
-  ];
+  const isProvider = user?.role === "PROFESSIONAL" || user?.role === "PLACE";
+
+  const tabs = useMemo(() => {
+    const base: {key: TabKey; label: string; icon: string}[] = [
+      {key: "settings", label: "Perfil", icon: "person-outline"},
+      {key: "favorites", label: "Guardados", icon: "heart-outline"},
+    ];
+    if (isAuthenticated && isProvider) {
+      base.push({key: "publicProfile", label: "Mi página", icon: "create-outline"});
+    }
+    return base;
+  }, [isAuthenticated, isProvider]);
 
   useEffect(() => {
     const tabIndex = tabs.findIndex((tab) => tab.key === activeTab);
@@ -39,6 +50,8 @@ export default function Perfil() {
         return <Settings embedded />;
       case "favorites":
         return <FavoritesTab />;
+      case "publicProfile":
+        return <ProfileCustomizationTab userRole={user?.role as "PROFESSIONAL" | "PLACE"} />;
       default:
         return null;
     }

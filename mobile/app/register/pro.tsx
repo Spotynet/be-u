@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from "react";
+import React, {useState} from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
 } from "react-native";
 import {useLocalSearchParams, useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
@@ -17,8 +18,6 @@ import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {errorUtils, profileCustomizationApi} from "@/lib/api";
 import {AddressSearch} from "@/components/location/AddressSearch";
-import {useCategory} from "@/contexts/CategoryContext";
-import {Dropdown} from "@/components/ui/Dropdown";
 import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 
@@ -32,7 +31,6 @@ export default function RegisterPro() {
   }>();
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
-  const {subcategoriesByMainCategory} = useCategory();
 
   const [values, setValues] = useState({
     email: params.googleEmail || "",
@@ -55,19 +53,35 @@ export default function RegisterPro() {
   const set = (k: keyof typeof values) => (t: string) => setValues((s) => ({...s, [k]: t}));
 
   const onSubmit = async () => {
-    if (!values.email || !values.username || !values.firstName || !values.lastName) {
-      Alert.alert("Campos requeridos", "Ingresa email, nombre de usuario, nombre y apellido");
+    const trimmed = {
+      email: values.email.trim(),
+      username: values.username.trim(),
+      firstName: values.firstName.trim(),
+      lastName: values.lastName.trim(),
+    };
+    if (!trimmed.email || !trimmed.username || !trimmed.firstName || !trimmed.lastName) {
+      Alert.alert(
+        "Campos requeridos",
+        "Completa nombre, apellido, usuario y correo electrónico."
+      );
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(trimmed.email)) {
+      Alert.alert("Correo inválido", "Ingresa un correo electrónico válido.");
       return;
     }
     if (selectedCategories.length === 0 || selectedSubCategories.length === 0) {
-      Alert.alert("Campos requeridos", "Selecciona al menos una categoría y una subcategoría");
+      Alert.alert(
+        "Categoría requerida",
+        "Selecciona al menos una categoría y una subcategoría para tu perfil."
+      );
       return;
     }
     try {
       setLoading(true);
       const registerData = {
         ...values,
-        // Include address, country, and coordinates for User model
+        ...trimmed,
         address: values.address || undefined,
         country: values.country || undefined,
         latitude: values.latitude,
@@ -75,28 +89,22 @@ export default function RegisterPro() {
       };
       await register(registerData);
 
-      // Try to update profile, but don't fail registration if it fails
       try {
-        // Ensure PublicProfile exists (auto-creates if missing)
         await profileCustomizationApi.getProfileImages();
-        // Always update with category/subcategory and address if provided
         const updateData: any = {
           category: selectedCategories,
           sub_categories: selectedSubCategories,
         };
-        if (values.address && values.latitude && values.longitude) {
+        if (values.address && values.latitude != null && values.longitude != null) {
           updateData.street = values.address;
           updateData.city = values.city;
           updateData.country = values.country;
           updateData.latitude = values.latitude;
           updateData.longitude = values.longitude;
         }
-        // Always update to ensure category/subcategory are saved
         await profileCustomizationApi.updatePublicProfile(updateData);
       } catch (updateError) {
-        // Log the error but continue with registration
-        console.warn("Profile update failed, but registration was successful:", updateError);
-        // User is already created, so we can continue
+        console.warn("Profile update failed after registration:", updateError);
       }
 
       router.replace("/(tabs)/perfil");
@@ -117,104 +125,165 @@ export default function RegisterPro() {
           styles.header,
           {
             borderBottomColor: colors.border,
-            paddingTop: Math.max(insets.top + 16, 20),
+            paddingTop: Math.max(insets.top + 8, 12),
           },
         ]}>
-        <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={() => router.back()}
+          hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
           <Ionicons name="arrow-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Registro (Profesional)</Text>
+        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Registro · Profesional</Text>
         <View style={styles.headerBtn} />
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, {padding: 16}]}
+        contentContainerStyle={[styles.scrollContent, {paddingBottom: insets.bottom + 40}]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        <TextInput
-          placeholder="Nombre de usuario"
-          autoCapitalize="none"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.username}
-          onChangeText={set("username")}
-        />
-        <TextInput
-          placeholder="Nombre"
-          autoCapitalize="words"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.firstName}
-          onChangeText={set("firstName")}
-        />
-        <TextInput
-          placeholder="Apellido"
-          autoCapitalize="words"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.lastName}
-          onChangeText={set("lastName")}
-        />
-        <TextInput
-          placeholder="Email"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.email}
-          onChangeText={set("email")}
-        />
-        <TextInput
-          placeholder="Teléfono (opcional)"
-          keyboardType="phone-pad"
-          placeholderTextColor={colors.mutedForeground}
-          style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-          value={values.phone}
-          onChangeText={set("phone")}
-        />
-        <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Dirección</Text>
-        <AddressSearch
-          placeholder="Buscar dirección"
-          value={values.address}
-          onSelect={(location) => {
-            setValues((s) => ({
-              ...s,
-              address: location.address || "",
-              country: location.country || "",
-              latitude: location.latitude,
-              longitude: location.longitude,
-            }));
-          }}
-        />
-        <TextInput
-          placeholder="Bio corta"
-          multiline
-          placeholderTextColor={colors.mutedForeground}
-          style={[
-            styles.input,
-            {borderColor: colors.border, color: colors.foreground, minHeight: 80},
-          ]}
-          value={values.bio}
-          onChangeText={set("bio")}
-        />
+        <View style={styles.form}>
+          <Text style={[styles.sectionLabel, {color: colors.mutedForeground}]}>
+            Datos personales
+          </Text>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, {color: colors.foreground}]}>Usuario</Text>
+            <View style={[styles.inputBox, {backgroundColor: colors.input, borderColor: colors.border}]}>
+              <Ionicons name="at" size={20} color={colors.mutedForeground} />
+              <TextInput
+                placeholder="nombre_usuario"
+                placeholderTextColor={colors.mutedForeground}
+                style={[styles.input, {color: colors.foreground}]}
+                value={values.username}
+                onChangeText={set("username")}
+                autoCapitalize="none"
+                editable={!loading}
+              />
+            </View>
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, {color: colors.foreground}]}>Nombre</Text>
+            <View style={[styles.inputBox, {backgroundColor: colors.input, borderColor: colors.border}]}>
+              <Ionicons name="person-outline" size={20} color={colors.mutedForeground} />
+              <TextInput
+                placeholder="Tu nombre"
+                placeholderTextColor={colors.mutedForeground}
+                style={[styles.input, {color: colors.foreground}]}
+                value={values.firstName}
+                onChangeText={set("firstName")}
+                autoCapitalize="words"
+                editable={!loading}
+              />
+            </View>
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, {color: colors.foreground}]}>Apellido</Text>
+            <View style={[styles.inputBox, {backgroundColor: colors.input, borderColor: colors.border}]}>
+              <Ionicons name="person-outline" size={20} color={colors.mutedForeground} />
+              <TextInput
+                placeholder="Tu apellido"
+                placeholderTextColor={colors.mutedForeground}
+                style={[styles.input, {color: colors.foreground}]}
+                value={values.lastName}
+                onChangeText={set("lastName")}
+                autoCapitalize="words"
+                editable={!loading}
+              />
+            </View>
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, {color: colors.foreground}]}>Correo electrónico</Text>
+            <View style={[styles.inputBox, {backgroundColor: colors.input, borderColor: colors.border}]}>
+              <Ionicons name="mail-outline" size={20} color={colors.mutedForeground} />
+              <TextInput
+                placeholder="tu@correo.com"
+                placeholderTextColor={colors.mutedForeground}
+                style={[styles.input, {color: colors.foreground}]}
+                value={values.email}
+                onChangeText={set("email")}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!loading}
+              />
+            </View>
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, {color: colors.foreground}]}>Teléfono (opcional)</Text>
+            <View style={[styles.inputBox, {backgroundColor: colors.input, borderColor: colors.border}]}>
+              <Ionicons name="call-outline" size={20} color={colors.mutedForeground} />
+              <TextInput
+                placeholder="+52 55 1234 5678"
+                placeholderTextColor={colors.mutedForeground}
+                style={[styles.input, {color: colors.foreground}]}
+                value={values.phone}
+                onChangeText={set("phone")}
+                keyboardType="phone-pad"
+                editable={!loading}
+              />
+            </View>
+          </View>
 
-        <MultiCategorySelector
-          selectedCategories={selectedCategories}
-          selectedSubCategories={selectedSubCategories}
-          onCategoriesChange={setSelectedCategories}
-          onSubCategoriesChange={setSelectedSubCategories}
-        />
+          <Text style={[styles.sectionLabel, {color: colors.mutedForeground}, styles.sectionLabelTop]}>
+            Dirección
+          </Text>
+          <AddressSearch
+            placeholder="Buscar dirección"
+            value={values.address}
+            onSelect={(location) => {
+              setValues((s) => ({
+                ...s,
+                address: location.address || "",
+                country: location.country || "",
+                latitude: location.latitude,
+                longitude: location.longitude,
+              }));
+            }}
+          />
 
-        <TouchableOpacity
-          style={[styles.submit, {backgroundColor: colors.primary}]}
-          onPress={onSubmit}
-          disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.submitText}>Crear cuenta</Text>
-          )}
-        </TouchableOpacity>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, {color: colors.foreground}]}>Bio (opcional)</Text>
+            <View style={[styles.inputBox, styles.inputBoxMultiline, {backgroundColor: colors.input, borderColor: colors.border}]}>
+              <Ionicons name="document-text-outline" size={20} color={colors.mutedForeground} style={styles.bioIcon} />
+              <TextInput
+                placeholder="Breve descripción de tu experiencia..."
+                placeholderTextColor={colors.mutedForeground}
+                style={[styles.input, styles.inputMultiline, {color: colors.foreground}]}
+                value={values.bio}
+                onChangeText={set("bio")}
+                multiline
+                editable={!loading}
+              />
+            </View>
+          </View>
+
+          <Text style={[styles.sectionLabel, {color: colors.mutedForeground}, styles.sectionLabelTop]}>
+            Categorías
+          </Text>
+          <MultiCategorySelector
+            selectedCategories={selectedCategories}
+            selectedSubCategories={selectedSubCategories}
+            onCategoriesChange={setSelectedCategories}
+            onSubCategoriesChange={setSelectedSubCategories}
+          />
+
+          <Pressable
+            style={({pressed}) => [
+              styles.submit,
+              {backgroundColor: colors.primary},
+              loading && styles.submitDisabled,
+              pressed && !loading && {opacity: 0.9},
+            ]}
+            onPress={onSubmit}
+            disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color={colors.primaryForeground} />
+            ) : (
+              <Text style={[styles.submitText, {color: colors.primaryForeground}]}>
+                Crear cuenta
+              </Text>
+            )}
+          </Pressable>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -227,21 +296,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerBtn: {width: 32, height: 32, alignItems: "center", justifyContent: "center"},
-  headerTitle: {fontSize: 18, fontWeight: "700"},
-  scrollContent: {paddingBottom: 40},
-  input: {
+  headerBtn: {width: 44, minHeight: 44, alignItems: "flex-start", justifyContent: "center"},
+  headerTitle: {fontSize: 17, fontWeight: "600", flex: 1, textAlign: "center"},
+  scrollContent: {},
+  form: {padding: 20, paddingBottom: 24},
+  sectionLabel: {fontSize: 13, fontWeight: "600", marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5},
+  sectionLabelTop: {marginTop: 24},
+  inputGroup: {marginBottom: 18},
+  label: {fontSize: 15, fontWeight: "500", marginBottom: 8},
+  inputBox: {
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
+    borderRadius: 12,
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 15,
-    marginBottom: 10,
+    gap: 12,
   },
-  sectionTitle: {fontSize: 14, fontWeight: "700", marginTop: 4, marginBottom: 6},
-  submit: {marginTop: 4, borderRadius: 12, alignItems: "center", paddingVertical: 14},
-  submitText: {color: "#fff", fontSize: 15, fontWeight: "700"},
+  inputBoxMultiline: {alignItems: "flex-start"},
+  bioIcon: {marginTop: 12},
+  input: {flex: 1, fontSize: 16, paddingVertical: 0},
+  inputMultiline: {minHeight: 88, textAlignVertical: "top", paddingVertical: 12},
+  submit: {marginTop: 28, borderRadius: 12, alignItems: "center", justifyContent: "center", paddingVertical: 16},
+  submitDisabled: {opacity: 0.6},
+  submitText: {fontSize: 16, fontWeight: "600"},
 });

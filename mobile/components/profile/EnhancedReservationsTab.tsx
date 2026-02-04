@@ -15,7 +15,7 @@ import {useState, useEffect} from "react";
 import {useRouter} from "expo-router";
 import {useAuth} from "@/features/auth";
 import {useReservations, useIncomingReservations} from "@/features/reservations";
-import {CalendarView, ReservationCard} from "@/components/calendar";
+import {CalendarView, MonthPicker, ReservationCard} from "@/components/calendar";
 import {Reservation} from "@/types/global";
 import {Alert, Platform} from "react-native";
 import {parseISODateAsLocal} from "@/lib/dateUtils";
@@ -26,12 +26,16 @@ interface EnhancedReservationsTabProps {
   userRole: "CLIENT" | "PROFESSIONAL" | "PLACE";
   selectedDate?: string;
   onSelectDate?: (date: string | undefined) => void;
+  showMonthView?: boolean;
+  onCloseMonthView?: () => void;
 }
 
 export function EnhancedReservationsTab({
   userRole,
   selectedDate: controlledDate,
   onSelectDate,
+  showMonthView = false,
+  onCloseMonthView,
 }: EnhancedReservationsTabProps) {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
@@ -157,6 +161,11 @@ export function EnhancedReservationsTab({
 
   const handleDayPress = (date: string) => {
     setSelectedDate(date);
+  };
+
+  const handleMonthViewDayPress = (date: string) => {
+    setSelectedDate(date);
+    onCloseMonthView?.();
   };
 
   const handleConfirm = async (id: number) => {
@@ -348,24 +357,21 @@ export function EnhancedReservationsTab({
 
   return (
     <View style={styles.container}>
-      {/* Expandable Calendar */}
+      {/* Calendar: weekly scroll or full month view */}
       <View style={[styles.calendarContainer, {backgroundColor: colors.card}]}>
-        <CalendarView
-          reservations={reservations}
-          onDayPress={handleDayPress}
-          selectedDate={selectedDate}
-          showLegend={false}
-        />
-        {selectedDate && (
-          <TouchableOpacity
-            style={styles.clearFilterButton}
-            onPress={() => setSelectedDate(undefined)}
-            activeOpacity={0.7}>
-            <Ionicons name="close-circle" size={16} color={colors.mutedForeground} />
-            <Text style={[styles.clearFilterText, {color: colors.mutedForeground}]}>
-              Limpiar filtro
-            </Text>
-          </TouchableOpacity>
+        {showMonthView ? (
+          <MonthPicker
+            reservations={reservations}
+            onDayPress={handleMonthViewDayPress}
+            selectedDate={selectedDate}
+          />
+        ) : (
+          <CalendarView
+            reservations={reservations}
+            onDayPress={handleDayPress}
+            selectedDate={selectedDate}
+            showLegend={false}
+          />
         )}
       </View>
 
@@ -527,19 +533,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
-  },
-  clearFilterButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    alignSelf: "flex-end",
-    marginTop: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  clearFilterText: {
-    fontSize: 13,
-    fontWeight: "500",
   },
   filterTabs: {
     flexDirection: "row",
