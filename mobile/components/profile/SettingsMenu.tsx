@@ -241,7 +241,7 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
             {/* App Version */}
             <View style={styles.versionContainer}>
               <Text style={[styles.versionText, {color: colors.mutedForeground}]}>
-                Be-U App v1.0.0
+                nabbi App v1.0.0
               </Text>
             </View>
           </ScrollView>

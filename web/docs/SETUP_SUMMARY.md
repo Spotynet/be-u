@@ -1,6 +1,6 @@
 # Backend/Frontend Connection Setup Summary
 
-This document summarizes the CORS configuration and API utilities setup for the Be-U application.
+This document summarizes the CORS configuration and API utilities setup for the nabbi application.
 
 ## Backend CORS Configuration
 

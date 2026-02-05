@@ -405,6 +405,19 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
             f"service_instance_id={service_instance_id}, provider_ct={provider_ct}, "
             f"provider_id={provider_id}, date={date}, time={time}, duration={duration}"
         )
+
+        # Block self-booking (provider booking their own profile)
+        try:
+            request_user = self.context.get('request').user if self.context.get('request') else None
+            if request_user and provider and getattr(provider, 'user_id', None) == request_user.id:
+                raise serializers.ValidationError(
+                    {"non_field_errors": ["No puedes hacer una reserva en tu propio perfil."]}
+                )
+        except serializers.ValidationError:
+            raise
+        except Exception:
+            # Never fail validation due to the safeguard itself
+            pass
         
         is_available, reason = check_slot_availability(provider_ct, provider_id, date, time, duration)
         if not is_available:

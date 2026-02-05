@@ -21,7 +21,7 @@ export default function DashboardPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center">
-                <h1 className="text-xl font-bold text-foreground">Be-U Dashboard</h1>
+                <h1 className="text-xl font-bold text-foreground">nabbi Dashboard</h1>
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-sm text-foreground-secondary">
@@ -39,7 +39,7 @@ export default function DashboardPage() {
         {/* Main Content */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-center min-h-[60vh]">
-            <h1 className="text-6xl font-bold text-foreground text-center">Bienvenid@ a Be-U</h1>
+            <h1 className="text-6xl font-bold text-foreground text-center">Bienvenid@ a nabbi</h1>
           </div>
         </main>
       </div>

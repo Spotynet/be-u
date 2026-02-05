@@ -280,6 +280,20 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
       phone,
       username: username.trim(), // Ensure username is trimmed and saved
     };
+    
+    // Save address to User model if location is provided
+    if (location && location.address) {
+      userData.address = location.address;
+      if (location.latitude != null && location.longitude != null) {
+        userData.latitude = location.latitude;
+        userData.longitude = location.longitude;
+      }
+    }
+    
+    // Save city to User model
+    if (city) {
+      userData.city = city;
+    }
 
     const profileData = {
       bio,
@@ -294,6 +308,14 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
     if (location) {
       publicProfileData.latitude = location.latitude;
       publicProfileData.longitude = location.longitude;
+      // Save address to public profile for professionals
+      if (location.address) {
+        publicProfileData.street = location.address;
+      }
+    }
+    // Save city to public profile
+    if (city) {
+      publicProfileData.city = city;
     }
     if (displayName && displayName.trim()) {
       const nameParts = displayName.trim().split(' ');

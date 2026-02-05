@@ -101,7 +101,7 @@ export default function LoginPage() {
   return (
     <AuthLayout>
       <LoginForm />
-      <WelcomeSection title="¡BIENVENIDO A Be-U!" description="Your welcome message..." />
+      <WelcomeSection title="¡BIENVENIDO A nabbi!" description="Your welcome message..." />
     </AuthLayout>
   );
 }

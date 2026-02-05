@@ -157,7 +157,7 @@ export default function Login() {
                 <Ionicons name="sparkles" color={colors.primaryForeground} size={28} />
               </View>
             </Animated.View>
-            <Text style={[styles.brandName, {color: colors.foreground}]}>Be-U</Text>
+            <Text style={[styles.brandName, {color: colors.foreground}]}>nabbi</Text>
             <Text style={[styles.heroSubtitle, {color: colors.mutedForeground}]}>
               Ingresa tu correo y te enviamos un código para iniciar sesión
             </Text>

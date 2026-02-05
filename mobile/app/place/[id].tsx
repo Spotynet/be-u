@@ -778,6 +778,15 @@ export default function PlaceDetailScreen() {
                       <TouchableOpacity
                         style={[styles.reserveButton, {backgroundColor: colors.primary}]}
                         onPress={() => {
+                            // Prevent booking your own profile
+                            if (isAuthenticated && user && place?.user === user.id) {
+                              Alert.alert(
+                                "No puedes reservarte a ti mism@",
+                                "Para evitar reservas duplicadas, no es posible hacer una reserva en tu propio perfil."
+                              );
+                              return;
+                            }
+
                           // Navigate directly to booking screen with service info
                           router.push({
                             pathname: "/booking",

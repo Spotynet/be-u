@@ -74,6 +74,9 @@ export default function RegisterPlace() {
       const registerData = {
         ...values,
         ...trimmed,
+        // Backend register endpoint expects singular strings: `category` and `subcategory`
+        category: selectedCategories[0],
+        subcategory: selectedSubCategories[0],
         address: values.address || undefined,
         country: values.country || undefined,
         latitude: values.latitude,

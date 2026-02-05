@@ -133,6 +133,15 @@ export default function ServiceManagementScreen({embedded = false}: ServiceManag
     ]);
   };
 
+  const formatPrice = (price: number) => {
+    try {
+      // Keep it simple and predictable across RN runtimes
+      return `$${Number(price).toFixed(2)} MXN`;
+    } catch {
+      return `$${price} MXN`;
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
@@ -154,50 +163,67 @@ export default function ServiceManagementScreen({embedded = false}: ServiceManag
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Header - when embedded, show minimal header without back button */}
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: embedded ? 12 : Math.max(insets.top + 16, 20),
-            paddingBottom: 12,
-            borderBottomColor: colors.border,
-            borderBottomWidth: 1,
-          },
-        ]}>
-        {!embedded ? (
+      {/* Header (only when not embedded) */}
+      {!embedded && (
+        <View
+          style={[
+            styles.header,
+            {
+              paddingTop: Math.max(insets.top + 16, 20),
+              paddingBottom: 12,
+              borderBottomColor: colors.border,
+              borderBottomWidth: 1,
+            },
+          ]}>
           <TouchableOpacity
             onPress={() => goBack("/(tabs)/perfil")}
             style={styles.backButton}
             hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
             <Ionicons name="arrow-back" color={colors.foreground} size={24} />
           </TouchableOpacity>
-        ) : (
-          <View style={{width: 24}} />
-        )}
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Mis Servicios</Text>
-        <TouchableOpacity
-          onPress={handleAddService}
-          style={styles.addButton}
-          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
-          <Ionicons name="add" color={colors.primary} size={24} />
-        </TouchableOpacity>
-      </View>
+          <View style={styles.headerCenter}>
+            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Mis Servicios</Text>
+          </View>
+          <View style={{width: 44}} />
+        </View>
+      )}
 
       <ScrollView
         style={styles.content}
+        contentContainerStyle={styles.contentContainer}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         showsVerticalScrollIndicator={false}>
+        {/* Full-width add button (embedded + non-embedded) */}
+        <TouchableOpacity
+          onPress={handleAddService}
+          style={[styles.addFullWidth, {backgroundColor: colors.primary}]}
+          activeOpacity={0.9}
+          accessibilityLabel="Agregar servicio">
+          <Ionicons name="add" color={colors.primaryForeground} size={18} />
+          <Text style={[styles.addFullWidthText, {color: colors.primaryForeground}]}>
+            Agregar servicio
+          </Text>
+        </TouchableOpacity>
+
         {/* Services List */}
         {services.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="briefcase-outline" color={colors.mutedForeground} size={64} />
-            <Text style={[styles.emptyStateTitle, {color: colors.foreground}]}>
-              No tienes servicios
-            </Text>
+          <View style={[styles.emptyState, {backgroundColor: colors.card, borderColor: colors.border}]}>
+            <View style={[styles.emptyIcon, {backgroundColor: colors.muted}]}>
+              <Ionicons name="briefcase-outline" color={colors.primary} size={28} />
+            </View>
+            <Text style={[styles.emptyStateTitle, {color: colors.foreground}]}>Crea tu primer servicio</Text>
             <Text style={[styles.emptyStateDescription, {color: colors.mutedForeground}]}>
-              Agrega tu primer servicio para comenzar a recibir reservas
+              Un catálogo claro mejora conversiones. Define duración, precio y una descripción breve.
             </Text>
+            <TouchableOpacity
+              style={[styles.primaryCta, {backgroundColor: colors.primary}]}
+              onPress={handleAddService}
+              activeOpacity={0.9}>
+              <Ionicons name="add" color={colors.primaryForeground} size={18} />
+              <Text style={[styles.primaryCtaText, {color: colors.primaryForeground}]}>
+                Agregar servicio
+              </Text>
+            </TouchableOpacity>
           </View>
         ) : (
           services.map((service) => (
@@ -207,38 +233,56 @@ export default function ServiceManagementScreen({embedded = false}: ServiceManag
                 styles.serviceCard,
                 {backgroundColor: colors.card, borderColor: colors.border},
               ]}>
-              <View style={styles.serviceInfo}>
-                <Text style={[styles.serviceName, {color: colors.foreground}]}>{service.name}</Text>
-                <Text style={[styles.serviceDescription, {color: colors.mutedForeground}]}>
-                  {service.description}
-                </Text>
-                <View style={styles.serviceDetails}>
-                  <View style={styles.serviceDetailItem}>
-                    <Ionicons name="time-outline" color={colors.mutedForeground} size={16} />
-                    <Text style={[styles.serviceDetailText, {color: colors.mutedForeground}]}>
+              <View style={[styles.serviceAccent, {backgroundColor: colors.primary}]} />
+
+              <View style={styles.serviceBody}>
+                <View style={styles.serviceTopRow}>
+                  <View style={styles.serviceInfo}>
+                    <Text
+                      style={[styles.serviceName, {color: colors.foreground}]}
+                      numberOfLines={1}>
+                      {service.name}
+                    </Text>
+                    {!!service.description && (
+                      <Text
+                        style={[styles.serviceDescription, {color: colors.mutedForeground}]}
+                        numberOfLines={2}>
+                        {service.description}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={styles.serviceActions}>
+                    <TouchableOpacity
+                      style={[styles.iconButton, {backgroundColor: colors.muted, borderColor: colors.border}]}
+                      onPress={() => handleEditService(service.id)}
+                      activeOpacity={0.8}
+                      accessibilityLabel={`Editar ${service.name}`}>
+                      <Ionicons name="pencil" color={colors.foreground} size={16} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.iconButton, {backgroundColor: "#ef4444", borderColor: "rgba(0,0,0,0)"}]}
+                      onPress={() => handleDeleteService(service.id, service.name)}
+                      activeOpacity={0.8}
+                      accessibilityLabel={`Eliminar ${service.name}`}>
+                      <Ionicons name="trash" color="#ffffff" size={16} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.metaRow}>
+                  <View style={[styles.metaChip, {backgroundColor: colors.muted, borderColor: colors.border}]}>
+                    <Ionicons name="time-outline" color={colors.mutedForeground} size={14} />
+                    <Text style={[styles.metaText, {color: colors.foreground}]}>
                       {service.duration_minutes} min
                     </Text>
                   </View>
-                  <View style={styles.serviceDetailItem}>
-                    <Ionicons name="cash-outline" color={colors.mutedForeground} size={16} />
-                    <Text style={[styles.serviceDetailText, {color: colors.mutedForeground}]}>
-                      ${service.price} MXN
+                  <View style={[styles.metaChip, {backgroundColor: colors.muted, borderColor: colors.border}]}>
+                    <Ionicons name="cash-outline" color={colors.mutedForeground} size={14} />
+                    <Text style={[styles.metaText, {color: colors.foreground}]}>
+                      {formatPrice(service.price)}
                     </Text>
                   </View>
                 </View>
-              </View>
-
-              <View style={styles.serviceActions}>
-                <TouchableOpacity
-                  style={[styles.actionButton, {backgroundColor: colors.muted}]}
-                  onPress={() => handleEditService(service.id)}>
-                  <Ionicons name="pencil" color={colors.foreground} size={16} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionButton, {backgroundColor: "#ff4444"}]}
-                  onPress={() => handleDeleteService(service.id, service.name)}>
-                  <Ionicons name="trash" color="#ffffff" size={16} />
-                </TouchableOpacity>
               </View>
             </View>
           ))
@@ -263,11 +307,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#e5e5e5",
   },
+  headerCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
   headerTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    flex: 1,
+    fontWeight: "800",
+    letterSpacing: 0.2,
     textAlign: "center",
+  },
+  headerSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: "600",
   },
   headerContent: {
     flex: 1,
@@ -283,6 +338,18 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: "center",
     alignItems: "flex-end",
+  },
+  addFab: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 6},
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 6,
   },
   centeredContainer: {
     flex: 1,
@@ -301,8 +368,33 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+  },
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 40,
+  },
+  addFullWidth: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginBottom: 14,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  addFullWidthText: {
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: 0.2,
   },
   loadingContainer: {
     flex: 1,
@@ -312,61 +404,111 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 60,
+    paddingVertical: 28,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
   },
   emptyStateTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    marginTop: 16,
+    fontWeight: "800",
     marginBottom: 8,
+    textAlign: "center",
   },
   emptyStateDescription: {
     fontSize: 14,
     textAlign: "center",
     lineHeight: 20,
+    marginBottom: 16,
+  },
+  primaryCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    minWidth: 200,
+  },
+  primaryCtaText: {
+    fontSize: 15,
+    fontWeight: "800",
   },
   serviceCard: {
     flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  serviceAccent: {
+    width: 4,
+  },
+  serviceBody: {
+    flex: 1,
+    padding: 16,
+    gap: 12,
+  },
+  serviceTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
   },
   serviceInfo: {
     flex: 1,
   },
   serviceName: {
     fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
+    fontWeight: "800",
+    marginBottom: 6,
   },
   serviceDescription: {
     fontSize: 14,
-    marginBottom: 8,
     lineHeight: 18,
   },
-  serviceDetails: {
+  metaRow: {
     flexDirection: "row",
-    gap: 16,
+    flexWrap: "wrap",
+    gap: 10,
   },
-  serviceDetailItem: {
+  metaChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
   },
-  serviceDetailText: {
+  metaText: {
     fontSize: 12,
+    fontWeight: "700",
   },
   serviceActions: {
     flexDirection: "row",
     gap: 8,
   },
-  actionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  iconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
   },
 });

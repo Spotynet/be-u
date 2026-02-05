@@ -422,7 +422,7 @@ export default function Home() {
       id: 2,
       type: "snapshot",
       user: {
-        name: "Be-U Spa",
+        name: "nabbi Spa",
         avatar: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&h=100&fit=crop",
         verified: true,
       },
@@ -436,7 +436,7 @@ export default function Home() {
       id: 3,
       type: "transformation",
       user: {
-        name: "Be-U Hair Studio",
+        name: "nabbi Hair Studio",
         avatar: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=100&h=100&fit=crop",
         verified: true,
       },
@@ -454,7 +454,7 @@ export default function Home() {
       id: 4,
       type: "tip",
       user: {
-        name: "Be-U Community",
+        name: "nabbi Community",
         avatar: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&h=100&fit=crop",
         verified: true,
       },
@@ -493,7 +493,7 @@ export default function Home() {
       rating: 5,
       title: "¡La mejor experiencia! 💝",
       text: "El facial LED cambió completamente mi piel. El equipo es súper profesional y el ambiente es relajante. 100% recomendado 🌟",
-      salon: "Be-U Spa Premium",
+      salon: "nabbi Spa Premium",
       images: ["https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=400&fit=crop"],
       stats: {likes: 124, comments: 28},
       timeAgo: "1d",
@@ -522,7 +522,7 @@ export default function Home() {
       id: 8,
       type: "poll",
       user: {
-        name: "Be-U Community",
+        name: "nabbi Community",
         avatar: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&h=100&fit=crop",
         verified: true,
       },

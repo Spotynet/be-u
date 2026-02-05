@@ -1,5 +1,5 @@
 /**
- * Global type definitions for the Be-U mobile app
+ * Global type definitions for the nabbi mobile app
  */
 
 export type UserRole = "CLIENT" | "PROFESSIONAL" | "PLACE";

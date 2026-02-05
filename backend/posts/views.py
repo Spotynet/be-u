@@ -16,7 +16,7 @@ from .serializers import (
 
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
-    permission_classes = [IsAuthenticated]  # Require auth for city-based filtering
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -25,10 +25,6 @@ class PostViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         return [IsAuthenticated()]
-
-    def _viewer_city(self):
-        c = getattr(self.request.user, 'city', None) or ''
-        return c
 
     def get_queryset(self):
         queryset = Post.objects.select_related('author').prefetch_related('media', 'likes', 'comments')
@@ -55,22 +51,11 @@ class PostViewSet(viewsets.ModelViewSet):
         if post_type:
             queryset = queryset.filter(post_type=post_type)
 
-        # City-based filter: only show posts from authors in the same city as the viewer
-        viewer_city = self._viewer_city()
-        if viewer_city:
-            queryset = queryset.filter(author__city__iexact=viewer_city)
-        else:
-            queryset = queryset.none()
-
         return queryset
 
     def retrieve(self, request, *args, **kwargs):
-        """Ensure single post is only accessible if viewer is in same city as author."""
+        """Return a single post."""
         instance = self.get_object()
-        viewer_city = self._viewer_city()
-        author_city = getattr(instance.author, 'city', None) or ''
-        if not viewer_city or not author_city or viewer_city.lower() != author_city.lower():
-            raise NotFound('Post not found')
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
@@ -108,17 +93,12 @@ class PostViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], url_path='liked')
     def liked_posts(self, request):
-        """Get all posts liked by the authenticated user (same city only)"""
+        """Get all posts liked by the authenticated user"""
         user = request.user
-        viewer_city = self._viewer_city()
         liked_post_ids = PostLike.objects.filter(user=user).values_list('post_id', flat=True)
         posts = Post.objects.filter(id__in=liked_post_ids).select_related(
             'author', 'author__public_profile'
         ).prefetch_related('media', 'likes', 'comments')
-        if viewer_city:
-            posts = posts.filter(author__city__iexact=viewer_city)
-        else:
-            posts = posts.none()
         
         page = self.paginate_queryset(posts)
         if page is not None:
@@ -363,11 +343,6 @@ def vote_in_poll(request, post_id):
         post = Post.objects.get(id=post_id, post_type='poll')
     except Post.DoesNotExist:
         return Response({'error': 'Poll not found'}, status=status.HTTP_404_NOT_FOUND)
-    viewer_city = getattr(request.user, 'city', None) or ''
-    author_city = getattr(post.author, 'city', None) or ''
-    if not viewer_city or not author_city or viewer_city.lower() != author_city.lower():
-        return Response({'error': 'Poll not found'}, status=status.HTTP_404_NOT_FOUND)
-
     serializer = PollVoteSerializer(data=request.data, context={'request': request})
 
     if serializer.is_valid():

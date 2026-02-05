@@ -9,7 +9,7 @@
 2. **Create or Select a Project**
    - Click on the project dropdown at the top
    - Click "New Project" or select an existing one
-   - Give it a name (e.g., "Be-U App")
+   - Give it a name (e.g., "nabbi App")
    - Click "Create"
 
 3. **Enable Required APIs**

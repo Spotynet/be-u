@@ -1,6 +1,6 @@
-# Sistema de Temas - Be-U
+# Sistema de Temas - nabbi
 
-Este documento explica cómo usar el sistema de temas implementado en el proyecto Be-U.
+Este documento explica cómo usar el sistema de temas implementado en el proyecto nabbi.
 
 ## Características
 

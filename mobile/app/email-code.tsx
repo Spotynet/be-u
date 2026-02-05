@@ -216,7 +216,7 @@ export default function EmailCode() {
               <Ionicons name="sparkles" color={colors.primary} size={12} />
             </Animated.View>
           </Animated.View>
-          <Text style={[styles.logoText, {color: colors.foreground}]}>Be-U</Text>
+          <Text style={[styles.logoText, {color: colors.foreground}]}>nabbi</Text>
         </View>
 
         {/* Welcome Text */}

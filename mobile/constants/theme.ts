@@ -1,5 +1,5 @@
 /**
- * Theme colors and typography for the Be-U mobile app
+ * Theme colors and typography for the nabbi mobile app
  * Following the Mobile Standards for consistent theming
  */
 

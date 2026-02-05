@@ -15,7 +15,7 @@ export const mockProfessionals = [
     city: "Ciudad de México",
     place: {
       id: 101,
-      name: "Be-U Spa Premium",
+      name: "nabbi Spa Premium",
       address: "Av. Reforma 123, Cuauhtémoc",
     },
     isIndependent: false,
@@ -570,7 +570,7 @@ export const mockPosts = [
       photos: [null, null, null],
       description:
         "¡Feliz con mi nuevo look! Gracias @AnaLopez por hacer realidad lo que quería ✨💇‍♀️",
-      location: "Be-U Spa Premium",
+      location: "nabbi Spa Premium",
     },
     likes: 128,
     comments: 23,
@@ -581,7 +581,7 @@ export const mockPosts = [
     type: "tips",
     author: {
       id: 100,
-      name: "Be-U Admin",
+      name: "nabbi Admin",
       specialty: "Consejos de Belleza",
       photo: null,
     },
@@ -659,7 +659,7 @@ export const mockPosts = [
     type: "poll",
     author: {
       id: 100,
-      name: "Be-U Admin",
+      name: "nabbi Admin",
       specialty: "Encuestas",
       photo: null,
     },

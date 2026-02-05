@@ -30,8 +30,8 @@
           }
         ],
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Allow Be-U to access your camera to take photos for posts.",
-        "NSPhotoLibraryUsageDescription": "Allow Be-U to access your photo library to select images for posts."
+        "NSCameraUsageDescription": "Allow nabbi to access your camera to take photos for posts.",
+        "NSPhotoLibraryUsageDescription": "Allow nabbi to access your photo library to select images for posts."
       }
     },
     "android": {
@@ -79,14 +79,14 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Be-U to use your location to find nearby services."
+          "locationAlwaysAndWhenInUsePermission": "Allow nabbi to use your location to find nearby services."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Be-U to access your photos to select images for posts.",
-          "cameraPermission": "Allow Be-U to access your camera to take photos for posts."
+          "photosPermission": "Allow nabbi to access your photos to select images for posts.",
+          "cameraPermission": "Allow nabbi to access your camera to take photos for posts."
         }
       ]
     ],

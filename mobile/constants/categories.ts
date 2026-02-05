@@ -1,8 +1,8 @@
 /**
- * Categories and Sub-Categories for Be-U Services
+ * Categories and Sub-Categories for nabbi Services
  *
  * This file defines the main service categories and their respective sub-categories
- * used throughout the Be-U mobile application.
+ * used throughout the nabbi mobile application.
  */
 
 import {ServiceCategory} from "@/types/global";

@@ -26,6 +26,7 @@ import {ProfessionalProfile} from "@/types/global";
 import {BookingFlow} from "@/components/booking/BookingFlow";
 import {errorUtils} from "@/lib/api";
 import {getSubCategoryById, MAIN_CATEGORIES} from "@/constants/categories";
+import {useAuth} from "@/features/auth";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -36,6 +37,7 @@ export default function ProfessionalDetailScreen() {
   const {goBack} = useNavigation();
   const insets = useSafeAreaInsets();
   const {id} = useLocalSearchParams<{id: string}>();
+  const {user, isAuthenticated} = useAuth();
 
   // Extract numeric ID from the string (e.g., "professional_0_1761200070463" -> "1761200070463")
   const numericId = id?.includes("_") ? id.split("_").pop() : id;
@@ -578,6 +580,15 @@ export default function ProfessionalDetailScreen() {
                       <TouchableOpacity
                         style={[styles.reserveButton, {backgroundColor: colors.primary}]}
                         onPress={() => {
+                          // Prevent booking your own profile
+                          if (isAuthenticated && user && (professional as any)?.user_id === user.id) {
+                            Alert.alert(
+                              "No puedes reservarte a ti mism@",
+                              "Para evitar reservas duplicadas, no es posible hacer una reserva en tu propio perfil."
+                            );
+                            return;
+                          }
+
                           // Get the correct provider ID (professional_profile_id if available, otherwise use numericId)
                           // The numericId might be PublicProfile.id, but we need ProfessionalProfile.id for availability
                           const providerId = professionalData.professional_profile_id 

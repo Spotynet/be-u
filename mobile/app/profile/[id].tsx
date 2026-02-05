@@ -413,6 +413,15 @@ export default function ProfileDetailScreen() {
   };
 
   const navigateToBooking = (service: any) => {
+    // Prevent booking your own profile
+    if (isAuthenticated && user && profile?.user && Number(profile.user) === Number(user.id)) {
+      Alert.alert(
+        "No puedes reservarte a ti mism@",
+        "Para evitar reservas duplicadas, no es posible hacer una reserva en tu propio perfil."
+      );
+      return;
+    }
+
     // Match the behavior of the "Solicitar reserva" / "Reservar" button (ServiceDetailModal.handleBookNow)
     const serviceInstanceId = service?.id;
     const serviceTypeId =

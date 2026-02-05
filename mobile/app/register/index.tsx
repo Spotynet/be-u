@@ -79,7 +79,7 @@ export default function RegisterSelector() {
         <View style={[styles.logoCircle, {backgroundColor: colors.primary}]}>
           <Ionicons name="sparkles" color={colors.primaryForeground} size={28} />
         </View>
-        <Text style={[styles.heroTitle, {color: colors.foreground}]}>¿Cómo quieres usar Be-U?</Text>
+        <Text style={[styles.heroTitle, {color: colors.foreground}]}>¿Cómo quieres usar nabbi?</Text>
         <Text style={[styles.heroSubtitle, {color: colors.mutedForeground}]}>
           Elige el tipo de cuenta que mejor te describa
         </Text>

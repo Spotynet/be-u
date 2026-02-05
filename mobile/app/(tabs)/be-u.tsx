@@ -16,7 +16,7 @@ import {useState, useRef, useEffect} from "react";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
-export default function BeU() {
+export default function Nabbi() {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -58,7 +58,7 @@ export default function BeU() {
     },
     {
       id: 2,
-      name: "Be-U Hair Studio",
+      name: "nabbi Hair Studio",
       type: "Salón",
       specialty: "Tratamientos Capilares Premium",
       rating: 4.8,

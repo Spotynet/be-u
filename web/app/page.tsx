@@ -26,7 +26,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-bold text-foreground">Be-U</h1>
+              <h1 className="text-xl font-bold text-foreground">nabbi</h1>
             </div>
             <div className="flex items-center gap-4">
               <ThemeToggle variant="dropdown" />
@@ -46,7 +46,7 @@ export default function Home() {
         <div className="space-y-8">
           {/* Welcome Section */}
           <div className="text-center">
-            <h2 className="text-4xl font-bold text-foreground mb-4">Welcome to Be-U</h2>
+            <h2 className="text-4xl font-bold text-foreground mb-4">Welcome to nabbi</h2>
             <p className="text-lg text-foreground-secondary max-w-2xl mx-auto">
               Your personal wellness and beauty platform. Discover services, book appointments, and
               connect with professionals who help you be your best self.

@@ -15,6 +15,7 @@ import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useProfileCustomization} from "@/features/profile/hooks/useProfileCustomization";
 import * as ImagePicker from "expo-image-picker";
+import {compressImages} from "@/lib/imageUtils";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -27,6 +28,7 @@ export const ImageGallery = ({maxImages = 10}: ImageGalleryProps) => {
   const {data, isLoading, uploadImage, deleteImage, refetch} = useProfileCustomization();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{current: number; total: number} | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(null);
 
@@ -54,21 +56,36 @@ export const ImageGallery = ({maxImages = 10}: ImageGalleryProps) => {
       return;
     }
 
+    const remaining = Math.max(0, maxImages - images.length);
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
+      // Multi-select for faster gallery uploads. (Editing is not compatible with multi-select.)
+      allowsMultipleSelection: remaining > 1,
+      selectionLimit: remaining, // iOS 14+; ignored where unsupported
+      allowsEditing: remaining <= 1,
+      aspect: remaining <= 1 ? [4, 3] : undefined,
       quality: 0.8,
     });
 
-    if (!result.canceled && result.assets[0]) {
+    if (!result.canceled && result.assets?.length) {
       setUploading(true);
+      setUploadProgress({current: 0, total: 0});
       try {
-        await uploadImage(result.assets[0].uri);
+        const pickedUris = result.assets.map((a) => a.uri).slice(0, remaining);
+        const compressedUris = await compressImages(pickedUris);
+
+        // Upload sequentially to keep server load predictable and preserve ordering.
+        setUploadProgress({current: 0, total: compressedUris.length});
+        for (let i = 0; i < compressedUris.length; i++) {
+          setUploadProgress({current: i + 1, total: compressedUris.length});
+          await uploadImage(compressedUris[i]);
+        }
       } catch (error) {
         console.error("Error uploading image:", error);
       } finally {
         setUploading(false);
+        setUploadProgress(null);
       }
     }
   };
@@ -166,7 +183,12 @@ export const ImageGallery = ({maxImages = 10}: ImageGalleryProps) => {
             activeOpacity={0.7}
             disabled={uploading}>
             {uploading ? (
-              <ActivityIndicator color={colors.primary} size="small" />
+              <View style={styles.uploadingTile}>
+                <ActivityIndicator color={colors.primary} size="small" />
+                <Text style={[styles.addImageText, {color: colors.mutedForeground}]}>
+                  {uploadProgress?.total ? `${uploadProgress.current}/${uploadProgress.total}` : "Subiendo"}
+                </Text>
+              </View>
             ) : (
               <>
                 <Ionicons name="add" color={colors.mutedForeground} size={32} />
@@ -198,6 +220,11 @@ export const ImageGallery = ({maxImages = 10}: ImageGalleryProps) => {
         <Text style={[styles.title, {color: colors.foreground}]}>
           Galería de Imágenes ({images.length}/{maxImages})
         </Text>
+        {!!uploadProgress && uploadProgress.total > 0 && (
+          <Text style={[styles.progressText, {color: colors.mutedForeground}]}>
+            Subiendo {uploadProgress.current}/{uploadProgress.total}...
+          </Text>
+        )}
         <Text style={[styles.subtitle, {color: colors.mutedForeground}]}>
           Agrega imágenes de tu trabajo para mostrar a los clientes
         </Text>
@@ -216,7 +243,12 @@ export const ImageGallery = ({maxImages = 10}: ImageGalleryProps) => {
             activeOpacity={0.9}
             disabled={uploading}>
             {uploading ? (
-              <ActivityIndicator color="#ffffff" size="small" />
+              <View style={styles.uploadingRow}>
+                <ActivityIndicator color="#ffffff" size="small" />
+                <Text style={styles.addButtonText}>
+                  {uploadProgress?.total ? `Subiendo ${uploadProgress.current}/${uploadProgress.total}` : "Subiendo..."}
+                </Text>
+              </View>
             ) : (
               <>
                 <Ionicons name="camera" color="#ffffff" size={20} />
@@ -307,6 +339,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  progressText: {
+    fontSize: 12,
+    marginTop: 4,
+  },
   imageGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -391,6 +427,16 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  uploadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  uploadingTile: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
   },
   modalOverlay: {
     flex: 1,

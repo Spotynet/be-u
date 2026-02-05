@@ -1,6 +1,6 @@
 # API Usage Examples
 
-This document provides practical examples of how to use the API utilities in your Be-U application.
+This document provides practical examples of how to use the API utilities in your nabbi application.
 
 ## Basic Setup
 

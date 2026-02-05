@@ -1,6 +1,6 @@
 # API Utilities Usage Guide
 
-Este documento explica cómo usar las utilidades de API creadas para el proyecto Be-U.
+Este documento explica cómo usar las utilidades de API creadas para el proyecto nabbi.
 
 ## Configuración
 

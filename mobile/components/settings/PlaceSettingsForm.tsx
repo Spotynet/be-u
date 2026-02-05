@@ -275,6 +275,23 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
       phone: phone || "", // Always include phone, even if empty
       username: username.trim(), // Ensure username is trimmed and saved
     };
+    
+    // Save address to User model if location is provided
+    if (location && location.address) {
+      userData.address = location.address;
+      if (location.latitude != null && location.longitude != null) {
+        userData.latitude = location.latitude;
+        userData.longitude = location.longitude;
+      }
+    }
+    
+    // Save city and country to User model
+    if (city) {
+      userData.city = city;
+    }
+    if (country) {
+      userData.country = country;
+    }
 
     const profileData = {
       name,
@@ -295,6 +312,25 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
     if (location) {
       publicProfileData.latitude = location.latitude;
       publicProfileData.longitude = location.longitude;
+    }
+    // Save address fields to public profile for places
+    if (street) {
+      publicProfileData.street = street;
+    }
+    if (numberExt) {
+      publicProfileData.number_ext = numberExt;
+    }
+    if (numberInt) {
+      publicProfileData.number_int = numberInt;
+    }
+    if (postalCode) {
+      publicProfileData.postal_code = postalCode;
+    }
+    if (city) {
+      publicProfileData.city = city;
+    }
+    if (country) {
+      publicProfileData.country = country;
     }
     if (displayName && displayName.trim() && displayName !== name) {
       publicProfileData.name = displayName.trim();
@@ -523,6 +559,14 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
             onSelect={(selectedLocation) => {
               console.log("Location selected in PlaceSettingsForm:", selectedLocation);
               setLocation(selectedLocation);
+              // Update street field when address is selected
+              if (selectedLocation.address) {
+                setStreet(selectedLocation.address);
+              }
+              // Update country if available
+              if (selectedLocation.country) {
+                setCountry(selectedLocation.country);
+              }
             }}
           />
           {location && location.address && (

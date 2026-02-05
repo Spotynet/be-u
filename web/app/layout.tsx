@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Be-U",
-  description: "Be-U application",
+  title: "nabbi",
+  description: "nabbi application",
 };
 
 export default function RootLayout({

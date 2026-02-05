@@ -1,6 +1,6 @@
 # Frontend Development Standards & Guidelines
 
-This document outlines the coding standards, folder structure, and best practices for the Be-U frontend application. Use this as a reference for all development tasks to ensure consistency and maintainability.
+This document outlines the coding standards, folder structure, and best practices for the nabbi frontend application. Use this as a reference for all development tasks to ensure consistency and maintainability.
 
 ## 📁 Folder Structure & Architecture
 
