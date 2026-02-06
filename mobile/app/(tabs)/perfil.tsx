@@ -229,5 +229,6 @@ const styles = StyleSheet.create({
   },
   tabContent: {
     flex: 1,
+    overflow: "hidden",
   },
 });

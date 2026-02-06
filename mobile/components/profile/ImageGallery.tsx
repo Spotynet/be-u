@@ -323,7 +323,10 @@ export const ImageGallery = ({maxImages = 10}: ImageGalleryProps) => {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={{padding: 16, paddingBottom: 100}}
+      showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text style={[styles.title, {color: colors.foreground}]}>
           Galería de Imágenes ({images.length}/{maxImages})
@@ -418,13 +421,14 @@ export const ImageGallery = ({maxImages = 10}: ImageGalleryProps) => {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    minHeight: 0,
   },
   loadingContainer: {
     flex: 1,

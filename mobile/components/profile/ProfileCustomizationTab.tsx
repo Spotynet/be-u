@@ -207,12 +207,9 @@ export const ProfileCustomizationTab = ({userRole = "PROFESSIONAL"}: ProfileCust
       )}
 
       {/* Tab Content */}
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={{padding: 16, paddingBottom: 100}}
-        showsVerticalScrollIndicator={false}>
+      <View style={styles.content}>
         {renderTabContent()}
-      </ScrollView>
+      </View>
     </View>
   );
 };
@@ -220,11 +217,14 @@ export const ProfileCustomizationTab = ({userRole = "PROFESSIONAL"}: ProfileCust
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    height: "100%",
   },
   subTabContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
     borderBottomWidth: 1,
+    width: "100%",
+    minHeight: 50,
   },
   subTabButton: {
     flex: 1,
@@ -233,9 +233,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
+    minHeight: 50,
   },
   content: {
     flex: 1,
+    width: "100%",
+    minHeight: 0,
   },
   teamSection: {
     padding: 20,

@@ -517,6 +517,7 @@ export default function AvailabilityScreen({embedded = false}: AvailabilityScree
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    minHeight: 0,
   },
   header: {
     flexDirection: "row",
@@ -538,6 +539,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    minHeight: 0,
   },
   scrollContent: {
     paddingBottom: 120, // Space for fixed save button (always visible)

@@ -42,14 +42,19 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
         return ''
 
     def get_queryset(self):
-        """Filter profiles: only same city as viewer, plus query parameters."""
+        """Filter profiles: city-based for list, but allow direct access for retrieve."""
         queryset = PublicProfile.objects.select_related('user').all()
 
-        # City-based filter: only show profiles in the same city as the viewer
+        # For retrieve action (viewing a specific profile), allow access regardless of city
+        if self.action == 'retrieve':
+            return queryset
+        
+        # For list/search actions, apply city-based filter
         viewer_city = self._viewer_city()
         if viewer_city:
             queryset = queryset.filter(Q(user__city__iexact=viewer_city) | Q(city__iexact=viewer_city))
         else:
+            # If no city set, return empty for list but allow retrieve by ID
             queryset = queryset.none()
 
         # Filter by profile type
@@ -96,14 +101,8 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
         return queryset
 
     def retrieve(self, request, *args, **kwargs):
-        """Ensure profile is only accessible if viewer is in same city."""
+        """Retrieve a public profile by ID - accessible to all authenticated users."""
         instance = self.get_object()
-        viewer_city = self._viewer_city()
-        uc = (getattr(instance.user, 'city', None) or '').strip().lower()
-        pc = (getattr(instance, 'city', None) or '').strip().lower()
-        vc = viewer_city.strip().lower() if viewer_city else ''
-        if not vc or (uc != vc and pc != vc):
-            raise NotFound('Profile not found')
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 

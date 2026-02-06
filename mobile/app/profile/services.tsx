@@ -288,6 +288,7 @@ export default function ServiceManagementScreen({embedded = false}: ServiceManag
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    minHeight: 0,
   },
   header: {
     flexDirection: "row",
@@ -359,6 +360,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    minHeight: 0,
     paddingHorizontal: 0,
     paddingTop: 0,
   },
