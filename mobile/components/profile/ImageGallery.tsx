@@ -10,14 +10,30 @@ import {
   ScrollView,
   Dimensions,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useProfileCustomization} from "@/features/profile/hooks/useProfileCustomization";
 import * as ImagePicker from "expo-image-picker";
 import {compressImages} from "@/lib/imageUtils";
+import {errorUtils} from "@/lib/api";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
+const API_BASE_URL = "https://stg.be-u.ai/api";
+
+// Helper function to convert relative URLs to absolute URLs
+const getAbsoluteImageUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  // If it's a relative URL, prepend the API base URL
+  if (url.startsWith("/")) {
+    return `${API_BASE_URL.replace("/api", "")}${url}`;
+  }
+  return `${API_BASE_URL.replace("/api", "")}/${url}`;
+};
 
 interface ImageGalleryProps {
   maxImages?: number;
@@ -35,11 +51,27 @@ export const ImageGallery = ({maxImages = 10}: ImageGalleryProps) => {
   const images = data.images || [];
 
   const requestPermissions = async () => {
+    // Web doesn't require permissions - browser handles it via file input
+    if (Platform.OS === "web") {
+      return true;
+    }
+
+    // Check current permission status first
+    const {status: currentStatus} = await ImagePicker.getMediaLibraryPermissionsAsync();
+    
+    // If already granted, return true
+    if (currentStatus === "granted") {
+      return true;
+    }
+
+    // Request permission
     const {status} = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permisos requeridos", "Necesitamos acceso a tu galería para subir imágenes.", [
-        {text: "OK"},
-      ]);
+      Alert.alert(
+        "Permisos requeridos",
+        "Necesitamos acceso a tu galería para subir imágenes. Por favor, permite el acceso en la configuración de la aplicación.",
+        [{text: "OK"}]
+      );
       return false;
     }
     return true;
@@ -58,35 +90,94 @@ export const ImageGallery = ({maxImages = 10}: ImageGalleryProps) => {
 
     const remaining = Math.max(0, maxImages - images.length);
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      // Multi-select for faster gallery uploads. (Editing is not compatible with multi-select.)
-      allowsMultipleSelection: remaining > 1,
-      selectionLimit: remaining, // iOS 14+; ignored where unsupported
-      allowsEditing: remaining <= 1,
-      aspect: remaining <= 1 ? [4, 3] : undefined,
-      quality: 0.8,
-    });
+    try {
+      // Configure picker options based on platform and remaining slots
+      const pickerOptions: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+      };
 
-    if (!result.canceled && result.assets?.length) {
-      setUploading(true);
-      setUploadProgress({current: 0, total: 0});
-      try {
-        const pickedUris = result.assets.map((a) => a.uri).slice(0, remaining);
-        const compressedUris = await compressImages(pickedUris);
-
-        // Upload sequentially to keep server load predictable and preserve ordering.
-        setUploadProgress({current: 0, total: compressedUris.length});
-        for (let i = 0; i < compressedUris.length; i++) {
-          setUploadProgress({current: i + 1, total: compressedUris.length});
-          await uploadImage(compressedUris[i]);
-        }
-      } catch (error) {
-        console.error("Error uploading image:", error);
-      } finally {
-        setUploading(false);
-        setUploadProgress(null);
+      // Multi-select configuration
+      if (remaining > 1) {
+        // Enable multi-select when we can select multiple images
+        pickerOptions.allowsMultipleSelection = true;
+        // selectionLimit works on iOS 14+ and Android, ignored on web (browser handles it)
+        pickerOptions.selectionLimit = remaining;
+        // Editing is not compatible with multi-select
+        pickerOptions.allowsEditing = false;
+      } else {
+        // Single image selection - allow editing
+        pickerOptions.allowsMultipleSelection = false;
+        pickerOptions.allowsEditing = true;
+        pickerOptions.aspect = [4, 3];
       }
+
+      const result = await ImagePicker.launchImageLibraryAsync(pickerOptions);
+
+      if (!result.canceled && result.assets?.length) {
+        setUploading(true);
+        setUploadProgress({current: 0, total: 0});
+        
+        try {
+          // Extract URIs from selected assets, respecting the limit
+          const pickedUris = result.assets
+            .map((a) => a.uri)
+            .slice(0, remaining)
+            .filter((uri) => uri); // Filter out any null/undefined URIs
+
+          if (pickedUris.length === 0) {
+            Alert.alert("Error", "No se pudieron obtener las imágenes seleccionadas.");
+            return;
+          }
+
+          // Compress images (handles web, iOS, and Android)
+          let compressedUris: string[];
+          try {
+            compressedUris = await compressImages(pickedUris);
+          } catch (compressError) {
+            console.warn("Compression failed, using original images:", compressError);
+            // Fallback to original URIs if compression fails
+            compressedUris = pickedUris;
+          }
+
+          // Upload sequentially to keep server load predictable and preserve ordering
+          setUploadProgress({current: 0, total: compressedUris.length});
+          
+          for (let i = 0; i < compressedUris.length; i++) {
+            try {
+              setUploadProgress({current: i, total: compressedUris.length});
+              await uploadImage(compressedUris[i]);
+              setUploadProgress({current: i + 1, total: compressedUris.length});
+            } catch (uploadError) {
+              console.error(`Error uploading image ${i + 1}/${compressedUris.length}:`, uploadError);
+              // Continue with next image even if one fails
+              const errorMessage = errorUtils?.getErrorMessage?.(uploadError) || "Error al subir la imagen";
+              if (i === 0 && compressedUris.length === 1) {
+                // If it's the only image, show error
+                Alert.alert("Error", errorMessage);
+              } else {
+                // For multiple images, log but continue
+                console.warn(`Failed to upload image ${i + 1}, continuing with others...`);
+              }
+            }
+          }
+
+          // Refresh the image list after successful uploads
+          if (refetch) {
+            await refetch();
+          }
+        } catch (error) {
+          console.error("Error processing images:", error);
+          const errorMessage = errorUtils?.getErrorMessage?.(error) || "Error al procesar las imágenes";
+          Alert.alert("Error", errorMessage);
+        } finally {
+          setUploading(false);
+          setUploadProgress(null);
+        }
+      }
+    } catch (error) {
+      console.error("Error launching image picker:", error);
+      Alert.alert("Error", "No se pudo abrir la galería de imágenes. Inténtalo de nuevo.");
     }
   };
 
@@ -135,38 +226,55 @@ export const ImageGallery = ({maxImages = 10}: ImageGalleryProps) => {
 
     return (
       <View style={styles.imageGrid}>
-        {images.map((image, index) => (
-          <View
-            key={image.id || index}
-            style={[styles.imageContainer, {width: imageSize, height: imageSize}]}>
-            <TouchableOpacity
-              style={styles.imageTouchable}
-              onPress={() => openImageModal(image.image)}
-              activeOpacity={0.9}>
-              <Image source={{uri: image.image}} style={styles.image} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.removeButton, {backgroundColor: colors.primary}]}
-              onPress={(event) => {
-                event?.stopPropagation?.();
-                console.log("Delete button clicked for index:", index);
-                removeImage(index);
-              }}
-              onPressIn={(event) => {
-                event?.stopPropagation?.();
-                console.log("Delete button pressed IN for index:", index);
-              }}
-              onPressOut={(event) => {
-                event?.stopPropagation?.();
-              }}
-              activeOpacity={0.7}
-              hitSlop={{top: 15, bottom: 15, left: 15, right: 15}}>
-              <View style={styles.removeButtonContent}>
-                <Ionicons name="close" color="#ffffff" size={20} />
-              </View>
-            </TouchableOpacity>
-          </View>
-        ))}
+        {images.map((image, index) => {
+          const imageUrl = getAbsoluteImageUrl(image.image);
+          
+          return (
+            <View
+              key={image.id || index}
+              style={[styles.imageContainer, {width: imageSize, height: imageSize}]}>
+              <TouchableOpacity
+                style={styles.imageTouchable}
+                onPress={() => imageUrl && openImageModal(imageUrl)}
+                activeOpacity={0.9}>
+                {imageUrl ? (
+                  <Image 
+                    source={{uri: imageUrl}} 
+                    style={styles.image}
+                    resizeMode="cover"
+                    onError={(error) => {
+                      console.error("Error loading image:", error.nativeEvent.error, "URL:", imageUrl);
+                    }}
+                  />
+                ) : (
+                  <View style={[styles.imagePlaceholder, {backgroundColor: colors.muted}]}>
+                    <Ionicons name="image-outline" color={colors.mutedForeground} size={32} />
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.removeButton, {backgroundColor: colors.primary}]}
+                onPress={(event) => {
+                  event?.stopPropagation?.();
+                  console.log("Delete button clicked for index:", index);
+                  removeImage(index);
+                }}
+                onPressIn={(event) => {
+                  event?.stopPropagation?.();
+                  console.log("Delete button pressed IN for index:", index);
+                }}
+                onPressOut={(event) => {
+                  event?.stopPropagation?.();
+                }}
+                activeOpacity={0.7}
+                hitSlop={{top: 15, bottom: 15, left: 15, right: 15}}>
+                <View style={styles.removeButtonContent}>
+                  <Ionicons name="close" color="#ffffff" size={20} />
+                </View>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
 
         {images.length < maxImages && (
           <TouchableOpacity
@@ -346,12 +454,13 @@ const styles = StyleSheet.create({
   imageGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    marginHorizontal: -5,
   },
   imageContainer: {
     position: "relative",
     borderRadius: 8,
     overflow: "visible",
+    margin: 5,
   },
   imageTouchable: {
     width: "100%",
@@ -362,6 +471,14 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: "100%",
+    borderRadius: 8,
+  },
+  imagePlaceholder: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
   },
   removeButton: {
     position: "absolute",

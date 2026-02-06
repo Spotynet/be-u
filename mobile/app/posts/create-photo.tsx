@@ -8,12 +8,14 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Keyboard,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
-import {useState} from "react";
+import {useState, useRef, useEffect} from "react";
 import {MediaUploader} from "@/components/posts/MediaUploader";
 import {postApi, errorUtils} from "@/lib/api";
 import {useAuth} from "@/features/auth/hooks/useAuth";
@@ -23,10 +25,32 @@ export default function CreatePhotoPostScreen() {
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const {user, isAuthenticated} = useAuth();
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [description, setDescription] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+    );
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
 
   const handlePublish = async () => {
     if (!isAuthenticated || !user) {
@@ -123,10 +147,16 @@ export default function CreatePhotoPostScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
         {/* Media Uploader */}
         <View style={[styles.section, {backgroundColor: colors.card}]}>
           <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Fotos</Text>
@@ -157,6 +187,12 @@ export default function CreatePhotoPostScreen() {
             value={description}
             onChangeText={setDescription}
             textAlignVertical="top"
+            onFocus={() => {
+              // Scroll to the description section when keyboard appears
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({animated: true});
+              }, 100);
+            }}
           />
         </View>
 
@@ -179,14 +215,19 @@ export default function CreatePhotoPostScreen() {
           </Text>
         </TouchableOpacity>
 
-        <View style={{height: 40}} />
+        {/* Extra space when keyboard is visible */}
+        <View style={{height: keyboardHeight > 0 ? keyboardHeight + 40 : 40}} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  keyboardAvoidingView: {
     flex: 1,
   },
   header: {

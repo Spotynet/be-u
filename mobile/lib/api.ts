@@ -6,6 +6,7 @@
 
 import axios, {AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError} from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {Platform} from "react-native";
 
 // Types
 export interface ApiResponse<T = any> {
@@ -40,8 +41,8 @@ const apiClient: AxiosInstance = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   async (config) => {
-    // Get token from AsyncStorage
-    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+    // Get token from storage (platform-aware)
+    const token = await storage.getItem(AUTH_TOKEN_KEY);
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -104,7 +105,7 @@ apiClient.interceptors.response.use(
     if (status === 401 && !originalRequest._retry && !isAuthRefresh && !isAuthLogin) {
       originalRequest._retry = true;
       try {
-        const refresh = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+        const refresh = await storage.getItem(REFRESH_TOKEN_KEY);
         if (refresh) {
           // Use a plain axios call without our interceptors to avoid recursion
           const resp = await axios.post(
@@ -117,7 +118,7 @@ apiClient.interceptors.response.use(
           );
           const newAccess: string | undefined = (resp.data as any)?.access;
           if (newAccess) {
-            await AsyncStorage.setItem(AUTH_TOKEN_KEY, newAccess);
+            await storage.setItem(AUTH_TOKEN_KEY, newAccess);
             originalRequest.headers = originalRequest.headers || {};
             originalRequest.headers.Authorization = `Bearer ${newAccess}`;
             return apiClient(originalRequest);
@@ -128,8 +129,8 @@ apiClient.interceptors.response.use(
       }
 
       // Refresh unavailable or failed: clear and reject
-      await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-      await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
+      await storage.removeItem(AUTH_TOKEN_KEY);
+      await storage.removeItem(REFRESH_TOKEN_KEY);
     }
 
     return Promise.reject(error);
@@ -166,7 +167,7 @@ export const apiCall = async <T = any>(
       throw {
         message: "El archivo es demasiado grande. Por favor, intenta con una imagen más pequeña.",
         status: 413,
-        errors: null,
+        errors: undefined,
         response: axiosError.response,
         data: errorData,
       } as ApiError;
@@ -177,7 +178,7 @@ export const apiCall = async <T = any>(
       throw {
         message: "El archivo es demasiado grande. Por favor, intenta con una imagen más pequeña.",
         status: 413,
-        errors: null,
+        errors: undefined,
         response: axiosError.response,
         data: errorData,
       } as ApiError;
@@ -397,6 +398,14 @@ export const profileCustomizationApi = {
     const profileId = profileResponse.data.id;
     return api.post<any>(`/public-profiles/${profileId}/upload-image/`, data, {
       headers: {"Content-Type": "multipart/form-data"},
+      transformRequest: (formData, headers) => {
+        // Axios will automatically add the correct boundary when Content-Type is unset.
+        // Setting it manually often breaks uploads in browsers.
+        if (headers) {
+          delete (headers as any)["Content-Type"];
+        }
+        return formData;
+      },
     });
   },
   updateProfileImage: async (imageId: number, data: any) => {
@@ -1083,32 +1092,79 @@ export const linkApi = {
     api.post<LinkedAvailabilitySchedule[]>(`/links/${linkId}/schedule/`, schedule),
 };
 
+// Platform-aware storage utility
+// On web, use localStorage directly for better persistence
+// On native, use AsyncStorage
+const storage = {
+  setItem: async (key: string, value: string): Promise<void> => {
+    if (Platform.OS === "web") {
+      try {
+        localStorage.setItem(key, value);
+      } catch (error) {
+        console.error("localStorage.setItem failed:", error);
+        // Fallback to AsyncStorage if localStorage fails
+        await AsyncStorage.setItem(key, value);
+      }
+    } else {
+      await AsyncStorage.setItem(key, value);
+    }
+  },
+
+  getItem: async (key: string): Promise<string | null> => {
+    if (Platform.OS === "web") {
+      try {
+        return localStorage.getItem(key);
+      } catch (error) {
+        console.error("localStorage.getItem failed:", error);
+        // Fallback to AsyncStorage if localStorage fails
+        return await AsyncStorage.getItem(key);
+      }
+    } else {
+      return await AsyncStorage.getItem(key);
+    }
+  },
+
+  removeItem: async (key: string): Promise<void> => {
+    if (Platform.OS === "web") {
+      try {
+        localStorage.removeItem(key);
+      } catch (error) {
+        console.error("localStorage.removeItem failed:", error);
+        // Fallback to AsyncStorage if localStorage fails
+        await AsyncStorage.removeItem(key);
+      }
+    } else {
+      await AsyncStorage.removeItem(key);
+    }
+  },
+};
+
 // Token management utilities
 export const tokenUtils = {
   setTokens: async (accessToken: string, refreshToken: string): Promise<void> => {
-    await AsyncStorage.setItem(AUTH_TOKEN_KEY, accessToken);
-    await AsyncStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    await storage.setItem(AUTH_TOKEN_KEY, accessToken);
+    await storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
   },
 
   setToken: async (token: string): Promise<void> => {
-    await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
+    await storage.setItem(AUTH_TOKEN_KEY, token);
   },
 
   getToken: async (): Promise<string | null> => {
-    return await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+    return await storage.getItem(AUTH_TOKEN_KEY);
   },
 
   getRefreshToken: async (): Promise<string | null> => {
-    return await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+    return await storage.getItem(REFRESH_TOKEN_KEY);
   },
 
   removeToken: async (): Promise<void> => {
-    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
-    await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
+    await storage.removeItem(AUTH_TOKEN_KEY);
+    await storage.removeItem(REFRESH_TOKEN_KEY);
   },
 
   isAuthenticated: async (): Promise<boolean> => {
-    const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+    const token = await storage.getItem(AUTH_TOKEN_KEY);
     return !!token;
   },
 };
@@ -1197,7 +1253,7 @@ export const tokenRefreshScheduler = {
     // Refresh token every 3 hours (before 4-hour expiration)
     refreshInterval = setInterval(async () => {
       try {
-        const refresh = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+        const refresh = await storage.getItem(REFRESH_TOKEN_KEY);
         if (refresh) {
           const resp = await axios.post(
             `${API_BASE_URL}/auth/refresh/`,
@@ -1208,10 +1264,10 @@ export const tokenRefreshScheduler = {
           const newRefresh = resp.data?.refresh;
 
           if (newAccess) {
-            await AsyncStorage.setItem(AUTH_TOKEN_KEY, newAccess);
+            await storage.setItem(AUTH_TOKEN_KEY, newAccess);
           }
           if (newRefresh) {
-            await AsyncStorage.setItem(REFRESH_TOKEN_KEY, newRefresh);
+            await storage.setItem(REFRESH_TOKEN_KEY, newRefresh);
           }
         }
       } catch (error) {

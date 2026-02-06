@@ -1,10 +1,11 @@
-import React, {useState} from "react";
+import React, {useState, useEffect} from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
@@ -12,6 +13,9 @@ import {useRouter} from "expo-router";
 import {ImageGallery} from "./ImageGallery";
 import AvailabilityScreen from "@/app/availability";
 import ServiceManagementScreen from "@/app/profile/services";
+import {profileCustomizationApi} from "@/lib/api";
+import {TourTarget} from "@/components/onboarding/TourTarget";
+import {useProviderTour} from "@/features/onboarding/ProviderTourProvider";
 
 type CustomizationTab = "images" | "services" | "calendar" | "team";
 
@@ -22,8 +26,53 @@ interface ProfileCustomizationTabProps {
 export const ProfileCustomizationTab = ({userRole = "PROFESSIONAL"}: ProfileCustomizationTabProps) => {
   const {colors} = useThemeVariant();
   const router = useRouter();
+  const {currentStep, isActive} = useProviderTour();
   const [activeTab, setActiveTab] = useState<CustomizationTab>("images");
+  const [publicProfileId, setPublicProfileId] = useState<number | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const isPlace = userRole === "PLACE";
+
+  // Auto-switch tabs based on tour step
+  useEffect(() => {
+    if (isActive && currentStep) {
+      if (currentStep === "mipagina_viewPublicProfile") {
+        // Keep current tab, just highlight the button
+      } else if (currentStep === "mipagina_images") {
+        setActiveTab("images");
+      } else if (currentStep === "mipagina_services") {
+        setActiveTab("services");
+      } else if (currentStep === "mipagina_calendar") {
+        setActiveTab("calendar");
+      } else if (currentStep === "mipagina_team") {
+        setActiveTab("team");
+      }
+    }
+  }, [isActive, currentStep]);
+
+  // Fetch the user's public profile ID
+  useEffect(() => {
+    const fetchPublicProfileId = async () => {
+      try {
+        setIsLoadingProfile(true);
+        const response = await profileCustomizationApi.getProfileImages();
+        if (response.data?.id) {
+          setPublicProfileId(response.data.id);
+        }
+      } catch (error) {
+        console.log("Error fetching public profile:", error);
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    fetchPublicProfileId();
+  }, []);
+
+  const handleViewPublicProfile = () => {
+    if (publicProfileId) {
+      router.push(`/profile/${publicProfileId}` as any);
+    }
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -62,68 +111,100 @@ export const ProfileCustomizationTab = ({userRole = "PROFESSIONAL"}: ProfileCust
           styles.subTabContainer,
           {backgroundColor: colors.card, borderBottomColor: colors.border},
         ]}>
-        <TouchableOpacity
-          style={[
-            styles.subTabButton,
-            activeTab === "images" && {borderBottomColor: colors.primary},
-          ]}
-          onPress={() => setActiveTab("images")}
-          activeOpacity={0.7}
-          accessibilityLabel="Imágenes">
-          <Ionicons
-            name={activeTab === "images" ? "images" : "images-outline"}
-            size={24}
-            color={activeTab === "images" ? colors.primary : colors.mutedForeground}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.subTabButton,
-            activeTab === "services" && {borderBottomColor: colors.primary},
-          ]}
-          onPress={() => setActiveTab("services")}
-          activeOpacity={0.7}
-          accessibilityLabel="Servicios">
-          <Ionicons
-            name={activeTab === "services" ? "briefcase" : "briefcase-outline"}
-            size={24}
-            color={activeTab === "services" ? colors.primary : colors.mutedForeground}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.subTabButton,
-            activeTab === "calendar" && {borderBottomColor: colors.primary},
-          ]}
-          onPress={() => setActiveTab("calendar")}
-          activeOpacity={0.7}
-          accessibilityLabel="Disponibilidad">
-          <Ionicons
-            name={activeTab === "calendar" ? "calendar" : "calendar-outline"}
-            size={24}
-            color={activeTab === "calendar" ? colors.primary : colors.mutedForeground}
-          />
-        </TouchableOpacity>
-
-        {isPlace && (
+        <TourTarget targetId="mipagina_images">
           <TouchableOpacity
             style={[
               styles.subTabButton,
-              activeTab === "team" && {borderBottomColor: colors.primary},
+              activeTab === "images" && {borderBottomColor: colors.primary},
             ]}
-            onPress={() => setActiveTab("team")}
+            onPress={() => setActiveTab("images")}
             activeOpacity={0.7}
-            accessibilityLabel="Equipo">
+            accessibilityLabel="Imágenes">
             <Ionicons
-              name={activeTab === "team" ? "people" : "people-outline"}
+              name={activeTab === "images" ? "images" : "images-outline"}
               size={24}
-              color={activeTab === "team" ? colors.primary : colors.mutedForeground}
+              color={activeTab === "images" ? colors.primary : colors.mutedForeground}
             />
           </TouchableOpacity>
+        </TourTarget>
+
+        <TourTarget targetId="mipagina_services">
+          <TouchableOpacity
+            style={[
+              styles.subTabButton,
+              activeTab === "services" && {borderBottomColor: colors.primary},
+            ]}
+            onPress={() => setActiveTab("services")}
+            activeOpacity={0.7}
+            accessibilityLabel="Servicios">
+            <Ionicons
+              name={activeTab === "services" ? "briefcase" : "briefcase-outline"}
+              size={24}
+              color={activeTab === "services" ? colors.primary : colors.mutedForeground}
+            />
+          </TouchableOpacity>
+        </TourTarget>
+
+        <TourTarget targetId="mipagina_calendar">
+          <TouchableOpacity
+            style={[
+              styles.subTabButton,
+              activeTab === "calendar" && {borderBottomColor: colors.primary},
+            ]}
+            onPress={() => setActiveTab("calendar")}
+            activeOpacity={0.7}
+            accessibilityLabel="Disponibilidad">
+            <Ionicons
+              name={activeTab === "calendar" ? "calendar" : "calendar-outline"}
+              size={24}
+              color={activeTab === "calendar" ? colors.primary : colors.mutedForeground}
+            />
+          </TouchableOpacity>
+        </TourTarget>
+
+        {isPlace && (
+          <TourTarget targetId="mipagina_team">
+            <TouchableOpacity
+              style={[
+                styles.subTabButton,
+                activeTab === "team" && {borderBottomColor: colors.primary},
+              ]}
+              onPress={() => setActiveTab("team")}
+              activeOpacity={0.7}
+              accessibilityLabel="Equipo">
+              <Ionicons
+                name={activeTab === "team" ? "people" : "people-outline"}
+                size={24}
+                color={activeTab === "team" ? colors.primary : colors.mutedForeground}
+              />
+            </TouchableOpacity>
+          </TourTarget>
         )}
       </View>
+
+      {/* View Public Profile Button */}
+      {!isLoadingProfile && publicProfileId && (
+        <TourTarget targetId="mipagina_viewPublicProfile">
+          <View style={[styles.viewProfileContainer, {backgroundColor: colors.card, borderBottomColor: colors.border}]}>
+            <TouchableOpacity
+              style={[styles.viewProfileButton, {backgroundColor: colors.primary}]}
+              onPress={handleViewPublicProfile}
+              activeOpacity={0.8}>
+              <Ionicons name="eye" color="#ffffff" size={20} />
+              <Text style={styles.viewProfileButtonText}>Ver perfil público</Text>
+              <Ionicons name="arrow-forward" color="#ffffff" size={18} />
+            </TouchableOpacity>
+          </View>
+        </TourTarget>
+      )}
+
+      {isLoadingProfile && (
+        <View style={[styles.viewProfileContainer, {backgroundColor: colors.card, borderBottomColor: colors.border}]}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        </View>
+      )}
 
       {/* Tab Content */}
       <ScrollView
@@ -184,6 +265,32 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  viewProfileContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  viewProfileButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  viewProfileButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
+    flex: 1,
+    textAlign: "center",
+  },
+  loadingContainer: {
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 

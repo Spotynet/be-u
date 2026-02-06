@@ -215,15 +215,6 @@ export default function ServiceManagementScreen({embedded = false}: ServiceManag
             <Text style={[styles.emptyStateDescription, {color: colors.mutedForeground}]}>
               Un catálogo claro mejora conversiones. Define duración, precio y una descripción breve.
             </Text>
-            <TouchableOpacity
-              style={[styles.primaryCta, {backgroundColor: colors.primary}]}
-              onPress={handleAddService}
-              activeOpacity={0.9}>
-              <Ionicons name="add" color={colors.primaryForeground} size={18} />
-              <Text style={[styles.primaryCtaText, {color: colors.primaryForeground}]}>
-                Agregar servicio
-              </Text>
-            </TouchableOpacity>
           </View>
         ) : (
           services.map((service) => (
@@ -427,21 +418,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     lineHeight: 20,
-    marginBottom: 16,
-  },
-  primaryCta: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    minWidth: 200,
-  },
-  primaryCtaText: {
-    fontSize: 15,
-    fontWeight: "800",
   },
   serviceCard: {
     flexDirection: "row",

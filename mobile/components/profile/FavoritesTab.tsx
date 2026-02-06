@@ -75,11 +75,6 @@ export function FavoritesTab() {
       <Text style={[styles.emptyText, {color: colors.mutedForeground}]}>
         Guarda tus profesionales, lugares y publicaciones favoritas para acceder a ellos rápidamente.
       </Text>
-      <TouchableOpacity
-        style={[styles.exploreButton, {backgroundColor: colors.primary}]}
-        onPress={() => router.push("/(tabs)/explore")}>
-        <Text style={styles.exploreButtonText}>Explorar</Text>
-      </TouchableOpacity>
     </View>
   );
 
@@ -285,17 +280,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: "center",
     lineHeight: 22,
-  },
-  exploreButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  exploreButtonText: {
-    color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "700",
   },
   retryButton: {
     paddingHorizontal: 32,

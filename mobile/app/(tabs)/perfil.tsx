@@ -8,6 +8,8 @@ import {FavoritesTab} from "@/components/profile/FavoritesTab";
 import {ProfileCustomizationTab} from "@/components/profile/ProfileCustomizationTab";
 import SettingsMenu from "@/components/profile/SettingsMenu";
 import {useAuth} from "@/features/auth";
+import {TourTarget} from "@/components/onboarding/TourTarget";
+import {useProviderTour} from "@/features/onboarding/ProviderTourProvider";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -17,11 +19,21 @@ export default function Perfil() {
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const {user, isAuthenticated} = useAuth();
+  const {currentStep, isActive} = useProviderTour();
   const [activeTab, setActiveTab] = useState<TabKey>("settings");
   const [isSettingsMenuVisible, setIsSettingsMenuVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   const isProvider = user?.role === "PROFESSIONAL" || user?.role === "PLACE";
+
+  // Auto-switch to publicProfile tab when tour is active and on mipagina steps
+  useEffect(() => {
+    if (isActive && currentStep && currentStep.startsWith("mipagina_")) {
+      if (activeTab !== "publicProfile") {
+        setActiveTab("publicProfile");
+      }
+    }
+  }, [isActive, currentStep, activeTab]);
 
   const tabs = useMemo(() => {
     const base: {key: TabKey; label: string; icon: string}[] = [
@@ -85,28 +97,44 @@ export default function Perfil() {
         </TouchableOpacity>
       </View>
       <View style={[styles.tabsHeader, {borderBottomColor: colors.border}]}>
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={styles.tab}
-            onPress={() => setActiveTab(tab.key)}
-            activeOpacity={0.7}>
-            <Ionicons
-              name={activeTab === tab.key ? tab.icon.replace("-outline", "") : tab.icon}
-              color={activeTab === tab.key ? colors.primary : colors.mutedForeground}
-              size={22}
-            />
-            <Text
-              style={[
-                styles.tabLabel,
-                activeTab === tab.key
-                  ? {color: colors.primary, fontWeight: "700"}
-                  : {color: colors.mutedForeground, fontWeight: "600"},
-              ]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {tabs.map((tab) => {
+          const tabButton = (
+            <TouchableOpacity
+              style={styles.tab}
+              onPress={() => setActiveTab(tab.key)}
+              activeOpacity={0.7}>
+              <Ionicons
+                name={activeTab === tab.key ? tab.icon.replace("-outline", "") : tab.icon}
+                color={activeTab === tab.key ? colors.primary : colors.mutedForeground}
+                size={22}
+              />
+              <Text
+                style={[
+                  styles.tabLabel,
+                  activeTab === tab.key
+                    ? {color: colors.primary, fontWeight: "700"}
+                    : {color: colors.mutedForeground, fontWeight: "600"},
+                ]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+
+          // Wrap "Mi página" tab with TourTarget
+          if (tab.key === "publicProfile") {
+            return (
+              <TourTarget key={tab.key} targetId="mipagina_tab" style={styles.tabWrapper}>
+                {tabButton}
+              </TourTarget>
+            );
+          }
+
+          return (
+            <View key={tab.key} style={styles.tabWrapper}>
+              {tabButton}
+            </View>
+          );
+        })}
         <Animated.View
           style={[
             styles.indicator,
@@ -175,9 +203,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderBottomWidth: 1,
     position: "relative",
+    alignItems: "stretch",
+    height: 60,
+  },
+  tabWrapper: {
+    flex: 1,
   },
   tab: {
-    flex: 1,
+    width: "100%",
+    height: "100%",
     paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",

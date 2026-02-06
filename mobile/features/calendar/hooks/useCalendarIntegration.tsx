@@ -362,6 +362,7 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
       const statusCheck = await calendarApi.getStatus();
       if (statusCheck.data.is_connected) {
         console.log('📱 Calendar already connected!');
+        await clearPendingOAuthState();
         await refreshStatus();
         return true;
       }
@@ -449,13 +450,25 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
           'Después de autorizar en Google, cierra el navegador manualmente para continuar. La conexión se detectará automáticamente.',
           [{ text: 'Entendido', onPress: async () => {
             // Continue with OAuth after user acknowledges
-            await performOAuthFlow(auth_url, state, mobileRedirectUri);
+            const success = await performOAuthFlow(auth_url, state, mobileRedirectUri);
+            
+            // After OAuth flow completes, refresh status to ensure UI is updated
+            if (success) {
+              await refreshStatus();
+            }
           }}]
         );
         return false; // Will be handled in the alert callback
       }
 
-      return await performOAuthFlow(auth_url, state, mobileRedirectUri);
+      const success = await performOAuthFlow(auth_url, state, mobileRedirectUri);
+      
+      // After OAuth flow completes, refresh status to ensure UI is updated
+      if (success) {
+        await refreshStatus();
+      }
+      
+      return success;
     } catch (err) {
       const message = errorUtils.getErrorMessage(err);
       setError(message);
@@ -541,31 +554,50 @@ export const useCalendarIntegration = (): UseCalendarIntegrationReturn => {
         // Browser was dismissed - user likely completed OAuth and closed manually
         // This is the common case in Expo Go where deep links don't work
         console.log('📱 Browser dismissed, polling for OAuth completion...');
+        console.log('📱 isBackendRedirect:', isBackendRedirect, 'isExpoGo:', isExpoGo);
         
-        if (isBackendRedirect || isExpoGo) {
-          // Wait a bit for backend to process
-          await new Promise(resolve => setTimeout(resolve, 1000));
+        // Always poll when browser is dismissed after showing success page
+        // Wait a bit for backend to process
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Poll more aggressively for Expo Go or backend redirects
+        const maxAttempts = isExpoGo ? 15 : 10;
           
-          // Poll more aggressively for Expo Go
-          const maxAttempts = isExpoGo ? 15 : 8;
-            
-          if (await pollForConnection(state, mobileRedirectUri, maxAttempts)) {
-                pendingOAuthState.current = null;
-                return true;
-              }
-          
-          // If still not connected, show a helpful message
-          Alert.alert(
-            'Conexión no detectada',
-            '¿Completaste el proceso de autorización en Google?\n\nSi lo hiciste, intenta de nuevo. Si estás usando Expo Go, considera usar un Development Build para mejor compatibilidad.',
-            [
-              { text: 'Reintentar', onPress: () => refreshStatus() },
-              { text: 'OK', style: 'cancel' }
-            ]
-          );
+        if (await pollForConnection(state, mobileRedirectUri, maxAttempts)) {
+          pendingOAuthState.current = null;
+          return true;
         }
+        
+        // Final status check before showing error
+        const finalCheck = await checkIfAlreadyConnected();
+        if (finalCheck) {
+          pendingOAuthState.current = null;
+          Alert.alert(
+            'Calendario conectado',
+            'Tu Google Calendar ha sido conectado exitosamente.',
+            [{ text: 'OK' }]
+          );
+          return true;
+        }
+        
+        // If still not connected, show a helpful message
+        Alert.alert(
+          'Conexión no detectada',
+          '¿Completaste el proceso de autorización en Google?\n\nSi lo hiciste, intenta de nuevo. Si estás usando Expo Go, considera usar un Development Build para mejor compatibilidad.',
+          [
+            { text: 'Reintentar', onPress: async () => { 
+              await refreshStatus();
+              // Check one more time after refresh
+              const retryCheck = await checkIfAlreadyConnected();
+              if (!retryCheck) {
+                await clearPendingOAuthState();
+              }
+            }},
+            { text: 'OK', style: 'cancel', onPress: () => clearPendingOAuthState() }
+          ]
+        );
+        
         console.log('📱 OAuth browser dismissed without successful connection');
-        pendingOAuthState.current = null;
         return false;
       }
 

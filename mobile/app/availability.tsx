@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Alert,
 } from "react-native";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
@@ -281,40 +282,38 @@ export default function AvailabilityScreen({embedded = false}: AvailabilityScree
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Save Button - Fixed at bottom */}
-      {hasChanges && (
-        <View
+      {/* Save Button - Fixed at bottom - Always visible */}
+      <View
+        style={[
+          styles.saveContainer,
+          {
+            backgroundColor: colors.background,
+            borderTopColor: colors.border,
+            paddingBottom: embedded ? 16 : Math.max(insets.bottom + 16, 16),
+          },
+        ]}>
+        <TouchableOpacity
           style={[
-            styles.saveContainer,
-            {
-              backgroundColor: colors.background,
-              borderTopColor: colors.border,
-              paddingBottom: insets.bottom + 16,
-            },
-          ]}>
-          <TouchableOpacity
-            style={[
-              styles.saveButton, 
-              {backgroundColor: colors.primary},
-              isLoading && {opacity: 0.6}
-            ]}
-            onPress={() => {
-              console.log("Save button pressed");
-              handleSave();
-            }}
-            disabled={isLoading}
-            activeOpacity={0.9}>
-            {isLoading ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-circle" size={22} color="#ffffff" />
-                <Text style={styles.saveButtonText}>Guardar Horario</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
+            styles.saveButton, 
+            {backgroundColor: hasChanges ? colors.primary : colors.muted},
+            (isLoading || !hasChanges) && {opacity: 0.6}
+          ]}
+          onPress={() => {
+            console.log("Save button pressed");
+            handleSave();
+          }}
+          disabled={isLoading || !hasChanges}
+          activeOpacity={0.9}>
+          {isLoading ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <>
+              <Ionicons name="checkmark-circle" size={22} color="#ffffff" />
+              <Text style={styles.saveButtonText}>Guardar Horario</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
       {/* Header - hidden when embedded in tab */}
       {!embedded && (
         <View
@@ -483,7 +482,7 @@ export default function AvailabilityScreen({embedded = false}: AvailabilityScree
               {!calendarStatus?.is_connected ? (
                 <TouchableOpacity
                   style={[styles.calendarLinkButton, {borderColor: colors.primary}]}
-                  onPress={() => router.push("/settings")}>
+                  onPress={() => router.push("/(tabs)/perfil")}>
                   <Text style={[styles.calendarLinkText, {color: colors.primary}]}>
                     Conectar Google Calendar →
                   </Text>
@@ -541,7 +540,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100, // Space for save button
+    paddingBottom: 120, // Space for fixed save button (always visible)
   },
   loadingContainer: {
     flex: 1,

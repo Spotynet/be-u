@@ -258,13 +258,15 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
-# AWS S3 Configuration
-# In production/staging (DEBUG=False) we default to S3 unless explicitly disabled.
+# AWS S3 Configuration  
+# Always use S3 by default, set USE_S3=False environment variable to disable for local dev
 _use_s3_env = os.environ.get('USE_S3')
-if _use_s3_env is None:
-    USE_S3 = not DEBUG
-else:
+if _use_s3_env is not None:
     USE_S3 = _use_s3_env == 'True'
+else:
+    # Default to True (use S3)
+    # For local development, set USE_S3=False in your environment or .env file
+    USE_S3 = True
 
 # AWS credentials - always defined to avoid import errors, but only used when USE_S3=True
 AWS_ACCESS_KEY_ID = 'AKIAXBZV5BYXMHMUVG4S'

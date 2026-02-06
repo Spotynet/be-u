@@ -4,6 +4,8 @@ import {AuthProvider} from "@/features/auth";
 import {ThemeProvider} from "@/contexts/ThemeContext";
 import {ThemeVariantProvider} from "@/contexts/ThemeVariantContext";
 import {CategoryProvider} from "@/contexts/CategoryContext";
+import {ProviderTourProvider} from "@/features/onboarding/ProviderTourProvider";
+import {CoachMarksOverlay} from "@/components/onboarding/CoachMarksOverlay";
 import {useEffect} from "react";
 import {AppState, Text, TextInput} from "react-native";
 import {tokenRefreshScheduler} from "@/lib/api";
@@ -59,11 +61,14 @@ export default function RootLayout() {
           <ThemeVariantProvider>
             <CategoryProvider>
               <AuthProvider>
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                  }}
-                />
+                <ProviderTourProvider>
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                    }}
+                  />
+                  <CoachMarksOverlay />
+                </ProviderTourProvider>
               </AuthProvider>
             </CategoryProvider>
           </ThemeVariantProvider>

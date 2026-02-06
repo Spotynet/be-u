@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Animated,
+  Alert,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
@@ -22,6 +23,7 @@ import {errorUtils} from "@/lib/api";
 import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from "@/constants/categories";
 import {AvailabilityDisplay} from "@/components/profile/AvailabilityDisplay";
 import {useFavorites} from "@/features/favorites";
+import {useAuth} from "@/features/auth/hooks/useAuth";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -31,6 +33,7 @@ export default function ProfileDetailScreen() {
   const {goBack} = useNavigation();
   const {id} = useLocalSearchParams<{id: string}>();
   const insets = useSafeAreaInsets();
+  const {user, isAuthenticated} = useAuth();
 
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);

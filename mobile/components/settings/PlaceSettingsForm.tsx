@@ -195,16 +195,66 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
         }
 
         const response = await profileCustomizationApi.uploadProfilePhoto(formData);
-        if (response.data.user_image) {
-          const url = response.data.user_image as string;
-          // Bust cache so the new photo shows immediately.
-          setProfilePhoto(url ? `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}` : url);
-          setImageError(false);
-          Alert.alert("Éxito", "Foto de perfil actualizada correctamente");
+        console.log("Profile photo upload response:", response.data);
+        
+        // After upload, reload the profile to get the updated image URL
+        try {
+          // Wait a bit for the backend to process the upload
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          const profileResponse = await profileCustomizationApi.getProfileImages();
+          console.log("Reloaded profile data:", profileResponse.data);
+          console.log("user_image from profile:", profileResponse.data?.user_image);
+          
+          if (profileResponse.data?.user_image) {
+            let url = profileResponse.data.user_image as string;
+            
+            // If URL is relative or has issues, try to fix it
+            if (!url.startsWith('http')) {
+              console.warn("Relative URL detected, attempting to fix:", url);
+              // If it's a relative path, make it absolute
+              if (url.startsWith('/')) {
+                url = `${window.location.origin}${url}`;
+              }
+            }
+            
+            // Bust cache so the new photo shows immediately
+            const cacheBustedUrl = url ? `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}` : url;
+            console.log("Setting profile photo URL:", cacheBustedUrl);
+            setProfilePhoto(cacheBustedUrl);
+            setImageError(false);
+            Alert.alert("Éxito", "Foto de perfil actualizada correctamente");
+          } else {
+            console.warn("No user_image in reloaded profile:", profileResponse.data);
+            Alert.alert("Advertencia", "La foto se subió pero no se pudo cargar. Intenta recargar la página.");
+          }
+        } catch (reloadError) {
+          console.error("Error reloading profile after upload:", reloadError);
+          // Try to use the response from upload if reload fails
+          if (response.data.user_image) {
+            let url = response.data.user_image as string;
+            
+            // Fix relative URLs
+            if (!url.startsWith('http') && url.startsWith('/')) {
+              url = `${window.location.origin}${url}`;
+            }
+            
+            setProfilePhoto(url ? `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}` : url);
+            setImageError(false);
+            Alert.alert("Éxito", "Foto de perfil actualizada correctamente");
+          } else {
+            Alert.alert("Advertencia", "La foto se subió pero no se pudo cargar. Intenta recargar la página.");
+          }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error uploading profile photo:", error);
-        Alert.alert("Error", "No se pudo subir la foto de perfil. Inténtalo de nuevo.");
+        console.error("Error response:", error?.response?.data);
+        console.error("Error status:", error?.response?.status);
+        const errorMessage = error?.response?.data?.photo?.[0] || 
+                           error?.response?.data?.detail || 
+                           error?.message || 
+                           "No se pudo subir la foto de perfil. Inténtalo de nuevo.";
+        Alert.alert("Error", errorMessage);
       } finally {
         setUploadingPhoto(false);
       }
@@ -370,11 +420,17 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
                 <ActivityIndicator color={colors.primary} size="large" />
               ) : profilePhoto && !imageError ? (
                 <Image 
+                  key={profilePhoto}
                   source={{uri: profilePhoto}} 
                   style={styles.profilePhoto}
-                  onError={() => {
+                  onError={(e) => {
                     console.error("Error loading profile photo:", profilePhoto);
+                    console.error("Image error event:", e.nativeEvent);
                     setImageError(true);
+                  }}
+                  onLoad={() => {
+                    console.log("Profile photo loaded successfully:", profilePhoto);
+                    setImageError(false);
                   }}
                 />
               ) : (

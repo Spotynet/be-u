@@ -37,6 +37,11 @@ export default function Settings({embedded = false}: {embedded?: boolean} = {}) 
   const formRef = useRef<{save: () => Promise<void>} | null>(null);
   const [isSettingsMenuVisible, setIsSettingsMenuVisible] = useState(false);
 
+  // Redirect to /perfil if accessed directly (not embedded)
+  if (!embedded) {
+    return <Redirect href="/(tabs)/perfil" />;
+  }
+
   // Reset ref when user role changes
   useEffect(() => {
     formRef.current = null;

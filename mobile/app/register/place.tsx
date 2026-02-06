@@ -20,6 +20,7 @@ import {errorUtils, profileCustomizationApi} from "@/lib/api";
 import {AddressSearch} from "@/components/location/AddressSearch";
 import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {setTourPending} from "@/features/onboarding/ProviderTourProvider";
 
 export default function RegisterPlace() {
   const router = useRouter();
@@ -101,6 +102,9 @@ export default function RegisterPlace() {
       } catch (profileErr) {
         console.warn("PublicProfile update skipped:", profileErr);
       }
+
+      // Set tour as pending for first-time onboarding
+      await setTourPending();
 
       router.replace("/(tabs)/perfil");
     } catch (err) {

@@ -20,6 +20,7 @@ import {errorUtils, profileCustomizationApi} from "@/lib/api";
 import {AddressSearch} from "@/components/location/AddressSearch";
 import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {setTourPending} from "@/features/onboarding/ProviderTourProvider";
 
 export default function RegisterPro() {
   const router = useRouter();
@@ -109,6 +110,9 @@ export default function RegisterPro() {
       } catch (updateError) {
         console.warn("Profile update failed after registration:", updateError);
       }
+
+      // Set tour as pending for first-time onboarding
+      await setTourPending();
 
       router.replace("/(tabs)/perfil");
     } catch (err: any) {

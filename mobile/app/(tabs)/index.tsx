@@ -24,6 +24,7 @@ import {postApi, tokenUtils} from "@/lib/api";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 import {getAvatarColorFromSubcategory} from "@/constants/categories";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {TourTarget} from "@/components/onboarding/TourTarget";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -1503,9 +1504,11 @@ export default function Home() {
             <Ionicons name="notifications-outline" color={colors.foreground} size={24} />
           </TouchableOpacity>
           {user?.role !== "CLIENT" && (
-            <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/create-post")}>
-              <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
-            </TouchableOpacity>
+            <TourTarget targetId="posts_create">
+              <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/create-post")}>
+                <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
+              </TouchableOpacity>
+            </TourTarget>
           )}
         </View>
       </View>
