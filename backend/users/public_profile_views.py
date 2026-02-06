@@ -348,6 +348,117 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @action(detail=True, methods=['post'], url_path='upload-profile-photo')
+    def upload_profile_photo(self, request, pk=None):
+        """Upload profile photo (user.image)"""
+        profile = self.get_object()
+        
+        # Check if user owns this profile
+        if profile.user != request.user:
+            return Response(
+                {"detail": "You can only upload a profile photo to your own profile"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get the uploaded file
+        image_file = request.FILES.get('photo')
+        if not image_file:
+            return Response(
+                {"detail": "No photo file provided"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+        if image_file.content_type not in allowed_types:
+            return Response(
+                {"detail": "Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate file size (max 5MB)
+        max_size = 5 * 1024 * 1024  # 5MB
+        if image_file.size > max_size:
+            return Response(
+                {"detail": "File too large. Maximum size is 5MB"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Upload to S3 and get the URL
+            from storages.backends.s3boto3 import S3Boto3Storage
+            from django.conf import settings
+            import uuid
+            
+            # Delete old profile photo if exists
+            if profile.user.image:
+                try:
+                    profile.user.image.delete(save=False)
+                except Exception as e:
+                    # Continue even if deletion fails
+                    pass
+            
+            # Generate unique filename
+            file_extension = image_file.name.split('.')[-1]
+            unique_filename = f"users/images/profile_photo_{uuid.uuid4()}.{file_extension}"
+            
+            # Upload to S3
+            storage = S3Boto3Storage()
+            file_path = storage.save(unique_filename, image_file)
+            file_url = storage.url(file_path)
+            
+            # Update user.image
+            profile.user.image = file_path
+            profile.user.save(update_fields=['image'])
+            
+            # Refresh to get updated URL
+            profile.user.refresh_from_db()
+            
+            # Get the proper signed URL
+            final_url = profile.user.image.url if profile.user.image else None
+            
+            return Response({
+                "message": "Profile photo uploaded successfully",
+                "user_image": final_url
+            })
+            
+        except Exception as e:
+            return Response(
+                {"detail": f"Error uploading profile photo: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['delete'], url_path='remove-profile-photo')
+    def remove_profile_photo(self, request, pk=None):
+        """Remove profile photo (user.image)"""
+        profile = self.get_object()
+        
+        # Check if user owns this profile
+        if profile.user != request.user:
+            return Response(
+                {"detail": "You can only remove your own profile photo"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Delete the profile photo
+        if profile.user.image:
+            try:
+                profile.user.image.delete(save=False)
+            except Exception as e:
+                pass
+            profile.user.image = None
+            profile.user.save(update_fields=['image'])
+            
+            return Response({
+                "message": "Profile photo removed successfully",
+                "user_image": None
+            })
+        else:
+            return Response(
+                {"detail": "No profile photo to remove"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
     @action(detail=True, methods=['delete'], url_path='remove-image')
     def remove_image(self, request, pk=None):
         """Remove an image from the public profile"""

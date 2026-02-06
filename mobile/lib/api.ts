@@ -396,7 +396,7 @@ export const profileCustomizationApi = {
     // First get or create the user's public profile
     const profileResponse = await profileCustomizationApi.getProfileImages();
     const profileId = profileResponse.data.id;
-    return api.post<any>(`/public-profiles/${profileId}/upload-image/`, data, {
+    return api.post<any>(`/public-profiles/${profileId}/upload-profile-photo/`, data, {
       headers: {"Content-Type": "multipart/form-data"},
       transformRequest: (formData, headers) => {
         // Axios will automatically add the correct boundary when Content-Type is unset.
@@ -408,6 +408,7 @@ export const profileCustomizationApi = {
       },
     });
   },
+  
   updateProfileImage: async (imageId: number, data: any) => {
     // For PublicProfile, we don't have individual image updates,
     // we update the entire images array
@@ -458,12 +459,11 @@ export const profileCustomizationApi = {
     return api.patch<any>(`/public-profiles/${profileId}/`, data);
   },
   
-  // Upload profile photo (main profile picture)
+  // Upload profile photo (main profile picture) - uses dedicated endpoint like gallery images
   uploadProfilePhoto: async (data: FormData) => {
     const profileResponse = await profileCustomizationApi.getProfileImages();
     const profileId = profileResponse.data.id;
-    return api.patch<any>(`/public-profiles/${profileId}/`, data, {
-      // Let Axios set the correct multipart boundary (esp. on web).
+    return api.post<any>(`/public-profiles/${profileId}/upload-profile-photo/`, data, {
       headers: {"Content-Type": "multipart/form-data"},
       transformRequest: (formData, headers) => {
         // Axios will automatically add the correct boundary when Content-Type is unset.
@@ -474,6 +474,13 @@ export const profileCustomizationApi = {
         return formData;
       },
     });
+  },
+  
+  // Delete profile photo (main profile picture)
+  deleteProfilePhoto: async () => {
+    const profileResponse = await profileCustomizationApi.getProfileImages();
+    const profileId = profileResponse.data.id;
+    return api.delete<any>(`/public-profiles/${profileId}/remove-profile-photo/`);
   },
 };
 

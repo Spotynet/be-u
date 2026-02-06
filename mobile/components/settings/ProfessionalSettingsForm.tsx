@@ -268,14 +268,8 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
           onPress: async () => {
             setUploadingPhoto(true);
             try {
-              // Use PATCH to delete photo by sending delete_photo flag
-              const profileResponse = await profileCustomizationApi.getProfileImages();
-              const profileId = profileResponse.data.id;
-              
-              // Send delete_photo flag in JSON format
-              const response = await profileCustomizationApi.updatePublicProfile({
-                delete_photo: true,
-              });
+              // Use dedicated delete endpoint
+              await profileCustomizationApi.deleteProfilePhoto();
               
               setProfilePhoto(null);
               setImageError(false);

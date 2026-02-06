@@ -217,7 +217,8 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
           onPress: async () => {
             setUploadingPhoto(true);
             try {
-              await profileCustomizationApi.updatePublicProfile({delete_photo: true});
+              // Use dedicated delete endpoint
+              await profileCustomizationApi.deleteProfilePhoto();
               setProfilePhoto(null);
               Alert.alert("Éxito", "Foto de perfil eliminada correctamente");
             } catch (error) {

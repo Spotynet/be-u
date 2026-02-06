@@ -273,12 +273,8 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
           onPress: async () => {
             setUploadingPhoto(true);
             try {
-              const profileResponse = await profileCustomizationApi.getProfileImages();
-              const profileId = profileResponse.data.id;
-              
-              const response = await profileCustomizationApi.updatePublicProfile({
-                delete_photo: true,
-              });
+              // Use dedicated delete endpoint
+              await profileCustomizationApi.deleteProfilePhoto();
               
               setProfilePhoto(null);
               setImageError(false);
