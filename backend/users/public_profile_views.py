@@ -385,8 +385,6 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
             )
         
         try:
-            # Upload to S3 and get the URL
-            from storages.backends.s3boto3 import S3Boto3Storage
             from django.conf import settings
             import uuid
             
@@ -398,23 +396,18 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
                     # Continue even if deletion fails
                     pass
             
-            # Generate unique filename
+            # Generate unique filename with proper prefix
             file_extension = image_file.name.split('.')[-1]
-            unique_filename = f"users/images/profile_photo_{uuid.uuid4()}.{file_extension}"
+            unique_filename = f"profile_photo_{uuid.uuid4()}.{file_extension}"
             
-            # Upload to S3
-            storage = S3Boto3Storage()
-            file_path = storage.save(unique_filename, image_file)
-            file_url = storage.url(file_path)
-            
-            # Update user.image
-            profile.user.image = file_path
-            profile.user.save(update_fields=['image'])
+            # Save directly to the ImageField - this will use the upload_to path
+            # and Django's storage backend (S3) automatically
+            profile.user.image.save(unique_filename, image_file, save=True)
             
             # Refresh to get updated URL
             profile.user.refresh_from_db()
             
-            # Get the proper signed URL
+            # Get the proper signed URL from the ImageField
             final_url = profile.user.image.url if profile.user.image else None
             
             return Response({
