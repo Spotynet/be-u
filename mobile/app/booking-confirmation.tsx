@@ -57,7 +57,7 @@ export default function BookingConfirmationScreen() {
             ¡Reserva Confirmada!
           </Text>
           <Text style={[styles.successMessage, {color: colors.mutedForeground}]}>
-            Tu cita ha sido reservada exitosamente. Recibirás una confirmación por email.
+            Tu reserva ha sido confirmada exitosamente. Recibirás un recordatorio por email antes de tu cita.
           </Text>
         </View>
 

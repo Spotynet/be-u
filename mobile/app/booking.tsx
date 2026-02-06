@@ -992,7 +992,7 @@ export default function BookingScreen() {
                 <Ionicons name="chevron-back" size={24} color={colors.primary} />
               </TouchableOpacity>
               <Text style={[styles.stepTitle, {color: colors.foreground}]}>
-                Confirma tu solicitud
+                Confirma tu reserva
               </Text>
               <View style={styles.placeholder} />
             </View>
@@ -1081,10 +1081,10 @@ export default function BookingScreen() {
                 <Ionicons name="checkmark-circle" size={24} color="#10b981" />
                 <View style={styles.successTextContainer}>
                   <Text style={[styles.successTitle, {color: "#10b981"}]}>
-                    ¡Solicitud Enviada Exitosamente!
+                    ¡Reserva Confirmada!
                   </Text>
                   <Text style={[styles.successText, {color: colors.foreground}]}>
-                    Tu solicitud de reserva ha sido enviada y está pendiente de confirmación por parte del proveedor.
+                    Tu reserva ha sido confirmada exitosamente. Recibirás un recordatorio antes de tu cita.
                   </Text>
                 </View>
               </View>
@@ -1112,12 +1112,12 @@ export default function BookingScreen() {
               ) : reservationSuccess ? (
                 <>
                   <Ionicons name="checkmark-circle" size={22} color="#ffffff" />
-                  <Text style={styles.confirmButtonText}>Solicitud Enviada</Text>
+                  <Text style={styles.confirmButtonText}>Reserva Confirmada</Text>
                 </>
               ) : (
                 <>
                   <Ionicons name="checkmark-circle" size={22} color="#ffffff" />
-                  <Text style={styles.confirmButtonText}>Enviar Solicitud</Text>
+                  <Text style={styles.confirmButtonText}>Confirmar Reserva</Text>
                 </>
               )}
             </TouchableOpacity>

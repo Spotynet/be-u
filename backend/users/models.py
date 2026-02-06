@@ -3,6 +3,18 @@ from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 from cryptography.fernet import Fernet
 import base64
+from storages.backends.s3boto3 import S3Boto3Storage
+
+# Custom S3 storage for user profile images (same as posts)
+class UserImageStorage(S3Boto3Storage):
+    bucket_name = settings.AWS_STORAGE_BUCKET_NAME
+    custom_domain = settings.AWS_S3_CUSTOM_DOMAIN
+    location = 'media'
+    default_acl = None  # Use bucket policy instead of ACLs
+    # Avoid HEAD requests (exists checks) that can fail with 403 on some bucket policies
+    # We generate unique filenames for uploads, so overwrite risk is negligible
+    file_overwrite = True
+    querystring_auth = True  # Use signed URLs for access
 
 
 # ======================
@@ -33,8 +45,8 @@ class User(AbstractUser):
     country = models.CharField(max_length=100, blank=True, null=True)
     city = models.CharField(max_length=100, blank=True, null=True)
     
-    # Profile image for all users
-    image = models.ImageField(upload_to="users/images/", blank=True, null=True)
+    # Profile image for all users - use custom S3 storage for signed URLs
+    image = models.ImageField(upload_to="users/images/", storage=UserImageStorage(), blank=True, null=True)
     
     # Address and location for all users
     address = models.CharField(max_length=500, blank=True, null=True, help_text="Full address string")

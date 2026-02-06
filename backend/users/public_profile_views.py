@@ -384,39 +384,38 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
             )
         
         try:
-            # EXACT SAME IMPLEMENTATION AS GALLERY IMAGES (upload-image endpoint)
-            from storages.backends.s3boto3 import S3Boto3Storage
-            from django.conf import settings
-            import uuid
-            
-            # Delete old profile photo from S3 if exists
+            # Delete old profile photo if exists (Django will handle S3 deletion automatically)
             if profile.user.image:
-                old_image_name = str(profile.user.image)
                 try:
-                    storage = S3Boto3Storage()
-                    storage.delete(old_image_name)
+                    profile.user.image.delete(save=False)
                 except Exception as e:
                     # Continue even if deletion fails
                     pass
             
-            # Generate unique filename - same pattern as gallery images
-            file_extension = image_file.name.split('.')[-1]
-            unique_filename = f"users/images/profile_photo_{uuid.uuid4()}.{file_extension}"
+            # Set a unique filename for the uploaded file (same pattern as posts)
+            import uuid
+            file_extension = image_file.name.split('.')[-1] if '.' in image_file.name else 'jpg'
+            unique_filename = f"profile_photo_{uuid.uuid4()}.{file_extension}"
+            image_file.name = unique_filename
             
-            # Upload to S3 - EXACT SAME as gallery images
-            storage = S3Boto3Storage()
-            file_path = storage.save(unique_filename, image_file)
-            file_url = storage.url(file_path)
-            
-            # Store the S3 path (not URL) in the database
-            profile.user.image = file_path
+            # Assign the file directly to the ImageField - Django will handle S3 upload automatically
+            # This is the same approach as PostMedia.objects.create(media_file=file)
+            # The ImageField will use DEFAULT_FILE_STORAGE (S3Boto3Storage) from settings
+            profile.user.image = image_file
             profile.user.save(update_fields=['image'])
             
-            # Refresh to get the image field
+            # Refresh to get the updated image field
             profile.user.refresh_from_db()
             
-            # Get the URL again after refresh
-            final_url = profile.user.image.url if profile.user.image else file_url
+            # Get the URL - Django's ImageField.url property will generate the signed S3 URL
+            # Since AWS_QUERYSTRING_AUTH = True in settings, this will be a signed URL
+            final_url = profile.user.image.url if profile.user.image else None
+            
+            if not final_url:
+                return Response(
+                    {"detail": "Error generating image URL"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
             
             return Response({
                 "message": "Profile photo uploaded successfully",

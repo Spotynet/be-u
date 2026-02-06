@@ -46,13 +46,14 @@ export default function RegisterSelector() {
       route: "/register/pro" as const,
       icon: "briefcase-outline" as const,
     },
-    {
-      id: "place",
-      title: "Lugar",
-      description: "Salón, negocio o espacio con equipo",
-      route: "/register/place" as const,
-      icon: "business-outline" as const,
-    },
+    // Commented out for MVP - only clients and professionals available
+    // {
+    //   id: "place",
+    //   title: "Lugar",
+    //   description: "Salón, negocio o espacio con equipo",
+    //   route: "/register/place" as const,
+    //   icon: "business-outline" as const,
+    // },
   ];
 
   return (
