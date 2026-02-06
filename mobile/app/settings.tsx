@@ -51,11 +51,13 @@ export default function Settings({embedded = false}: {embedded?: boolean} = {}) 
     try {
       const result = await updateProfile(profileData, userData);
       // Refresh profile data after successful update
-      refreshProfile();
-      // Refresh auth token to get updated user data (including username)
+      await refreshProfile();
+      // Refresh auth token to get updated user data (including username and image)
       if (refreshToken) {
         await refreshToken();
       }
+      // Small delay to ensure backend has processed everything
+      await new Promise(resolve => setTimeout(resolve, 300));
     } catch (error) {
       // Error is already handled in the hook
       console.error("Error updating profile:", error);

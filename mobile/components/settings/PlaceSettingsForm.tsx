@@ -391,6 +391,24 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
 
     console.log("PlaceSettingsForm - Saving data:", {userData, profileData});
     await onSave(userData, profileData);
+    
+    // After save, reload the profile photo from public profile to ensure it's preserved
+    try {
+      const {profileCustomizationApi} = await import("@/lib/api");
+      const profileResponse = await profileCustomizationApi.getProfileImages();
+      if (profileResponse.data?.user_image) {
+        let url = profileResponse.data.user_image as string;
+        if (!url.startsWith('http') && url.startsWith('/')) {
+          url = `${window.location.origin}${url}`;
+        }
+        const cacheBustedUrl = url ? `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}` : url;
+        setProfilePhoto(cacheBustedUrl);
+        setImageError(false);
+      }
+    } catch (error) {
+      console.error("Error reloading profile photo after save:", error);
+      // Don't show error to user, profile photo should still be preserved in backend
+    }
   };
 
   useImperativeHandle(ref, () => ({
