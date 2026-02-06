@@ -26,25 +26,23 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     def get_user_image(self, obj):
         """Get user image URL with proper absolute URL handling"""
         if obj.user and obj.user.image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.user.image.url)
-            # Fallback: if no request context, try to build URL manually
             from django.conf import settings
+            
+            # Get the URL from the image field
+            image_url = obj.user.image.url
+            
+            # For S3, the .url property already includes signed query params if AWS_QUERYSTRING_AUTH is True
+            # Don't use build_absolute_uri() as it can break the signature
             if hasattr(settings, 'USE_S3') and settings.USE_S3:
-                # S3 URL - should already be absolute
-                return obj.user.image.url if obj.user.image.url.startswith('http') else f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{obj.user.image.name}"
+                # S3 URLs are already absolute and signed - return as-is
+                return image_url
             else:
-                # Local storage - build absolute URL
-                media_url = settings.MEDIA_URL
-                if not media_url.startswith('http'):
-                    # Need to construct full URL
-                    # Try to get domain from request if available
+                # For local storage, build absolute URL
+                if not image_url.startswith('http'):
+                    request = self.context.get('request')
                     if request:
-                        scheme = request.scheme
-                        host = request.get_host()
-                        return f"{scheme}://{host}{media_url}{obj.user.image.name}"
-                return obj.user.image.url
+                        return request.build_absolute_uri(image_url)
+                return image_url
         return None
     
     class Meta:
