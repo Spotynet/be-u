@@ -350,7 +350,7 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'], url_path='upload-profile-photo')
     def upload_profile_photo(self, request, pk=None):
-        """Upload profile photo (user.image)"""
+        """Upload profile photo (user.image) - Same implementation as gallery images"""
         profile = self.get_object()
         
         # Check if user owns this profile
@@ -360,7 +360,7 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Get the uploaded file
+        # Get the uploaded file (same field name as gallery images)
         image_file = request.FILES.get('photo')
         if not image_file:
             return Response(
@@ -385,30 +385,39 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
             )
         
         try:
+            # EXACT SAME IMPLEMENTATION AS GALLERY IMAGES (upload-image endpoint)
+            from storages.backends.s3boto3 import S3Boto3Storage
             from django.conf import settings
             import uuid
             
-            # Delete old profile photo if exists
+            # Delete old profile photo from S3 if exists
             if profile.user.image:
+                old_image_name = str(profile.user.image)
                 try:
-                    profile.user.image.delete(save=False)
+                    storage = S3Boto3Storage()
+                    storage.delete(old_image_name)
                 except Exception as e:
                     # Continue even if deletion fails
                     pass
             
-            # Generate unique filename with proper prefix
+            # Generate unique filename - same pattern as gallery images
             file_extension = image_file.name.split('.')[-1]
-            unique_filename = f"profile_photo_{uuid.uuid4()}.{file_extension}"
+            unique_filename = f"users/images/profile_photo_{uuid.uuid4()}.{file_extension}"
             
-            # Save directly to the ImageField - this will use the upload_to path
-            # and Django's storage backend (S3) automatically
-            profile.user.image.save(unique_filename, image_file, save=True)
+            # Upload to S3 - EXACT SAME as gallery images
+            storage = S3Boto3Storage()
+            file_path = storage.save(unique_filename, image_file)
+            file_url = storage.url(file_path)
             
-            # Refresh to get updated URL
+            # Store the S3 path (not URL) in the database
+            profile.user.image = file_path
+            profile.user.save(update_fields=['image'])
+            
+            # Refresh to get the image field
             profile.user.refresh_from_db()
             
-            # Get the proper signed URL from the ImageField
-            final_url = profile.user.image.url if profile.user.image else None
+            # Get the URL again after refresh
+            final_url = profile.user.image.url if profile.user.image else file_url
             
             return Response({
                 "message": "Profile photo uploaded successfully",
