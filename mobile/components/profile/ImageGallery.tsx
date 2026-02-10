@@ -298,10 +298,7 @@ export const ImageGallery = ({maxImages = 10}: ImageGalleryProps) => {
                 </Text>
               </View>
             ) : (
-              <>
-                <Ionicons name="add" color={colors.mutedForeground} size={32} />
-                <Text style={[styles.addImageText, {color: colors.mutedForeground}]}>Agregar</Text>
-              </>
+              <Ionicons name="add" color={colors.mutedForeground} size={32} />
             )}
           </TouchableOpacity>
         )}

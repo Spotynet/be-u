@@ -49,30 +49,22 @@ export default function Notificaciones() {
       markAsRead(notification.id);
     }
 
-    // TODO: Navigate to relevant screen based on notification type
+    // Cualquier notificación con reservation_id enlaza a los detalles de esa reserva
+    const reservationId =
+      notification.metadata?.reservation_id ??
+      notification.metadata?.reservationId ??
+      notification.relatedId;
+
+    if (Number.isFinite(reservationId) && Number(reservationId) > 0) {
+      router.push(`/reservation/${Number(reservationId)}` as any);
+      return;
+    }
+
+    // Notificaciones sin reserva: reseñas, mensajes, sistema genérico
     switch (notification.type) {
-      case "reserva":
-        // Navigate to reservation details if available, otherwise to calendar
-        {
-          const reservationId =
-            notification.metadata?.reservation_id ??
-            notification.metadata?.reservationId ??
-            notification.relatedId;
-          if (Number.isFinite(reservationId) && Number(reservationId) > 0) {
-            router.push(`/reservation/${Number(reservationId)}` as any);
-          } else {
-            router.push("/(tabs)/calendario");
-          }
-        }
-        break;
       case "reseña":
-        // Navigate to review details or service page
         break;
       case "mensaje":
-        // Navigate to messages or chat
-        break;
-      case "sistema":
-        // Show system message details or do nothing
         break;
       default:
         break;
@@ -81,18 +73,7 @@ export default function Notificaciones() {
 
   const handleMarkAllAsRead = () => {
     if (unreadCount === 0) return;
-
-    Alert.alert(
-      "Marcar todo como leído",
-      "¿Estás seguro de que quieres marcar todas las notificaciones como leídas?",
-      [
-        {text: "Cancelar", style: "cancel"},
-        {
-          text: "Marcar todo",
-          onPress: markAllAsRead,
-        },
-      ]
-    );
+    void markAllAsRead();
   };
 
   const isProfessional = user?.role === "PROFESSIONAL";
@@ -183,16 +164,16 @@ export default function Notificaciones() {
   if (!isAuthenticated || !user) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View style={[styles.header, {backgroundColor: colors.primary}]}>
+        <View style={[styles.header, {backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border}]}>
           <View style={styles.headerTop}>
             <View style={styles.headerLeft}>
               <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => router.back()}
                 activeOpacity={0.7}>
-                <Ionicons name="arrow-back" color="#ffffff" size={22} />
+                <Ionicons name="arrow-back" color={colors.foreground} size={22} />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Notificaciones</Text>
+              <Text style={[styles.headerTitle, {color: colors.foreground}]}>Notificaciones</Text>
             </View>
           </View>
         </View>
@@ -219,16 +200,16 @@ export default function Notificaciones() {
   if (isLoading && notifications.length === 0) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View style={[styles.header, {backgroundColor: colors.primary}]}>
+        <View style={[styles.header, {backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border}]}>
           <View style={styles.headerTop}>
             <View style={styles.headerLeft}>
               <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => router.back()}
                 activeOpacity={0.7}>
-                <Ionicons name="arrow-back" color="#ffffff" size={22} />
+                <Ionicons name="arrow-back" color={colors.foreground} size={22} />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Notificaciones</Text>
+              <Text style={[styles.headerTitle, {color: colors.foreground}]}>Notificaciones</Text>
             </View>
           </View>
         </View>
@@ -245,23 +226,23 @@ export default function Notificaciones() {
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* Header */}
-      <View style={[styles.header, {backgroundColor: colors.primary}]}>
+      <View style={[styles.header, {backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border}]}>
         <View style={styles.headerTop}>
           <View style={styles.headerLeft}>
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => router.back()}
               activeOpacity={0.7}>
-              <Ionicons name="arrow-back" color="#ffffff" size={22} />
+              <Ionicons name="arrow-back" color={colors.foreground} size={22} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Notificaciones</Text>
+            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Notificaciones</Text>
           </View>
           {unreadCount > 0 && (
             <TouchableOpacity
-              style={styles.markAllButton}
+              style={[styles.markAllButton, {backgroundColor: colors.primary + "20", borderColor: colors.primary}]}
               onPress={handleMarkAllAsRead}
               activeOpacity={0.7}>
-              <Text style={styles.markAllText}>Marcar todo</Text>
+              <Text style={[styles.markAllText, {color: colors.primary}]}>Marcar todo</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -275,19 +256,19 @@ export default function Notificaciones() {
           <TouchableOpacity
             style={[
               styles.filterTab,
-              activeFilter === "all" && [styles.filterTabActive, {backgroundColor: "#ffffff20"}],
+              activeFilter === "all" && [styles.filterTabActive, {backgroundColor: colors.primary + "20"}],
             ]}
             onPress={() => setActiveFilter("all")}
             activeOpacity={0.7}>
             <Text
               style={[
                 styles.filterTabText,
-                {color: activeFilter === "all" ? "#ffffff" : "#ffffff80"},
+                {color: activeFilter === "all" ? colors.primary : colors.mutedForeground},
               ]}>
               Todas
             </Text>
             {activeFilter === "all" && (
-              <View style={[styles.filterTabIndicator, {backgroundColor: "#ffffff"}]} />
+              <View style={[styles.filterTabIndicator, {backgroundColor: colors.primary}]} />
             )}
           </TouchableOpacity>
 
@@ -296,7 +277,7 @@ export default function Notificaciones() {
               styles.filterTab,
               activeFilter === "reserva" && [
                 styles.filterTabActive,
-                {backgroundColor: "#ffffff20"},
+                {backgroundColor: colors.primary + "20"},
               ],
             ]}
             onPress={() => setActiveFilter("reserva")}
@@ -304,31 +285,31 @@ export default function Notificaciones() {
             <Text
               style={[
                 styles.filterTabText,
-                {color: activeFilter === "reserva" ? "#ffffff" : "#ffffff80"},
+                {color: activeFilter === "reserva" ? colors.primary : colors.mutedForeground},
               ]}>
               Reservas
             </Text>
             {activeFilter === "reserva" && (
-              <View style={[styles.filterTabIndicator, {backgroundColor: "#ffffff"}]} />
+              <View style={[styles.filterTabIndicator, {backgroundColor: colors.primary}]} />
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[
               styles.filterTab,
-              activeFilter === "reseña" && [styles.filterTabActive, {backgroundColor: "#ffffff20"}],
+              activeFilter === "reseña" && [styles.filterTabActive, {backgroundColor: colors.primary + "20"}],
             ]}
             onPress={() => setActiveFilter("reseña")}
             activeOpacity={0.7}>
             <Text
               style={[
                 styles.filterTabText,
-                {color: activeFilter === "reseña" ? "#ffffff" : "#ffffff80"},
+                {color: activeFilter === "reseña" ? colors.primary : colors.mutedForeground},
               ]}>
               Reseñas
             </Text>
             {activeFilter === "reseña" && (
-              <View style={[styles.filterTabIndicator, {backgroundColor: "#ffffff"}]} />
+              <View style={[styles.filterTabIndicator, {backgroundColor: colors.primary}]} />
             )}
           </TouchableOpacity>
 
@@ -337,7 +318,7 @@ export default function Notificaciones() {
               styles.filterTab,
               activeFilter === "sistema" && [
                 styles.filterTabActive,
-                {backgroundColor: "#ffffff20"},
+                {backgroundColor: colors.primary + "20"},
               ],
             ]}
             onPress={() => setActiveFilter("sistema")}
@@ -345,12 +326,12 @@ export default function Notificaciones() {
             <Text
               style={[
                 styles.filterTabText,
-                {color: activeFilter === "sistema" ? "#ffffff" : "#ffffff80"},
+                {color: activeFilter === "sistema" ? colors.primary : colors.mutedForeground},
               ]}>
               Sistema
             </Text>
             {activeFilter === "sistema" && (
-              <View style={[styles.filterTabIndicator, {backgroundColor: "#ffffff"}]} />
+              <View style={[styles.filterTabIndicator, {backgroundColor: colors.primary}]} />
             )}
           </TouchableOpacity>
         </ScrollView>
@@ -485,18 +466,16 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   headerTitle: {
-    color: "#ffffff",
     fontSize: 24,
     fontWeight: "800",
   },
   markAllButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: "#ffffff20",
     borderRadius: 8,
+    borderWidth: 1,
   },
   markAllText: {
-    color: "#ffffff",
     fontSize: 14,
     fontWeight: "600",
   },

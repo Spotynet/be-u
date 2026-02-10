@@ -20,6 +20,7 @@ import {profileCustomizationApi, linkApi, PlaceProfessionalLink} from "@/lib/api
 import {ProfileTabs} from "./ProfileTabs";
 import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from "@/constants/categories";
 import {ScheduleView} from "./ScheduleView";
+import {formatPrice} from "@/lib/priceUtils";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -328,7 +329,7 @@ export const ProfessionalProfileView = ({
                     </Text>
                   </View>
                   <Text style={[styles.servicePrice, {color: colors.primary}]}>
-                    ${Math.round(Number(service.price))}
+                    {formatPrice(service.price)}
                   </Text>
                 </View>
               </TouchableOpacity>

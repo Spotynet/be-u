@@ -21,41 +21,42 @@ export function BookingLocationView({location, address}: BookingLocationViewProp
     longitudeDelta: 0.01,
   };
 
-  const openDirections = async () => {
-    if (!location) return;
-    
-    const lat = location.latitude;
-    const lng = location.longitude;
-    
-    // Use address if available, otherwise use coordinates
-    const destination = address?.trim() || `${lat},${lng}`;
-    
-    if (Platform.OS === "ios") {
-      // On iOS, use http://maps.apple.com/ which may trigger app selector
-      // If user has multiple map apps, iOS might show a selector
-      // Fallback to maps:// for direct Apple Maps access
-      const appleMapsWebUrl = `http://maps.apple.com/?daddr=${encodeURIComponent(destination)}`;
-      const appleMapsUrl = `maps://?daddr=${encodeURIComponent(destination)}`;
-      
-      // Try web URL first (may trigger selector), fallback to direct URL
-      Linking.openURL(appleMapsWebUrl).catch(() => {
-        Linking.openURL(appleMapsUrl).catch(console.error);
-      });
-    } else {
-      // On Android, use geo: scheme which triggers the native app selector
-      // This will show Google Maps, Waze, and other installed map apps
-      // Use address query if available, otherwise use coordinates
-      const geoUrl = address?.trim() 
-        ? `geo:0,0?q=${encodeURIComponent(destination)}`
-        : `geo:${lat},${lng}`;
-      
-      Linking.openURL(geoUrl).catch(() => {
-        // Fallback to Google Maps web URL
-        const fallbackUrl = address?.trim()
+  const lat = location.latitude;
+  const lng = location.longitude;
+  const destination = address?.trim() || `${lat},${lng}`;
+
+  const openGoogleMaps = () => {
+    const url =
+      address?.trim()
+        ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
+        : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    Linking.openURL(url).catch(() => {
+      const fallback =
+        address?.trim()
           ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`
           : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-        Linking.openURL(fallbackUrl).catch(console.error);
-      });
+      Linking.openURL(fallback).catch(console.error);
+    });
+  };
+
+  const openWaze = () => {
+    const url = address?.trim()
+      ? `https://waze.com/ul?q=${encodeURIComponent(destination)}&navigate=yes`
+      : `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+    Linking.openURL(url).catch(() => {
+      const fallback = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+      Linking.openURL(fallback).catch(console.error);
+    });
+  };
+
+  const openAppleMaps = () => {
+    const dest = encodeURIComponent(destination);
+    if (Platform.OS === "ios") {
+      const mapsUrl = `maps://?daddr=${dest}`;
+      const webUrl = `http://maps.apple.com/?daddr=${dest}`;
+      Linking.openURL(mapsUrl).catch(() => Linking.openURL(webUrl).catch(console.error));
+    } else {
+      Linking.openURL(`http://maps.apple.com/?daddr=${dest}`).catch(console.error);
     }
   };
 
@@ -76,10 +77,29 @@ export function BookingLocationView({location, address}: BookingLocationViewProp
         <Text style={[styles.address, {color: colors.foreground}]}>{displayAddress}</Text>
       )}
       
-      <TouchableOpacity style={[styles.button, {backgroundColor: colors.primary}]} onPress={openDirections}>
-        <Ionicons name="navigate-outline" size={18} color="#ffffff" />
-        <Text style={styles.buttonText}>Cómo llegar</Text>
-      </TouchableOpacity>
+      <View style={styles.buttonsRow}>
+        <TouchableOpacity
+          style={[styles.button, styles.buttonThird, {backgroundColor: "#4285F4"}]}
+          onPress={openGoogleMaps}
+          activeOpacity={0.8}>
+          <Ionicons name="logo-google" size={18} color="#ffffff" />
+          <Text style={styles.buttonText}>Google</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, styles.buttonThird, {backgroundColor: "#33CCFF"}]}
+          onPress={openWaze}
+          activeOpacity={0.8}>
+          <Ionicons name="navigate-outline" size={18} color="#ffffff" />
+          <Text style={styles.buttonText}>Waze</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, styles.buttonThird, {backgroundColor: "#000000"}]}
+          onPress={openAppleMaps}
+          activeOpacity={0.8}>
+          <Ionicons name="map-outline" size={18} color="#ffffff" />
+          <Text style={styles.buttonText}>Apple</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -114,6 +134,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontStyle: "italic",
   },
+  buttonsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
   button: {
     flexDirection: "row",
     alignItems: "center",
@@ -121,6 +145,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 10,
     borderRadius: 12,
+  },
+  buttonHalf: {
+    flex: 1,
+  },
+  buttonThird: {
+    flex: 1,
   },
   buttonText: {
     color: "#ffffff",

@@ -673,7 +673,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     marginBottom: 8,
-    borderRadius: 12,
+    borderRadius: 0,
   },
   weekNavButton: {
     padding: 8,

@@ -291,6 +291,55 @@ def create_review_post(request):
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+def _resolve_linked_service_for_post(request):
+    """If request has linked_service_id, validate and return dict of linked_* fields for Post. Else return {}."""
+    from users.profile_models import CustomService
+    from users.models import PublicProfile, ProfessionalProfile, PlaceProfile
+
+    raw = request.data.get('linked_service_id')
+    if raw is None or raw == '':
+        return {}
+    try:
+        linked_service_id = int(raw)
+    except (TypeError, ValueError):
+        return {}
+    author = request.user
+    try:
+        public_profile = PublicProfile.objects.get(user=author)
+    except PublicProfile.DoesNotExist:
+        return {}
+    try:
+        custom_service = CustomService.objects.select_related('content_type').get(id=linked_service_id)
+    except CustomService.DoesNotExist:
+        return {}
+    if public_profile.profile_type == 'PROFESSIONAL':
+        try:
+            prof = author.professional_profile
+            ct = ContentType.objects.get_for_model(ProfessionalProfile)
+            if custom_service.content_type_id != ct.id or custom_service.object_id != prof.id:
+                return {}
+        except (ProfessionalProfile.DoesNotExist, AttributeError):
+            return {}
+    elif public_profile.profile_type == 'PLACE':
+        try:
+            place = author.place_profile
+            ct = ContentType.objects.get_for_model(PlaceProfile)
+            if custom_service.content_type_id != ct.id or custom_service.object_id != place.id:
+                return {}
+        except (PlaceProfile.DoesNotExist, AttributeError):
+            return {}
+    else:
+        return {}
+    return {
+        'linked_service_id': custom_service.id,
+        'linked_service_type': 'professional_service' if public_profile.profile_type == 'PROFESSIONAL' else 'place_service',
+        'linked_provider_id': public_profile.id,
+        'linked_service_name': custom_service.name,
+        'linked_service_price': custom_service.price,
+        'linked_service_duration_minutes': custom_service.duration_minutes,
+    }
+
+
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser])
 def create_transformation_post(request):
@@ -300,6 +349,7 @@ def create_transformation_post(request):
     - before: file (required)
     - after: file (required)
     - caption: string (optional)
+    - linked_service_id: optional, for direct booking from post
     - treatment, duration, products: optional metadata (currently stored in content)
     """
     if not request.user or not request.user.is_authenticated:
@@ -327,8 +377,15 @@ def create_transformation_post(request):
     if extra_parts:
         full_content = (caption + "\n\n" + " | ".join(extra_parts)).strip()
 
+    linked_kwargs = _resolve_linked_service_for_post(request)
+
     # Create post
-    post = Post.objects.create(author=request.user, post_type='before_after', content=full_content)
+    post = Post.objects.create(
+        author=request.user,
+        post_type='before_after',
+        content=full_content,
+        **linked_kwargs,
+    )
 
     # Attach media in order
     PostMedia.objects.create(post=post, media_file=before_file, media_type='image', order=0, caption='before')

@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeVariant } from '@/contexts/ThemeVariantContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@/hooks/useNavigation';
-import { CalendarAgendaView, CalendarConnectionCard } from '@/features/calendar';
+import { CalendarAgendaView } from '@/features/calendar';
 import { useAuth } from '@/features/auth';
 import { Calendar, DateData } from 'react-native-calendars';
 
@@ -98,11 +98,7 @@ export default function AgendaScreen() {
 
       {/* View Mode Selector */}
       {isProvider && (
-        <>
-          <View style={styles.connectionSection}>
-            <CalendarConnectionCard />
-          </View>
-          <View style={[styles.viewModeSelector, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <View style={[styles.viewModeSelector, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
             <TouchableOpacity
               style={[
                 styles.viewModeOption,
@@ -134,7 +130,6 @@ export default function AgendaScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </>
       )}
 
       {/* Day Selector for Day View */}
@@ -264,11 +259,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     gap: 8,
     borderBottomWidth: 1,
-  },
-  connectionSection: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 4,
   },
   viewModeOption: {
     flex: 1,

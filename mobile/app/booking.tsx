@@ -23,6 +23,7 @@ import {CalendarView} from "@/components/calendar";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {useRouter, useLocalSearchParams} from "expo-router";
 import {useNavigation} from "@/hooks/useNavigation";
+import {formatPrice} from "@/lib/priceUtils";
 
 export default function BookingScreen() {
   const colorScheme = useColorScheme();
@@ -810,7 +811,7 @@ export default function BookingScreen() {
           </View>
           <View style={styles.detailItem}>
             <Ionicons name="cash-outline" size={16} color={colors.primary} />
-            <Text style={[styles.priceText, {color: colors.primary}]}>${Math.round(Number(serviceInfo.price))}</Text>
+            <Text style={[styles.priceText, {color: colors.primary}]}>{formatPrice(serviceInfo.price)}</Text>
           </View>
         </View>
       </View>
@@ -1068,7 +1069,7 @@ export default function BookingScreen() {
                 <View style={styles.summaryText}>
                   <Text style={[styles.summaryLabel, {color: colors.mutedForeground}]}>Precio</Text>
                   <Text style={[styles.summaryValue, {color: colors.foreground}]}>
-                    ${Math.round(Number(serviceInfo.price))}
+                    {formatPrice(serviceInfo.price)}
                   </Text>
                 </View>
               </View>

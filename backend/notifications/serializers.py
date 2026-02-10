@@ -4,27 +4,46 @@ from .models import Notification, NotificationTemplate, PushDeviceToken, Reserva
 
 class NotificationSerializer(serializers.ModelSerializer):
     """Serializer for Notification model"""
-    
+
     # Computed fields
     time_ago = serializers.SerializerMethodField()
     is_unread = serializers.SerializerMethodField()
-    
+    metadata = serializers.SerializerMethodField()
+
     class Meta:
         model = Notification
         fields = [
-            'id', 'type', 'title', 'message', 'status', 'metadata',
-            'created_at', 'updated_at', 'read_at', 'time_ago', 'is_unread'
+            "id",
+            "type",
+            "title",
+            "message",
+            "status",
+            "metadata",
+            "created_at",
+            "updated_at",
+            "read_at",
+            "time_ago",
+            "is_unread",
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'read_at']
-    
+        read_only_fields = ["id", "created_at", "updated_at", "read_at"]
+
+    def get_metadata(self, obj):
+        """Include reservation_id from object_id when content is a Reservation (for old notifications)"""
+        data = dict(obj.metadata or {})
+        if "reservation_id" not in data and obj.content_type and obj.object_id:
+            ct = obj.content_type
+            if ct.model == "reservation" and ct.app_label == "reservations":
+                data["reservation_id"] = obj.object_id
+        return data
+
     def get_time_ago(self, obj):
         """Get human-readable time difference"""
         from django.utils import timezone
         from django.utils.timesince import timesince
-        
+
         now = timezone.now()
         return timesince(obj.created_at, now)
-    
+
     def get_is_unread(self, obj):
         """Check if notification is unread"""
         return obj.status == Notification.NotificationStatus.UNREAD

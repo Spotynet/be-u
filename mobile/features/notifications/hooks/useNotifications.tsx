@@ -12,6 +12,10 @@ const mapNotificationType = (backendType: string): NotificationType => {
   return "sistema"; // Default fallback
 };
 
+// Normalize status so UI always sees "read" | "unread"
+const normalizeStatus = (s: string | undefined): "read" | "unread" =>
+  s === "read" || (typeof s === "string" && s.toLowerCase() === "read") ? "read" : "unread";
+
 export const useNotifications = (filters?: NotificationFilters) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -46,7 +50,7 @@ export const useNotifications = (filters?: NotificationFilters) => {
         title: item.title,
         message: item.message,
         timestamp: item.created_at,
-        status: item.status,
+        status: normalizeStatus(item.status),
         relatedId: item.content_object?.id || item.metadata?.reservation_id,
         metadata: {
           ...(item.metadata || {}),
@@ -182,38 +186,35 @@ export const useNotifications = (filters?: NotificationFilters) => {
   );
 
   const markAllAsRead = useCallback(async () => {
+    // Optimistic update first so the UI updates immediately (dots disappear)
+    setNotifications((prev) =>
+      prev.length === 0 ? prev : prev.map((n) => ({...n, status: "read" as const}))
+    );
+    setStats((prev) =>
+      prev
+        ? {
+            ...prev,
+            unread_count: 0,
+            by_status: { ...prev.by_status, read: prev.total_count, unread: 0 },
+          }
+        : null
+    );
+
     try {
       await notificationApi.markAllAsRead();
-
-      // Update local state
-      setNotifications((prev) =>
-        prev.map((notification) => ({...notification, status: "read" as const}))
-      );
-
-      // Update stats
-      if (stats) {
-        setStats((prev) =>
-          prev
-            ? {
-                ...prev,
-                unread_count: 0,
-                by_status: {
-                  ...prev.by_status,
-                  read: prev.total_count,
-                  unread: 0,
-                },
-              }
-            : null
-        );
-      }
+      // Only refetch stats so header badge updates; do not refetch list to avoid overwriting with cached/stale data
+      await fetchStats();
     } catch (err: any) {
       console.error("Error marking all notifications as read:", err);
+      // Revert: refetch list and stats so UI shows server state
+      await fetchStats();
+      await fetchNotifications();
       Alert.alert(
         "Error",
-        err.message || "No se pudieron marcar todas las notificaciones como leídas"
+        err?.response?.data?.detail || err?.message || "No se pudieron marcar todas las notificaciones como leídas"
       );
     }
-  }, [stats]);
+  }, [fetchStats, fetchNotifications]);
 
   const deleteNotification = useCallback(
     async (notificationId: number) => {

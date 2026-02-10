@@ -41,25 +41,8 @@ export default function HelpSupportScreen() {
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentInner}
-        showsVerticalScrollIndicator={false}>
-        <TouchableOpacity
-          style={[
-            styles.optionButton,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-          onPress={() => router.push("/delete-account")}
-          activeOpacity={0.7}>
-          <View style={styles.optionLeft}>
-            <View style={[styles.optionIcon, { backgroundColor: "#ef4444" + "20" }]}>
-              <Ionicons name="trash-outline" color="#ef4444" size={22} />
-            </View>
-            <Text style={[styles.optionText, { color: colors.foreground }]}>
-              Eliminar cuenta
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
-      </ScrollView>
+        showsVerticalScrollIndicator={false}
+      />
     </View>
   );
 }

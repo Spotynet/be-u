@@ -14,6 +14,7 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useState, useEffect} from "react";
 import {useRouter} from "expo-router";
 import {providerApi, profileCustomizationApi} from "@/lib/api";
+import {formatPrice} from "@/lib/priceUtils";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -178,7 +179,7 @@ export const BookingFlow = ({placeId, serviceId, onClose}: BookingFlowProps) => 
                   {selectedService.duration} min
                 </Text>
                 <Text style={[styles.servicePrice, {color: colors.primary}]}>
-                  $ {Math.round(Number(selectedService.price))} MXN
+                  {formatPrice(selectedService.price, {suffix: " MXN"})}
                 </Text>
               </View>
             </View>

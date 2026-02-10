@@ -17,10 +17,9 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
 import {useState, useRef, useEffect} from "react";
 import {MediaUploader} from "@/components/posts/MediaUploader";
+import {LinkedServiceSelector, type CustomServiceItem} from "@/components/posts/LinkedServiceSelector";
 import {postApi, errorUtils, profileCustomizationApi} from "@/lib/api";
 import {useAuth} from "@/features/auth/hooks/useAuth";
-
-type CustomServiceItem = { id: number; name: string; price: string; duration_minutes?: number };
 
 export default function CreatePhotoPostScreen() {
   const colorScheme = useColorScheme();
@@ -159,7 +158,7 @@ export default function CreatePhotoPostScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Foto + Descripción</Text>
+        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Foto</Text>
         <TouchableOpacity
           onPress={handlePublish}
           style={styles.publishButton}
@@ -184,54 +183,21 @@ export default function CreatePhotoPostScreen() {
           keyboardShouldPersistTaps="handled">
         {/* Media Uploader */}
         <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Fotos</Text>
+          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Foto</Text>
           <MediaUploader
             mediaType="photo"
-            maxFiles={10}
+            maxFiles={1}
             onMediaSelected={setPhotos}
             selectedMedia={photos}
           />
         </View>
 
-        {/* Vincular servicio (opcional) */}
-        {customServices.length > 0 && (
-          <View style={[styles.section, {backgroundColor: colors.card}]}>
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-              Vincular un servicio
-            </Text>
-            <Text style={[styles.optionalBadge, {color: colors.mutedForeground}]}>
-              Opcional. Quien reserve desde esta publicación irá directo a este servicio.
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.linkedServiceOption,
-                {borderColor: colors.border, backgroundColor: colors.inputBackground},
-                linkedServiceId === null && styles.linkedServiceOptionSelected,
-              ]}
-              onPress={() => setLinkedServiceId(null)}>
-              <Text style={[styles.linkedServiceName, {color: colors.foreground}]}>
-                Ninguno
-              </Text>
-            </TouchableOpacity>
-            {customServices.map((s) => (
-              <TouchableOpacity
-                key={s.id}
-                style={[
-                  styles.linkedServiceOption,
-                  {borderColor: colors.border, backgroundColor: colors.inputBackground},
-                  linkedServiceId === s.id && styles.linkedServiceOptionSelected,
-                ]}
-                onPress={() => setLinkedServiceId(s.id)}>
-                <Text style={[styles.linkedServiceName, {color: colors.foreground}]}>
-                  {s.name}
-                </Text>
-                <Text style={[styles.linkedServiceMeta, {color: colors.mutedForeground}]}>
-                  ${Math.round(Number(s.price))} MXN · {s.duration_minutes ?? 60} min
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+        <LinkedServiceSelector
+          customServices={customServices}
+          linkedServiceId={linkedServiceId}
+          onSelect={setLinkedServiceId}
+          colors={colors}
+        />
 
         {/* Description */}
         <View style={[styles.section, {backgroundColor: colors.card}]}>
@@ -351,29 +317,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     marginBottom: 16,
-  },
-  optionalBadge: {
-    fontSize: 12,
-    fontStyle: "italic",
-    marginBottom: 12,
-  },
-  linkedServiceOption: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
-  },
-  linkedServiceOptionSelected: {
-    borderWidth: 2,
-    borderColor: "#4ECDC4",
-  },
-  linkedServiceName: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  linkedServiceMeta: {
-    fontSize: 13,
-    marginTop: 4,
   },
   textArea: {
     borderWidth: 1,

@@ -15,13 +15,15 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
 import {useState, useEffect} from "react";
 import {MediaUploader} from "@/components/posts/MediaUploader";
-import {providerApi} from "@/lib/api";
-import {errorUtils} from "@/lib/api";
+import {LinkedServiceSelector, type CustomServiceItem} from "@/components/posts/LinkedServiceSelector";
+import {providerApi, profileCustomizationApi, errorUtils} from "@/lib/api";
+import {useAuth} from "@/features/auth/hooks/useAuth";
 
 export default function CreateReviewScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
+  const {isAuthenticated} = useAuth();
 
   const [selectedProvider, setSelectedProvider] = useState<any>(null);
   const [providerType, setProviderType] = useState<"professional" | "place" | null>(null);
@@ -39,6 +41,26 @@ export default function CreateReviewScreen() {
   const [places, setPlaces] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [customServices, setCustomServices] = useState<CustomServiceItem[]>([]);
+  const [linkedServiceId, setLinkedServiceId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    profileCustomizationApi.getCustomServices()
+      .then((res) => {
+        if (cancelled) return;
+        const list = Array.isArray(res.data) ? res.data : (res.data?.results ?? []);
+        setCustomServices(list.map((s: any) => ({
+          id: s.id,
+          name: s.name || s.service_name || "",
+          price: s.price != null ? String(s.price) : "",
+          duration_minutes: s.duration_minutes,
+        })));
+      })
+      .catch(() => { if (!cancelled) setCustomServices([]); });
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -226,6 +248,13 @@ export default function CreateReviewScreen() {
               selectedMedia={photos}
             />
           </View>
+
+          <LinkedServiceSelector
+            customServices={customServices}
+            linkedServiceId={linkedServiceId}
+            onSelect={setLinkedServiceId}
+            colors={colors}
+          />
 
           {/* Description */}
           <View style={[styles.section, {backgroundColor: colors.card}]}>

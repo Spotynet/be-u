@@ -215,6 +215,7 @@ def create_client_notification_for_new_reservation(instance, provider_name):
             ),
             content_object=instance,
             metadata={
+                'reservation_id': instance.id,
                 'reservation_code': instance.code,
                 'service_name': service_name,
                 'service_type_id': instance.service.id,
@@ -291,6 +292,7 @@ def create_reservation_notification(sender, instance, created, **kwargs):
                             message=f"Se creó un evento en tu Google Calendar para la reserva {instance.code}",
                             content_object=instance,
                             metadata={
+                                'reservation_id': instance.id,
                                 'reservation_code': instance.code,
                                 'service_name': instance.service.name,
                                 'client_name': get_client_name_from_reservation(instance),
@@ -338,6 +340,7 @@ def create_reservation_notification(sender, instance, created, **kwargs):
                 message=f"Tu reserva {instance.code} ha sido confirmada por el proveedor",
                 content_object=instance,
                 metadata={
+                    'reservation_id': instance.id,
                     'reservation_code': instance.code,
                     'service_name': instance.service.name,
                     'provider_name': provider_name,
@@ -358,6 +361,7 @@ def create_reservation_notification(sender, instance, created, **kwargs):
                         message=f"Se creó un evento en tu Google Calendar para la reserva {instance.code}",
                         content_object=instance,
                         metadata={
+                            'reservation_id': instance.id,
                             'reservation_code': instance.code,
                             'service_name': instance.service.name,
                             'client_name': get_client_name_from_reservation(instance),
@@ -382,6 +386,7 @@ def create_reservation_notification(sender, instance, created, **kwargs):
                 message=f"Tu reserva {instance.code} ha sido cancelada",
                 content_object=instance,
                 metadata={
+                    'reservation_id': instance.id,
                     'reservation_code': instance.code,
                     'service_name': instance.service.name,
                     'cancellation_reason': instance.cancellation_reason
@@ -398,6 +403,7 @@ def create_reservation_notification(sender, instance, created, **kwargs):
                 message=f"Tu reserva {instance.code} ha sido rechazada por el proveedor",
                 content_object=instance,
                 metadata={
+                    'reservation_id': instance.id,
                     'reservation_code': instance.code,
                     'service_name': instance.service.name,
                     'rejection_reason': instance.rejection_reason
@@ -422,6 +428,7 @@ def create_reservation_notification(sender, instance, created, **kwargs):
                 message=f"Tu reserva {instance.code} ha sido completada. ¡Gracias por elegirnos!",
                 content_object=instance,
                 metadata={
+                    'reservation_id': instance.id,
                     'reservation_code': instance.code,
                     'service_name': instance.service.name
                 }

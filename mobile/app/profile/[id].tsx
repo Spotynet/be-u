@@ -19,6 +19,7 @@ import {useRouter, useLocalSearchParams} from "expo-router";
 import {useNavigation} from "@/hooks/useNavigation";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {providerApi, postApi, serviceApi, linkApi, profileCustomizationApi, PlaceProfessionalLink, api} from "@/lib/api";
+import {formatPrice} from "@/lib/priceUtils";
 import {errorUtils} from "@/lib/api";
 import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from "@/constants/categories";
 import {AvailabilityDisplay} from "@/components/profile/AvailabilityDisplay";
@@ -570,7 +571,7 @@ export default function ProfileDetailScreen() {
                   {service.name}
                 </Text>
                 <Text style={[styles.servicePrice, {color: colors.primary}]} numberOfLines={1}>
-                  ${Math.round(Number(service.price))} MXN
+                  {formatPrice(service.price, {suffix: " MXN"})}
                 </Text>
                 </View>
 
@@ -871,7 +872,7 @@ export default function ProfileDetailScreen() {
           <View onLayout={onSectionLayout("hours")} style={styles.section}>
             <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Horario</Text>
             {profile.availability && Array.isArray(profile.availability) ? (
-              <AvailabilityDisplay availability={profile.availability} showHeader={false} variant="compact" />
+              <AvailabilityDisplay availability={profile.availability} showHeader={false} variant="textOnly" />
             ) : (
               <Text style={[styles.detailText, {color: colors.mutedForeground}]}>No hay horarios disponibles</Text>
             )}

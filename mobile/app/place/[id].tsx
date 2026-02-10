@@ -22,6 +22,7 @@ import {useRouter, useLocalSearchParams} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {useNavigation} from "@/hooks/useNavigation";
 import {providerApi, serviceApi, reviewApi, postApi, profileCustomizationApi} from "@/lib/api";
+import {formatPrice} from "@/lib/priceUtils";
 import {PlaceProfile} from "@/types/global";
 import {BookingFlow} from "@/components/booking/BookingFlow";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
@@ -773,7 +774,7 @@ export default function PlaceDetailScreen() {
                     </View>
                     <View style={styles.serviceFooter}>
                       <Text style={[styles.servicePrice, {color: colors.primary}]}>
-                        ${Math.round(Number(service.price))} MXN
+                        {formatPrice(service.price, {suffix: " MXN"})}
                       </Text>
                       <TouchableOpacity
                         style={[styles.reserveButton, {backgroundColor: colors.primary}]}

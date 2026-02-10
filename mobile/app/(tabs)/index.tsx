@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   Image,
   Dimensions,
   Animated,
@@ -17,10 +18,11 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useCategory} from "@/contexts/CategoryContext";
 import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
-import {useState, useRef, useEffect} from "react";
+import {useState, useRef, useEffect, useCallback} from "react";
 import {useRouter} from "expo-router";
+import {useFocusEffect} from "@react-navigation/native";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
-import {postApi, tokenUtils} from "@/lib/api";
+import {postApi, tokenUtils, notificationApi} from "@/lib/api";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 import {getAvatarColorFromSubcategory} from "@/constants/categories";
 import {useAuth} from "@/features/auth/hooks/useAuth";
@@ -97,7 +99,21 @@ export default function Home() {
   const [commenting, setCommenting] = useState<Set<number>>(new Set());
   const [commentsByPost, setCommentsByPost] = useState<Record<number, any[]>>({});
   const [loadingComments, setLoadingComments] = useState<Set<number>>(new Set());
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const router = useRouter();
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) {
+        setUnreadNotificationsCount(0);
+        return;
+      }
+      notificationApi
+        .getStats()
+        .then((res) => setUnreadNotificationsCount(res.data?.unread_count ?? 0))
+        .catch(() => setUnreadNotificationsCount(0));
+    }, [user])
+  );
 
   // Helper function to get category color
   const getCategoryColor = (category: string) => {
@@ -1484,7 +1500,7 @@ export default function Home() {
           <View style={styles.categorySelector}>
             <View style={[styles.expandedCategoryOptions, {backgroundColor: colors.card}]}>
               {categories.map((category) => (
-                <TouchableOpacity
+                <Pressable
                   key={category.id}
                   style={[
                     styles.expandedCategoryOption,
@@ -1493,7 +1509,8 @@ export default function Home() {
                   onPress={() => {
                     setSelectedMainCategory(category.id as any);
                     setVariant(category.id as any);
-                  }}>
+                  }}
+                  delayPressIn={0}>
                   {getCategoryIcon(
                     category.id,
                     selectedMainCategory === category.id ? colors.primary : colors.mutedForeground,
@@ -1511,7 +1528,7 @@ export default function Home() {
                     ]}>
                     {category.name}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </View>
@@ -1519,7 +1536,12 @@ export default function Home() {
 
         <View style={styles.headerRight} pointerEvents="box-none">
           <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/notificaciones")}>
-            <Ionicons name="notifications-outline" color={colors.foreground} size={24} />
+            <View style={styles.notificationIconWrap}>
+              <Ionicons name="notifications-outline" color={colors.foreground} size={24} />
+              {unreadNotificationsCount > 0 && (
+                <View style={[styles.notificationBadge, {backgroundColor: "#ef4444"}]} />
+              )}
+            </View>
           </TouchableOpacity>
           {user?.role !== "CLIENT" && (
             <TourTarget targetId="posts_create">
@@ -1739,6 +1761,17 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     position: "relative",
+  },
+  notificationIconWrap: {
+    position: "relative",
+  },
+  notificationBadge: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   subCategoryContainer: {
     marginBottom: 12,

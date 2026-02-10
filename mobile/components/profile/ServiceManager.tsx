@@ -13,6 +13,7 @@ import {
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useProfileCustomization} from "@/features/profile/hooks/useProfileCustomization";
+import {formatPrice} from "@/lib/priceUtils";
 
 interface Service {
   id: number;
@@ -160,7 +161,7 @@ export const ServiceManager = ({}: ServiceManagerProps) => {
         <View style={styles.serviceInfo}>
           <Text style={[styles.serviceName, {color: colors.foreground}]}>{service.name}</Text>
           <View style={styles.serviceMeta}>
-            <Text style={[styles.servicePrice, {color: colors.primary}]}>${Math.round(Number(service.price))}</Text>
+            <Text style={[styles.servicePrice, {color: colors.primary}]}>{formatPrice(service.price)}</Text>
             <Text style={[styles.serviceDuration, {color: colors.mutedForeground}]}>
               {service.duration_minutes} min
             </Text>

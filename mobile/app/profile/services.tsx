@@ -14,6 +14,7 @@ import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "../../contexts/ThemeVariantContext";
 import {profileCustomizationApi, serviceApi} from "../../lib/api";
+import {formatPrice as formatPriceUtil} from "../../lib/priceUtils";
 import {useNavigation} from "../../hooks/useNavigation";
 import {useAuth} from "../../features/auth/hooks/useAuth";
 import {BackButton} from "../../components/ui/BackButton";
@@ -133,13 +134,7 @@ export default function ServiceManagementScreen({embedded = false}: ServiceManag
     ]);
   };
 
-  const formatPrice = (price: number) => {
-    try {
-      return `$${Math.round(Number(price))} MXN`;
-    } catch {
-      return `$${price} MXN`;
-    }
-  };
+  const formatPrice = (price: number) => formatPriceUtil(price, {suffix: " MXN"});
 
   if (loading) {
     return (
@@ -192,16 +187,17 @@ export default function ServiceManagementScreen({embedded = false}: ServiceManag
         contentContainerStyle={styles.contentContainer}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         showsVerticalScrollIndicator={false}>
-        {/* Full-width add button (embedded + non-embedded) */}
+        {/* Agregar servicio - diseño nuevo */}
         <TouchableOpacity
           onPress={handleAddService}
-          style={[styles.addFullWidth, {backgroundColor: colors.primary}]}
-          activeOpacity={0.9}
+          style={[styles.addServiceButton, {borderColor: colors.primary + "60", backgroundColor: colors.primary + "08"}]}
+          activeOpacity={0.7}
           accessibilityLabel="Agregar servicio">
-          <Ionicons name="add" color={colors.primaryForeground} size={18} />
-          <Text style={[styles.addFullWidthText, {color: colors.primaryForeground}]}>
-            Agregar servicio
-          </Text>
+          <View style={[styles.addServiceIconWrap, {backgroundColor: colors.primary + "20"}]}>
+            <Ionicons name="add" color={colors.primary} size={20} />
+          </View>
+          <Text style={[styles.addServiceLabel, {color: colors.primary}]}>Agregar servicio</Text>
+          <Ionicons name="chevron-forward" color={colors.mutedForeground} size={18} />
         </TouchableOpacity>
 
         {/* Services List */}
@@ -368,25 +364,28 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 40,
   },
-  addFullWidth: {
-    width: "100%",
+  addServiceButton: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
     paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 14,
-    marginBottom: 14,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 8},
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    elevation: 4,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    marginBottom: 16,
+    gap: 12,
   },
-  addFullWidthText: {
+  addServiceIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addServiceLabel: {
+    flex: 1,
     fontSize: 15,
-    fontWeight: "800",
-    letterSpacing: 0.2,
+    fontWeight: "700",
   },
   loadingContainer: {
     flex: 1,

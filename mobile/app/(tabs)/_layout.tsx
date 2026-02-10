@@ -6,21 +6,49 @@ import {Ionicons} from "@expo/vector-icons";
 import {HapticTab} from "@/components/haptic-tab";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 
+const TAB_ICON_SIZE = 26;
+
+function TabIcon({
+  name,
+  color,
+  focused,
+  colors,
+}: {
+  name: string;
+  color: string;
+  focused: boolean;
+  colors: Record<string, string>;
+}) {
+  return (
+    <View style={[styles.tabIconWrap, focused && {backgroundColor: colors.primary + "22"}]}>
+      <Ionicons name={name as any} color={color} size={TAB_ICON_SIZE} />
+    </View>
+  );
+}
+
 export default function TabLayout() {
   const {colors} = useThemeVariant();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.tint,
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "600",
+        },
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
-          height: 80, // Increased height to accommodate elevated button
-          paddingBottom: 20,
+          height: 64,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+        tabBarItemStyle: {
+          paddingTop: 4,
         },
       }}>
       <Tabs.Screen
@@ -28,28 +56,26 @@ export default function TabLayout() {
         options={{
           title: "Inicio",
           tabBarIcon: ({color, focused}) => (
-            <Ionicons name={focused ? "home" : "home-outline"} color={color} size={24} />
+            <TabIcon name="home-outline" color={color} focused={focused} colors={colors} />
           ),
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
-          // Hidden for now: remove from navbar + disable linking
           href: null,
           title: "Explorar",
           tabBarIcon: ({color, focused}) => (
-            <Ionicons name={focused ? "search" : "search-outline"} color={color} size={24} />
+            <TabIcon name="search-outline" color={color} focused={focused} colors={colors} />
           ),
         }}
       />
       <Tabs.Screen
         name="be-u"
         options={{
-          // Hidden for now: remove from navbar + disable linking
           href: null,
           title: "",
-          tabBarIcon: ({color, focused}) => (
+          tabBarIcon: () => (
             <View
               style={[
                 styles.centerButton,
@@ -70,7 +96,6 @@ export default function TabLayout() {
       <Tabs.Screen
         name="notificaciones"
         options={{
-          // Hidden from tab bar; opened via header icon in index.tsx
           href: null,
           title: "Notificaciones",
         }}
@@ -80,7 +105,7 @@ export default function TabLayout() {
         options={{
           title: "Calendario",
           tabBarIcon: ({color, focused}) => (
-            <Ionicons name={focused ? "calendar" : "calendar-outline"} color={color} size={24} />
+            <TabIcon name="calendar-outline" color={color} focused={focused} colors={colors} />
           ),
         }}
       />
@@ -89,7 +114,7 @@ export default function TabLayout() {
         options={{
           title: "Perfil",
           tabBarIcon: ({color, focused}) => (
-            <Ionicons name={focused ? "person" : "person-outline"} color={color} size={24} />
+            <TabIcon name="person-outline" color={color} focused={focused} colors={colors} />
           ),
         }}
       />
@@ -98,6 +123,11 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  tabIconWrap: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
   centerButton: {
     width: 60,
     height: 60,

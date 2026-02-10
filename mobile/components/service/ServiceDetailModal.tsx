@@ -11,6 +11,7 @@ import {
 import {Ionicons} from '@expo/vector-icons';
 import {useThemeVariant} from '@/contexts/ThemeVariantContext';
 import {useRouter} from 'expo-router';
+import {formatPrice} from '@/lib/priceUtils';
 
 interface ServiceDetailModalProps {
   visible: boolean;
@@ -129,7 +130,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
               <View style={styles.serviceDetailItem}>
                 <Ionicons name="cash-outline" color={colors.mutedForeground} size={16} />
                 <Text style={[styles.serviceDetailText, {color: colors.mutedForeground}]}>
-                  ${Math.round(Number(service.price))} MXN
+                  {formatPrice(service.price, {suffix: ' MXN'})}
                 </Text>
               </View>
             </View>

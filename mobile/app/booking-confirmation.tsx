@@ -2,6 +2,7 @@ import React from "react";
 import {View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
+import {formatPrice} from "@/lib/priceUtils";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter, useLocalSearchParams} from "expo-router";
 
@@ -108,7 +109,7 @@ export default function BookingConfirmationScreen() {
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, {color: colors.mutedForeground}]}>Precio</Text>
             <Text style={[styles.detailValue, {color: colors.primary, fontWeight: "700"}]}>
-              ${Math.round(Number(bookingData.service.price))} MXN
+              {formatPrice(bookingData.service.price, {suffix: " MXN"})}
             </Text>
           </View>
         </View>

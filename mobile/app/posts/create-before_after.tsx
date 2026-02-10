@@ -13,18 +13,41 @@ import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
-import {useState} from "react";
+import {useState, useEffect} from "react";
 import * as ImagePicker from "expo-image-picker";
-import {postApi, tokenUtils, errorUtils} from "@/lib/api";
+import {LinkedServiceSelector, type CustomServiceItem} from "@/components/posts/LinkedServiceSelector";
+import {postApi, tokenUtils, errorUtils, profileCustomizationApi} from "@/lib/api";
+import {useAuth} from "@/features/auth/hooks/useAuth";
 
 export default function CreateBeforeAfterScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
+  const {isAuthenticated} = useAuth();
 
   const [beforePhoto, setBeforePhoto] = useState<string | null>(null);
   const [afterPhoto, setAfterPhoto] = useState<string | null>(null);
   const [description, setDescription] = useState("");
+  const [customServices, setCustomServices] = useState<CustomServiceItem[]>([]);
+  const [linkedServiceId, setLinkedServiceId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    profileCustomizationApi.getCustomServices()
+      .then((res) => {
+        if (cancelled) return;
+        const list = Array.isArray(res.data) ? res.data : (res.data?.results ?? []);
+        setCustomServices(list.map((s: any) => ({
+          id: s.id,
+          name: s.name || s.service_name || "",
+          price: s.price != null ? String(s.price) : "",
+          duration_minutes: s.duration_minutes,
+        })));
+      })
+      .catch(() => { if (!cancelled) setCustomServices([]); });
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
 
   const pickImage = async (type: "before" | "after") => {
     try {
@@ -92,6 +115,7 @@ export default function CreateBeforeAfterScreen() {
       form.append("after", afterFile as any);
       form.append("caption", description);
       form.append("post_type", "before_after");
+      if (linkedServiceId != null) form.append("linked_service_id", String(linkedServiceId));
 
       await postApi.createBeforeAfterPost(form);
 
@@ -166,6 +190,13 @@ export default function CreateBeforeAfterScreen() {
             </View>
           </View>
         )}
+
+        <LinkedServiceSelector
+          customServices={customServices}
+          linkedServiceId={linkedServiceId}
+          onSelect={setLinkedServiceId}
+          colors={colors}
+        />
 
         {/* Description */}
         <View style={[styles.section, {backgroundColor: colors.card}]}>

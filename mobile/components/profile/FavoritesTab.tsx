@@ -208,24 +208,40 @@ export function FavoritesTab() {
     }
   };
 
+  const MAX_PER_CATEGORY = 3;
+
   return (
     <ScrollView
       style={styles.container}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       {categoryOrder.map((catId) => {
-        const categoryFavorites = favoritesByCategory[catId] || [];
-        const categoryPosts = postsByCategory[catId] || [];
-        const hasSection = categoryFavorites.length > 0 || categoryPosts.length > 0;
+        const allFavorites = favoritesByCategory[catId] || [];
+        const allPosts = postsByCategory[catId] || [];
+        const categoryFavorites = allFavorites.slice(0, MAX_PER_CATEGORY);
+        const categoryPosts = allPosts.slice(0, MAX_PER_CATEGORY);
+        const hasSection = allFavorites.length > 0 || allPosts.length > 0;
         if (!hasSection) return null;
 
         const categoryLabel = CATEGORY_LABELS[catId] ?? catId;
+        const showVerTodas = allFavorites.length > MAX_PER_CATEGORY || allPosts.length > MAX_PER_CATEGORY;
 
         return (
           <View key={catId} style={styles.section}>
-            <Text style={[styles.categoryTitle, {color: colors.foreground}]}>
-              {categoryLabel}
-            </Text>
+            <View style={styles.categoryHeader}>
+              <Text style={[styles.categoryTitle, {color: colors.foreground}]}>
+                {categoryLabel}
+              </Text>
+              {showVerTodas && (
+                <TouchableOpacity
+                  onPress={() => router.push(`/guardados/${catId}` as any)}
+                  activeOpacity={0.7}
+                  style={styles.verTodasButton}>
+                  <Text style={[styles.verTodasText, {color: colors.primary}]}>Ver todas</Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+            </View>
 
             {categoryFavorites.length > 0 && (
               <>
@@ -271,10 +287,7 @@ export function FavoritesTab() {
 
             {categoryPosts.length > 0 && (
               <>
-                <Text style={[styles.sectionTitle, {color: colors.mutedForeground}]}>
-                  Publicaciones Guardadas
-                </Text>
-                <View style={styles.postsGrid}>
+                <View style={[styles.postsGrid, {marginTop: 8}]}>
                   {categoryPosts.map((post) => (
                     <TouchableOpacity
                       key={post.id}
@@ -369,11 +382,27 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 20,
   },
+  categoryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
   categoryTitle: {
     fontSize: 20,
     fontWeight: "700",
-    paddingHorizontal: 16,
-    marginBottom: 8,
+  },
+  verTodasButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  verTodasText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
   sectionTitle: {
     fontSize: 15,

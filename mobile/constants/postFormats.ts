@@ -19,7 +19,7 @@ export const postFormats: PostFormat[] = [
   {
     id: "photo",
     icon: "camera",
-    title: "Foto + Descripción",
+    title: "Foto",
     description: "Comparte una foto",
     roles: ["CLIENT", "PROFESSIONAL", "PLACE"],
     color: "#4ECDC4",

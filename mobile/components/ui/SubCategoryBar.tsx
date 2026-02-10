@@ -1,5 +1,5 @@
-import React, {useMemo} from "react";
-import {View, Text, TouchableOpacity, ScrollView, StyleSheet} from "react-native";
+import React, {useMemo, useCallback} from "react";
+import {View, Text, Pressable, ScrollView, StyleSheet} from "react-native";
 import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
@@ -36,9 +36,12 @@ export const SubCategoryBar = ({
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
 
-  const handleCategoryPress = (categoryId: string) => {
-    onCategorySelect?.(categoryId);
-  };
+  const handleCategoryPress = useCallback(
+    (categoryId: string) => {
+      onCategorySelect?.(categoryId);
+    },
+    [onCategorySelect]
+  );
 
   const renderCategoryItem = useMemo(() => {
     return (category: SubCategory) => {
@@ -68,14 +71,14 @@ export const SubCategoryBar = ({
       const IconComponent = family === "MaterialCommunityIcons" ? MaterialCommunityIcons : Ionicons;
 
       return (
-        <TouchableOpacity
+        <Pressable
           key={category.id}
           style={[
             styles.categoryItem,
             isSelected && [styles.categoryItemSelected, {borderBottomColor: highlightColor}],
           ]}
           onPress={() => handleCategoryPress(category.id)}
-          activeOpacity={0.7}>
+          delayPressIn={0}>
           <View style={styles.categoryContent}>
             {iconName ? (
               <View style={styles.iconContainer}>
@@ -99,7 +102,7 @@ export const SubCategoryBar = ({
               </Text>
             )}
           </View>
-        </TouchableOpacity>
+        </Pressable>
       );
     };
   }, [selectedCategoryId, showLabels, colors, handleCategoryPress]);
@@ -110,7 +113,9 @@ export const SubCategoryBar = ({
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-        style={styles.scrollView}>
+        style={styles.scrollView}
+        keyboardShouldPersistTaps="always"
+        nestedScrollEnabled>
         {categories.map(renderCategoryItem)}
       </ScrollView>
     </View>

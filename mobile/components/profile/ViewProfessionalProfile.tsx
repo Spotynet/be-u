@@ -18,6 +18,7 @@ import {useState, useEffect} from "react";
 import {useRouter} from "expo-router";
 import {providerApi, profileCustomizationApi, linkApi, PlaceProfessionalLink} from "@/lib/api";
 import {ProfessionalProfile} from "@/types/global";
+import {formatPrice} from "@/lib/priceUtils";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -364,7 +365,7 @@ export const ViewProfessionalProfile = ({
                     {service.duration} min
                   </Text>
                 </View>
-                <Text style={[styles.servicePrice, {color: colors.primary}]}>${Math.round(Number(service.price))}</Text>
+                <Text style={[styles.servicePrice, {color: colors.primary}]}>{formatPrice(service.price)}</Text>
               </View>
             </TouchableOpacity>
           ))

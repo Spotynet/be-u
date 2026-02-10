@@ -20,7 +20,7 @@ interface AvailabilitySchedule {
 interface AvailabilityDisplayProps {
   availability: AvailabilitySchedule[];
   showHeader?: boolean;
-  variant?: "default" | "compact";
+  variant?: "default" | "compact" | "textOnly";
 }
 
 const DAY_NAMES = [
@@ -42,6 +42,7 @@ export const AvailabilityDisplay = ({
 }: AvailabilityDisplayProps) => {
   const {colors} = useThemeVariant();
   const isCompact = variant === "compact";
+  const isTextOnly = variant === "textOnly";
 
   // Create a map of day_of_week to schedule for easy lookup
   const availabilityMap = new Map<number, AvailabilitySchedule>();
@@ -188,45 +189,47 @@ export const AvailabilityDisplay = ({
         </View>
       )}
 
-      <View style={[styles.scheduleList, isCompact ? styles.scheduleListCompact : null]}>
+      <View style={[styles.scheduleList, isCompact ? styles.scheduleListCompact : null, isTextOnly ? styles.scheduleListTextOnly : null]}>
         {groups.map((group, index) => {
           const schedule = group.schedule;
           const isAvailable = schedule?.is_available && schedule.time_slots.length > 0;
 
           return (
-            <View key={index} style={[styles.scheduleItem, isCompact ? styles.scheduleItemCompact : null]}>
-              <View style={[styles.dayInfo, isCompact ? styles.dayInfoCompact : null]}>
-                <View style={[styles.dayBadges, isCompact ? styles.dayBadgesCompact : null]}>
-                  {group.days.map((day) => (
-                    <View
-                      key={day}
-                      style={[
-                        styles.dayBadge,
-                        isCompact ? styles.dayBadgeCompact : null,
-                        {
-                          backgroundColor: isAvailable
-                            ? colors.primary + "20"
-                            : colors.muted + "40",
-                        },
-                      ]}>
-                      <Text
+            <View key={index} style={[styles.scheduleItem, isCompact ? styles.scheduleItemCompact : null, isTextOnly ? styles.scheduleItemTextOnly : null]}>
+              <View style={[styles.dayInfo, isCompact ? styles.dayInfoCompact : null, isTextOnly ? styles.dayInfoTextOnly : null]}>
+                {!isTextOnly && (
+                  <View style={[styles.dayBadges, isCompact ? styles.dayBadgesCompact : null]}>
+                    {group.days.map((day) => (
+                      <View
+                        key={day}
                         style={[
-                          styles.dayBadgeText,
-                          isCompact ? styles.dayBadgeTextCompact : null,
+                          styles.dayBadge,
+                          isCompact ? styles.dayBadgeCompact : null,
                           {
-                            color: isAvailable ? colors.primary : colors.mutedForeground,
+                            backgroundColor: isAvailable
+                              ? colors.primary + "20"
+                              : colors.muted + "40",
                           },
                         ]}>
-                        {DAY_ABBREVIATIONS[day]}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-                <Text style={[styles.dayRange, isCompact ? styles.dayRangeCompact : null, {color: colors.foreground}]}>
+                        <Text
+                          style={[
+                            styles.dayBadgeText,
+                            isCompact ? styles.dayBadgeTextCompact : null,
+                            {
+                              color: isAvailable ? colors.primary : colors.mutedForeground,
+                            },
+                          ]}>
+                          {DAY_ABBREVIATIONS[day]}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                <Text style={[styles.dayRange, isCompact ? styles.dayRangeCompact : null, isTextOnly ? styles.dayRangeTextOnly : null, {color: colors.foreground}]}>
                   {formatDayRange(group.days)}
                 </Text>
               </View>
-              <Text style={[styles.timeRange, isCompact ? styles.timeRangeCompact : null, {color: colors.mutedForeground}]}>
+              <Text style={[styles.timeRange, isCompact ? styles.timeRangeCompact : null, isTextOnly ? styles.timeRangeTextOnly : null, {color: colors.mutedForeground}]}>
                 {isAvailable ? formatTimeSlots(schedule!.time_slots) : "No disponible"}
               </Text>
             </View>
@@ -341,6 +344,23 @@ const styles = StyleSheet.create({
   timeRangeCompact: {
     fontSize: 12,
     marginLeft: 28,
+  },
+  scheduleListTextOnly: {
+    gap: 6,
+  },
+  scheduleItemTextOnly: {
+    gap: 2,
+  },
+  dayInfoTextOnly: {
+    gap: 0,
+  },
+  dayRangeTextOnly: {
+    fontSize: 14,
+    flex: 1,
+  },
+  timeRangeTextOnly: {
+    fontSize: 13,
+    marginLeft: 0,
   },
 });
 
