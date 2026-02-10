@@ -160,7 +160,7 @@ export const ServiceManager = ({}: ServiceManagerProps) => {
         <View style={styles.serviceInfo}>
           <Text style={[styles.serviceName, {color: colors.foreground}]}>{service.name}</Text>
           <View style={styles.serviceMeta}>
-            <Text style={[styles.servicePrice, {color: colors.primary}]}>${service.price}</Text>
+            <Text style={[styles.servicePrice, {color: colors.primary}]}>${Math.round(Number(service.price))}</Text>
             <Text style={[styles.serviceDuration, {color: colors.mutedForeground}]}>
               {service.duration_minutes} min
             </Text>

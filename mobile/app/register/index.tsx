@@ -62,6 +62,7 @@ export default function RegisterSelector() {
         style={[
           styles.header,
           {
+            backgroundColor: colors.background,
             borderBottomColor: colors.border,
             paddingTop: Math.max(insets.top + 8, 12),
           },

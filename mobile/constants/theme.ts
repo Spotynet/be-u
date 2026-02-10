@@ -84,9 +84,9 @@ export const Colors = {
     success: "#10b981",
     successForeground: "#ffffff",
 
-    // Border and input
+    // Border and input - input slightly lighter than background for visibility
     border: "#334155",
-    input: "#334155",
+    input: "#1e293b",
 
     // Ring (focus)
     ring: primaryColor,

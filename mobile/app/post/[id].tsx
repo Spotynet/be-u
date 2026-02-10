@@ -21,7 +21,7 @@ import { useAuth } from "@/features/auth";
 import { getAvatarColorFromSubcategory } from "@/constants/categories";
 
 export default function PostDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, liked: likedParam } = useLocalSearchParams<{ id: string; liked?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useThemeVariant();
@@ -29,7 +29,7 @@ export default function PostDetailScreen() {
 
   const [post, setPost] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLiked, setIsLiked] = useState(false);
+  const [isLiked, setIsLiked] = useState(likedParam === "true");
   const [likesCount, setLikesCount] = useState(0);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -50,7 +50,8 @@ export default function PostDetailScreen() {
       const postData = response.data;
       
       setPost(postData);
-      setIsLiked(postData.has_liked || postData.is_liked || false);
+      // When opened from Favorites we pass liked=true; always show heart marked for favorites
+      setIsLiked(likedParam === "true" || !!postData.has_liked || !!postData.is_liked);
       setLikesCount(postData.likes_count || 0);
       
       // Fetch comments separately
@@ -103,10 +104,11 @@ export default function PostDetailScreen() {
       setIsSubmitting(true);
       const response = await postApi.createComment(Number(id), newComment.trim());
       
-      // Add the new comment to the list
+      // Add the new comment to the list (show username, not email)
       const newCommentData = {
         id: response.data.id || Date.now(),
-        author_name: user.first_name || user.email || "Usuario",
+        author_name: user.username || user.first_name || "Usuario",
+        author_username: user.username,
         text: newComment.trim(),
         content: newComment.trim(),
         created_at: new Date().toISOString(),
@@ -233,6 +235,31 @@ export default function PostDetailScreen() {
             <TouchableOpacity style={styles.actionButton}>
               <Ionicons name="chatbubble-outline" size={26} color={colors.foreground} />
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.reserveButton, { backgroundColor: colors.primary }]}
+              onPress={() => {
+                const isOwnPost = user?.id != null && post.author?.id === user.id;
+                if (isOwnPost) return;
+                if (post.linked_service_id != null && post.linked_provider_id != null && post.linked_service_name) {
+                  router.push({
+                    pathname: "/booking",
+                    params: {
+                      serviceInstanceId: String(post.linked_service_id),
+                      serviceTypeId: String(post.linked_service_id),
+                      serviceName: post.linked_service_name,
+                      serviceType: post.linked_service_type || "professional_service",
+                      providerId: String(post.linked_provider_id),
+                      providerName: post.author_display_name || "",
+                      price: post.linked_service_price != null ? String(post.linked_service_price) : "",
+                      duration: post.linked_service_duration_minutes != null ? String(post.linked_service_duration_minutes) : "60",
+                    },
+                  } as any);
+                } else if (post.author_public_profile_id || post.author_profile_id) {
+                  router.push(`/profile/${post.author_public_profile_id || post.author_profile_id}` as any);
+                }
+              }}>
+              <Text style={styles.reserveButtonText}>Reservar</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -262,32 +289,55 @@ export default function PostDetailScreen() {
           </Text>
 
           {comments.length > 0 ? (
-            comments.map((comment, index) => (
-              <View key={comment.id || index} style={styles.commentItem}>
-                <View
-                  style={[
-                    styles.commentAvatar,
-                    { backgroundColor: colors.primary + "20" },
-                  ]}>
-                  <Text style={[styles.commentAvatarText, { color: colors.primary }]}>
-                    {(comment.author_name || "U").charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.commentContent}>
-                  <Text style={[styles.commentAuthor, { color: colors.foreground }]}>
-                    {comment.author_name || "Usuario"}
-                  </Text>
-                  <Text style={[styles.commentText, { color: colors.foreground }]}>
-                    {comment.text || comment.content}
-                  </Text>
-                  {comment.created_at && (
-                    <Text style={[styles.commentDate, { color: colors.mutedForeground }]}>
-                      {new Date(comment.created_at).toLocaleDateString("es-ES")}
+            comments.map((comment, index) => {
+              const authorObj = comment.author;
+              const displayName =
+                authorObj?.username ||
+                comment.author_username ||
+                authorObj?.first_name ||
+                comment.author_name ||
+                "Usuario";
+              const avatarUrl =
+                comment.author_image ||
+                (authorObj && "image" in authorObj ? (authorObj as any).image : null) ||
+                (authorObj && "user_image" in authorObj ? (authorObj as any).user_image : null);
+              const initial = (displayName || "U").charAt(0).toUpperCase();
+
+              return (
+                <View key={comment.id || index} style={styles.commentItem}>
+                  <View
+                    style={[
+                      styles.commentAvatar,
+                      { backgroundColor: avatarUrl ? "transparent" : colors.primary + "20" },
+                    ]}>
+                    {avatarUrl ? (
+                      <Image
+                        source={{ uri: typeof avatarUrl === "string" ? avatarUrl : (avatarUrl as any)?.url || "" }}
+                        style={styles.commentAvatarImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Text style={[styles.commentAvatarText, { color: colors.primary }]}>
+                        {initial}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={styles.commentContent}>
+                    <Text style={[styles.commentAuthor, { color: colors.foreground }]}>
+                      {displayName}
                     </Text>
-                  )}
+                    <Text style={[styles.commentText, { color: colors.foreground }]}>
+                      {comment.text || comment.content}
+                    </Text>
+                    {comment.created_at && (
+                      <Text style={[styles.commentDate, { color: colors.mutedForeground }]}>
+                        {new Date(comment.created_at).toLocaleDateString("es-ES")}
+                      </Text>
+                    )}
+                  </View>
                 </View>
-              </View>
-            ))
+              );
+            })
           ) : (
             <Text style={[styles.noComments, { color: colors.mutedForeground }]}>
               No hay comentarios aún. ¡Sé el primero en comentar!
@@ -312,11 +362,30 @@ export default function PostDetailScreen() {
           <View
             style={[
               styles.commentAvatar,
-              { backgroundColor: colors.primary + "20" },
+              {
+                backgroundColor: (user as any).image || (user as any).user_image
+                  ? "transparent"
+                  : colors.primary + "20",
+              },
             ]}>
-            <Text style={[styles.commentAvatarText, { color: colors.primary }]}>
-              {(user.first_name || user.email || "U").charAt(0).toUpperCase()}
-            </Text>
+            {(user as any).image || (user as any).user_image ? (
+              <Image
+                source={{
+                  uri:
+                    (user as any).user_image ||
+                    (typeof (user as any).image === "string"
+                      ? (user as any).image
+                      : (user as any).image?.url) ||
+                    "",
+                }}
+                style={styles.commentAvatarImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={[styles.commentAvatarText, { color: colors.primary }]}>
+                {(user.username || user.first_name || "U").charAt(0).toUpperCase()}
+              </Text>
+            )}
           </View>
           <TextInput
             style={[
@@ -442,6 +511,16 @@ const styles = StyleSheet.create({
   actionButton: {
     padding: 4,
   },
+  reserveButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  reserveButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
   likesSection: {
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -481,6 +560,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
+  },
+  commentAvatarImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   commentAvatarText: {
     fontSize: 14,

@@ -768,10 +768,28 @@ export default function Home() {
             activeOpacity={0.8}
             onPress={() => {
               const profileId = post.author_public_profile_id || post.author_profile_id;
-              if (profileId) {
+              const isOwnPost = user?.id != null && post.author?.id === user.id;
+              if (isOwnPost) {
+                return;
+              }
+              if (post.linked_service_id != null && post.linked_provider_id != null && post.linked_service_name) {
+                router.push({
+                  pathname: "/booking",
+                  params: {
+                    serviceInstanceId: String(post.linked_service_id),
+                    serviceTypeId: String(post.linked_service_id),
+                    serviceName: post.linked_service_name,
+                    serviceType: post.linked_service_type || "professional_service",
+                    providerId: String(post.linked_provider_id),
+                    providerName: post.author_display_name || "",
+                    price: post.linked_service_price != null ? String(post.linked_service_price) : "",
+                    duration: post.linked_service_duration_minutes != null ? String(post.linked_service_duration_minutes) : "60",
+                  },
+                } as any);
+              } else if (profileId) {
                 router.push(`/profile/${profileId}` as any);
               } else {
-                console.warn('No profile ID found for navigation');
+                console.warn("No profile ID found for navigation");
               }
             }}>
             <Text style={styles.reserveButtonText}>Reservar</Text>
@@ -814,7 +832,7 @@ export default function Home() {
                 <Ionicons name="chatbubble-ellipses" size={14} color={colors.mutedForeground} />
                 <Text style={{flex: 1, color: colors.foreground}}>
                   <Text style={{fontWeight: "700"}}>
-                    {c.author?.first_name || c.author?.username || "Usuario"}:
+                    {c.author?.username || c.author?.first_name || "Usuario"}:
                   </Text>
                   {c.content || c.text}
                 </Text>

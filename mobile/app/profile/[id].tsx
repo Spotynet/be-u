@@ -570,7 +570,7 @@ export default function ProfileDetailScreen() {
                   {service.name}
                 </Text>
                 <Text style={[styles.servicePrice, {color: colors.primary}]} numberOfLines={1}>
-                  ${service.price} MXN
+                  ${Math.round(Number(service.price))} MXN
                 </Text>
                 </View>
 

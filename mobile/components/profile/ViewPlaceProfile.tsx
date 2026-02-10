@@ -339,7 +339,7 @@ export const ViewPlaceProfile = ({placeId, onClose}: ViewPlaceProfileProps) => {
                     )}
                   </View>
                 </View>
-                <Text style={[styles.servicePrice, {color: colors.primary}]}>${service.price}</Text>
+                <Text style={[styles.servicePrice, {color: colors.primary}]}>${Math.round(Number(service.price))}</Text>
               </View>
             </TouchableOpacity>
           ))

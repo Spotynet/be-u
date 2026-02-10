@@ -18,7 +18,7 @@ export const ThemeVariantProvider = ({children}: {children: ReactNode}) => {
   const [colorMode, setColorMode] = useState<ColorMode>("light");
 
   const colors = {
-    ...Colors.light,
+    ...Colors[colorMode],
     ...ThemeVariants[variant],
     ...ThemeVariants[variant][colorMode],
   };

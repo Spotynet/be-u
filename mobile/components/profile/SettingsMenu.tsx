@@ -52,8 +52,7 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
         console.log("Privacidad y Seguridad");
         break;
       case "help":
-        // router.push("/help-support");
-        console.log("Ayuda y Soporte");
+        router.push("/help-support");
         break;
     }
   };

@@ -135,8 +135,7 @@ export default function ServiceManagementScreen({embedded = false}: ServiceManag
 
   const formatPrice = (price: number) => {
     try {
-      // Keep it simple and predictable across RN runtimes
-      return `$${Number(price).toFixed(2)} MXN`;
+      return `$${Math.round(Number(price))} MXN`;
     } catch {
       return `$${price} MXN`;
     }

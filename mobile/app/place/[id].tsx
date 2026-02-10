@@ -773,7 +773,7 @@ export default function PlaceDetailScreen() {
                     </View>
                     <View style={styles.serviceFooter}>
                       <Text style={[styles.servicePrice, {color: colors.primary}]}>
-                        ${service.price} MXN
+                        ${Math.round(Number(service.price))} MXN
                       </Text>
                       <TouchableOpacity
                         style={[styles.reserveButton, {backgroundColor: colors.primary}]}

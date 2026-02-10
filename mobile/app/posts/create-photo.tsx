@@ -17,8 +17,10 @@ import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
 import {useState, useRef, useEffect} from "react";
 import {MediaUploader} from "@/components/posts/MediaUploader";
-import {postApi, errorUtils} from "@/lib/api";
+import {postApi, errorUtils, profileCustomizationApi} from "@/lib/api";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+
+type CustomServiceItem = { id: number; name: string; price: string; duration_minutes?: number };
 
 export default function CreatePhotoPostScreen() {
   const colorScheme = useColorScheme();
@@ -31,6 +33,8 @@ export default function CreatePhotoPostScreen() {
   const [description, setDescription] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [customServices, setCustomServices] = useState<CustomServiceItem[]>([]);
+  const [linkedServiceId, setLinkedServiceId] = useState<number | null>(null);
 
   useEffect(() => {
     const keyboardWillShowListener = Keyboard.addListener(
@@ -51,6 +55,24 @@ export default function CreatePhotoPostScreen() {
       keyboardWillHideListener.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    profileCustomizationApi.getCustomServices()
+      .then((res) => {
+        if (cancelled) return;
+        const list = Array.isArray(res.data) ? res.data : (res.data?.results ?? []);
+        setCustomServices(list.map((s: any) => ({
+          id: s.id,
+          name: s.name || s.service_name || "",
+          price: s.price != null ? String(s.price) : "",
+          duration_minutes: s.duration_minutes,
+        })));
+      })
+      .catch(() => { if (!cancelled) setCustomServices([]); });
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
 
   const handlePublish = async () => {
     if (!isAuthenticated || !user) {
@@ -77,6 +99,9 @@ export default function CreatePhotoPostScreen() {
       const formData = new FormData();
       formData.append("content", description);
       formData.append("post_type", "photo");
+      if (linkedServiceId != null) {
+        formData.append("linked_service_id", String(linkedServiceId));
+      }
 
       // Add photos to FormData
       if (Platform.OS === "web") {
@@ -167,6 +192,46 @@ export default function CreatePhotoPostScreen() {
             selectedMedia={photos}
           />
         </View>
+
+        {/* Vincular servicio (opcional) */}
+        {customServices.length > 0 && (
+          <View style={[styles.section, {backgroundColor: colors.card}]}>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
+              Vincular un servicio
+            </Text>
+            <Text style={[styles.optionalBadge, {color: colors.mutedForeground}]}>
+              Opcional. Quien reserve desde esta publicación irá directo a este servicio.
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.linkedServiceOption,
+                {borderColor: colors.border, backgroundColor: colors.inputBackground},
+                linkedServiceId === null && styles.linkedServiceOptionSelected,
+              ]}
+              onPress={() => setLinkedServiceId(null)}>
+              <Text style={[styles.linkedServiceName, {color: colors.foreground}]}>
+                Ninguno
+              </Text>
+            </TouchableOpacity>
+            {customServices.map((s) => (
+              <TouchableOpacity
+                key={s.id}
+                style={[
+                  styles.linkedServiceOption,
+                  {borderColor: colors.border, backgroundColor: colors.inputBackground},
+                  linkedServiceId === s.id && styles.linkedServiceOptionSelected,
+                ]}
+                onPress={() => setLinkedServiceId(s.id)}>
+                <Text style={[styles.linkedServiceName, {color: colors.foreground}]}>
+                  {s.name}
+                </Text>
+                <Text style={[styles.linkedServiceMeta, {color: colors.mutedForeground}]}>
+                  ${Math.round(Number(s.price))} MXN · {s.duration_minutes ?? 60} min
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {/* Description */}
         <View style={[styles.section, {backgroundColor: colors.card}]}>
@@ -290,6 +355,25 @@ const styles = StyleSheet.create({
   optionalBadge: {
     fontSize: 12,
     fontStyle: "italic",
+    marginBottom: 12,
+  },
+  linkedServiceOption: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+  },
+  linkedServiceOptionSelected: {
+    borderWidth: 2,
+    borderColor: "#4ECDC4",
+  },
+  linkedServiceName: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  linkedServiceMeta: {
+    fontSize: 13,
+    marginTop: 4,
   },
   textArea: {
     borderWidth: 1,

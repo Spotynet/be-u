@@ -328,7 +328,7 @@ export const ProfessionalProfileView = ({
                     </Text>
                   </View>
                   <Text style={[styles.servicePrice, {color: colors.primary}]}>
-                    ${service.price}
+                    ${Math.round(Number(service.price))}
                   </Text>
                 </View>
               </TouchableOpacity>

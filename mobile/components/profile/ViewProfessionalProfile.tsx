@@ -364,7 +364,7 @@ export const ViewProfessionalProfile = ({
                     {service.duration} min
                   </Text>
                 </View>
-                <Text style={[styles.servicePrice, {color: colors.primary}]}>${service.price}</Text>
+                <Text style={[styles.servicePrice, {color: colors.primary}]}>${Math.round(Number(service.price))}</Text>
               </View>
             </TouchableOpacity>
           ))

@@ -432,6 +432,18 @@ export const profileCustomizationApi = {
     api.put<any>(`/profile/services/${serviceId}/`, data),
   deleteCustomService: (serviceId: number) => api.delete<any>(`/profile/services/${serviceId}/`),
 
+  /** Delete current user's public profile. Use before logout for "Eliminar cuenta". If no profile (404), resolves without error so caller can still logout. */
+  deleteMyPublicProfile: async () => {
+    try {
+      const res = await api.get<any>(`/public-profiles/my-profile/`);
+      const id = res.data.id;
+      return api.delete<any>(`/public-profiles/${id}/`);
+    } catch (e: any) {
+      if (e.response?.status === 404) return { data: null };
+      throw e;
+    }
+  },
+
   // Availability Schedule
   getAvailabilitySchedule: () => api.get<any>(`/profile/availability/`),
   updateAvailabilitySchedule: (data: any) => api.post<any>(`/profile/availability/`, data),

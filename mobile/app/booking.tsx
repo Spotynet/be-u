@@ -288,6 +288,25 @@ export default function BookingScreen() {
     return `${y}-${m}-${day}`;
   };
 
+  const isSelectedDateToday = (dateStr: string): boolean => {
+    return dateStr === formatLocalDate(new Date());
+  };
+
+  const getCurrentTimeMinutes = (): number => {
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes();
+  };
+
+  const filterPastTimesForToday = (times: string[], dateStr: string): string[] => {
+    if (!isSelectedDateToday(dateStr)) return times;
+    const nowMinutes = getCurrentTimeMinutes();
+    return times.filter((t) => {
+      const [h, m] = t.split(":").map(Number);
+      const slotMinutes = h * 60 + m;
+      return slotMinutes > nowMinutes;
+    });
+  };
+
   const handleDateSelect = async (date: string) => {
     const dateObj = parseLocalDate(date);
     setSelectedDate(dateObj); // Keep the date selected even if unavailable
@@ -422,17 +441,19 @@ export default function BookingScreen() {
             .filter((s: any) => s.available)
             .map((s: any) => s.time)
             .filter((t: string) => typeof t === "string");
+          const filtered = filterPastTimesForToday(available, date);
 
-          setAvailableTimes(available);
+          setAvailableTimes(filtered);
 
-          if (available.length === 0) {
+          if (filtered.length === 0) {
             setDateAvailabilityError(UNAVAILABLE_MSG);
             return;
           }
         } catch (slotsErr) {
           // Fallback to local computation if slots endpoint fails
           if (computedSchedule && serviceInfo?.duration) {
-            setAvailableTimes(computeAvailableTimes(computedSchedule, serviceInfo.duration));
+            const localTimes = computeAvailableTimes(computedSchedule, serviceInfo.duration);
+            setAvailableTimes(filterPastTimesForToday(localTimes, date));
           } else {
             setAvailableTimes([]);
           }
@@ -789,7 +810,7 @@ export default function BookingScreen() {
           </View>
           <View style={styles.detailItem}>
             <Ionicons name="cash-outline" size={16} color={colors.primary} />
-            <Text style={[styles.priceText, {color: colors.primary}]}>${serviceInfo.price}</Text>
+            <Text style={[styles.priceText, {color: colors.primary}]}>${Math.round(Number(serviceInfo.price))}</Text>
           </View>
         </View>
       </View>
@@ -864,14 +885,16 @@ export default function BookingScreen() {
               </View>
             )}
 
-            <CalendarView
-              reservations={[]}
-              onDayPress={(date) => handleDateSelect(date)}
-              selectedDate={selectedDate ? formatLocalDate(selectedDate) : undefined}
-              minDate={formatLocalDate(new Date())}
-              disabledDaysIndexes={disabledDaysIndexes}
-              showLegend={false}
-            />
+            <View style={styles.calendarContainer}>
+              <CalendarView
+                reservations={[]}
+                onDayPress={(date) => handleDateSelect(date)}
+                selectedDate={selectedDate ? formatLocalDate(selectedDate) : undefined}
+                minDate={formatLocalDate(new Date())}
+                disabledDaysIndexes={disabledDaysIndexes}
+                showLegend={false}
+              />
+            </View>
 
             {selectedDate && (
               <View style={styles.timePickerContainer}>
@@ -1045,7 +1068,7 @@ export default function BookingScreen() {
                 <View style={styles.summaryText}>
                   <Text style={[styles.summaryLabel, {color: colors.mutedForeground}]}>Precio</Text>
                   <Text style={[styles.summaryValue, {color: colors.foreground}]}>
-                    ${serviceInfo.price}
+                    ${Math.round(Number(serviceInfo.price))}
                   </Text>
                 </View>
               </View>
@@ -1516,5 +1539,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: "500",
+  },
+  calendarContainer: {
+    marginHorizontal: -4, // Slight negative margin to give more space
+    paddingRight: 4, // Ensure right padding for Sunday
   },
 });

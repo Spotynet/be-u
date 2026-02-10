@@ -242,6 +242,27 @@ export const getSubCategories = (categoryId: string): SubCategory[] => {
 };
 
 /**
+ * Get main category id (belleza, bienestar, mascotas) for a given subcategory id or specialty name.
+ * Used to group favorites by main category.
+ */
+export const getMainCategoryIdForSubcategory = (subcategoryOrSpecialty: string): string | null => {
+  if (!subcategoryOrSpecialty || subcategoryOrSpecialty === "todos") return null;
+  const normalized = subcategoryOrSpecialty.toLowerCase().trim();
+  const mainIds = ["belleza", "bienestar", "mascotas"] as const;
+  for (const mainId of mainIds) {
+    const subs = SUB_CATEGORIES[mainId] || [];
+    const found = subs.some(
+      (s) =>
+        s.id.toLowerCase() === normalized ||
+        s.name.toLowerCase() === normalized ||
+        s.name.toLowerCase().replace(/\s+/g, "") === normalized.replace(/\s+/g, "")
+    );
+    if (found) return mainId;
+  }
+  return null;
+};
+
+/**
  * Get category by ID
  */
 export const getCategoryById = (categoryId: string): Category | undefined => {

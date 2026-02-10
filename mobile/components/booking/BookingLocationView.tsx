@@ -21,26 +21,61 @@ export function BookingLocationView({location, address}: BookingLocationViewProp
     longitudeDelta: 0.01,
   };
 
-  const openDirections = () => {
-    const query = address?.trim() || `${location.latitude},${location.longitude}`;
-    const url =
-      Platform.OS === "ios"
-        ? `http://maps.apple.com/?daddr=${encodeURIComponent(query)}`
-        : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
-    Linking.openURL(url);
+  const openDirections = async () => {
+    if (!location) return;
+    
+    const lat = location.latitude;
+    const lng = location.longitude;
+    
+    // Use address if available, otherwise use coordinates
+    const destination = address?.trim() || `${lat},${lng}`;
+    
+    if (Platform.OS === "ios") {
+      // On iOS, use http://maps.apple.com/ which may trigger app selector
+      // If user has multiple map apps, iOS might show a selector
+      // Fallback to maps:// for direct Apple Maps access
+      const appleMapsWebUrl = `http://maps.apple.com/?daddr=${encodeURIComponent(destination)}`;
+      const appleMapsUrl = `maps://?daddr=${encodeURIComponent(destination)}`;
+      
+      // Try web URL first (may trigger selector), fallback to direct URL
+      Linking.openURL(appleMapsWebUrl).catch(() => {
+        Linking.openURL(appleMapsUrl).catch(console.error);
+      });
+    } else {
+      // On Android, use geo: scheme which triggers the native app selector
+      // This will show Google Maps, Waze, and other installed map apps
+      // Use address query if available, otherwise use coordinates
+      const geoUrl = address?.trim() 
+        ? `geo:0,0?q=${encodeURIComponent(destination)}`
+        : `geo:${lat},${lng}`;
+      
+      Linking.openURL(geoUrl).catch(() => {
+        // Fallback to Google Maps web URL
+        const fallbackUrl = address?.trim()
+          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`
+          : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+        Linking.openURL(fallbackUrl).catch(console.error);
+      });
+    }
   };
+
+  // Always show address prominently if available
+  const displayAddress = address?.trim();
 
   return (
     <View style={[styles.container, {backgroundColor: colors.card, borderColor: colors.border}]}>
       <Text style={[styles.title, {color: colors.foreground}]}>Ubicación del servicio</Text>
+      
       <View style={styles.mapWrapper}>
         <SafeMapView style={styles.map} region={region} pointerEvents="none">
           <SafeMarker coordinate={{latitude: location.latitude, longitude: location.longitude}} />
         </SafeMapView>
       </View>
-      {address ? (
-        <Text style={[styles.address, {color: colors.mutedForeground}]}>{address}</Text>
-      ) : null}
+      
+      {displayAddress && (
+        <Text style={[styles.address, {color: colors.foreground}]}>{displayAddress}</Text>
+      )}
+      
       <TouchableOpacity style={[styles.button, {backgroundColor: colors.primary}]} onPress={openDirections}>
         <Ionicons name="navigate-outline" size={18} color="#ffffff" />
         <Text style={styles.buttonText}>Cómo llegar</Text>
@@ -69,8 +104,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   address: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  coordinateHint: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "500",
+    marginTop: 2,
+    fontStyle: "italic",
   },
   button: {
     flexDirection: "row",

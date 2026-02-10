@@ -1,5 +1,6 @@
 import {Platform} from "react-native";
 import {View, Text, StyleSheet} from "react-native";
+import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 
 // Conditionally import MapView only on native platforms
@@ -47,17 +48,13 @@ export function SafeMapView({
 }: SafeMapViewProps) {
   const {colors} = useThemeVariant();
 
-  // Web fallback
+  // Web fallback - show a simple placeholder
   if (Platform.OS === "web" || !MapView) {
     return (
       <View style={[style, styles.webFallback, {backgroundColor: colors.card}]}>
-        <Text style={[styles.webFallbackText, {color: colors.mutedForeground}]}>
-          {region
-            ? `Mapa: ${region.latitude.toFixed(4)}, ${region.longitude.toFixed(4)}`
-            : "Mapa no disponible en web"}
-        </Text>
+        <Ionicons name="map-outline" size={48} color={colors.mutedForeground} />
         <Text style={[styles.webFallbackSubtext, {color: colors.mutedForeground}]}>
-          Usa la aplicación móvil para ver el mapa interactivo
+          Mapa no disponible en web
         </Text>
       </View>
     );

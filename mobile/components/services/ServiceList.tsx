@@ -79,7 +79,7 @@ export const ServiceList = ({
 
           <View style={styles.detailItem}>
             <Ionicons name="cash-outline" size={16} color={colors.primary} />
-            <Text style={[styles.priceText, {color: colors.primary}]}>${item.price}</Text>
+            <Text style={[styles.priceText, {color: colors.primary}]}>${Math.round(Number(item.price))}</Text>
           </View>
 
           {!isProfessionalService && (item as any).professional_assigned && (

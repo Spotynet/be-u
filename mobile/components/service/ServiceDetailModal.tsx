@@ -129,7 +129,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
               <View style={styles.serviceDetailItem}>
                 <Ionicons name="cash-outline" color={colors.mutedForeground} size={16} />
                 <Text style={[styles.serviceDetailText, {color: colors.mutedForeground}]}>
-                  ${service.price} MXN
+                  ${Math.round(Number(service.price))} MXN
                 </Text>
               </View>
             </View>

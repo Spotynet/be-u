@@ -77,7 +77,7 @@ export function AddressSearch({placeholder = "Buscar dirección...", value, onSe
       <View
         style={[
           styles.inputContainer,
-          {backgroundColor: colors.card, borderColor: colors.border},
+          {backgroundColor: colors.input, borderColor: colors.border},
         ]}>
         <Ionicons name="location-outline" color={colors.mutedForeground} size={18} />
         <TextInput

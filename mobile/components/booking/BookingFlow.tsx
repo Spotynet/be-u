@@ -178,7 +178,7 @@ export const BookingFlow = ({placeId, serviceId, onClose}: BookingFlowProps) => 
                   {selectedService.duration} min
                 </Text>
                 <Text style={[styles.servicePrice, {color: colors.primary}]}>
-                  $ {selectedService.price} MXN
+                  $ {Math.round(Number(selectedService.price))} MXN
                 </Text>
               </View>
             </View>

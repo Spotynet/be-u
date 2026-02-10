@@ -182,9 +182,9 @@ export default function EmailCode() {
           },
         ]}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" color="#ffffff" size={24} />
+          <Ionicons name="arrow-back" color={colors.primaryForeground} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: "#ffffff"}]}>Verificar código</Text>
+        <Text style={[styles.headerTitle, {color: colors.primaryForeground}]}>Verificar código</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -203,7 +203,7 @@ export default function EmailCode() {
               },
             ]}>
             <View style={[styles.logoBg, {backgroundColor: colors.primary}]}>
-              <Ionicons name="key" color="#ffffff" size={32} />
+              <Ionicons name="key" color={colors.primaryForeground} size={32} />
             </View>
             {/* Floating sparkles */}
             <Animated.View style={[styles.sparkle, styles.sparkle1, {opacity: sparkleOpacity1}]}>
@@ -226,7 +226,7 @@ export default function EmailCode() {
           </Text>
           <Text style={[styles.welcomeSubtitle, {color: colors.mutedForeground}]}>
             Te enviamos un código de 6 dígitos a{"\n"}
-            <Text style={{fontWeight: "600"}}>{email}</Text>
+            <Text style={[styles.emailHighlight, {color: colors.foreground}]}>{email}</Text>
           </Text>
         </View>
 
@@ -291,9 +291,9 @@ export default function EmailCode() {
             onPress={handleVerifyCode}
             disabled={isLoading}>
             {isLoading ? (
-              <ActivityIndicator color="#ffffff" />
+              <ActivityIndicator color={colors.primaryForeground} />
             ) : (
-              <Text style={[styles.loginButtonText, {color: "#ffffff"}]}>
+              <Text style={[styles.loginButtonText, {color: colors.primaryForeground}]}>
                 Verificar código
               </Text>
             )}
@@ -405,6 +405,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     lineHeight: 24,
+  },
+  emailHighlight: {
+    fontWeight: "600",
   },
   formContainer: {
     marginBottom: 32,

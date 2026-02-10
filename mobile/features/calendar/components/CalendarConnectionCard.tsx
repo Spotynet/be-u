@@ -1,28 +1,33 @@
 /**
  * CalendarConnectionCard Component
- * 
+ *
  * Card component for managing Google Calendar connection in profile settings.
  * Shows connection status and provides connect/disconnect functionality.
  */
 
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useCalendarIntegration } from '../hooks/useCalendarIntegration';
+} from "react-native";
+import {Ionicons} from "@expo/vector-icons";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
+import {useCalendarIntegration} from "../hooks/useCalendarIntegration";
 
 interface CalendarConnectionCardProps {
   onConnectionChange?: (isConnected: boolean) => void;
 }
 
+// Google blue for calendar icon and "Conectar con Google" button
+const GOOGLE_BLUE = "#4285F4";
+
 export const CalendarConnectionCard: React.FC<CalendarConnectionCardProps> = ({
   onConnectionChange,
 }) => {
+  const {colors} = useThemeVariant();
   const {
     status,
     isLoading,
@@ -90,35 +95,47 @@ export const CalendarConnectionCard: React.FC<CalendarConnectionCardProps> = ({
   };
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, {backgroundColor: colors.card}]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="calendar" size={24} color="#4285F4" />
+          <View style={[styles.iconContainer, {backgroundColor: colors.muted}]}>
+            <Ionicons name="calendar" size={24} color={GOOGLE_BLUE} />
           </View>
           <View style={styles.headerText}>
-            <Text style={styles.title}>Google Calendar</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.title, {color: colors.foreground}]}>
+              Google Calendar
+            </Text>
+            <Text style={[styles.subtitle, {color: colors.mutedForeground}]}>
               Sincroniza tu disponibilidad
             </Text>
           </View>
         </View>
-        
+
         {/* Status indicator */}
-        <View style={[
-          styles.statusBadge,
-          status?.is_connected ? styles.statusConnected : styles.statusDisconnected
-        ]}>
-          <View style={[
-            styles.statusDot,
-            status?.is_connected ? styles.dotConnected : styles.dotDisconnected
-          ]} />
-          <Text style={[
-            styles.statusText,
-            status?.is_connected ? styles.textConnected : styles.textDisconnected
+        <View
+          style={[
+            styles.statusBadge,
+            status?.is_connected
+              ? {backgroundColor: colors.success + "30"}
+              : {backgroundColor: colors.muted},
           ]}>
-            {status?.is_connected ? 'Conectado' : 'Desconectado'}
+          <View
+            style={[
+              styles.statusDot,
+              status?.is_connected
+                ? {backgroundColor: colors.success}
+                : {backgroundColor: colors.mutedForeground},
+            ]}
+          />
+          <Text
+            style={[
+              styles.statusText,
+              status?.is_connected
+                ? {color: colors.success}
+                : {color: colors.mutedForeground},
+            ]}>
+            {status?.is_connected ? "Conectado" : "Desconectado"}
           </Text>
         </View>
       </View>
@@ -127,58 +144,103 @@ export const CalendarConnectionCard: React.FC<CalendarConnectionCardProps> = ({
       <View style={styles.content}>
         {status?.is_connected ? (
           <>
-            <Text style={styles.description}>
+            <Text style={[styles.description, {color: colors.mutedForeground}]}>
               Tu Google Calendar está conectado. Los eventos de tu calendario
               se mostrarán como no disponibles y las reservas confirmadas se
               agregarán automáticamente a tu calendario.
             </Text>
-            
+
             {/* Last sync info */}
-            <View style={styles.syncInfo}>
-              <Ionicons name="sync" size={16} color="#666" />
-              <Text style={styles.syncText}>
+            <View style={[styles.syncInfo, {backgroundColor: colors.input}]}>
+              <Ionicons name="sync" size={16} color={colors.mutedForeground} />
+              <Text style={[styles.syncText, {color: colors.mutedForeground}]}>
                 Última sincronización: {formatLastSync(status.last_sync_at)}
               </Text>
             </View>
 
             {/* Error message if any */}
             {status.sync_error && (
-              <View style={styles.errorContainer}>
-                <Ionicons name="warning" size={16} color="#EA4335" />
-                <Text style={styles.errorText}>{status.sync_error}</Text>
+              <View
+                style={[
+                  styles.errorContainer,
+                  {
+                    backgroundColor: colors.destructive + "20",
+                  },
+                ]}>
+                <Ionicons
+                  name="warning"
+                  size={16}
+                  color={colors.destructive}
+                />
+                <Text
+                  style={[styles.errorText, {color: colors.destructive}]}>
+                  {status.sync_error}
+                </Text>
               </View>
             )}
 
             {/* Action buttons for connected state */}
             <View style={styles.buttonRow}>
               <TouchableOpacity
-                style={[styles.button, styles.syncButton]}
+                style={[
+                  styles.button,
+                  styles.syncButton,
+                  {
+                    backgroundColor: colors.muted,
+                    borderColor: colors.primary,
+                  },
+                ]}
                 onPress={handleSync}
-                disabled={isLoading}
-              >
+                disabled={isLoading}>
                 {isLoading ? (
-                  <ActivityIndicator size="small" color="#4285F4" />
+                  <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
                   <>
-                    <Ionicons name="refresh" size={18} color="#4285F4" />
-                    <Text style={styles.syncButtonText}>Sincronizar</Text>
+                    <Ionicons
+                      name="refresh"
+                      size={18}
+                      color={colors.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.syncButtonText,
+                        {color: colors.primary},
+                      ]}>
+                      Sincronizar
+                    </Text>
                   </>
                 )}
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.button, styles.disconnectButton]}
+                style={[
+                  styles.button,
+                  styles.disconnectButton,
+                  {
+                    backgroundColor: colors.destructive + "20",
+                    borderColor: colors.destructive,
+                  },
+                ]}
                 onPress={handleDisconnect}
-                disabled={isLoading}
-              >
-                <Ionicons name="unlink" size={18} color="#EA4335" />
-                <Text style={styles.disconnectButtonText}>Desconectar</Text>
+                disabled={isLoading}>
+                <Ionicons
+                  name="unlink"
+                  size={18}
+                  color={colors.destructive}
+                />
+                <Text
+                  style={[
+                    styles.disconnectButtonText,
+                    {color: colors.destructive},
+                  ]}>
+                  Desconectar
+                </Text>
               </TouchableOpacity>
             </View>
           </>
         ) : (
           <>
-            <Text style={styles.description}>
+            <Text style={[styles.description, {color: colors.mutedForeground}]}>
               Conecta tu Google Calendar para sincronizar automáticamente tu
               disponibilidad. Los horarios ocupados en tu calendario personal
               se reflejarán en tu perfil.
@@ -187,20 +249,35 @@ export const CalendarConnectionCard: React.FC<CalendarConnectionCardProps> = ({
             {/* Benefits list */}
             <View style={styles.benefitsList}>
               <View style={styles.benefitItem}>
-                <Ionicons name="checkmark-circle" size={18} color="#34A853" />
-                <Text style={styles.benefitText}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={18}
+                  color={colors.success}
+                />
+                <Text
+                  style={[styles.benefitText, {color: colors.foreground}]}>
                   Sincroniza automáticamente tu disponibilidad
                 </Text>
               </View>
               <View style={styles.benefitItem}>
-                <Ionicons name="checkmark-circle" size={18} color="#34A853" />
-                <Text style={styles.benefitText}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={18}
+                  color={colors.success}
+                />
+                <Text
+                  style={[styles.benefitText, {color: colors.foreground}]}>
                   Reservas se agregan a tu calendario
                 </Text>
               </View>
               <View style={styles.benefitItem}>
-                <Ionicons name="checkmark-circle" size={18} color="#34A853" />
-                <Text style={styles.benefitText}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={18}
+                  color={colors.success}
+                />
+                <Text
+                  style={[styles.benefitText, {color: colors.foreground}]}>
                   Evita conflictos de horarios
                 </Text>
               </View>
@@ -208,16 +285,30 @@ export const CalendarConnectionCard: React.FC<CalendarConnectionCardProps> = ({
 
             {/* Connect button */}
             <TouchableOpacity
-              style={[styles.button, styles.connectButton]}
+              style={[
+                styles.button,
+                styles.connectButton,
+                {backgroundColor: GOOGLE_BLUE},
+              ]}
               onPress={handleConnect}
-              disabled={isConnecting || isChecking}
-            >
+              disabled={isConnecting || isChecking}>
               {isConnecting ? (
-                <ActivityIndicator size="small" color="#FFF" />
+                <ActivityIndicator
+                  size="small"
+                  color={colors.primaryForeground}
+                />
               ) : (
                 <>
-                  <Ionicons name="logo-google" size={20} color="#FFF" />
-                  <Text style={styles.connectButtonText}>
+                  <Ionicons
+                    name="logo-google"
+                    size={20}
+                    color={colors.primaryForeground}
+                  />
+                  <Text
+                    style={[
+                      styles.connectButtonText,
+                      {color: colors.primaryForeground},
+                    ]}>
                     Conectar con Google
                   </Text>
                 </>
@@ -226,16 +317,27 @@ export const CalendarConnectionCard: React.FC<CalendarConnectionCardProps> = ({
 
             {/* Check connection button - useful after OAuth in Expo Go */}
             <TouchableOpacity
-              style={[styles.button, styles.checkButton]}
+              style={[
+                styles.button,
+                styles.checkButton,
+                {
+                  backgroundColor: colors.muted,
+                  borderColor: colors.primary,
+                },
+              ]}
               onPress={handleCheckConnection}
-              disabled={isConnecting || isChecking}
-            >
+              disabled={isConnecting || isChecking}>
               {isChecking ? (
-                <ActivityIndicator size="small" color="#4285F4" />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
                 <>
-                  <Ionicons name="refresh" size={18} color="#4285F4" />
-                  <Text style={styles.checkButtonText}>
+                  <Ionicons
+                    name="refresh"
+                    size={18}
+                    color={colors.primary}
+                  />
+                  <Text
+                    style={[styles.checkButtonText, {color: colors.primary}]}>
                     Verificar conexión
                   </Text>
                 </>
@@ -250,35 +352,33 @@ export const CalendarConnectionCard: React.FC<CalendarConnectionCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFF',
     borderRadius: 16,
     padding: 20,
     marginVertical: 8,
     marginHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
   },
   headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   iconContainer: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#E8F0FE',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 12,
   },
   headerText: {
@@ -286,26 +386,18 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 17,
-    fontWeight: '600',
-    color: '#1A1A1A',
+    fontWeight: "600",
   },
   subtitle: {
     fontSize: 13,
-    color: '#666',
     marginTop: 2,
   },
   statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
-  },
-  statusConnected: {
-    backgroundColor: '#E6F4EA',
-  },
-  statusDisconnected: {
-    backgroundColor: '#F5F5F5',
   },
   statusDot: {
     width: 8,
@@ -313,35 +405,21 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginRight: 6,
   },
-  dotConnected: {
-    backgroundColor: '#34A853',
-  },
-  dotDisconnected: {
-    backgroundColor: '#9E9E9E',
-  },
   statusText: {
     fontSize: 12,
-    fontWeight: '500',
-  },
-  textConnected: {
-    color: '#137333',
-  },
-  textDisconnected: {
-    color: '#666',
+    fontWeight: "500",
   },
   content: {
     marginTop: 4,
   },
   description: {
     fontSize: 14,
-    color: '#666',
     lineHeight: 20,
     marginBottom: 16,
   },
   syncInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -349,13 +427,11 @@ const styles = StyleSheet.create({
   },
   syncText: {
     fontSize: 13,
-    color: '#666',
     marginLeft: 8,
   },
   errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEE8E7',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -363,7 +439,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    color: '#C62828',
     marginLeft: 8,
     flex: 1,
   },
@@ -371,70 +446,58 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   benefitItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   benefitText: {
     fontSize: 14,
-    color: '#444',
     marginLeft: 10,
   },
   buttonRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 10,
     gap: 8,
   },
   connectButton: {
-    backgroundColor: '#4285F4',
-    width: '100%',
+    width: "100%",
   },
   connectButtonText: {
-    color: '#FFF',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   checkButton: {
-    backgroundColor: '#E8F0FE',
     borderWidth: 1,
-    borderColor: '#4285F4',
-    width: '100%',
+    width: "100%",
     marginTop: 10,
   },
   checkButtonText: {
-    color: '#4285F4',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   syncButton: {
     flex: 1,
-    backgroundColor: '#E8F0FE',
     borderWidth: 1,
-    borderColor: '#4285F4',
   },
   syncButtonText: {
-    color: '#4285F4',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   disconnectButton: {
     flex: 1,
-    backgroundColor: '#FEE8E7',
     borderWidth: 1,
-    borderColor: '#EA4335',
   },
   disconnectButtonText: {
-    color: '#EA4335',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
 

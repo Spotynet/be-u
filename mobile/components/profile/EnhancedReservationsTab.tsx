@@ -358,7 +358,7 @@ export function EnhancedReservationsTab({
   return (
     <View style={styles.container}>
       {/* Calendar: weekly scroll or full month view */}
-      <View style={[styles.calendarContainer, {backgroundColor: colors.card}]}>
+      <View style={[styles.calendarContainer, {backgroundColor: colors.background, borderBottomColor: colors.border}]}>
         {showMonthView ? (
           <MonthPicker
             reservations={reservations}
@@ -532,7 +532,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
   },
   filterTabs: {
     flexDirection: "row",

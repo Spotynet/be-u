@@ -223,7 +223,7 @@ export const EnhancedPlaceProfile = ({placeId, onClose}: EnhancedPlaceProfilePro
                         {service.duration} min
                       </Text>
                       <Text style={[styles.servicePrice, {color: colors.primary}]}>
-                        $ {service.price} MXN
+                        $ {Math.round(Number(service.price))} MXN
                       </Text>
                     </View>
                   </View>

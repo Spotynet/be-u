@@ -364,7 +364,7 @@ export default function Nabbi() {
                 <View style={styles.optionFooter}>
                   <View style={[styles.optionPrice, {backgroundColor: option.color + "20"}]}>
                     <Text style={[styles.optionPriceText, {color: option.color}]}>
-                      {option.price}
+                      {typeof option.price === "number" ? Math.round(option.price) : option.price}
                     </Text>
                   </View>
                   <Text style={[styles.optionLocationName, {color: colors.mutedForeground}]}>
@@ -497,7 +497,9 @@ export default function Nabbi() {
               <View style={{flex: 1}}>
                 <Text style={[styles.detailLabel, {color: colors.mutedForeground}]}>Precio</Text>
                 <Text style={[styles.detailValue, {color: colors.foreground}]}>
-                  {selectedOptionData?.price}
+                  {typeof selectedOptionData?.price === "number"
+                    ? Math.round(selectedOptionData.price)
+                    : selectedOptionData?.price}
                 </Text>
               </View>
             </View>

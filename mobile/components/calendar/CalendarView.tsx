@@ -197,7 +197,10 @@ export const CalendarView = ({
       <View
         style={[styles.weekStripContainer, {backgroundColor: colors.background}]}
         onLayout={(e) => {
-          const w = Math.round(e.nativeEvent.layout.width);
+          // Subtract padding (16px on each side = 32px total) from total width
+          const containerWidth = Math.round(e.nativeEvent.layout.width);
+          const padding = 32; // 16px left + 16px right
+          const w = Math.max(0, containerWidth - padding);
           if (w && w !== weekWidth) setWeekWidth(w);
         }}>
         {weekWidth > 0 && (
@@ -269,14 +272,17 @@ export const CalendarView = ({
                         <View
                           style={[
                             styles.dayCircle,
-                            {backgroundColor: colors.background, borderColor: colors.border},
-                            isSelected && {backgroundColor: colors.primary, borderColor: colors.primary},
+                            {
+                              backgroundColor: isSelected ? colors.input : colors.background,
+                              borderColor: colors.border,
+                              borderWidth: isSelected ? 2 : 1,
+                            },
                             isDisabled && styles.dayCircleDisabled,
                           ]}>
                           <Text
                             style={[
                               styles.dayText,
-                              {color: isSelected ? "#ffffff" : colors.foreground},
+                              {color: colors.foreground},
                               isDisabled && {color: colors.mutedForeground},
                             ]}>
                             {dayNum}
@@ -344,7 +350,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: "hidden",
     paddingVertical: 0,
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
     marginBottom: 0,
   },
   weekPage: {

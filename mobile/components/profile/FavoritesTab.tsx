@@ -8,30 +8,52 @@ import {
   Image,
   RefreshControl,
 } from "react-native";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
 import {useAuth} from "@/features/auth";
 import {useFavorites} from "@/features/favorites";
-import {useState, useEffect, useCallback} from "react";
-import {postApi, errorUtils} from "@/lib/api";
+import {useState, useEffect, useCallback, useMemo} from "react";
+import {postApi} from "@/lib/api";
+import {
+  MAIN_CATEGORIES,
+  getMainCategoryIdForSubcategory,
+} from "@/constants/categories";
+import type {Favorite} from "@/features/favorites";
+
+const MAIN_CATEGORY_IDS = ["belleza", "bienestar", "mascotas"] as const;
+const CATEGORY_LABELS: Record<string, string> = {
+  belleza: "Belleza",
+  bienestar: "Bienestar",
+  mascotas: "Mascotas",
+  otros: "Otros",
+};
+
+function getPostMainCategoryId(post: any): string {
+  const raw = post.author_category;
+  if (!raw) return "otros";
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const str = String(value || "").toLowerCase().trim();
+  if (MAIN_CATEGORY_IDS.includes(str as any)) return str;
+  const fromSub = getMainCategoryIdForSubcategory(str);
+  return fromSub || "otros";
+}
+
+function getFavoriteMainCategoryId(fav: Favorite): string {
+  const fromSub = getMainCategoryIdForSubcategory(fav.favorite_specialty || "");
+  return fromSub || "otros";
+}
 
 export function FavoritesTab() {
-  const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
   const router = useRouter();
   const {user, isAuthenticated} = useAuth();
 
-  // Fetch real favorites data
   const {favorites, isLoading, error, removeFavorite, refreshFavorites} = useFavorites();
-  
-  // Fetch liked posts
   const [likedPosts, setLikedPosts] = useState<any[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
+
   const fetchLikedPosts = useCallback(async () => {
     try {
       setLoadingPosts(true);
@@ -44,27 +66,56 @@ export function FavoritesTab() {
       setLoadingPosts(false);
     }
   }, []);
-  
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchLikedPosts();
     }
   }, [isAuthenticated, fetchLikedPosts]);
-  
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([refreshFavorites(), fetchLikedPosts()]);
     setRefreshing(false);
   }, [refreshFavorites, fetchLikedPosts]);
-  
+
   const handleUnlikePost = async (postId: number) => {
     try {
-      await postApi.likePost(postId); // Toggle like (unlike)
-      fetchLikedPosts(); // Refresh list
+      await postApi.likePost(postId);
+      fetchLikedPosts();
     } catch (err) {
       console.error("Error unliking post:", err);
     }
   };
+
+  const favoritesByCategory = useMemo(() => {
+    const map: Record<string, Favorite[]> = {};
+    for (const id of MAIN_CATEGORY_IDS) map[id] = [];
+    map.otros = [];
+    for (const fav of favorites) {
+      const catId = getFavoriteMainCategoryId(fav);
+      if (!map[catId]) map[catId] = [];
+      map[catId].push(fav);
+    }
+    return map;
+  }, [favorites]);
+
+  const postsByCategory = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const id of MAIN_CATEGORY_IDS) map[id] = [];
+    map.otros = [];
+    for (const post of likedPosts) {
+      const catId = getPostMainCategoryId(post);
+      if (!map[catId]) map[catId] = [];
+      map[catId].push(post);
+    }
+    return map;
+  }, [likedPosts]);
+
+  const categoryOrder = useMemo(
+    () => [...MAIN_CATEGORY_IDS, "otros"],
+    []
+  );
 
   const hasContent = favorites.length > 0 || likedPosts.length > 0;
   
@@ -158,102 +209,124 @@ export function FavoritesTab() {
   };
 
   return (
-    <ScrollView 
-      style={styles.container} 
+    <ScrollView
+      style={styles.container}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-      
-      {/* Profiles Section */}
-      {favorites.length > 0 && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Perfiles Guardados</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.profileScroll}
-            contentContainerStyle={styles.profileRow}>
-            {favorites.map((item, index) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[styles.card, {backgroundColor: colors.card}]}
-                onPress={() => {
-                  const profileId = item.public_profile_id || item.content_object_id;
-                  router.push(`/profile/${profileId}` as any);
-                }}
-                activeOpacity={0.7}>
-                <View style={[styles.avatar, {backgroundColor: getAvatarColor(index)}]}>
-                  <Text style={styles.avatarText}>{getInitials(item.favorite_name)}</Text>
-                </View>
-                <Text style={[styles.name, {color: colors.foreground}]} numberOfLines={1}>
-                  {item.favorite_name}
+      {categoryOrder.map((catId) => {
+        const categoryFavorites = favoritesByCategory[catId] || [];
+        const categoryPosts = postsByCategory[catId] || [];
+        const hasSection = categoryFavorites.length > 0 || categoryPosts.length > 0;
+        if (!hasSection) return null;
+
+        const categoryLabel = CATEGORY_LABELS[catId] ?? catId;
+
+        return (
+          <View key={catId} style={styles.section}>
+            <Text style={[styles.categoryTitle, {color: colors.foreground}]}>
+              {categoryLabel}
+            </Text>
+
+            {categoryFavorites.length > 0 && (
+              <>
+                <Text style={[styles.sectionTitle, {color: colors.mutedForeground}]}>
+                  Perfiles Guardados
                 </Text>
-                <Text style={[styles.specialty, {color: colors.mutedForeground}]} numberOfLines={1}>
-                  {item.favorite_specialty}
-                </Text>
-                <TouchableOpacity
-                  style={styles.heartButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    handleRemoveFavorite(item.id);
-                  }}>
-                  <Ionicons name="heart" size={20} color="#EF4444" />
-                </TouchableOpacity>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-      
-      {/* Posts Section */}
-      {likedPosts.length > 0 && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Publicaciones Guardadas</Text>
-          <View style={styles.postsGrid}>
-            {likedPosts.map((post) => (
-              <TouchableOpacity
-                key={post.id}
-                style={styles.postCard}
-                onPress={() => router.push(`/post/${post.id}` as any)}
-                activeOpacity={0.7}>
-                {post.media && post.media.length > 0 ? (
-                  <Image 
-                    source={{uri: post.media[0].media_file}} 
-                    style={styles.postImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={[styles.postImagePlaceholder, {backgroundColor: colors.muted}]}>
-                    <Ionicons name="image-outline" size={40} color={colors.mutedForeground} />
-                  </View>
-                )}
-                <View style={styles.postOverlay}>
-                  <View style={styles.postStats}>
-                    <View style={styles.postStat}>
-                      <Ionicons name="heart" size={16} color="#ffffff" />
-                      <Text style={styles.postStatText}>{post.likes_count || 0}</Text>
-                    </View>
-                    {post.comments_count > 0 && (
-                      <View style={styles.postStat}>
-                        <Ionicons name="chatbubble" size={16} color="#ffffff" />
-                        <Text style={styles.postStatText}>{post.comments_count}</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.profileScroll}
+                  contentContainerStyle={styles.profileRow}>
+                  {categoryFavorites.map((item, index) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[styles.card, {backgroundColor: colors.card}]}
+                      onPress={() => {
+                        const profileId = item.public_profile_id || item.content_object_id;
+                        router.push(`/profile/${profileId}` as any);
+                      }}
+                      activeOpacity={0.7}>
+                      <View style={[styles.avatar, {backgroundColor: getAvatarColor(index)}]}>
+                        <Text style={styles.avatarText}>{getInitials(item.favorite_name)}</Text>
                       </View>
-                    )}
-                  </View>
-                  <TouchableOpacity
-                    style={styles.postHeartButton}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      handleUnlikePost(post.id);
-                    }}>
-                    <Ionicons name="heart" size={20} color="#EF4444" />
-                  </TouchableOpacity>
+                      <Text style={[styles.name, {color: colors.foreground}]} numberOfLines={1}>
+                        {item.favorite_name}
+                      </Text>
+                      <Text style={[styles.specialty, {color: colors.mutedForeground}]} numberOfLines={1}>
+                        {item.favorite_specialty}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.heartButton}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleRemoveFavorite(item.id);
+                        }}>
+                        <Ionicons name="heart" size={20} color="#EF4444" />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+
+            {categoryPosts.length > 0 && (
+              <>
+                <Text style={[styles.sectionTitle, {color: colors.mutedForeground}]}>
+                  Publicaciones Guardadas
+                </Text>
+                <View style={styles.postsGrid}>
+                  {categoryPosts.map((post) => (
+                    <TouchableOpacity
+                      key={post.id}
+                      style={styles.postCard}
+                      onPress={() =>
+                        router.push({
+                          pathname: `/post/${post.id}`,
+                          params: {liked: "true"},
+                        } as any)
+                      }
+                      activeOpacity={0.7}>
+                      {post.media && post.media.length > 0 ? (
+                        <Image
+                          source={{uri: post.media[0].media_file}}
+                          style={styles.postImage}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={[styles.postImagePlaceholder, {backgroundColor: colors.muted}]}>
+                          <Ionicons name="image-outline" size={40} color={colors.mutedForeground} />
+                        </View>
+                      )}
+                      <View style={styles.postOverlay}>
+                        <View style={styles.postStats}>
+                          <View style={styles.postStat}>
+                            <Ionicons name="heart" size={16} color="#ffffff" />
+                            <Text style={styles.postStatText}>{post.likes_count || 0}</Text>
+                          </View>
+                          {post.comments_count > 0 && (
+                            <View style={styles.postStat}>
+                              <Ionicons name="chatbubble" size={16} color="#ffffff" />
+                              <Text style={styles.postStatText}>{post.comments_count}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <TouchableOpacity
+                          style={styles.postHeartButton}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleUnlikePost(post.id);
+                          }}>
+                          <Ionicons name="heart" size={20} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              </TouchableOpacity>
-            ))}
+              </>
+            )}
           </View>
-        </View>
-      )}
-      
+        );
+      })}
       <View style={{height: 40}} />
     </ScrollView>
   );
@@ -294,13 +367,20 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   section: {
-    marginTop: 16,
+    marginTop: 20,
   },
-  sectionTitle: {
-    fontSize: 18,
+  categoryTitle: {
+    fontSize: 20,
     fontWeight: "700",
     paddingHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    paddingHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 10,
   },
   profileScroll: {
     paddingHorizontal: 16,

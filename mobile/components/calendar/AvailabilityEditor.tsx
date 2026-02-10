@@ -359,26 +359,15 @@ export const AvailabilityEditor = ({schedule, onChange}: AvailabilityEditorProps
               ]}>
               <View style={styles.dayHeader}>
                 <View style={styles.dayInfo}>
-                  <View
-                    style={[
-                      styles.dayBadge,
-                      {backgroundColor: isEnabled ? colors.primary : colors.muted},
-                    ]}>
-                    <Text
-                      style={[
-                        styles.dayShort,
-                        {color: isEnabled ? "#ffffff" : colors.mutedForeground},
-                      ]}>
-                      {day.short}
-                    </Text>
-                  </View>
                   <Text style={[styles.dayName, {color: colors.foreground}]}>{day.name}</Text>
                 </View>
 
                 <TouchableOpacity
                   style={[
                     styles.toggle,
-                    {backgroundColor: isEnabled ? colors.primary : colors.muted},
+                    {
+                      backgroundColor: isEnabled ? colors.success : colors.destructive,
+                    },
                   ]}
                   onPress={() => toggleDay(day.id)}
                   activeOpacity={0.7}>
@@ -663,18 +652,6 @@ const styles = StyleSheet.create({
   dayInfo: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-  },
-  dayBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  dayShort: {
-    fontSize: 16,
-    fontWeight: "700",
   },
   dayName: {
     fontSize: 16,

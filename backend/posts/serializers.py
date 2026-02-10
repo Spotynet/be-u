@@ -31,10 +31,20 @@ class PollOptionSerializer(serializers.ModelSerializer):
 
 class PostCommentSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
+    author_image = serializers.SerializerMethodField()
 
     class Meta:
         model = PostComment
-        fields = ['id', 'author', 'content', 'created_at', 'updated_at']
+        fields = ['id', 'author', 'author_image', 'content', 'created_at', 'updated_at']
+
+    def get_author_image(self, obj):
+        if obj.author and obj.author.image:
+            request = self.context.get('request')
+            url = obj.author.image.url
+            if request and url and not url.startswith('http'):
+                return request.build_absolute_uri(url)
+            return url
+        return None
 
 class PostLikeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -64,7 +74,9 @@ class PostSerializer(serializers.ModelSerializer):
             'media', 'likes_count', 'comments_count', 'user_has_liked', 'poll_options',
             'author_category', 'author_sub_categories', 'author_display_name',
             'author_rating', 'author_profile_id', 'author_public_profile_id', 'author_profile_type',
-            'author_photo'
+            'author_photo',
+            'linked_service_id', 'linked_service_type', 'linked_provider_id',
+            'linked_service_name', 'linked_service_price', 'linked_service_duration_minutes',
         ]
         read_only_fields = ['id', 'author', 'created_at', 'updated_at']
 
@@ -199,13 +211,69 @@ class PostCreateSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False
     )
+    linked_service_id = serializers.IntegerField(required=False, allow_null=True)
 
     class Meta:
         model = Post
-        fields = ['post_type', 'content', 'media', 'expires_at']
+        fields = ['post_type', 'content', 'media', 'expires_at', 'linked_service_id']
 
     def create(self, validated_data):
+        from django.contrib.contenttypes.models import ContentType
+        from users.profile_models import CustomService
+        from users.models import PublicProfile, ProfessionalProfile, PlaceProfile
+
+        linked_service_id = validated_data.pop('linked_service_id', None)
         media_files = validated_data.pop('media', [])
+
+        if linked_service_id is not None:
+            author = self.context['request'].user
+            try:
+                public_profile = PublicProfile.objects.get(user=author)
+            except PublicProfile.DoesNotExist:
+                raise serializers.ValidationError({
+                    'linked_service_id': 'Solo perfiles profesional o lugar pueden vincular un servicio.'
+                })
+            try:
+                custom_service = CustomService.objects.select_related('content_type').get(id=linked_service_id)
+            except CustomService.DoesNotExist:
+                raise serializers.ValidationError({
+                    'linked_service_id': 'Servicio no encontrado.'
+                })
+            if public_profile.profile_type == 'PROFESSIONAL':
+                try:
+                    prof = author.professional_profile
+                    ct = ContentType.objects.get_for_model(ProfessionalProfile)
+                    if custom_service.content_type_id != ct.id or custom_service.object_id != prof.id:
+                        raise serializers.ValidationError({
+                            'linked_service_id': 'El servicio no pertenece a tu perfil.'
+                        })
+                except (ProfessionalProfile.DoesNotExist, AttributeError):
+                    raise serializers.ValidationError({
+                        'linked_service_id': 'Perfil profesional no encontrado.'
+                    })
+            elif public_profile.profile_type == 'PLACE':
+                try:
+                    place = author.place_profile
+                    ct = ContentType.objects.get_for_model(PlaceProfile)
+                    if custom_service.content_type_id != ct.id or custom_service.object_id != place.id:
+                        raise serializers.ValidationError({
+                            'linked_service_id': 'El servicio no pertenece a tu perfil.'
+                        })
+                except (PlaceProfile.DoesNotExist, AttributeError):
+                    raise serializers.ValidationError({
+                        'linked_service_id': 'Perfil de lugar no encontrado.'
+                    })
+            else:
+                raise serializers.ValidationError({
+                    'linked_service_id': 'Solo perfiles profesional o lugar pueden vincular un servicio.'
+                })
+            validated_data['linked_service_id'] = custom_service.id
+            validated_data['linked_service_type'] = 'professional_service' if public_profile.profile_type == 'PROFESSIONAL' else 'place_service'
+            validated_data['linked_provider_id'] = public_profile.id
+            validated_data['linked_service_name'] = custom_service.name
+            validated_data['linked_service_price'] = custom_service.price
+            validated_data['linked_service_duration_minutes'] = custom_service.duration_minutes
+
         post = Post.objects.create(author=self.context['request'].user, **validated_data)
 
         # Handle media uploads

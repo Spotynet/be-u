@@ -94,14 +94,35 @@ export default function ReservationDetailsScreen() {
   const timeLabel = reservation?.time ? String(reservation.time).slice(0, 5) : "";
   const endTimeLabel = reservation?.end_time ? String(reservation.end_time).slice(0, 5) : "";
 
+  // Prioritize service_address, then construct from provider details
   const addressLabel = (() => {
+    // First, try service_address if available
+    if (reservation?.service_address && typeof reservation.service_address === "string" && reservation.service_address.trim()) {
+      return reservation.service_address.trim();
+    }
+    
+    // Fallback to constructing from provider details
     const d: any = reservation?.provider_details;
     if (!d) return "";
+    
+    // Try location.address from provider_details first (from PublicProfile)
+    if (d.location?.address && typeof d.location.address === "string" && d.location.address.trim()) {
+      const address = d.location.address.trim();
+      // Clean up repeated segments (e.g., "Mexico, Mexico" -> "Mexico")
+      const parts = address.split(/,\s*/);
+      const uniqueParts = [...new Set(parts.filter(p => p.trim()))];
+      return uniqueParts.join(", ");
+    }
+    
+    // Fallback to constructing address from individual fields
     const parts: string[] = [];
     if (typeof d.address === "string" && d.address.trim()) parts.push(d.address.trim());
     if (typeof d.city === "string" && d.city.trim()) parts.push(d.city.trim());
     if (typeof d.country === "string" && d.country.trim()) parts.push(d.country.trim());
-    return parts.join(", ");
+    
+    // Remove duplicates from parts
+    const uniqueParts = [...new Set(parts.filter(p => p))];
+    return uniqueParts.join(", ");
   })();
 
   const locationForMap = (() => {
@@ -233,7 +254,7 @@ export default function ReservationDetailsScreen() {
 
           <BookingLocationView
             location={locationForMap}
-            address={reservation?.service_address || addressLabel}
+            address={addressLabel}
           />
 
           {/* Google Calendar */}

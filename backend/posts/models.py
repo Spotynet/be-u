@@ -41,6 +41,14 @@ class Post(models.Model):
     object_id = models.PositiveIntegerField(null=True, blank=True)
     content_object = GenericForeignKey('content_type', 'object_id')
 
+    # Optional linked service for direct booking from the post
+    linked_service_id = models.PositiveIntegerField(null=True, blank=True)
+    linked_service_type = models.CharField(max_length=32, null=True, blank=True)  # 'professional_service' | 'place_service'
+    linked_provider_id = models.PositiveIntegerField(null=True, blank=True)  # PublicProfile.id for booking
+    linked_service_name = models.CharField(max_length=200, null=True, blank=True)
+    linked_service_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    linked_service_duration_minutes = models.PositiveIntegerField(null=True, blank=True)
+
     class Meta:
         ordering = ['-created_at']
 

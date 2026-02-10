@@ -108,7 +108,7 @@ export default function BookingConfirmationScreen() {
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, {color: colors.mutedForeground}]}>Precio</Text>
             <Text style={[styles.detailValue, {color: colors.primary, fontWeight: "700"}]}>
-              ${bookingData.service.price} MXN
+              ${Math.round(Number(bookingData.service.price))} MXN
             </Text>
           </View>
         </View>
