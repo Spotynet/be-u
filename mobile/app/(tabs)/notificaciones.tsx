@@ -31,12 +31,9 @@ export default function Notificaciones() {
     notifications,
     isLoading,
     error,
-    unreadCount,
     stats,
     markAsRead,
-    markAllAsRead,
     deleteNotification,
-    bulkAction,
     refreshNotifications,
   } = useNotifications();
 
@@ -69,11 +66,6 @@ export default function Notificaciones() {
       default:
         break;
     }
-  };
-
-  const handleMarkAllAsRead = () => {
-    if (unreadCount === 0) return;
-    void markAllAsRead();
   };
 
   const isProfessional = user?.role === "PROFESSIONAL";
@@ -237,14 +229,6 @@ export default function Notificaciones() {
             </TouchableOpacity>
             <Text style={[styles.headerTitle, {color: colors.foreground}]}>Notificaciones</Text>
           </View>
-          {unreadCount > 0 && (
-            <TouchableOpacity
-              style={[styles.markAllButton, {backgroundColor: colors.primary + "20", borderColor: colors.primary}]}
-              onPress={handleMarkAllAsRead}
-              activeOpacity={0.7}>
-              <Text style={[styles.markAllText, {color: colors.primary}]}>Marcar todo</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Filter Tabs */}
@@ -309,28 +293,6 @@ export default function Notificaciones() {
               Reseñas
             </Text>
             {activeFilter === "reseña" && (
-              <View style={[styles.filterTabIndicator, {backgroundColor: colors.primary}]} />
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterTab,
-              activeFilter === "sistema" && [
-                styles.filterTabActive,
-                {backgroundColor: colors.primary + "20"},
-              ],
-            ]}
-            onPress={() => setActiveFilter("sistema")}
-            activeOpacity={0.7}>
-            <Text
-              style={[
-                styles.filterTabText,
-                {color: activeFilter === "sistema" ? colors.primary : colors.mutedForeground},
-              ]}>
-              Sistema
-            </Text>
-            {activeFilter === "sistema" && (
               <View style={[styles.filterTabIndicator, {backgroundColor: colors.primary}]} />
             )}
           </TouchableOpacity>
@@ -468,16 +430,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: "800",
-  },
-  markAllButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  markAllText: {
-    fontSize: 14,
-    fontWeight: "600",
   },
   filterTabs: {
     flexDirection: "row",

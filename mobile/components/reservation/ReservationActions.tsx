@@ -8,13 +8,15 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
+  ScrollView,
   Platform,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
-import {reservationApi} from "@/lib/api";
+import {reservationApi, profileCustomizationApi, serviceApi} from "@/lib/api";
 import {Reservation} from "@/types/global";
-import {useState} from "react";
+import {useState, useEffect} from "react";
+import {CalendarView} from "@/components/calendar";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 type ReservationActionsProps = {
@@ -65,16 +67,271 @@ export function ReservationActions({
     parseTimeToDate(reservation.time, formatDateForInput(reservation.date))
   );
   const [modifyNotes, setModifyNotes] = useState(reservation.notes || "");
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [scheduleData, setScheduleData] = useState<{
+    working_hours: {start: string; end: string} | null;
+    booked_slots: {start: string; end: string}[];
+    break_times: {start: string; end: string}[];
+  } | null>(null);
+  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+  const [disabledDaysIndexes, setDisabledDaysIndexes] = useState<number[] | undefined>(undefined);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const [dateAvailabilityError, setDateAvailabilityError] = useState<string | null>(null);
+  const [showSimpleDatePicker, setShowSimpleDatePicker] = useState(false);
+  const [showSimpleTimePicker, setShowSimpleTimePicker] = useState(false);
+  const [showCancelReasonModal, setShowCancelReasonModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+
+  const providerId = Number(reservation.provider_details?.id ?? 0);
+  const providerType = (reservation.provider_type || "professional") as "professional" | "place";
+  const serviceInstanceId =
+    reservation.service_instance_id ?? reservation.service_details?.id ?? reservation.service ?? 0;
+  const durationMinutes =
+    typeof reservation.duration_minutes === "number"
+      ? reservation.duration_minutes
+      : 60;
 
   const canModifyOrCancel =
     isClient &&
     (reservation.status === "PENDING" || reservation.status === "CONFIRMED");
 
+  const UNAVAILABLE_MSG =
+    "No disponible en la fecha seleccionada. Selecciona otro día.";
+
+  const formatLocalDate = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const parseLocalDate = (ymd: string): Date => {
+    const [y, m, d] = ymd.split("-").map(Number);
+    return new Date(y, (m || 1) - 1, d || 1);
+  };
+
+  const isSelectedDateToday = (dateStr: string) =>
+    dateStr === formatLocalDate(new Date());
+
+  const getCurrentTimeMinutes = () => {
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes();
+  };
+
+  const filterPastTimesForToday = (times: string[], dateStr: string): string[] => {
+    if (!isSelectedDateToday(dateStr)) return times;
+    const nowMinutes = getCurrentTimeMinutes();
+    return times.filter((t) => {
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m > nowMinutes;
+    });
+  };
+
+  const computeAvailableTimes = (
+    schedule: NonNullable<typeof scheduleData>,
+    dur: number
+  ): string[] => {
+    if (!schedule.working_hours) return [];
+    const toMinutes = (hhmm: string) => {
+      const [h, m] = hhmm.split(":").map(Number);
+      return h * 60 + m;
+    };
+    const workStart = toMinutes(schedule.working_hours.start);
+    const workEnd = toMinutes(schedule.working_hours.end);
+    const overlaps = (start: number, end: number, a: number, b: number) =>
+      start < b && end > a;
+    const isFree = (start: number) => {
+      const end = start + dur;
+      if (start < workStart || end > workEnd) return false;
+      for (const slot of schedule.booked_slots) {
+        const [sh, sm] = slot.start.split(":").map(Number);
+        const [eh, em] = slot.end.split(":").map(Number);
+        if (overlaps(start, end, sh * 60 + sm, eh * 60 + em)) return false;
+      }
+      for (const br of schedule.break_times) {
+        const [bh, bm] = br.start.split(":").map(Number);
+        const [eh, em] = br.end.split(":").map(Number);
+        if (overlaps(start, end, bh * 60 + bm, eh * 60 + em)) return false;
+      }
+      return true;
+    };
+    const result: string[] = [];
+    for (let t = workStart; t + dur <= workEnd; t += 15) {
+      if (isFree(t)) {
+        const hh = Math.floor(t / 60).toString().padStart(2, "0");
+        const mm = (t % 60).toString().padStart(2, "0");
+        result.push(`${hh}:${mm}`);
+      }
+    }
+    return result;
+  };
+
+  const handleDateSelect = async (date: string) => {
+    const dateObj = parseLocalDate(date);
+    setModifyDate(dateObj);
+    setModifyTime(parseTimeToDate("00:00", dateObj));
+    setDateAvailabilityError(null);
+    setAvailableTimes([]);
+    setScheduleData(null);
+
+    if (providerId <= 0) {
+      setModifyDate(dateObj);
+      return;
+    }
+
+    setLoadingSchedule(true);
+    try {
+      const trimTime = (t: string) => t.slice(0, 5);
+      const getBackendDayOfWeek = (d: Date) => (d.getDay() + 6) % 7;
+
+      let computedSchedule: typeof scheduleData = null;
+
+      try {
+        const publicResp = await profileCustomizationApi.getPublicAvailability(
+          providerType,
+          providerId
+        );
+        const schedules = publicResp.data || [];
+        if (schedules.length > 0) {
+          const availableDays = new Set<number>();
+          schedules.forEach((s: any) => {
+            if (s.is_available && Array.isArray(s.time_slots) && s.time_slots.length > 0) {
+              availableDays.add((s.day_of_week + 1) % 7);
+            }
+          });
+          const disabled = [0, 1, 2, 3, 4, 5, 6].filter((d) => !availableDays.has(d));
+          setDisabledDaysIndexes(
+            availableDays.size === 0 ? [0, 1, 2, 3, 4, 5, 6] : disabled.length === 7 ? undefined : disabled
+          );
+        }
+        const targetDay = getBackendDayOfWeek(dateObj);
+        const daySchedule = schedules.find(
+          (s: any) =>
+            s.day_of_week === targetDay &&
+            s.is_available &&
+            Array.isArray(s.time_slots) &&
+            s.time_slots.length > 0
+        );
+        if (daySchedule) {
+          const slots = daySchedule.time_slots;
+          const firstSlot = slots[0];
+          const lastSlot = slots[slots.length - 1];
+          computedSchedule = {
+            working_hours: {
+              start: trimTime(firstSlot.start_time),
+              end: trimTime(lastSlot.end_time),
+            },
+            booked_slots: [],
+            break_times: [],
+          };
+        }
+      } catch {}
+
+      try {
+        const response = await reservationApi.getProviderSchedule({
+          provider_type: providerType,
+          provider_id: providerId,
+          date,
+        });
+        const scheduleFromApi = response.data;
+        if (computedSchedule?.working_hours) {
+          computedSchedule = {
+            ...computedSchedule,
+            booked_slots: scheduleFromApi?.booked_slots || [],
+            break_times: scheduleFromApi?.break_times || [],
+          };
+        } else {
+          computedSchedule = scheduleFromApi;
+        }
+      } catch {
+        if (!computedSchedule)
+          computedSchedule = {working_hours: null, booked_slots: [], break_times: []};
+      }
+
+      setScheduleData(computedSchedule);
+
+      if (Number(serviceInstanceId) > 0 && providerType) {
+        try {
+          const slotsResponse = await serviceApi.getAvailableSlots({
+            service_id: Number(serviceInstanceId),
+            date,
+            service_type: providerType,
+          });
+          const slots = slotsResponse.data?.slots || [];
+          const available = slots
+            .filter((s: any) => s.available)
+            .map((s: any) => s.time)
+            .filter((t: string) => typeof t === "string");
+          setAvailableTimes(filterPastTimesForToday(available, date));
+        } catch {
+          if (computedSchedule) {
+            const localTimes = computeAvailableTimes(computedSchedule, durationMinutes);
+            setAvailableTimes(filterPastTimesForToday(localTimes, date));
+          }
+        }
+      } else if (computedSchedule) {
+        const localTimes = computeAvailableTimes(computedSchedule, durationMinutes);
+        setAvailableTimes(filterPastTimesForToday(localTimes, date));
+      }
+
+      if (!computedSchedule?.working_hours) {
+        setDateAvailabilityError(UNAVAILABLE_MSG);
+      }
+    } catch {
+      setDateAvailabilityError(UNAVAILABLE_MSG);
+      setScheduleData(null);
+      setAvailableTimes([]);
+      setDisabledDaysIndexes(undefined);
+    } finally {
+      setLoadingSchedule(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showModifyModal && providerId > 0) {
+      let cancelled = false;
+      profileCustomizationApi
+        .getPublicAvailability(providerType, providerId)
+        .then((r) => {
+          if (cancelled) return;
+          const schedules = r.data || [];
+          if (schedules.length > 0) {
+            const availableDays = new Set<number>();
+            schedules.forEach((s: any) => {
+              if (s.is_available && Array.isArray(s.time_slots) && s.time_slots.length > 0) {
+                availableDays.add((s.day_of_week + 1) % 7);
+              }
+            });
+            const disabled = [0, 1, 2, 3, 4, 5, 6].filter((d) => !availableDays.has(d));
+            setDisabledDaysIndexes(
+              availableDays.size === 0 ? [0, 1, 2, 3, 4, 5, 6] : disabled.length === 7 ? undefined : disabled
+            );
+          }
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [showModifyModal, providerId, providerType]);
+
+  useEffect(() => {
+    if (showModifyModal && modifyDate && providerId > 0) {
+      handleDateSelect(formatLocalDate(modifyDate));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showModifyModal]);
+
   if (!canModifyOrCancel) return null;
 
-  const handleCancel = () => {
+  const openCancelReasonModal = () => {
+    setCancelReason("");
+    setShowCancelReasonModal(true);
+  };
+
+  const closeCancelReasonModal = () => setShowCancelReasonModal(false);
+
+  const confirmCancelWithReason = () => {
+    closeCancelReasonModal();
     Alert.alert(
       "Cancelar reserva",
       "¿Estás seguro de que deseas cancelar esta reserva?",
@@ -86,7 +343,7 @@ export function ReservationActions({
           onPress: async () => {
             setIsCancelling(true);
             try {
-              await reservationApi.cancelReservation(reservation.id);
+              await reservationApi.cancelReservation(reservation.id, cancelReason.trim() || undefined);
               onCancelled();
             } catch (e: any) {
               const msg =
@@ -102,6 +359,10 @@ export function ReservationActions({
         },
       ]
     );
+  };
+
+  const handleCancel = () => {
+    openCancelReasonModal();
   };
 
   const handleSaveModify = async () => {
@@ -211,69 +472,150 @@ export function ReservationActions({
               Modificar reserva
             </Text>
 
-            <Text style={[styles.label, {color: colors.foreground}]}>Fecha</Text>
-            <TouchableOpacity
-              style={[styles.input, {borderColor: colors.border, backgroundColor: colors.background}]}
-              onPress={() => setShowDatePicker(true)}>
-              <Text style={{color: colors.foreground}}>
-                {modifyDate.toLocaleDateString("es-ES", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
-              </Text>
-              <Ionicons name="calendar-outline" color={colors.mutedForeground} size={20} />
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={modifyDate}
-                mode="date"
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                minimumDate={new Date()}
-                onChange={(_, d) => {
-                  if (d) setModifyDate(d);
-                  if (Platform.OS !== "ios") setShowDatePicker(false);
-                }}
-              />
-            )}
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              {providerId > 0 ? (
+                <>
+                  {dateAvailabilityError && (
+                    <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "20", borderColor: "#ef4444"}]}>
+                      <Ionicons name="alert-circle" size={18} color="#ef4444" />
+                      <Text style={[styles.errorCardText, {color: "#ef4444"}]}>{dateAvailabilityError}</Text>
+                    </View>
+                  )}
 
-            <Text style={[styles.label, {color: colors.foreground, marginTop: 12}]}>Hora</Text>
-            <TouchableOpacity
-              style={[styles.input, {borderColor: colors.border, backgroundColor: colors.background}]}
-              onPress={() => setShowTimePicker(true)}>
-              <Text style={{color: colors.foreground}}>
-                {formatTimeFromDate(modifyTime)}
-              </Text>
-              <Ionicons name="time-outline" color={colors.mutedForeground} size={20} />
-            </TouchableOpacity>
-            {showTimePicker && (
-              <DateTimePicker
-                value={modifyTime}
-                mode="time"
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={(_, d) => {
-                  if (d) setModifyTime(d);
-                  if (Platform.OS !== "ios") setShowTimePicker(false);
-                }}
-              />
-            )}
+                  <Text style={[styles.label, {color: colors.foreground}]}>Fecha</Text>
+                  <View style={styles.calendarWrapper}>
+                    <CalendarView
+                      reservations={[]}
+                      onDayPress={handleDateSelect}
+                      selectedDate={formatLocalDate(modifyDate)}
+                      minDate={formatLocalDate(new Date())}
+                      disabledDaysIndexes={disabledDaysIndexes}
+                      showLegend={false}
+                    />
+                  </View>
 
-            <Text style={[styles.label, {color: colors.foreground, marginTop: 12}]}>
-              Notas (opcional)
-            </Text>
-            <TextInput
-              style={[
-                styles.notesInput,
-                {borderColor: colors.border, color: colors.foreground},
-              ]}
-              placeholder="Agregar o cambiar notas..."
-              placeholderTextColor={colors.mutedForeground}
-              value={modifyNotes}
-              onChangeText={setModifyNotes}
-              multiline
-              numberOfLines={3}
-            />
+                  {modifyDate && (
+                    <View style={styles.timeSection}>
+                      <Text style={[styles.label, {color: colors.foreground, marginTop: 12}]}>Hora</Text>
+                      {loadingSchedule ? (
+                        <View style={styles.loadingRow}>
+                          <ActivityIndicator size="small" color={colors.primary} />
+                          <Text style={[styles.loadingText, {color: colors.mutedForeground}]}>
+                            Cargando horarios...
+                          </Text>
+                        </View>
+                      ) : scheduleData?.working_hours ? (
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.timeChipsRow}>
+                          {availableTimes.map((t) => {
+                            const isSelected = formatTimeFromDate(modifyTime) === t;
+                            return (
+                              <TouchableOpacity
+                                key={t}
+                                style={[
+                                  styles.timeChip,
+                                  {
+                                    backgroundColor: isSelected ? colors.primary : colors.background,
+                                    borderColor: isSelected ? colors.primary : colors.border,
+                                  },
+                                ]}
+                                onPress={() => {
+                                  const [h, m] = t.split(":").map(Number);
+                                  const d = new Date(modifyDate);
+                                  d.setHours(h, m, 0, 0);
+                                  setModifyTime(d);
+                                }}
+                                activeOpacity={0.8}>
+                                <Text
+                                  style={[
+                                    styles.timeChipText,
+                                    {color: isSelected ? "#ffffff" : colors.foreground},
+                                  ]}>
+                                  {t}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </ScrollView>
+                      ) : null}
+                      {scheduleData?.working_hours && availableTimes.length === 0 && !loadingSchedule && (
+                        <Text style={[styles.noSlotsText, {color: colors.mutedForeground}]}>
+                          No hay horarios disponibles para este día.
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.label, {color: colors.foreground}]}>Fecha</Text>
+                  <TouchableOpacity
+                    style={[styles.input, {borderColor: colors.border, backgroundColor: colors.background}]}
+                    onPress={() => setShowSimpleDatePicker(true)}>
+                    <Text style={{color: colors.foreground}}>
+                      {modifyDate.toLocaleDateString("es-ES", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </Text>
+                    <Ionicons name="calendar-outline" color={colors.mutedForeground} size={20} />
+                  </TouchableOpacity>
+                  {showSimpleDatePicker && (
+                    <DateTimePicker
+                      value={modifyDate}
+                      mode="date"
+                      display={Platform.OS === "ios" ? "spinner" : "default"}
+                      minimumDate={new Date()}
+                      onChange={(_, d) => {
+                        if (d) setModifyDate(d);
+                        if (Platform.OS !== "ios") setShowSimpleDatePicker(false);
+                      }}
+                    />
+                  )}
+
+                  <Text style={[styles.label, {color: colors.foreground, marginTop: 12}]}>Hora</Text>
+                  <TouchableOpacity
+                    style={[styles.input, {borderColor: colors.border, backgroundColor: colors.background}]}
+                    onPress={() => setShowSimpleTimePicker(true)}>
+                    <Text style={{color: colors.foreground}}>
+                      {formatTimeFromDate(modifyTime)}
+                    </Text>
+                    <Ionicons name="time-outline" color={colors.mutedForeground} size={20} />
+                  </TouchableOpacity>
+                  {showSimpleTimePicker && (
+                    <DateTimePicker
+                      value={modifyTime}
+                      mode="time"
+                      display={Platform.OS === "ios" ? "spinner" : "default"}
+                      onChange={(_, d) => {
+                        if (d) setModifyTime(d);
+                        if (Platform.OS !== "ios") setShowSimpleTimePicker(false);
+                      }}
+                    />
+                  )}
+                </>
+              )}
+
+              <Text style={[styles.label, {color: colors.foreground, marginTop: 16}]}>
+                Notas (opcional)
+              </Text>
+              <TextInput
+                style={[
+                  styles.notesInput,
+                  {borderColor: colors.border, color: colors.foreground},
+                ]}
+                placeholder="Agregar o cambiar notas..."
+                placeholderTextColor={colors.mutedForeground}
+                value={modifyNotes}
+                onChangeText={setModifyNotes}
+                multiline
+                numberOfLines={3}
+              />
+            </ScrollView>
 
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -285,12 +627,60 @@ export function ReservationActions({
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonPrimary, {backgroundColor: colors.primary}]}
                 onPress={handleSaveModify}
-                disabled={isSaving}>
+                disabled={
+                  isSaving ||
+                  (providerId > 0 &&
+                    availableTimes.length > 0 &&
+                    !availableTimes.includes(formatTimeFromDate(modifyTime)))
+                }>
                 {isSaving ? (
                   <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
                   <Text style={styles.modalButtonPrimaryText}>Guardar cambios</Text>
                 )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={showCancelReasonModal}
+        transparent
+        animationType="fade"
+        onRequestClose={closeCancelReasonModal}>
+        <Pressable style={styles.modalOverlay} onPress={closeCancelReasonModal}>
+          <Pressable
+            style={[styles.modalContent, {backgroundColor: colors.card}]}
+            onPress={(e) => e.stopPropagation()}>
+            <Text style={[styles.modalTitle, {color: colors.foreground}]}>
+              Motivo de cancelación
+            </Text>
+            <Text style={[styles.label, {color: colors.mutedForeground, marginTop: 0}]}>
+              Indica el motivo por el cual cancelas esta reserva (opcional)
+            </Text>
+            <TextInput
+              style={[
+                styles.notesInput,
+                {borderColor: colors.border, color: colors.foreground, marginTop: 10},
+              ]}
+              placeholder="Ej: Cambié de planes, encontré otra opción..."
+              placeholderTextColor={colors.mutedForeground}
+              value={cancelReason}
+              onChangeText={setCancelReason}
+              multiline
+              numberOfLines={3}
+            />
+            <View style={[styles.modalActions, {marginTop: 16}]}>
+              <TouchableOpacity
+                style={[styles.modalButton, {borderColor: colors.border}]}
+                onPress={closeCancelReasonModal}>
+                <Text style={{color: colors.foreground}}>Volver</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary, {backgroundColor: "#ef4444"}]}
+                onPress={confirmCancelWithReason}>
+                <Text style={styles.modalButtonPrimaryText}>Continuar a confirmar</Text>
               </TouchableOpacity>
             </View>
           </Pressable>
@@ -331,6 +721,58 @@ const styles = StyleSheet.create({
   modalContent: {
     borderRadius: 16,
     padding: 20,
+    maxHeight: "90%",
+  },
+  modalScroll: {
+    maxHeight: 420,
+  },
+  errorCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  errorCardText: {
+    fontSize: 13,
+    fontWeight: "600",
+    flex: 1,
+  },
+  calendarWrapper: {
+    marginBottom: 8,
+  },
+  timeSection: {
+    marginTop: 4,
+  },
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 16,
+  },
+  loadingText: {
+    fontSize: 14,
+  },
+  timeChipsRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingVertical: 8,
+  },
+  timeChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  timeChipText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  noSlotsText: {
+    fontSize: 13,
+    marginTop: 8,
   },
   modalTitle: {
     fontSize: 18,

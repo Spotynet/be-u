@@ -300,10 +300,16 @@ def email_request_code_view(request):
         }
         html_message = render_to_string("users/access_code_email.html", context)
         plain_message = f"Tu código de acceso de nabbi es: {code}\n\nEste código expira en 10 minutos.\n\nSi no solicitaste este código, ignora este mensaje.\n\n— nabbi"
+        default_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@be-u.ai")
+        if "<" in str(default_email) and ">" in str(default_email):
+            email_addr = str(default_email)[str(default_email).index("<") + 1 : str(default_email).index(">")]
+        else:
+            email_addr = str(default_email)
+        from_email = f"Código de acceso - nabbi <{email_addr}>"
         send_mail(
-            subject="Tu código de acceso - nabbi",
+            subject="Código de acceso - nabbi",
             message=plain_message,
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            from_email=from_email,
             recipient_list=[email],
             html_message=html_message,
             fail_silently=False,

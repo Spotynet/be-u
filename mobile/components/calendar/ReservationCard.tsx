@@ -57,6 +57,24 @@ export const ReservationCard = ({
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (String(status || "").toUpperCase()) {
+      case "PENDING":
+        return "Pendiente";
+      case "CONFIRMED":
+        return "Confirmada";
+      case "COMPLETED":
+      case "FINISHED":
+        return "Completada";
+      case "CANCELLED":
+        return "Cancelada";
+      case "REJECTED":
+        return "Rechazada";
+      default:
+        return reservation.status_display || status;
+    }
+  };
+
   const statusColor = getStatusColor(reservation.status);
 
   const wrapperProps = onPress
@@ -77,7 +95,7 @@ export const ReservationCard = ({
             <ReservationQRCode code={reservation.code} size={60} />
             <View style={[styles.statusBadge, {backgroundColor: statusColor + "15"}]}>
               <Text style={[styles.statusText, {color: statusColor}]}>
-                {reservation.status_display}
+                {getStatusLabel(reservation.status)}
               </Text>
             </View>
           </View>

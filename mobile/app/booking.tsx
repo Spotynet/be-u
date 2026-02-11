@@ -642,10 +642,14 @@ export default function BookingScreen() {
       // Set success state for visual feedback
       setReservationSuccess(true);
       
-      // Auto-redirect to profile/reservations page after showing success message
-      // Give user time to see the success message (2 seconds)
+      // Auto-redirect to reservation details page after showing success message
+      const reservationId = response?.data?.id;
       setTimeout(() => {
-        router.push("/(tabs)/perfil");
+        if (reservationId) {
+          router.push(`/reservation/${reservationId}` as any);
+        } else {
+          router.push("/(tabs)/perfil");
+        }
       }, 2000);
     } catch (err: any) {
       console.error("Error creating reservation:", err);

@@ -254,12 +254,22 @@ export default function ReservationDetailsScreen() {
               </View>
             )}
 
-            {(reservation.cancellation_reason || reservation.rejection_reason) && (
+            {reservation.status === "CANCELLED" && !!reservation.cancellation_reason && (
               <View style={[styles.reasonBox, {backgroundColor: "#ef4444" + "10", borderColor: "#ef4444" + "40"}]}>
                 <Ionicons name="alert-circle" size={16} color="#ef4444" />
-                <Text style={[styles.reasonText, {color: "#ef4444"}]}>
-                  {reservation.cancellation_reason || reservation.rejection_reason}
-                </Text>
+                <View style={{flex: 1, gap: 4}}>
+                  <Text style={[styles.rowLabel, {color: "#ef4444"}]}>Motivo de cancelación</Text>
+                  <Text style={[styles.reasonText, {color: "#ef4444"}]}>{reservation.cancellation_reason}</Text>
+                </View>
+              </View>
+            )}
+            {reservation.status === "REJECTED" && !!reservation.rejection_reason && (
+              <View style={[styles.reasonBox, {backgroundColor: "#ef4444" + "10", borderColor: "#ef4444" + "40"}]}>
+                <Ionicons name="alert-circle" size={16} color="#ef4444" />
+                <View style={{flex: 1, gap: 4}}>
+                  <Text style={[styles.rowLabel, {color: "#ef4444"}]}>Motivo de rechazo</Text>
+                  <Text style={[styles.reasonText, {color: "#ef4444"}]}>{reservation.rejection_reason}</Text>
+                </View>
               </View>
             )}
           </View>

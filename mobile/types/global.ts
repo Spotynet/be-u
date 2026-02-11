@@ -162,6 +162,7 @@ export interface Reservation {
     phone?: string;
   };
   service: number;
+  service_instance_id?: number;
   service_details?: {
     id: number;
     name: string;

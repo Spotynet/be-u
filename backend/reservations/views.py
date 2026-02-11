@@ -154,7 +154,18 @@ class ReservationViewSet(viewsets.ModelViewSet):
         )
         headers = self.get_success_headers(response_serializer.data)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-    
+
+    def partial_update(self, request, *args, **kwargs):
+        """Override to return full ReservationSerializer after partial update (date/time/notes)."""
+        partial = True
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        reservation = serializer.instance
+        response_serializer = ReservationSerializer(reservation, context=self.get_serializer_context())
+        return Response(response_serializer.data)
+
     @action(detail=False, methods=['get'], url_path='my-reservations')
     def my_reservations(self, request):
         """Get client's reservations"""
