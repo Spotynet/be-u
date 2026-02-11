@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tu código de acceso - Be-U</title>
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #1f2937;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+        .wrapper {
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 520px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%);
+            color: #ffffff;
+            padding: 36px 32px;
+            text-align: center;
+        }
+        .brand {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin: 0;
+            text-transform: uppercase;
+        }
+        .brand-sub {
+            font-size: 13px;
+            font-weight: 500;
+            opacity: 0.9;
+            margin-top: 4px;
+            letter-spacing: 0.5px;
+        }
+        .content {
+            padding: 40px 32px;
+        }
+        .greeting {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+        .message {
+            font-size: 15px;
+            color: #6b7280;
+            margin-bottom: 28px;
+            line-height: 1.7;
+        }
+        .code-box {
+            background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+            border: 2px dashed #8b5cf6;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            margin: 28px 0;
+        }
+        .code-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #6d28d9;
+            margin-bottom: 8px;
+        }
+        .code-value {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: 8px;
+            color: #1f2937;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+        }
+        .expiry {
+            font-size: 13px;
+            color: #9ca3af;
+            margin-top: 20px;
+            padding: 12px 16px;
+            background-color: #f9fafb;
+            border-radius: 8px;
+        }
+        .expiry strong {
+            color: #6b7280;
+        }
+        .security-note {
+            font-size: 13px;
+            color: #9ca3af;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .footer {
+            background-color: #f9fafb;
+            padding: 24px 32px;
+            text-align: center;
+        }
+        .footer-text {
+            color: #9ca3af;
+            font-size: 12px;
+            margin: 0;
+        }
+        .footer-brand {
+            color: #8b5cf6;
+            font-weight: 700;
+            text-decoration: none;
+        }
+        .footer-brand:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="container">
+            <div class="header">
+                <h1 class="brand">Be-U</h1>
+                <p class="brand-sub">Tu código de acceso</p>
+            </div>
+
+            <div class="content">
+                <div class="greeting">Hola,</div>
+                <div class="message">
+                    Usaste tu correo para iniciar sesión o registrarte en Be-U. Este es tu código de acceso de un solo uso:
+                </div>
+
+                <div class="code-box">
+                    <div class="code-label">Tu código</div>
+                    <div class="code-value">{{ code }}</div>
+                </div>
+
+                <div class="expiry">
+                    <strong>⏱ Expira en 10 minutos.</strong> Si no solicitaste este código, ignora este mensaje.
+                </div>
+
+                <div class="security-note">
+                    Por seguridad, nunca compartas este código con nadie. Be-U nunca te pedirá el código por teléfono o por otros medios.
+                </div>
+            </div>
+
+            <div class="footer">
+                <p class="footer-text">
+                    Este es un mensaje automático de <a href="https://be-u.ai" class="footer-brand">Be-U</a>.
+                </p>
+                <p class="footer-text">© {{ year }} Be-U. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

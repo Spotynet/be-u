@@ -1,6 +1,6 @@
 import {View, Text, StyleSheet, TouchableOpacity, Linking, Platform} from "react-native";
 import {SafeMapView, SafeMarker, Region} from "@/components/map/SafeMapView";
-import {Ionicons} from "@expo/vector-icons";
+import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Location} from "@/types/global";
 
@@ -82,7 +82,7 @@ export function BookingLocationView({location, address}: BookingLocationViewProp
           style={[styles.button, styles.buttonThird, {backgroundColor: "#4285F4"}]}
           onPress={openGoogleMaps}
           activeOpacity={0.8}>
-          <Ionicons name="logo-google" size={18} color="#ffffff" />
+          <MaterialCommunityIcons name="google-maps" size={20} color="#ffffff" />
           <Text style={styles.buttonText}>Google</Text>
         </TouchableOpacity>
         <TouchableOpacity

@@ -83,7 +83,6 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
     setUsername(formatted);
   };
   const [bio, setBio] = useState(profile?.bio || "");
-  const [city, setCity] = useState(profile?.city || "");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -304,7 +303,6 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
     
     if (profile) {
       setBio(profile.bio || "");
-      setCity(profile.city || "");
     }
     
     if (!isInitialized) {
@@ -313,9 +311,8 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
   }, [
     user?.email,
     user?.phone,
-    user?.username, // ✅ Agregado para actualizar cuando cambie
+    user?.username,
     profile?.bio,
-    profile?.city,
   ]);
 
   const handleSave = async () => {
@@ -334,14 +331,10 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
       }
     }
     
-    // Save city to User model
-    if (city) {
-      userData.city = city;
-    }
+    // Ciudad se toma desde la ubicación (backend)
 
     const profileData = {
       bio,
-      city,
     };
 
     // Always update public profile (category/sub_categories) first so it persists even if auth profile update fails
@@ -356,10 +349,6 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
       if (location.address) {
         publicProfileData.street = location.address;
       }
-    }
-    // Save city to public profile
-    if (city) {
-      publicProfileData.city = city;
     }
     if (displayName && displayName.trim()) {
       const nameParts = displayName.trim().split(' ');
@@ -547,24 +536,6 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
-            />
-          </View>
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={[styles.label, {color: colors.foreground}]}>Ciudad</Text>
-          <View
-            style={[
-              styles.inputContainer,
-              {backgroundColor: colors.card, borderColor: colors.border},
-            ]}>
-            <Ionicons name="location-outline" color={colors.mutedForeground} size={18} />
-            <TextInput
-              style={[styles.input, {color: colors.foreground}]}
-              value={city}
-              onChangeText={setCity}
-              placeholder="Ciudad donde trabajas"
-              placeholderTextColor={colors.mutedForeground}
             />
           </View>
         </View>

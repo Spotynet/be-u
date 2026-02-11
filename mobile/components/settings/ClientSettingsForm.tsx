@@ -7,7 +7,6 @@ import {useState, useEffect, forwardRef, useImperativeHandle} from "react";
 import {User, ClientProfile} from "@/types/global";
 import {profileCustomizationApi} from "@/lib/api";
 import * as ImagePicker from "expo-image-picker";
-import {AddressSearch} from "@/components/location/AddressSearch";
 
 interface ClientSettingsFormProps {
   user: User;
@@ -30,7 +29,6 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
   const [displayName, setDisplayName] = useState("");
   const [profilePhoto, setProfilePhoto] = useState<string | null>((user as any).image || null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [location, setLocation] = useState<{latitude: number; longitude: number; address?: string} | null>(null);
   
   // Format username: remove spaces and ensure @ prefix
   const formatUsername = (text: string): string => {
@@ -56,27 +54,6 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
     const fn = ((user as any).firstName || (user as any).first_name || "").trim();
     const ln = ((user as any).lastName || (user as any).last_name || "").trim();
     setDisplayName(`${fn}${fn && ln ? " " : ""}${ln}`.trim());
-    // Load saved location/address from user (not profile)
-    const userAddress = (user as any).address;
-    const userLat = (user as any).latitude;
-    const userLng = (user as any).longitude;
-    
-    if (userLat && userLng) {
-      setLocation({
-        latitude: Number(userLat),
-        longitude: Number(userLng),
-        address: userAddress || undefined,
-      });
-    } else if (userAddress) {
-      // If we have an address but no coordinates, create a location object
-      // with the address so it displays in the input field
-      // Coordinates will be set when user selects from autocomplete
-      setLocation({
-        latitude: Number(userLat) || 0,
-        longitude: Number(userLng) || 0,
-        address: userAddress,
-      });
-    }
   }, [
     user.email,
     user.phone,
@@ -86,9 +63,6 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
     (user as any).lastName,
     (user as any).last_name,
     (user as any).image,
-    (user as any).address,
-    (user as any).latitude,
-    (user as any).longitude,
   ]);
 
   const requestPermissions = async () => {
@@ -246,15 +220,6 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
       email,
       phone,
       username: trimmedUsername, // Ensure username is trimmed and saved
-      // Address and coordinates are now stored in User model
-      ...(location
-        ? {
-            latitude: location.latitude,
-            longitude: location.longitude,
-            address: location.address || undefined,
-            country: location.country || undefined,
-          }
-        : {}),
     };
 
     const profileData = {}; // ClientProfile no longer stores address/coordinates
@@ -479,30 +444,6 @@ const ClientSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Clie
         </View>
       </View>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Ionicons name="location" color={colors.primary} size={20} />
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Ubicación</Text>
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={[styles.label, {color: colors.foreground}]}>Dirección</Text>
-          <AddressSearch
-            placeholder="Buscar dirección..."
-            value={location?.address}
-            onSelect={(selectedLocation) => {
-              setLocation(selectedLocation);
-            }}
-          />
-          {location && location.address && (
-            <View style={[styles.locationInfo, {backgroundColor: colors.card, borderColor: colors.border}]}>
-              <Text style={[styles.locationInfoText, {color: colors.mutedForeground}]}>
-                {location.address}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
     </View>
   );
 });
@@ -629,20 +570,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontStyle: "italic",
-  },
-  locationInfo: {
-    marginTop: 8,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  locationInfoText: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  locationCoords: {
-    fontSize: 11,
-    fontFamily: "monospace",
   },
 });

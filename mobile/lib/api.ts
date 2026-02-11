@@ -725,8 +725,12 @@ export const reservationApi = {
     notes?: string;
   }) => api.post<any>("/reservations/", data),
 
-  // Update reservation
+  // Update reservation (full)
   updateReservation: (id: number, data: any) => api.put<any>(`/reservations/${id}/`, data),
+
+  // Patch reservation (partial - for client modify: date, time, notes)
+  patchReservation: (id: number, data: {date?: string; time?: string; notes?: string}) =>
+    api.patch<any>(`/reservations/${id}/`, data),
 
   // Cancel reservation (client)
   cancelReservation: (id: number, reason?: string) =>
@@ -936,8 +940,8 @@ export const postApi = {
       headers: {"Content-Type": "multipart/form-data"},
     }),
 
-  // Update post
-  updatePost: (id: number, data: any) => api.put<any>(`/posts/list/${id}/`, data),
+  // Update post (PATCH for partial updates, e.g. content only)
+  updatePost: (id: number, data: any) => api.patch<any>(`/posts/list/${id}/`, data),
 
   // Delete post
   deletePost: (id: number) => api.delete(`/posts/list/${id}/`),

@@ -10,15 +10,20 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Modal,
+  Pressable,
+  Dimensions,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeVariant } from "@/contexts/ThemeVariantContext";
 import { postApi } from "@/lib/api";
 import { useAuth } from "@/features/auth";
 import { getAvatarColorFromSubcategory } from "@/constants/categories";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function PostDetailScreen() {
   const { id, liked: likedParam } = useLocalSearchParams<{ id: string; liked?: string }>();
@@ -34,6 +39,12 @@ export default function PostDetailScreen() {
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editContent, setEditContent] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [showOptionsModal, setShowOptionsModal] = useState(false);
+  const [optionsPopupPosition, setOptionsPopupPosition] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const optionsButtonRef = useRef<View | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -87,6 +98,27 @@ export default function PostDetailScreen() {
       setIsLiked(!isLiked);
       setLikesCount(prev => isLiked ? prev + 1 : prev - 1);
       console.error("Error toggling like:", error);
+    }
+  };
+
+  const handleOpenEditModal = () => {
+    setEditContent(post.content || post.caption || "");
+    setIsEditModalVisible(true);
+  };
+
+  const handleSavePostEdit = async () => {
+    if (!id) return;
+    if (isSavingEdit) return;
+    setIsSavingEdit(true);
+    try {
+      await postApi.updatePost(Number(id), {content: editContent});
+      setPost((prev) => (prev ? {...prev, content: editContent, caption: editContent} : null));
+      setIsEditModalVisible(false);
+    } catch (e) {
+      console.error("Edit post error:", e);
+      Alert.alert("Error", "No se pudo editar el post");
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -171,7 +203,29 @@ export default function PostDetailScreen() {
           <Ionicons name="arrow-back" color={colors.foreground} size={24} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>Publicación</Text>
-        <View style={styles.headerButton} />
+        {user && post.author?.id === user.id ? (
+          <View ref={(el) => { optionsButtonRef.current = el; }} collapsable={false}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => {
+                const ref = optionsButtonRef.current;
+                if (ref?.measureInWindow) {
+                  ref.measureInWindow((x, y, w, h) => {
+                    setOptionsPopupPosition({ x, y, w, h });
+                    setShowOptionsModal(true);
+                  });
+                } else {
+                  setShowOptionsModal(true);
+                  setOptionsPopupPosition(null);
+                }
+              }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <Ionicons name="ellipsis-vertical" color={colors.foreground} size={22} />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.headerButton} />
+        )}
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -271,13 +325,13 @@ export default function PostDetailScreen() {
         </View>
 
         {/* Caption */}
-        {post.caption && (
+        {(post.content || post.caption) && (
           <View style={styles.captionSection}>
             <Text style={[styles.caption, { color: colors.foreground }]}>
               <Text style={styles.captionAuthor}>
                 {post.author_display_name || post.author?.email || "Usuario"}{" "}
               </Text>
-              {post.caption}
+              {post.content || post.caption}
             </Text>
           </View>
         )}
@@ -347,6 +401,86 @@ export default function PostDetailScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Popup pequeño de opciones (justo debajo de los 3 puntos) */}
+      <Modal
+        visible={showOptionsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { setShowOptionsModal(false); setOptionsPopupPosition(null); }}>
+        <Pressable style={styles.postOptionsOverlay} onPress={() => { setShowOptionsModal(false); setOptionsPopupPosition(null); }}>
+          <Pressable
+            style={[
+              styles.postOptionsPopup,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                top: optionsPopupPosition ? optionsPopupPosition.y + optionsPopupPosition.h : Math.max(insets.top + 70, 90),
+                right: optionsPopupPosition ? SCREEN_WIDTH - optionsPopupPosition.x - optionsPopupPosition.w : 16,
+              },
+            ]}
+            onPress={(e) => e.stopPropagation()}>
+            <TouchableOpacity
+              style={[styles.postOptionsButton, { borderBottomWidth: 0 }]}
+              onPress={() => {
+                handleOpenEditModal();
+                setShowOptionsModal(false);
+                setOptionsPopupPosition(null);
+              }}>
+              <Ionicons name="create-outline" color={colors.foreground} size={18} />
+              <Text style={[styles.postOptionsButtonText, { color: colors.foreground }]}>Editar texto</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal para editar texto del post */}
+      <Modal
+        visible={isEditModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsEditModalVisible(false)}>
+        <Pressable
+          style={styles.editModalOverlay}
+          onPress={() => setIsEditModalVisible(false)}>
+          <Pressable
+            style={[styles.editModalContent, { backgroundColor: colors.card }]}
+            onPress={(e) => e.stopPropagation()}>
+            <Text style={[styles.editModalTitle, { color: colors.foreground }]}>Editar texto</Text>
+            <TextInput
+              style={[
+                styles.editModalInput,
+                { color: colors.foreground, borderColor: colors.border },
+              ]}
+              placeholder="Escribe el texto del post..."
+              placeholderTextColor={colors.mutedForeground}
+              value={editContent}
+              onChangeText={setEditContent}
+              multiline
+              maxLength={2000}
+              editable={!isSavingEdit}
+            />
+            <View style={styles.editModalActions}>
+              <TouchableOpacity
+                style={[styles.editModalCancel, { borderColor: colors.border }]}
+                onPress={() => setIsEditModalVisible(false)}
+                disabled={isSavingEdit}>
+                <Text style={{ color: colors.foreground }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.editModalSave, { backgroundColor: colors.primary }]}
+                onPress={handleSavePostEdit}
+                disabled={isSavingEdit}>
+                {isSavingEdit ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.editModalSaveText}>Guardar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Comment Input */}
       {user && (
@@ -622,6 +756,83 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   backButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  postOptionsOverlay: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
+  postOptionsPopup: {
+    position: "absolute",
+    right: 16,
+    minWidth: 160,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 4,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  postOptionsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 10,
+    borderBottomWidth: 1,
+  },
+  postOptionsButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  editModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  editModalContent: {
+    width: "100%",
+    borderRadius: 16,
+    padding: 20,
+  },
+  editModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 12,
+  },
+  editModalInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 15,
+    minHeight: 100,
+    textAlignVertical: "top",
+  },
+  editModalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+    marginTop: 16,
+  },
+  editModalCancel: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  editModalSave: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  editModalSaveText: {
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",

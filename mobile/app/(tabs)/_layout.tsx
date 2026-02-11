@@ -1,12 +1,13 @@
 import {Tabs} from "expo-router";
 import React from "react";
-import {View, StyleSheet, Image} from "react-native";
+import {View, StyleSheet, Image, Platform} from "react-native";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 
 import {HapticTab} from "@/components/haptic-tab";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 
-const TAB_ICON_SIZE = 26;
+const TAB_ICON_SIZE = 24;
 
 function TabIcon({
   name,
@@ -26,8 +27,43 @@ function TabIcon({
   );
 }
 
+const styles = StyleSheet.create({
+  tabIconWrap: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    minWidth: 48,
+    minHeight: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  centerButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
+  },
+  centerButtonIcon: {
+    width: 32,
+    height: 32,
+  },
+});
+
 export default function TabLayout() {
   const {colors} = useThemeVariant();
+  const insets = useSafeAreaInsets();
+
+  const tabBarHeight = 72 + (Platform.OS === "ios" ? insets.bottom : 12);
+  const paddingBottom = Math.max(insets.bottom, 8);
 
   return (
     <Tabs
@@ -36,6 +72,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: colors.mutedForeground,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarShowLabel: true,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "600",
@@ -43,12 +80,12 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
-          height: 64,
-          paddingBottom: 8,
+          height: tabBarHeight,
+          paddingBottom,
           paddingTop: 8,
         },
         tabBarItemStyle: {
-          paddingTop: 4,
+          paddingTop: 6,
         },
       }}>
       <Tabs.Screen
@@ -98,6 +135,9 @@ export default function TabLayout() {
         options={{
           href: null,
           title: "Notificaciones",
+          tabBarIcon: ({color, focused}) => (
+            <TabIcon name="notifications-outline" color={color} focused={focused} colors={colors} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -121,30 +161,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  tabIconWrap: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  centerButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 30, // Elevates the button above other icons
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
-  centerButtonIcon: {
-    width: 32,
-    height: 32,
-  },
-});

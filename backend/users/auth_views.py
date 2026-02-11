@@ -24,6 +24,8 @@ import hashlib
 import hmac
 from django.conf import settings
 from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 from django.utils import timezone
 from django.shortcuts import render
 from .models import GoogleAuthPendingCode
@@ -292,12 +294,19 @@ def email_request_code_view(request):
     # Send email (best-effort)
     email_sent = False
     try:
+        context = {
+            "code": code,
+            "year": timezone.now().year,
+        }
+        html_message = render_to_string("users/access_code_email.html", context)
+        plain_message = f"Tu código de acceso de Be-U es: {code}\n\nEste código expira en 10 minutos.\n\nSi no solicitaste este código, ignora este mensaje.\n\n— Be-U"
         send_mail(
             subject="Tu código de acceso - Be-U",
-            message=f"Tu código de acceso es: {code}\n\nEste código expira en 10 minutos.",
+            message=plain_message,
             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
             recipient_list=[email],
-            fail_silently=False,  # Changed to False to catch errors
+            html_message=html_message,
+            fail_silently=False,
         )
         email_sent = True
         logger.info(f"Email code sent successfully to {email}")

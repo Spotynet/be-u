@@ -12,6 +12,7 @@ import {
   RefreshControl,
   TextInput,
   Alert,
+  Modal,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
@@ -100,6 +101,12 @@ export default function Home() {
   const [commentsByPost, setCommentsByPost] = useState<Record<number, any[]>>({});
   const [loadingComments, setLoadingComments] = useState<Set<number>>(new Set());
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [editPostId, setEditPostId] = useState<number | null>(null);
+  const [editPostContent, setEditPostContent] = useState("");
+  const [savingPost, setSavingPost] = useState(false);
+  const [postOptionsPostId, setPostOptionsPostId] = useState<number | null>(null);
+  const [postOptionsPosition, setPostOptionsPosition] = useState<{x: number; y: number; w: number; h: number} | null>(null);
+  const postOptionButtonRefs = useRef<Record<number, View | null>>({});
   const router = useRouter();
 
   useFocusEffect(
@@ -197,6 +204,25 @@ export default function Home() {
       const s = new Set(liking);
       s.delete(postId);
       setLiking(s);
+    }
+  };
+
+  const handleSavePostEdit = async () => {
+    if (editPostId == null) return;
+    if (savingPost) return;
+    setSavingPost(true);
+    try {
+      await postApi.updatePost(editPostId, {content: editPostContent});
+      setPosts((prev) =>
+        prev.map((p) => (p.id === editPostId ? {...p, content: editPostContent} : p))
+      );
+      setEditPostId(null);
+      setEditPostContent("");
+    } catch (e: any) {
+      console.error("edit post error", e?.message || e);
+      Alert.alert("Error", "No se pudo editar el post");
+    } finally {
+      setSavingPost(false);
     }
   };
 
@@ -687,11 +713,31 @@ export default function Home() {
             </View>
           </TouchableOpacity>
           <View style={styles.postHeaderRight}>
-            {/* Only show menu for post author (professionals and places) */}
-            {user && post.author?.id === user.id && (user.role === "PROFESSIONAL" || user.role === "PLACE") && (
-              <TouchableOpacity style={styles.postMoreButton}>
-                <Ionicons name="ellipsis-vertical" color={colors.mutedForeground} size={20} />
-              </TouchableOpacity>
+            {/* Solo el dueño del post ve los 3 puntos verticales */}
+            {user && post.author?.id === user.id && (
+              <View
+                ref={(el) => {
+                  if (el) postOptionButtonRefs.current[post.id] = el;
+                }}
+                collapsable={false}>
+                <TouchableOpacity
+                  style={styles.postMoreButton}
+                  onPress={() => {
+                    const ref = postOptionButtonRefs.current[post.id];
+                    if (ref?.measureInWindow) {
+                      ref.measureInWindow((x, y, w, h) => {
+                        setPostOptionsPosition({x, y, w, h});
+                        setPostOptionsPostId(post.id);
+                      });
+                    } else {
+                      setPostOptionsPostId(post.id);
+                      setPostOptionsPosition(null);
+                    }
+                  }}
+                  hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
+                  <Ionicons name="ellipsis-vertical" color={colors.mutedForeground} size={20} />
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </View>
@@ -1648,6 +1694,87 @@ export default function Home() {
           </View>
         )}
       </ScrollView>
+
+      {/* Popup pequeño de opciones del post (justo debajo de los 3 puntos) */}
+      <Modal
+        visible={postOptionsPostId != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { setPostOptionsPostId(null); setPostOptionsPosition(null); }}>
+        <Pressable
+          style={styles.postOptionsOverlay}
+          onPress={() => { setPostOptionsPostId(null); setPostOptionsPosition(null); }}>
+          <Pressable
+            style={[
+              styles.postOptionsPopup,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                top: postOptionsPosition ? postOptionsPosition.y + postOptionsPosition.h : Math.max(insets.top + 70, 90),
+                right: postOptionsPosition ? SCREEN_WIDTH - postOptionsPosition.x - postOptionsPosition.w : 16,
+              },
+            ]}
+            onPress={(e) => e.stopPropagation()}>
+            <TouchableOpacity
+              style={[styles.postOptionsButton, {borderBottomWidth: 0}]}
+              onPress={() => {
+                const p = posts.find((x) => x.id === postOptionsPostId);
+                if (p) {
+                  setEditPostId(p.id);
+                  setEditPostContent(p.content || "");
+                }
+                setPostOptionsPostId(null);
+                setPostOptionsPosition(null);
+              }}>
+              <Ionicons name="create-outline" color={colors.foreground} size={18} />
+              <Text style={[styles.postOptionsButtonText, {color: colors.foreground}]}>Editar texto</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal para editar texto del post */}
+      <Modal
+        visible={editPostId != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditPostId(null)}>
+        <Pressable
+          style={styles.editModalOverlay}
+          onPress={() => setEditPostId(null)}>
+          <Pressable style={[styles.editModalContent, {backgroundColor: colors.card}]} onPress={(e) => e.stopPropagation()}>
+            <Text style={[styles.editModalTitle, {color: colors.foreground}]}>Editar texto</Text>
+            <TextInput
+              style={[styles.editModalInput, {color: colors.foreground, borderColor: colors.border}]}
+              placeholder="Escribe el texto del post..."
+              placeholderTextColor={colors.mutedForeground}
+              value={editPostContent}
+              onChangeText={setEditPostContent}
+              multiline
+              maxLength={2000}
+              editable={!savingPost}
+            />
+            <View style={styles.editModalActions}>
+              <TouchableOpacity
+                style={[styles.editModalCancel, {borderColor: colors.border}]}
+                onPress={() => setEditPostId(null)}
+                disabled={savingPost}>
+                <Text style={{color: colors.foreground}}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.editModalSave, {backgroundColor: colors.primary}]}
+                onPress={handleSavePostEdit}
+                disabled={savingPost}>
+                {savingPost ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.editModalSaveText}>Guardar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -2660,5 +2787,82 @@ const styles = StyleSheet.create({
   polaroidServicesCount: {
     fontSize: 14,
     fontWeight: "700",
+  },
+  editModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  postOptionsOverlay: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
+  postOptionsPopup: {
+    position: "absolute",
+    right: 16,
+    minWidth: 160,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 4,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  postOptionsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 10,
+    borderBottomWidth: 1,
+  },
+  postOptionsButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  editModalContent: {
+    width: "100%",
+    borderRadius: 16,
+    padding: 20,
+  },
+  editModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 12,
+  },
+  editModalInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 15,
+    minHeight: 100,
+    textAlignVertical: "top",
+  },
+  editModalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+    marginTop: 16,
+  },
+  editModalCancel: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  editModalSave: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  editModalSaveText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

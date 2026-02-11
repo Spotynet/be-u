@@ -88,7 +88,6 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
   const [numberExt, setNumberExt] = useState(profile?.number_ext || "");
   const [numberInt, setNumberInt] = useState(profile?.number_int || "");
   const [postalCode, setPostalCode] = useState(profile?.postal_code || "");
-  const [city, setCity] = useState(profile?.city || "");
   const [country, setCountry] = useState(profile?.country || "");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
@@ -300,7 +299,6 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
     setNumberExt(profile?.number_ext || "");
     setNumberInt(profile?.number_int || "");
     setPostalCode(profile?.postal_code || "");
-    setCity(profile?.city || "");
     setCountry(profile?.country || "");
   }, [
     user.email,
@@ -311,7 +309,6 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
     profile?.number_ext,
     profile?.number_int,
     profile?.postal_code,
-    profile?.city,
     profile?.country,
   ]);
 
@@ -331,10 +328,7 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
       }
     }
     
-    // Save city and country to User model
-    if (city) {
-      userData.city = city;
-    }
+    // Ciudad se toma desde la ubicación (backend)
     if (country) {
       userData.country = country;
     }
@@ -346,7 +340,6 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
       number_ext: numberExt,
       number_int: numberInt,
       postal_code: postalCode,
-      city,
       country,
     };
 
@@ -371,9 +364,6 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
     }
     if (postalCode) {
       publicProfileData.postal_code = postalCode;
-    }
-    if (city) {
-      publicProfileData.city = city;
     }
     if (country) {
       publicProfileData.country = country;
@@ -719,24 +709,6 @@ const PlaceSettingsFormComponent = forwardRef<{save: () => Promise<void>}, Place
               placeholder="12345"
               placeholderTextColor={colors.mutedForeground}
               keyboardType="number-pad"
-            />
-          </View>
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={[styles.label, {color: colors.foreground}]}>Ciudad</Text>
-          <View
-            style={[
-              styles.inputContainer,
-              {backgroundColor: colors.card, borderColor: colors.border},
-            ]}>
-            <Ionicons name="business-outline" color={colors.mutedForeground} size={18} />
-            <TextInput
-              style={[styles.input, {color: colors.foreground}]}
-              value={city}
-              onChangeText={setCity}
-              placeholder="Ciudad"
-              placeholderTextColor={colors.mutedForeground}
             />
           </View>
         </View>

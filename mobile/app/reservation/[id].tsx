@@ -2,19 +2,21 @@ import {View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView,
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
-import {useLocalSearchParams, useRouter} from "expo-router";
+import {useLocalSearchParams} from "expo-router";
 import {useEffect, useMemo, useState} from "react";
 import {reservationApi} from "@/lib/api";
 import {Location, Reservation} from "@/types/global";
 import {parseISODateAsLocal} from "@/lib/dateUtils";
 import {useAuth} from "@/features/auth";
+import {useNavigation} from "@/hooks/useNavigation";
 import ReservationQRCode from "@/components/reservation/ReservationQRCode";
+import {ReservationActions} from "@/components/reservation/ReservationActions";
 import {BookingLocationView} from "@/components/booking/BookingLocationView";
 
 export default function ReservationDetailsScreen() {
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const {goBack} = useNavigation();
   const {user} = useAuth();
 
   const params = useLocalSearchParams<{id?: string}>();
@@ -148,11 +150,21 @@ export default function ReservationDetailsScreen() {
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* Header */}
       <View style={[styles.header, {paddingTop: Math.max(insets.top + 12, 16), borderBottomColor: colors.border}]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.backButton} onPress={() => goBack("/(tabs)/perfil")} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, {color: colors.foreground}]}>Reserva</Text>
-        <View style={styles.headerRight} />
+        <View style={styles.headerRight}>
+          {reservation && (
+            <ReservationActions
+              reservation={reservation}
+              isClient={reservation.client_details?.id === user?.id}
+              onUpdated={(updated) => setReservation(updated)}
+              onCancelled={() => fetchReservation()}
+              variant="header"
+            />
+          )}
+        </View>
       </View>
 
       {isLoading ? (
@@ -291,7 +303,7 @@ const styles = StyleSheet.create({
   },
   backButton: {padding: 8, minWidth: 44, minHeight: 44, justifyContent: "center", alignItems: "center"},
   headerTitle: {fontSize: 18, fontWeight: "800"},
-  headerRight: {width: 44},
+  headerRight: {minWidth: 44, alignItems: "flex-end", justifyContent: "center"},
   center: {flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24, gap: 12},
   loadingText: {fontSize: 14, fontWeight: "600"},
   errorTitle: {fontSize: 18, fontWeight: "800"},
