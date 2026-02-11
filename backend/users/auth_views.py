@@ -299,9 +299,9 @@ def email_request_code_view(request):
             "year": timezone.now().year,
         }
         html_message = render_to_string("users/access_code_email.html", context)
-        plain_message = f"Tu código de acceso de Be-U es: {code}\n\nEste código expira en 10 minutos.\n\nSi no solicitaste este código, ignora este mensaje.\n\n— Be-U"
+        plain_message = f"Tu código de acceso de nabbi es: {code}\n\nEste código expira en 10 minutos.\n\nSi no solicitaste este código, ignora este mensaje.\n\n— nabbi"
         send_mail(
-            subject="Tu código de acceso - Be-U",
+            subject="Tu código de acceso - nabbi",
             message=plain_message,
             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
             recipient_list=[email],
