@@ -24,6 +24,9 @@ class PostViewSet(viewsets.ModelViewSet):
         return PostSerializer
 
     def get_permissions(self):
+        # Allow guest view: list and retrieve (read posts) without login
+        if self.action in ('list', 'retrieve', 'comments'):
+            return [AllowAny()]
         return [IsAuthenticated()]
 
     def get_queryset(self):
