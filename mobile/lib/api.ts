@@ -291,6 +291,9 @@ export const authApi = {
 
   logout: () => api.post("/auth/logout/"),
 
+  /** Delete current user and all related data (profiles, reservations, posts, etc.) */
+  deleteMyAccount: () => api.post<{message: string}>("/auth/delete-my-account/"),
+
   refreshToken: (refreshToken: string) =>
     api.post<{access: string}>("/auth/refresh/", {refresh: refreshToken}),
 

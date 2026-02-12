@@ -1,5 +1,5 @@
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate, login, logout
@@ -738,6 +738,31 @@ def logout_view(request):
         return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def delete_my_account_view(request):
+    """
+    Delete the authenticated user and all related data (profiles, reservations, posts, etc.).
+    CASCADE relationships will handle related objects automatically.
+    """
+    try:
+        user = request.user
+        user_id = user.id
+        user.delete()
+        logger.info(f"User {user_id} deleted their account and all related data")
+        return Response(
+            {'message': 'Cuenta eliminada correctamente'},
+            status=status.HTTP_200_OK
+        )
+    except Exception as e:
+        logger.exception(f"Failed to delete user account: {e}")
+        return Response(
+            {'error': 'No se pudo eliminar la cuenta. Inténtalo de nuevo.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

@@ -18,6 +18,7 @@ urlpatterns = [
     path('auth/email/verify-code/', auth_views.email_verify_code_view, name='email-verify-code'),
     path('auth/register/', auth_views.register_view, name='register'),
     path('auth/logout/', auth_views.logout_view, name='logout'),
+    path('auth/delete-my-account/', auth_views.delete_my_account_view, name='delete-my-account'),
     path('auth/refresh/', auth_views.refresh_token_view, name='refresh'),
     path('auth/google/auth-url/', auth_views.google_auth_url_view, name='google-auth-url'),
     path('auth/google/callback/', auth_views.google_callback_view, name='google-callback'),

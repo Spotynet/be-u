@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useThemeVariant } from "@/contexts/ThemeVariantContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
-import { profileCustomizationApi, errorUtils } from "@/lib/api";
+import { authApi, errorUtils } from "@/lib/api";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 export default function DeleteAccountScreen() {
@@ -24,7 +24,7 @@ export default function DeleteAccountScreen() {
   const handleDeleteAccount = () => {
     Alert.alert(
       "Eliminar cuenta",
-      "¿Estás seguro de que deseas eliminar tu perfil? Esta acción no se puede deshacer.",
+      "¿Estás seguro de que deseas eliminar tu cuenta y todos los datos asociados? Esta acción no se puede deshacer.",
       [
         { text: "Cancelar", style: "cancel" },
         {
@@ -39,12 +39,12 @@ export default function DeleteAccountScreen() {
   const confirmDelete = async () => {
     try {
       setIsDeleting(true);
-      await profileCustomizationApi.deleteMyPublicProfile();
+      await authApi.deleteMyAccount();
       await logout();
       router.replace("/login");
     } catch (error: any) {
       const message = errorUtils.getErrorMessage(error);
-      Alert.alert("Error", message || "No se pudo eliminar el perfil.");
+      Alert.alert("Error", message || "No se pudo eliminar la cuenta.");
     } finally {
       setIsDeleting(false);
     }
@@ -79,11 +79,11 @@ export default function DeleteAccountScreen() {
           <Ionicons name="trash-outline" color="#ef4444" size={48} />
         </View>
         <Text style={[styles.warningTitle, { color: colors.foreground }]}>
-          Eliminar tu perfil
+          Eliminar tu cuenta
         </Text>
         <Text
           style={[styles.warningText, { color: colors.mutedForeground }]}>
-          Se eliminará tu perfil público de la aplicación. Podrás volver a iniciar sesión con tu cuenta, pero deberás crear un nuevo perfil si quieres publicar de nuevo.
+          Se eliminará tu cuenta y todos los datos asociados (perfil, reservas, publicaciones, etc.). Esta acción no se puede deshacer.
         </Text>
 
         <TouchableOpacity

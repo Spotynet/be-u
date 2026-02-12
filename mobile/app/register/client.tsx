@@ -18,6 +18,7 @@ import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {errorUtils} from "@/lib/api";
 import {AddressSearch} from "@/components/location/AddressSearch";
+import {TermsAndConditionsCheckbox} from "@/components/TermsAndConditionsCheckbox";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 
 export default function RegisterClient() {
@@ -46,6 +47,7 @@ export default function RegisterClient() {
     role: "client" as "client",
   });
   const [loading, setLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const onSubmit = async () => {
     const trimmed = {
@@ -63,6 +65,13 @@ export default function RegisterClient() {
     }
     if (!/\S+@\S+\.\S+/.test(trimmed.email)) {
       Alert.alert("Correo inválido", "Ingresa un correo electrónico válido.");
+      return;
+    }
+    if (!acceptedTerms) {
+      Alert.alert(
+        "Términos y condiciones",
+        "Debes aceptar los términos y condiciones de uso para crear una cuenta."
+      );
       return;
     }
     try {
@@ -195,6 +204,12 @@ export default function RegisterClient() {
                 longitude: location.longitude,
               }));
             }}
+          />
+
+          <TermsAndConditionsCheckbox
+            checked={acceptedTerms}
+            onToggle={setAcceptedTerms}
+            disabled={loading}
           />
 
           <Pressable

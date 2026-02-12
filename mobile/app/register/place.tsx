@@ -19,6 +19,7 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {errorUtils, profileCustomizationApi} from "@/lib/api";
 import {AddressSearch} from "@/components/location/AddressSearch";
 import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector";
+import {TermsAndConditionsCheckbox} from "@/components/TermsAndConditionsCheckbox";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {setTourPending} from "@/features/onboarding/ProviderTourProvider";
 
@@ -43,6 +44,7 @@ export default function RegisterPlace() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const set = (k: keyof typeof values) => (t: string) => setValues((s) => ({...s, [k]: t}));
 
@@ -67,6 +69,13 @@ export default function RegisterPlace() {
       Alert.alert(
         "Categoría requerida",
         "Selecciona al menos una categoría y una subcategoría para tu negocio."
+      );
+      return;
+    }
+    if (!acceptedTerms) {
+      Alert.alert(
+        "Términos y condiciones",
+        "Debes aceptar los términos y condiciones de uso para crear una cuenta."
       );
       return;
     }
@@ -232,6 +241,12 @@ export default function RegisterPlace() {
             selectedSubCategories={selectedSubCategories}
             onCategoriesChange={setSelectedCategories}
             onSubCategoriesChange={setSelectedSubCategories}
+          />
+
+          <TermsAndConditionsCheckbox
+            checked={acceptedTerms}
+            onToggle={setAcceptedTerms}
+            disabled={loading}
           />
 
           <Pressable
