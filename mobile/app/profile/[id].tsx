@@ -417,8 +417,16 @@ export default function ProfileDetailScreen() {
   };
 
   const navigateToBooking = (service: any) => {
+    if (!isAuthenticated || !user) {
+      Alert.alert(
+        "Inicia sesión",
+        "Necesitas iniciar sesión para reservar.",
+        [{text: "OK", onPress: () => router.push("/login")}]
+      );
+      return;
+    }
     // Prevent booking your own profile
-    if (isAuthenticated && user && profile?.user && Number(profile.user) === Number(user.id)) {
+    if (profile?.user && Number(profile.user) === Number(user.id)) {
       Alert.alert(
         "No puedes reservarte a ti mism@",
         "Para evitar reservas duplicadas, no es posible hacer una reserva en tu propio perfil."

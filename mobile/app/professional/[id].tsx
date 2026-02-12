@@ -581,8 +581,16 @@ export default function ProfessionalDetailScreen() {
                       <TouchableOpacity
                         style={[styles.reserveButton, {backgroundColor: colors.primary}]}
                         onPress={() => {
+                          if (!isAuthenticated || !user) {
+                            Alert.alert(
+                              "Inicia sesión",
+                              "Necesitas iniciar sesión para reservar.",
+                              [{text: "OK", onPress: () => router.push("/login")}]
+                            );
+                            return;
+                          }
                           // Prevent booking your own profile
-                          if (isAuthenticated && user && (professional as any)?.user_id === user.id) {
+                          if ((professional as any)?.user_id === user.id) {
                             Alert.alert(
                               "No puedes reservarte a ti mism@",
                               "Para evitar reservas duplicadas, no es posible hacer una reserva en tu propio perfil."

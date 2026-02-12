@@ -22,7 +22,9 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
-        """Require auth for list/retrieve (city-based filtering); require auth for write."""
+        """Allow guests to view profiles (list + retrieve). Require auth for write actions."""
+        if self.action in ('list', 'retrieve'):
+            return [AllowAny()]
         return [IsAuthenticated()]
     
     def get_serializer_class(self):
@@ -49,13 +51,11 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve':
             return queryset
         
-        # For list/search actions, apply city-based filter
+        # For list/search actions, apply city-based filter when user is authenticated and has city
         viewer_city = self._viewer_city()
         if viewer_city:
             queryset = queryset.filter(Q(user__city__iexact=viewer_city) | Q(city__iexact=viewer_city))
-        else:
-            # If no city set, return empty for list but allow retrieve by ID
-            queryset = queryset.none()
+        # If not authenticated (guest) or no city set: no city filter, so guests see all profiles
 
         # Filter by profile type
         profile_type = self.request.query_params.get('profile_type')

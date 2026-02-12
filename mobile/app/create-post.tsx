@@ -3,6 +3,7 @@ import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter} from "expo-router";
+import {useEffect} from "react";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {postFormats} from "@/constants/postFormats";
 
@@ -11,6 +12,13 @@ export default function CreatePostScreen() {
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const {user} = useAuth();
+
+  // Redirect guests to login
+  useEffect(() => {
+    if (!user) {
+      router.replace("/login");
+    }
+  }, [user, router]);
 
   // Filter post formats based on user role
   const availableFormats = postFormats.filter((format) => {

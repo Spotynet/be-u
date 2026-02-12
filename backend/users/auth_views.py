@@ -28,7 +28,8 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.utils import timezone
 from django.shortcuts import render
-from .models import GoogleAuthPendingCode
+from django.db import transaction
+from .models import GoogleAuthPendingCode, GoogleAuthCredentials
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -744,14 +745,29 @@ def logout_view(request):
 @permission_classes([IsAuthenticated])
 def delete_my_account_view(request):
     """
-    Delete the authenticated user and all related data (profiles, reservations, posts, etc.).
-    CASCADE relationships will handle related objects automatically.
+    Permanently delete the authenticated user and all related data.
+    Uses a transaction so either everything is deleted or nothing is.
     """
     try:
         user = request.user
         user_id = user.id
-        user.delete()
-        logger.info(f"User {user_id} deleted their account and all related data")
+        user_email = (user.email or "").strip().lower()
+
+        with transaction.atomic():
+            # Remove any email auth codes for this user so they cannot be reused
+            if user_email:
+                deleted_codes = EmailAuthCode.objects.filter(email=user_email).delete()
+                if deleted_codes and deleted_codes[0]:
+                    logger.info(f"Deleted {deleted_codes[0]} EmailAuthCode(s) for user {user_id}")
+
+            # Delete Google auth credentials explicitly so no orphan or race
+            GoogleAuthCredentials.objects.filter(user=user).delete()
+
+            # This CASCADE-deletes: ClientProfile, ProfessionalProfile, PlaceProfile,
+            # PublicProfile, posts, reservations, notifications, favorites, etc.
+            user.delete()
+
+        logger.info(f"User {user_id} ({user_email}) and all related data deleted successfully")
         return Response(
             {'message': 'Cuenta eliminada correctamente'},
             status=status.HTTP_200_OK

@@ -93,6 +93,14 @@ export default function BookingScreen() {
     serviceInfo?.serviceType === "professional_service" ? "professional" : "place";
   const providerIdForAvailability = resolvedProviderId ?? serviceInfo?.providerId ?? 0;
 
+  // Redirect guests to login — reservations require an account
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      router.replace("/login");
+      return;
+    }
+  }, [isAuthenticated, user, router]);
+
   // Initialize the service in the hook when component mounts
   useEffect(() => {
     if (serviceInfo && !state.service) {

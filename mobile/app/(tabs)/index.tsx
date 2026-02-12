@@ -834,6 +834,14 @@ export default function Home() {
               if (isOwnPost) {
                 return;
               }
+              if (!user) {
+                Alert.alert(
+                  "Inicia sesión",
+                  "Necesitas iniciar sesión para reservar.",
+                  [{text: "OK", onPress: () => router.push("/login")}]
+                );
+                return;
+              }
               if (post.linked_service_id != null && post.linked_provider_id != null && post.linked_service_name) {
                 router.push({
                   pathname: "/booking",
@@ -1589,7 +1597,7 @@ export default function Home() {
               )}
             </View>
           </TouchableOpacity>
-          {user?.role !== "CLIENT" && (
+          {user && user.role !== "CLIENT" && (
             <TourTarget targetId="posts_create">
               <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/create-post")}>
                 <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />

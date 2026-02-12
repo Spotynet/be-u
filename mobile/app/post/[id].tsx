@@ -294,6 +294,14 @@ export default function PostDetailScreen() {
               onPress={() => {
                 const isOwnPost = user?.id != null && post.author?.id === user.id;
                 if (isOwnPost) return;
+                if (!user) {
+                  Alert.alert(
+                    "Inicia sesión",
+                    "Necesitas iniciar sesión para reservar.",
+                    [{text: "OK", onPress: () => router.push("/login")}]
+                  );
+                  return;
+                }
                 if (post.linked_service_id != null && post.linked_provider_id != null && post.linked_service_name) {
                   router.push({
                     pathname: "/booking",
