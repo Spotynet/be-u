@@ -10,14 +10,12 @@ import {
   RefreshControl,
 } from "react-native";
 import {useRouter} from "expo-router";
-import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "../../contexts/ThemeVariantContext";
-import {profileCustomizationApi, serviceApi} from "../../lib/api";
+import {profileCustomizationApi} from "../../lib/api";
 import {formatPrice as formatPriceUtil} from "../../lib/priceUtils";
-import {useNavigation} from "../../hooks/useNavigation";
 import {useAuth} from "../../features/auth/hooks/useAuth";
-import {BackButton} from "../../components/ui/BackButton";
+import {AppHeader} from "../../components/ui/AppHeader";
 
 interface CustomService {
   id: number;
@@ -37,9 +35,7 @@ interface ServiceManagementScreenProps {
 
 export default function ServiceManagementScreen({embedded = false}: ServiceManagementScreenProps) {
   const router = useRouter();
-  const {goBack} = useNavigation();
   const {colors} = useThemeVariant();
-  const insets = useSafeAreaInsets();
   const {user, isAuthenticated} = useAuth();
   const [services, setServices] = useState<CustomService[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,22 +49,13 @@ export default function ServiceManagementScreen({embedded = false}: ServiceManag
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
         {!embedded && (
-          <View
-            style={[
-              styles.header,
-              {
-                backgroundColor: colors.background,
-                borderBottomColor: colors.border,
-                paddingTop: Math.max(insets.top + 16, 20),
-              },
-            ]}>
-            <BackButton fallbackRoute="/(tabs)/perfil" style={styles.backButton} />
-            <View style={styles.headerContent}>
-              <Text style={[styles.headerTitle, {color: colors.foreground}]}>
-                Servicios
-              </Text>
-            </View>
-          </View>
+          <AppHeader
+            title="Servicios"
+            showBackButton
+            backFallbackRoute="/(tabs)/perfil"
+            backgroundColor={colors.background}
+            borderBottom={colors.border}
+          />
         )}
         <View style={styles.centeredContainer}>
           <Ionicons name="lock-closed" size={80} color={colors.mutedForeground} />
@@ -140,13 +127,13 @@ export default function ServiceManagementScreen({embedded = false}: ServiceManag
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
         {!embedded && (
-          <View style={[styles.header, {paddingTop: insets.top + 44, paddingBottom: 12}]}>
-            <TouchableOpacity onPress={() => goBack("/(tabs)/perfil")}>
-              <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Mis Servicios</Text>
-            <View style={{width: 24}} />
-          </View>
+          <AppHeader
+            title="Mis Servicios"
+            showBackButton
+            backFallbackRoute="/(tabs)/perfil"
+            backgroundColor={colors.background}
+            borderBottom={colors.border}
+          />
         )}
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -157,29 +144,14 @@ export default function ServiceManagementScreen({embedded = false}: ServiceManag
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Header (only when not embedded) */}
       {!embedded && (
-        <View
-          style={[
-            styles.header,
-            {
-              paddingTop: Math.max(insets.top + 16, 20),
-              paddingBottom: 12,
-              borderBottomColor: colors.border,
-              borderBottomWidth: 1,
-            },
-          ]}>
-          <TouchableOpacity
-            onPress={() => goBack("/(tabs)/perfil")}
-            style={styles.backButton}
-            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
-            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Mis Servicios</Text>
-          </View>
-          <View style={{width: 44}} />
-        </View>
+        <AppHeader
+          title="Mis Servicios"
+          showBackButton
+          backFallbackRoute="/(tabs)/perfil"
+          backgroundColor={colors.background}
+          borderBottom={colors.border}
+        />
       )}
 
       <ScrollView
@@ -284,41 +256,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     minHeight: 0,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e5e5",
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 12,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: 0.2,
-    textAlign: "center",
-  },
-  headerSubtitle: {
-    marginTop: 2,
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  headerContent: {
-    flex: 1,
-  },
-  backButton: {
-    minWidth: 44,
-    minHeight: 44,
-    justifyContent: "center",
-    alignItems: "flex-start",
   },
   addButton: {
     minWidth: 44,

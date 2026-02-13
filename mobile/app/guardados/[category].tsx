@@ -50,7 +50,9 @@ export default function GuardadosCategoryScreen() {
   const {colors} = useThemeVariant();
   const {user, isAuthenticated} = useAuth();
 
-  const {favorites, isLoading: loadingFavs, removeFavorite} = useFavorites();
+  const {favorites, isLoading: loadingFavs, removeFavorite} = useFavorites({
+    onUnauthorized: () => router.replace("/login"),
+  });
   const [likedPosts, setLikedPosts] = useState<any[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
 
@@ -58,7 +60,10 @@ export default function GuardadosCategoryScreen() {
   const categoryLabel = CATEGORY_LABELS[categoryId] ?? categoryId;
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      router.replace("/login");
+      return;
+    }
     (async () => {
       try {
         const response = await postApi.getLikedPosts();

@@ -7,20 +7,49 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
-import {useState} from "react";
+import {useState, useMemo} from "react";
 import {useRouter} from "expo-router";
 import {NotificationCard} from "@/components/notifications";
 import {useNotifications, NotificationType, Notification as NotificationTypeModel} from "@/features/notifications";
 import {useAuth} from "@/features/auth";
 import {linkApi} from "@/lib/api";
 import {useIncomingReservations} from "@/features/reservations";
+import {AppHeader} from "@/components/ui/AppHeader";
+
+function getDateGroupKey(timestamp: string): string {
+  const d = new Date(timestamp);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const dDay = new Date(d);
+  dDay.setHours(0, 0, 0, 0);
+  if (dDay.getTime() === today.getTime()) return "HOY";
+  if (dDay.getTime() === yesterday.getTime()) return "AYER";
+  return d.toLocaleDateString("es-ES", {day: "numeric", month: "short", year: "numeric"});
+}
+
+function groupByDate(notifications: NotificationTypeModel[]): { key: string; items: NotificationTypeModel[] }[] {
+  const map = new Map<string, NotificationTypeModel[]>();
+  for (const n of notifications) {
+    const key = getDateGroupKey(n.timestamp);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(n);
+  }
+  const order = ["HOY", "AYER"];
+  const rest = [...map.keys()].filter((k) => !order.includes(k));
+  rest.sort((a, b) => {
+    const dA = map.get(a)?.[0]?.timestamp ?? "";
+    const dB = map.get(b)?.[0]?.timestamp ?? "";
+    return new Date(dB).getTime() - new Date(dA).getTime();
+  });
+  const keys = [...order.filter((k) => map.has(k)), ...rest];
+  return keys.map((key) => ({key, items: map.get(key)!}));
+}
 
 export default function Notificaciones() {
-  const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
   const router = useRouter();
   const {user, isAuthenticated} = useAuth();
@@ -72,6 +101,11 @@ export default function Notificaciones() {
 
   const filteredNotifications =
     activeFilter === "all" ? notifications : notifications.filter((n) => n.type === activeFilter);
+
+  const groupedByDate = useMemo(
+    () => groupByDate(filteredNotifications),
+    [filteredNotifications]
+  );
 
   const handleInviteAction = async (
     notification: NotificationTypeModel,
@@ -156,19 +190,13 @@ export default function Notificaciones() {
   if (!isAuthenticated || !user) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View style={[styles.header, {backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border}]}>
-          <View style={styles.headerTop}>
-            <View style={styles.headerLeft}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => router.back()}
-                activeOpacity={0.7}>
-                <Ionicons name="arrow-back" color={colors.foreground} size={22} />
-              </TouchableOpacity>
-              <Text style={[styles.headerTitle, {color: colors.foreground}]}>Notificaciones</Text>
-            </View>
-          </View>
-        </View>
+        <AppHeader
+          title="Notificaciones"
+          showBackButton={true}
+          onBackPress={() => router.back()}
+          backgroundColor={colors.background}
+          borderBottom={colors.border}
+        />
         <View style={styles.centeredContainer}>
           <Ionicons name="notifications-outline" size={80} color={colors.mutedForeground} />
           <Text style={[styles.emptyTitle, {color: colors.foreground}]}>
@@ -181,7 +209,7 @@ export default function Notificaciones() {
             style={[styles.loginButton, {backgroundColor: colors.primary}]}
             onPress={() => router.push("/login")}
             activeOpacity={0.9}>
-            <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
+            <Text style={[styles.loginButtonText, {color: colors.primaryForeground}]}>Iniciar Sesión</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -192,21 +220,15 @@ export default function Notificaciones() {
   if (isLoading && notifications.length === 0) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View style={[styles.header, {backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border}]}>
-          <View style={styles.headerTop}>
-            <View style={styles.headerLeft}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => router.back()}
-                activeOpacity={0.7}>
-                <Ionicons name="arrow-back" color={colors.foreground} size={22} />
-              </TouchableOpacity>
-              <Text style={[styles.headerTitle, {color: colors.foreground}]}>Notificaciones</Text>
-            </View>
-          </View>
-        </View>
+        <AppHeader
+          title="Notificaciones"
+          showBackButton={true}
+          onBackPress={() => router.back()}
+          backgroundColor={colors.background}
+          borderBottom={colors.border}
+        />
         <View style={styles.centeredContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, {color: colors.mutedForeground}]}>
             Cargando notificaciones...
           </Text>
@@ -217,21 +239,15 @@ export default function Notificaciones() {
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Header */}
-      <View style={[styles.header, {backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border}]}>
-        <View style={styles.headerTop}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-              activeOpacity={0.7}>
-              <Ionicons name="arrow-back" color={colors.foreground} size={22} />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Notificaciones</Text>
-          </View>
-        </View>
-
-        {/* Filter Tabs */}
+      <AppHeader
+        title="Notificaciones"
+        showBackButton={true}
+        onBackPress={() => router.back()}
+        backgroundColor={colors.background}
+        borderBottom={colors.border}
+      />
+      {/* Filter Tabs */}
+      <View style={[styles.filterTabsWrapper, {borderBottomColor: colors.border}]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -259,10 +275,7 @@ export default function Notificaciones() {
           <TouchableOpacity
             style={[
               styles.filterTab,
-              activeFilter === "reserva" && [
-                styles.filterTabActive,
-                {backgroundColor: colors.primary + "20"},
-              ],
+              activeFilter === "reserva" && [styles.filterTabActive, {backgroundColor: colors.primary + "20"}],
             ]}
             onPress={() => setActiveFilter("reserva")}
             activeOpacity={0.7}>
@@ -302,7 +315,7 @@ export default function Notificaciones() {
       {/* Content */}
       {error ? (
         <View style={styles.centeredContainer}>
-          <Ionicons name="alert-circle-outline" size={80} color="#ef4444" />
+          <Ionicons name="alert-circle-outline" size={80} color={colors.destructive} />
           <Text style={[styles.emptyTitle, {color: colors.foreground}]}>
             Error al cargar notificaciones
           </Text>
@@ -311,7 +324,7 @@ export default function Notificaciones() {
             style={[styles.retryButton, {backgroundColor: colors.primary}]}
             onPress={refreshNotifications}
             activeOpacity={0.9}>
-            <Text style={styles.retryButtonText}>Reintentar</Text>
+            <Text style={[styles.retryButtonText, {color: colors.primaryForeground}]}>Reintentar</Text>
           </TouchableOpacity>
         </View>
       ) : filteredNotifications.length === 0 ? (
@@ -336,67 +349,71 @@ export default function Notificaciones() {
       ) : (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.notificationsList}>
-            {filteredNotifications.map((notification) => {
-              const linkId =
-                notification.metadata?.link_id ??
-                notification.metadata?.linkId ??
-                notification.metadata?.linkID;
-              const canRespondInvite =
-                isProfessional &&
-                notification.type === "sistema" &&
-                notification.metadata?.status === "INVITED" &&
-                notification.status === "unread" &&
-                linkId;
+            {groupedByDate.map(({key, items}) => (
+              <View key={key} style={styles.section}>
+                <Text style={[styles.sectionHeader, {color: colors.mutedForeground}]}>{key}</Text>
+                {items.map((notification) => {
+                  const linkId =
+                    notification.metadata?.link_id ??
+                    notification.metadata?.linkId ??
+                    notification.metadata?.linkID;
+                  const canRespondInvite =
+                    isProfessional &&
+                    notification.type === "sistema" &&
+                    notification.metadata?.status === "INVITED" &&
+                    notification.status === "unread" &&
+                    linkId;
 
-              // Check if this is a pending reservation notification
-              const reservationId = notification.metadata?.reservation_id || notification.relatedId;
-              const isPendingReservation =
-                notification.type === "reserva" &&
-                notification.metadata?.status === "PENDING" &&
-                notification.metadata?.action_required === true &&
-                reservationId &&
-                (user?.role === "PROFESSIONAL" || user?.role === "PLACE");
+                  const reservationId = notification.metadata?.reservation_id || notification.relatedId;
+                  const isPendingReservation =
+                    notification.type === "reserva" &&
+                    notification.metadata?.status === "PENDING" &&
+                    notification.metadata?.action_required === true &&
+                    reservationId &&
+                    (user?.role === "PROFESSIONAL" || user?.role === "PLACE");
 
-              return (
-                <NotificationCard
-                  key={notification.id}
-                  notification={notification}
-                  onPress={handleNotificationPress}
-                  onMarkAsRead={markAsRead}
-                  onDelete={deleteNotification}
-                  onAcceptInvite={
-                    canRespondInvite
-                      ? (notif) =>
-                          handleInviteAction(
-                            notif,
-                            "accept",
-                            Number.parseInt(String(linkId), 10)
-                          )
-                      : undefined
-                  }
-                  onDeclineInvite={
-                    canRespondInvite
-                      ? (notif) =>
-                          handleInviteAction(
-                            notif,
-                            "reject",
-                            Number.parseInt(String(linkId), 10)
-                          )
-                      : undefined
-                  }
-                  onConfirmReservation={
-                    isPendingReservation
-                      ? (id) => handleReservationAction(id, "confirm")
-                      : undefined
-                  }
-                  onRejectReservation={
-                    isPendingReservation
-                      ? (id) => handleReservationAction(id, "reject")
-                      : undefined
-                  }
-                />
-              );
-            })}
+                  return (
+                    <NotificationCard
+                      key={notification.id}
+                      notification={notification}
+                      onPress={handleNotificationPress}
+                      onMarkAsRead={markAsRead}
+                      onDelete={deleteNotification}
+                      onAcceptInvite={
+                        canRespondInvite
+                          ? (notif) =>
+                              handleInviteAction(
+                                notif,
+                                "accept",
+                                Number.parseInt(String(linkId), 10)
+                              )
+                          : undefined
+                      }
+                      onDeclineInvite={
+                        canRespondInvite
+                          ? (notif) =>
+                              handleInviteAction(
+                                notif,
+                                "reject",
+                                Number.parseInt(String(linkId), 10)
+                              )
+                          : undefined
+                      }
+                      onConfirmReservation={
+                        isPendingReservation
+                          ? (id) => handleReservationAction(id, "confirm")
+                          : undefined
+                      }
+                      onRejectReservation={
+                        isPendingReservation
+                          ? (id) => handleReservationAction(id, "reject")
+                          : undefined
+                      }
+                    />
+                  );
+                })}
+              </View>
+            ))}
           </View>
         </ScrollView>
       )}
@@ -408,28 +425,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingTop: 48,
-    paddingBottom: 12,
+  filterTabsWrapper: {
     paddingHorizontal: 20,
-  },
-  headerTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  backButton: {
-    padding: 6,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "800",
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
   },
   filterTabs: {
     flexDirection: "row",
@@ -461,6 +461,20 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  notificationsList: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: "500",
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
   centeredContainer: {
     flex: 1,
     justifyContent: "center",
@@ -485,7 +499,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   loginButtonText: {
-    color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -496,16 +509,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   retryButtonText: {
-    color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
   },
   loadingText: {
     fontSize: 15,
     marginTop: 16,
-  },
-  notificationsList: {
-    paddingTop: 16,
   },
   statsText: {
     fontSize: 14,

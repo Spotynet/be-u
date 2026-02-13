@@ -45,6 +45,9 @@ export const Colors = {
     border: "#e5e7eb",
     input: "#f3f4f6",
 
+    // Content/screen secondary background (e.g. list areas)
+    contentBackground: "#F0F1F3",
+
     // Ring (focus) - Purple focus ring
     ring: primaryColor,
 
@@ -87,6 +90,9 @@ export const Colors = {
     // Border and input - input slightly lighter than background for visibility
     border: "#334155",
     input: "#1e293b",
+
+    // Content/screen secondary background
+    contentBackground: "#1e293b",
 
     // Ring (focus)
     ring: primaryColor,

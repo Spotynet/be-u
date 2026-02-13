@@ -1,8 +1,7 @@
 import React, {useEffect, useMemo, useRef, useState} from "react";
-import {View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, FlatList} from "react-native";
+import {View, Text, StyleSheet, TouchableOpacity, FlatList, Platform} from "react-native";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Reservation, ReservationStatus} from "@/types/global";
-import {Ionicons} from "@expo/vector-icons";
 
 interface CalendarViewProps {
   reservations: Reservation[];
@@ -186,11 +185,14 @@ export const CalendarView = ({
     }
   }, [selectedWeekIndex, weekWidth]);
 
+  const weekDayNamesShort = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
+  const getWeekDayLabel = (d: Date) => weekDayNamesShort[(d.getDay() + 6) % 7];
+
   return (
     <View style={styles.container}>
       <View style={styles.dropdownRow}>
-        <Text style={[styles.monthYearText, {color: colors.foreground}]}>
-          {monthNames[currentMonthIndex]} {currentYear}
+        <Text style={[styles.monthYearText, {color: colors.mutedForeground}]}>
+          {`${monthNames[currentMonthIndex].toUpperCase()} ${currentYear}`}
         </Text>
       </View>
 
@@ -246,7 +248,7 @@ export const CalendarView = ({
                 <View style={[styles.weekPage, {width: weekWidth}]}>
                   {days.map((d) => {
                     const iso = toISODate(d);
-                    const weekdayLabel = new Intl.DateTimeFormat("es-MX", {weekday: "short"}).format(d);
+                    const weekdayLabel = getWeekDayLabel(d);
                     const dayNum = String(d.getDate());
                     const weekdayIndex = d.getDay();
                     const isWeekdayDisabled =
@@ -259,40 +261,50 @@ export const CalendarView = ({
                     return (
                       <TouchableOpacity
                         key={iso}
-                        style={styles.dayTouch}
+                        style={[
+                          styles.dayTouch,
+                          isSelected && { transform: [{ translateY: -4 }] },
+                        ]}
                         activeOpacity={0.85}
                         disabled={isDisabled}
                         onPress={() => {
                           setCurrentDate(iso);
                           onDayPress(iso);
                         }}>
-                        <Text style={[styles.dayNameText, {color: colors.mutedForeground}]}>
+                        <Text
+                          style={[
+                            styles.dayNameText,
+                            {
+                              color: isSelected ? colors.primary : colors.mutedForeground,
+                            },
+                            isDisabled && {color: colors.mutedForeground},
+                          ]}>
                           {weekdayLabel}
                         </Text>
-                        <View
-                          style={[
-                            styles.dayCircle,
-                            {
-                              backgroundColor: isSelected ? colors.input : colors.background,
-                              borderColor: colors.border,
-                              borderWidth: isSelected ? 2 : 1,
-                            },
-                            isDisabled && styles.dayCircleDisabled,
-                          ]}>
-                          <Text
-                            style={[
-                              styles.dayText,
-                              {color: colors.foreground},
-                              isDisabled && {color: colors.mutedForeground},
-                            ]}>
-                            {dayNum}
-                          </Text>
+                        <View style={styles.dayNumberCell}>
+                          {isSelected ? (
+                            <View style={[styles.selectedDateWrap, {backgroundColor: colors.primary}]}>
+                              <Text style={styles.selectedDateText}>{dayNum}</Text>
+                            </View>
+                          ) : (
+                            <Text
+                              style={[
+                                styles.dayText,
+                                {color: colors.foreground},
+                                isDisabled && {color: colors.mutedForeground},
+                              ]}>
+                              {dayNum}
+                            </Text>
+                          )}
                         </View>
                         <View style={styles.dotsRow}>
                           {dots.slice(0, 3).map((dot: any, idx: number) => (
                             <View
                               key={`${iso}-dot-${idx}`}
-                              style={[styles.dot, {backgroundColor: dot.color || colors.primary}]}
+                              style={[
+                                styles.dot,
+                                {backgroundColor: isSelected ? colors.primary : (dot.color || colors.primary)},
+                              ]}
                             />
                           ))}
                         </View>
@@ -338,18 +350,21 @@ const styles = StyleSheet.create({
   dropdownRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
+    justifyContent: "flex-start",
+    marginBottom: 10,
+    paddingHorizontal: 0,
   },
   monthYearText: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   weekStripContainer: {
     borderWidth: 0,
     borderRadius: 14,
-    overflow: "hidden",
-    paddingVertical: 0,
+    overflow: "visible",
+    paddingVertical: 8,
     paddingHorizontal: 16,
     marginBottom: 0,
   },
@@ -369,33 +384,47 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     marginBottom: 6,
-    textTransform: "capitalize",
+    textTransform: "uppercase",
     textAlign: "center",
   },
-  dayCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
+  dayNumberCell: {
+    minHeight: 42,
     justifyContent: "center",
-    marginTop: 0,
-    borderWidth: 1,
-  },
-  dayCircleDisabled: {
-    backgroundColor: "transparent",
-    opacity: 0.4,
+    alignItems: "center",
   },
   dayText: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "700",
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: 22,
+  },
+  selectedDateWrap: {
+    minWidth: 40,
+    padding: 8,
+    borderRadius: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: {width: 0, height: 4},
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+      },
+      android: {elevation: 6},
+    }),
+  },
+  selectedDateText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#ffffff",
+    textAlign: "center",
   },
   dotsRow: {
     flexDirection: "row",
     gap: 4,
     marginTop: 8,
-    height: 10,
+    minHeight: 10,
     alignItems: "center",
     justifyContent: "center",
   },

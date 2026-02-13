@@ -12,19 +12,20 @@ import {
   Keyboard,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useRouter} from "expo-router";
 import {useState, useRef, useEffect} from "react";
 import {MediaUploader} from "@/components/posts/MediaUploader";
 import {LinkedServiceSelector, type CustomServiceItem} from "@/components/posts/LinkedServiceSelector";
 import {postApi, errorUtils, profileCustomizationApi} from "@/lib/api";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
+import {AppHeader} from "@/components/ui/AppHeader";
 
 export default function CreatePhotoPostScreen() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {user, isAuthenticated} = useAuth();
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -153,24 +154,13 @@ export default function CreatePhotoPostScreen() {
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Header */}
-      <View style={[styles.header, {borderBottomColor: colors.border}]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Foto</Text>
-        <TouchableOpacity
-          onPress={handlePublish}
-          style={styles.publishButton}
-          disabled={isUploading}>
-          {isUploading ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Text style={[styles.publishButtonText, {color: colors.primary}]}>Publicar</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
+      <AppHeader
+        title="Foto"
+        showBackButton={true}
+        onBackPress={() => router.back()}
+        backgroundColor={colors.background}
+        borderBottom={colors.border}
+      />
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -178,77 +168,81 @@ export default function CreatePhotoPostScreen() {
         <ScrollView
           ref={scrollViewRef}
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, {paddingBottom: 24}]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
-        {/* Media Uploader */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Foto</Text>
+          {/* Media Uploader */}
           <MediaUploader
             mediaType="photo"
             maxFiles={1}
             onMediaSelected={setPhotos}
             selectedMedia={photos}
           />
-        </View>
 
-        <LinkedServiceSelector
-          customServices={customServices}
-          linkedServiceId={linkedServiceId}
-          onSelect={setLinkedServiceId}
-          colors={colors}
-        />
-
-        {/* Description */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Descripción</Text>
-          <TextInput
-            style={[
-              styles.textArea,
-              {
-                backgroundColor: colors.inputBackground,
-                color: colors.foreground,
-                borderColor: colors.border,
-              },
-            ]}
-            placeholder="¿Qué quieres compartir?"
-            placeholderTextColor={colors.mutedForeground}
-            multiline
-            numberOfLines={6}
-            value={description}
-            onChangeText={setDescription}
-            textAlignVertical="top"
-            onFocus={() => {
-              // Scroll to the description section when keyboard appears
-              setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({animated: true});
-              }, 100);
-            }}
+          <LinkedServiceSelector
+            customServices={customServices}
+            linkedServiceId={linkedServiceId}
+            onSelect={setLinkedServiceId}
+            colors={colors}
           />
-        </View>
 
-        {/* Publish Button (Bottom) */}
-        <TouchableOpacity
+          {/* Description */}
+          <View style={styles.fieldBlock}>
+            <Text style={[styles.fieldLabel, {color: colors.foreground}]}>DESCRIPCIÓN</Text>
+            <TextInput
+              style={[
+                styles.descriptionInput,
+                {
+                  backgroundColor: colors.input,
+                  color: colors.foreground,
+                },
+              ]}
+              placeholder="Escribe algo sobre este trabajo..."
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+              numberOfLines={6}
+              value={description}
+              onChangeText={setDescription}
+              textAlignVertical="top"
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollToEnd({animated: true});
+                }, 100);
+              }}
+            />
+          </View>
+
+          {/* Extra space when keyboard is visible */}
+          <View style={{height: keyboardHeight > 0 ? keyboardHeight : 0}} />
+        </ScrollView>
+
+        {/* Botón Publicar fijo abajo */}
+        <View
           style={[
-            styles.publishButtonLarge,
-            {backgroundColor: isUploading ? colors.muted : colors.primary},
-          ]}
-          onPress={handlePublish}
-          activeOpacity={0.8}
-          disabled={isUploading}>
-          {isUploading ? (
-            <ActivityIndicator size="small" color="#ffffff" />
-          ) : (
-            <Ionicons name="checkmark-circle" color="#ffffff" size={24} />
-          )}
-          <Text style={styles.publishButtonLargeText}>
-            {isUploading ? "Publicando..." : "Publicar Ahora"}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Extra space when keyboard is visible */}
-        <View style={{height: keyboardHeight > 0 ? keyboardHeight + 40 : 40}} />
-      </ScrollView>
+            styles.fixedBottom,
+            {
+              backgroundColor: colors.background,
+              borderTopColor: colors.border,
+              paddingBottom: Math.max(insets.bottom, 16),
+            },
+          ]}>
+          <TouchableOpacity
+            style={[
+              styles.publishButtonLarge,
+              {backgroundColor: isUploading ? colors.muted : colors.primary},
+            ]}
+            onPress={handlePublish}
+            activeOpacity={0.8}
+            disabled={isUploading}>
+            {isUploading ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : null}
+            <Text style={styles.publishButtonLargeText}>
+              {isUploading ? "Publicando..." : "Publicar en el feed"}
+            </Text>
+            {!isUploading && <Ionicons name="arrow-forward" color="#ffffff" size={22} />}
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -260,33 +254,6 @@ const styles = StyleSheet.create({
   },
   keyboardAvoidingView: {
     flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: Platform.OS === "ios" ? 60 : 48,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "flex-start",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  publishButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  publishButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
   },
   scrollView: {
     flex: 1,
@@ -317,6 +284,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     marginBottom: 16,
+  },
+  fieldBlock: {
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  descriptionInput: {
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 15,
+    minHeight: 120,
   },
   textArea: {
     borderWidth: 1,
@@ -372,6 +354,11 @@ const styles = StyleSheet.create({
   toggleCircleActive: {
     alignSelf: "flex-end",
   },
+  fixedBottom: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
   publishButtonLarge: {
     flexDirection: "row",
     alignItems: "center",
@@ -379,7 +366,6 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 16,
     gap: 12,
-    marginTop: 8,
   },
   publishButtonLargeText: {
     color: "#ffffff",

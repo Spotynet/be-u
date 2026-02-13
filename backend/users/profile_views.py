@@ -200,9 +200,12 @@ def custom_services_view(request):
             )
         
         content_type, object_id = get_content_type_and_id(profile)
-        serializer = CustomServiceSerializer(data=request.data)
+        serializer = CustomServiceSerializer(
+            data=request.data,
+            context={'content_type': content_type, 'object_id': object_id}
+        )
         if serializer.is_valid():
-            serializer.save(content_type=content_type, object_id=object_id)
+            serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

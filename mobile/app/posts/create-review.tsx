@@ -10,19 +10,20 @@ import {
   Image,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useRouter} from "expo-router";
 import {useState, useEffect} from "react";
 import {MediaUploader} from "@/components/posts/MediaUploader";
 import {LinkedServiceSelector, type CustomServiceItem} from "@/components/posts/LinkedServiceSelector";
 import {providerApi, profileCustomizationApi, errorUtils} from "@/lib/api";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
+import {AppHeader} from "@/components/ui/AppHeader";
 
 export default function CreateReviewScreen() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {isAuthenticated} = useAuth();
 
   const [selectedProvider, setSelectedProvider] = useState<any>(null);
@@ -200,17 +201,13 @@ export default function CreateReviewScreen() {
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Header */}
-      <View style={[styles.header, {borderBottomColor: colors.border}]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Dejar Reseña</Text>
-        <TouchableOpacity onPress={handlePublish} style={styles.publishButton}>
-          <Text style={[styles.publishButtonText, {color: colors.primary}]}>Publicar</Text>
-        </TouchableOpacity>
-      </View>
-
+      <AppHeader
+        title="Dejar Reseña"
+        showBackButton={true}
+        onBackPress={() => router.back()}
+        backgroundColor={colors.background}
+        borderBottom={colors.border}
+      />
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <Ionicons name="person-outline" color={colors.mutedForeground} size={64} />
@@ -238,16 +235,12 @@ export default function CreateReviewScreen() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          {/* Photos */}
-          <View style={[styles.section, {backgroundColor: colors.card}]}>
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Fotos (Opcional)</Text>
-            <MediaUploader
-              mediaType="photo"
-              maxFiles={4}
-              onMediaSelected={setPhotos}
-              selectedMedia={photos}
-            />
-          </View>
+          <MediaUploader
+            mediaType="photo"
+            maxFiles={4}
+            onMediaSelected={setPhotos}
+            selectedMedia={photos}
+          />
 
           <LinkedServiceSelector
             customServices={customServices}
@@ -257,20 +250,16 @@ export default function CreateReviewScreen() {
           />
 
           {/* Description */}
-          <View style={[styles.section, {backgroundColor: colors.card}]}>
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-              Describe tu experiencia
+          <View style={styles.fieldBlock}>
+            <Text style={[styles.fieldLabel, {color: colors.foreground}]}>
+              DESCRIPCIÓN
             </Text>
             <TextInput
               style={[
-                styles.textArea,
-                {
-                  backgroundColor: colors.inputBackground,
-                  color: colors.foreground,
-                  borderColor: colors.border,
-                },
+                styles.descriptionInput,
+                {backgroundColor: colors.input, color: colors.foreground},
               ]}
-              placeholder="Comparte los detalles de tu experiencia..."
+              placeholder="Escribe algo sobre este trabajo..."
               placeholderTextColor={colors.mutedForeground}
               multiline
               numberOfLines={6}
@@ -280,21 +269,28 @@ export default function CreateReviewScreen() {
             />
           </View>
 
-          {/* Publish Button */}
+          <View style={{height: 24}} />
+        </ScrollView>
+      )}
+
+      {selectedProvider && (
+        <View
+          style={[
+            styles.fixedBottom,
+            {
+              backgroundColor: colors.background,
+              borderTopColor: colors.border,
+              paddingBottom: Math.max(insets.bottom, 16),
+            },
+          ]}>
           <TouchableOpacity
             style={[styles.publishButtonLarge, {backgroundColor: colors.primary}]}
             onPress={handlePublish}
             activeOpacity={0.8}>
-            <Image
-              source={require("@/assets/images/BE-U-white.png")}
-              style={styles.publishButtonIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.publishButtonLargeText}>Publicar Reseña</Text>
+            <Text style={styles.publishButtonLargeText}>Publicar en el feed</Text>
+            <Ionicons name="arrow-forward" color="#ffffff" size={22} />
           </TouchableOpacity>
-
-          <View style={{height: 40}} />
-        </ScrollView>
+        </View>
       )}
     </View>
   );
@@ -303,33 +299,6 @@ export default function CreateReviewScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: Platform.OS === "ios" ? 60 : 48,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "flex-start",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  publishButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  publishButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
   },
   scrollView: {
     flex: 1,
@@ -423,6 +392,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
   },
+  fieldBlock: {
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  descriptionInput: {
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 15,
+    minHeight: 120,
+  },
   textArea: {
     borderWidth: 1,
     borderRadius: 12,
@@ -471,6 +455,11 @@ const styles = StyleSheet.create({
   toggleCircleInactive: {
     alignSelf: "flex-start",
   },
+  fixedBottom: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
   publishButtonLarge: {
     flexDirection: "row",
     alignItems: "center",
@@ -478,11 +467,6 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 16,
     gap: 12,
-    marginTop: 8,
-  },
-  publishButtonIcon: {
-    width: 24,
-    height: 24,
   },
   publishButtonLargeText: {
     color: "#ffffff",

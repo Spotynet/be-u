@@ -10,86 +10,62 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useRouter, useLocalSearchParams} from "expo-router";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
 import {useAuth} from "@/features/auth";
+import {AppHeader} from "@/components/ui/AppHeader";
+import {AppLogo} from "@/components/AppLogo";
 
 export default function EmailCode() {
   const {colors} = useThemeVariant();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{email: string}>();
   const {loginWithEmailCode, requestEmailCode, isLoading} = useAuth();
 
   const email = params.email || "";
   const [emailCode, setEmailCode] = useState("");
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(0);
   const [errors, setErrors] = useState({code: ""});
   const [successMessage, setSuccessMessage] = useState("");
   const [generalError, setGeneralError] = useState("");
 
-  // Animation values
   const logoScale = useRef(new Animated.Value(0)).current;
-  const logoRotate = useRef(new Animated.Value(0)).current;
-  const sparkleOpacity1 = useRef(new Animated.Value(0)).current;
-  const sparkleOpacity2 = useRef(new Animated.Value(0)).current;
-  const sparkleOpacity3 = useRef(new Animated.Value(0)).current;
+  const inputRefs = useRef<(TextInput | null)[]>([]);
+
+  const codeDigits = emailCode.split("").concat(Array(6).fill("")).slice(0, 6);
+
+  const handleCodeDigitChange = (index: number, digit: string) => {
+    const num = digit.replace(/[^0-9]/g, "");
+    if (num.length > 1) {
+      const paste = num.slice(0, 6);
+      const newCode = (emailCode.slice(0, index) + paste).slice(0, 6);
+      setEmailCode(newCode);
+      const next = Math.min(index + paste.length, 5);
+      inputRefs.current[next]?.focus();
+      return;
+    }
+    const newCode = emailCode.slice(0, index) + num + emailCode.slice(index + 1);
+    setEmailCode(newCode);
+    if (num && index < 5) inputRefs.current[index + 1]?.focus();
+  };
+
+  const handleCodeKeyPress = (index: number, key: string) => {
+    if (key === "Backspace" && !codeDigits[index] && index > 0) {
+      setEmailCode(emailCode.slice(0, index - 1) + emailCode.slice(index));
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
 
   useEffect(() => {
-    // Logo entrance animation
     Animated.spring(logoScale, {
       toValue: 1,
       tension: 50,
       friction: 7,
       useNativeDriver: true,
     }).start();
-
-    // Continuous subtle rotation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(logoRotate, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(logoRotate, {
-          toValue: 0,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    // Sparkle animations with staggered delays
-    const sparkleAnimation = (opacity: Animated.Value, delay: number) => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(opacity, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacity, {
-            toValue: 0,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    };
-
-    sparkleAnimation(sparkleOpacity1, 0);
-    sparkleAnimation(sparkleOpacity2, 400);
-    sparkleAnimation(sparkleOpacity3, 800);
-  }, []);
-
-  const rotateInterpolate = logoRotate.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["-5deg", "5deg"],
-  });
+  }, [logoScale]);
 
   const validateCode = (): boolean => {
     const newErrors = {code: ""};
@@ -172,21 +148,13 @@ export default function EmailCode() {
       style={[styles.container, {backgroundColor: colors.background}]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
-      {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.primary,
-            paddingTop: Math.max(insets.top + 16, 20),
-          },
-        ]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" color={colors.primaryForeground} size={24} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: colors.primaryForeground}]}>Verificar código</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <AppHeader
+        title="Verificar código"
+        showBackButton
+        onBackPress={() => router.back()}
+        backgroundColor={colors.background}
+        borderBottom={colors.border}
+      />
 
       <ScrollView
         style={styles.content}
@@ -196,25 +164,25 @@ export default function EmailCode() {
         {/* Animated Logo */}
         <View style={styles.logoContainer}>
           <Animated.View
-            style={[
-              styles.logoWrapper,
-              {
-                transform: [{scale: logoScale}, {rotate: rotateInterpolate}],
-              },
-            ]}>
-            <View style={[styles.logoBg, {backgroundColor: colors.primary}]}>
-              <Ionicons name="key" color={colors.primaryForeground} size={32} />
+            style={[styles.logoWrapper, {transform: [{scale: logoScale}]}]}>
+            <View
+              style={[
+                styles.logoBox,
+                {
+                  backgroundColor: "#FFFFFF",
+                  shadowColor: colors.primary,
+                  ...Platform.select({
+                    ios: {
+                      shadowOffset: {width: 0, height: 0},
+                      shadowOpacity: 0.35,
+                      shadowRadius: 18,
+                    },
+                    android: {elevation: 12},
+                  }),
+                },
+              ]}>
+              <AppLogo style={styles.heroLogo} resizeMode="contain" />
             </View>
-            {/* Floating sparkles */}
-            <Animated.View style={[styles.sparkle, styles.sparkle1, {opacity: sparkleOpacity1}]}>
-              <Ionicons name="sparkles" color={colors.primary} size={16} />
-            </Animated.View>
-            <Animated.View style={[styles.sparkle, styles.sparkle2, {opacity: sparkleOpacity2}]}>
-              <Ionicons name="sparkles" color={colors.primary} size={14} />
-            </Animated.View>
-            <Animated.View style={[styles.sparkle, styles.sparkle3, {opacity: sparkleOpacity3}]}>
-              <Ionicons name="sparkles" color={colors.primary} size={12} />
-            </Animated.View>
           </Animated.View>
           <Text style={[styles.logoText, {color: colors.foreground}]}>nabbi</Text>
         </View>
@@ -252,34 +220,43 @@ export default function EmailCode() {
 
         {/* Code Form */}
         <View style={styles.formContainer}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, {color: colors.foreground}]}>Código</Text>
-            <View
-              style={[
-                styles.inputWrapper,
-                {backgroundColor: colors.input, borderColor: colors.border},
-              ]}>
-              <Ionicons name="key" color={colors.mutedForeground} size={20} />
+          <View style={styles.codeBoxesRow}>
+            {codeDigits.map((digit, index) => (
               <TextInput
-                style={[styles.textInput, {color: colors.foreground}]}
-                placeholder="123456"
-                placeholderTextColor={colors.mutedForeground}
-                keyboardType="number-pad"
-                value={emailCode}
-                onChangeText={(text) => {
-                  // Only allow numeric input and limit to 6 digits
-                  const numericText = text.replace(/[^0-9]/g, "").slice(0, 6);
-                  setEmailCode(numericText);
+                key={index}
+                ref={(el) => {
+                  inputRefs.current[index] = el;
                 }}
-                editable={!isLoading}
+                style={[
+                  styles.codeBox,
+                  styles.codeBoxText,
+                  {
+                    backgroundColor: "#FFFFFF",
+                    borderColor: focusedIndex === index ? colors.primary : colors.border,
+                    borderWidth: focusedIndex === index ? 2.5 : 1.5,
+                    color: colors.foreground,
+                  },
+                ]}
+                value={digit}
+                onChangeText={(text) => handleCodeDigitChange(index, text)}
+                onKeyPress={({nativeEvent}) => handleCodeKeyPress(index, nativeEvent.key)}
+                onFocus={() => setFocusedIndex(index)}
+                onBlur={() => setFocusedIndex(null)}
+                keyboardType="number-pad"
                 maxLength={6}
-                autoFocus
+                autoFocus={index === 0}
+                editable={!isLoading}
+                selectTextOnFocus
+                textAlign="center"
+                placeholder=""
+                placeholderTextColor={colors.mutedForeground}
+                selectionColor={colors.primary}
               />
-            </View>
-            {errors.code ? (
-              <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.code}</Text>
-            ) : null}
+            ))}
           </View>
+          {errors.code ? (
+            <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.code}</Text>
+          ) : null}
 
           {/* Verify button */}
           <TouchableOpacity
@@ -319,28 +296,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  backButton: {
-    padding: 8,
-    minWidth: 44,
-    minHeight: 44,
-    justifyContent: "center",
-    alignItems: "flex-start",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    flex: 1,
-    textAlign: "center",
-  },
-  headerSpacer: {
-    width: 40,
-  },
   content: {
     flex: 1,
   },
@@ -357,37 +312,22 @@ const styles = StyleSheet.create({
     position: "relative",
     marginBottom: 16,
   },
-  logoBg: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  logoBox: {
+    width: 88,
+    height: 88,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
+    overflow: "hidden",
+  },
+  heroLogo: {
+    width: 52,
+    height: 52,
   },
   logoText: {
     fontSize: 28,
     fontWeight: "900",
     letterSpacing: 1.5,
-  },
-  sparkle: {
-    position: "absolute",
-  },
-  sparkle1: {
-    top: -8,
-    right: -8,
-  },
-  sparkle2: {
-    bottom: -4,
-    left: -8,
-  },
-  sparkle3: {
-    top: 8,
-    left: -12,
   },
   welcomeContainer: {
     alignItems: "center",
@@ -412,36 +352,22 @@ const styles = StyleSheet.create({
   formContainer: {
     marginBottom: 32,
   },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: "500",
+  codeBoxesRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
     marginBottom: 8,
   },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    gap: 14,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  codeBox: {
+    width: 48,
+    height: 56,
+    borderRadius: 14,
+    fontSize: 22,
+    fontWeight: "700",
   },
-  textInput: {
-    flex: 1,
-    fontSize: 16,
-    letterSpacing: 2,
-    fontWeight: "600",
+  codeBoxText: {
+    padding: 0,
+    textAlign: "center",
   },
   loginButton: {
     paddingVertical: 18,

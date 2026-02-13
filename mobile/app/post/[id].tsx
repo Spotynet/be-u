@@ -178,9 +178,15 @@ export default function PostDetailScreen() {
     );
   }
 
-  const mediaUrl = post.media && post.media.length > 0
-    ? (typeof post.media[0] === 'string' ? post.media[0] : post.media[0]?.media_file)
+  const allMedia = post.media || [];
+  const mediaUrl = allMedia.length > 0
+    ? (typeof allMedia[0] === "string" ? allMedia[0] : allMedia[0]?.media_file || allMedia[0]?.media_url)
     : post.image_url;
+  const isBeforeAfter = post.post_type === "before_after";
+  const beforeMedia = allMedia.find((m: any) => m.order === 0 || m.caption === "before");
+  const afterMedia = allMedia.find((m: any) => m.order === 1 || m.caption === "after");
+  const beforeUrl = typeof beforeMedia === "string" ? beforeMedia : beforeMedia?.media_file || beforeMedia?.media_url;
+  const afterUrl = typeof afterMedia === "string" ? afterMedia : afterMedia?.media_file || afterMedia?.media_url;
 
   return (
     <KeyboardAvoidingView
@@ -269,12 +275,29 @@ export default function PostDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Post Image */}
-        {mediaUrl && (
+        {/* Post Image o Antes/Después */}
+        {isBeforeAfter && beforeUrl && afterUrl ? (
+          <View style={styles.transformationContainer}>
+            <View style={styles.transformationHalf}>
+              <Image source={{ uri: beforeUrl }} style={styles.transformationImg} resizeMode="cover" />
+              <View style={[styles.transformationLabel, styles.transformationLabelLeft]}>
+                <Text style={styles.transformationLabelText}>ANTES</Text>
+              </View>
+            </View>
+            <View style={styles.transformationHalf}>
+              <Image source={{ uri: afterUrl }} style={styles.transformationImg} resizeMode="cover" />
+              <View style={[styles.transformationLabel, styles.transformationLabelRight]}>
+                <Text style={styles.transformationLabelText}>DESPUÉS</Text>
+              </View>
+            </View>
+            <View style={styles.transformationDividerLine} />
+            <View style={styles.transformationDividerDiamond} />
+          </View>
+        ) : mediaUrl ? (
           <View style={styles.imageContainer}>
             <Image source={{ uri: mediaUrl }} style={styles.postImage} resizeMode="cover" />
           </View>
-        )}
+        ) : null}
 
         {/* Action Bar */}
         <View style={[styles.actionBar, { borderBottomColor: colors.border }]}>
@@ -638,6 +661,62 @@ const styles = StyleSheet.create({
   postImage: {
     width: "100%",
     height: "100%",
+  },
+  transformationContainer: {
+    flexDirection: "row",
+    position: "relative",
+    overflow: "hidden",
+  },
+  transformationHalf: {
+    flex: 1,
+    position: "relative",
+    overflow: "hidden",
+  },
+  transformationImg: {
+    width: "100%",
+    height: 220,
+    resizeMode: "cover",
+  },
+  transformationLabel: {
+    position: "absolute",
+    top: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  transformationLabelLeft: {
+    left: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  transformationLabelRight: {
+    right: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  transformationLabelText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  transformationDividerLine: {
+    position: "absolute",
+    left: "50%",
+    top: 0,
+    bottom: 0,
+    width: 2,
+    marginLeft: -1,
+    backgroundColor: "#e5e7eb",
+  },
+  transformationDividerDiamond: {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    width: 10,
+    height: 10,
+    marginLeft: -5,
+    marginTop: -5,
+    backgroundColor: "#d1d5db",
+    transform: [{ rotate: "45deg" }],
   },
   actionBar: {
     flexDirection: "row",

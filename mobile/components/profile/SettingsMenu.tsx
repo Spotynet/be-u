@@ -57,6 +57,9 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
   const handleOptionPress = (option: string) => {
     onClose();
     switch (option) {
+      case "guardados":
+        router.push("/guardados");
+        break;
       case "agenda":
         router.push("/agenda");
         break;
@@ -144,6 +147,25 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
                 trackColor={{false: colors.muted, true: colors.primary}}
                 thumbColor="#ffffff"
               />
+            </TouchableOpacity>
+
+            {/* Guardados */}
+            <TouchableOpacity
+              style={[
+                styles.optionButton,
+                {backgroundColor: colors.background, borderColor: colors.border},
+              ]}
+              onPress={() => handleOptionPress("guardados")}
+              activeOpacity={0.7}>
+              <View style={styles.optionLeft}>
+                <View style={[styles.optionIcon, {backgroundColor: "#ec4899" + "15"}]}>
+                  <Ionicons name="heart" color="#ec4899" size={20} />
+                </View>
+                <Text style={[styles.optionText, {color: colors.foreground}]}>
+                  Guardados
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
             </TouchableOpacity>
 
             {/* View Agenda */}
@@ -256,7 +278,7 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
             {/* App Version */}
             <View style={styles.versionContainer}>
               <Text style={[styles.versionText, {color: colors.mutedForeground}]}>
-                nabbi App v1.0.0
+                nabbi App v1.3.10
               </Text>
             </View>
           </ScrollView>

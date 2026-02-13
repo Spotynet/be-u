@@ -37,10 +37,6 @@ export default function CreateServiceScreen() {
       Alert.alert("Error", "El nombre del servicio es requerido");
       return;
     }
-    if (!formData.description.trim()) {
-      Alert.alert("Error", "La descripción del servicio es requerida");
-      return;
-    }
     if (!formData.price || isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
       Alert.alert("Error", "El precio debe ser un número válido mayor a 0");
       return;
@@ -58,13 +54,15 @@ export default function CreateServiceScreen() {
     try {
       await profileCustomizationApi.createCustomService({
         name: formData.name.trim(),
-        description: formData.description.trim(),
+        description: formData.description.trim() || "",
         price: Number(formData.price),
         duration_minutes: Number(formData.duration_minutes),
+        category: "Otros",
+        is_active: true,
       });
 
       Alert.alert("Éxito", "Servicio creado correctamente", [
-        {text: "OK", onPress: () => goBack("/(tabs)/perfil")},
+        {text: "OK", onPress: () => router.replace("/profile/services")},
       ]);
     } catch (err: any) {
       console.error("Error creating service:", err);

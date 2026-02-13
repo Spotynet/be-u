@@ -1,19 +1,13 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from "react-native";
+import {View, Text, StyleSheet, TouchableOpacity} from "react-native";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
-import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {useAuth} from "@/features/auth";
 import {EnhancedReservationsTab} from "@/components/profile/EnhancedReservationsTab";
 import {Ionicons} from "@expo/vector-icons";
 import React, {useState} from "react";
+import {AppHeader, APP_HEADER_ICON_SIZE, APP_HEADER_BUTTON_HIT} from "@/components/ui/AppHeader";
 
 export default function Calendario() {
   const {colors} = useThemeVariant();
-  const insets = useSafeAreaInsets();
   const {user, isAuthenticated} = useAuth();
   const [selectedDate, setSelectedDate] = useState<string | undefined>();
   const [showMonthView, setShowMonthView] = useState(false);
@@ -25,17 +19,12 @@ export default function Calendario() {
   if (!isAuthenticated || !user) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View
-          style={[
-            styles.header,
-            {
-              backgroundColor: colors.background,
-              borderBottomColor: colors.border,
-              paddingTop: Math.max(insets.top + 8, 16),
-            },
-          ]}>
-          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Calendario</Text>
-        </View>
+        <AppHeader
+          title="Calendario"
+          showBackButton={false}
+          backgroundColor={colors.background}
+          borderBottom={colors.border}
+        />
         <View style={styles.centeredContainer}>
           <Ionicons name="calendar-outline" size={80} color={colors.mutedForeground} />
           <Text style={[styles.emptyTitle, {color: colors.foreground}]}>
@@ -51,36 +40,22 @@ export default function Calendario() {
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.background,
-            borderBottomColor: colors.border,
-            paddingTop: Math.max(insets.top + 8, 16),
-          },
-        ]}>
-        <View style={styles.headerRow}>
-          <View style={styles.headerSpacer} />
-          <Text style={[styles.headerTitle, {color: colors.foreground}]}>
-            Calendario
-          </Text>
+      <AppHeader
+        title="Calendario"
+        showBackButton={false}
+        backgroundColor={colors.background}
+        borderBottom={colors.border}
+        rightExtra={
           <TouchableOpacity
             onPress={toggleMonthView}
             activeOpacity={0.7}
             style={styles.headerIconButton}
-            accessibilityLabel={showMonthView ? "Ver semana" : "Ver mes completo"}
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={24}
-              color={showMonthView ? colors.primary : colors.primary}
-            />
+            accessibilityLabel={showMonthView ? "Ver semana" : "Ver mes completo"}>
+            <Ionicons name="calendar-outline" size={APP_HEADER_ICON_SIZE} color={colors.primary} />
           </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.tabsContainer}>
+        }
+      />
+      <View style={[styles.tabsContainer, {backgroundColor: colors.contentBackground}]}>
         <EnhancedReservationsTab
           userRole={user.role as "CLIENT" | "PROFESSIONAL" | "PLACE"}
           selectedDate={selectedDate}
@@ -97,34 +72,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  headerSpacer: {
-    width: 32,
-    height: 32,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 24,
-    fontWeight: "700",
-    textAlign: "center",
-  },
   headerIconButton: {
-    padding: 4,
-    width: 32,
-    height: 32,
+    width: APP_HEADER_BUTTON_HIT,
+    height: APP_HEADER_BUTTON_HIT,
     justifyContent: "center",
     alignItems: "center",
   },

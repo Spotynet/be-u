@@ -411,7 +411,22 @@ export const profileCustomizationApi = {
       },
     });
   },
-  
+
+  /** Upload image to public profile gallery (profile.images array). Uses upload-image/ endpoint. */
+  uploadGalleryImage: async (data: FormData) => {
+    const profileResponse = await profileCustomizationApi.getProfileImages();
+    const profileId = profileResponse.data.id;
+    return api.post<any>(`/public-profiles/${profileId}/upload-image/`, data, {
+      headers: {"Content-Type": "multipart/form-data"},
+      transformRequest: (formData, headers) => {
+        if (headers) {
+          delete (headers as any)["Content-Type"];
+        }
+        return formData;
+      },
+    });
+  },
+
   updateProfileImage: async (imageId: number, data: any) => {
     // For PublicProfile, we don't have individual image updates,
     // we update the entire images array
@@ -434,6 +449,18 @@ export const profileCustomizationApi = {
   updateCustomService: (serviceId: number, data: any) =>
     api.put<any>(`/profile/services/${serviceId}/`, data),
   deleteCustomService: (serviceId: number) => api.delete<any>(`/profile/services/${serviceId}/`),
+
+  /** Upload profile photo for ANY user (clients, professionals, places). Uses User.image directly. Use this for clients who don't have PublicProfile. */
+  uploadUserProfilePhoto: (data: FormData) =>
+    api.post<any>(`/users/upload_photo/`, data, {
+      headers: {"Content-Type": "multipart/form-data"},
+      transformRequest: (formData, headers) => {
+        if (headers) {
+          delete (headers as any)["Content-Type"];
+        }
+        return formData;
+      },
+    }),
 
   /** Delete current user's public profile. Use before logout for "Eliminar cuenta". If no profile (404), resolves without error so caller can still logout. */
   deleteMyPublicProfile: async () => {

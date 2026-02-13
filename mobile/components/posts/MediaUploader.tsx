@@ -1,7 +1,6 @@
 import {View, Text, StyleSheet, TouchableOpacity, Image, Alert, Platform} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useState} from "react";
 import * as ImagePicker from "expo-image-picker";
 import {compressImage} from "@/lib/imageUtils";
@@ -19,8 +18,7 @@ export function MediaUploader({
   onMediaSelected,
   selectedMedia = [],
 }: MediaUploaderProps) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const [uploading, setUploading] = useState(false);
 
   const pickMedia = async () => {
@@ -60,17 +58,21 @@ export function MediaUploader({
       if (!result.canceled && result.assets) {
         setUploading(true);
         try {
-          // Compress images before returning them
           const compressedUris = await Promise.all(
             result.assets.map((asset) => compressImage(asset.uri))
           );
-          const updatedMedia = [...selectedMedia, ...compressedUris].slice(0, maxFiles);
+          const atMax = selectedMedia.length >= maxFiles;
+          const updatedMedia = atMax
+            ? compressedUris.slice(0, maxFiles)
+            : [...selectedMedia, ...compressedUris].slice(0, maxFiles);
           onMediaSelected(updatedMedia);
         } catch (error) {
           console.error("Error compressing images:", error);
-          // Fallback to original images if compression fails
           const newMedia = result.assets.map((asset) => asset.uri);
-          const updatedMedia = [...selectedMedia, ...newMedia].slice(0, maxFiles);
+          const atMax = selectedMedia.length >= maxFiles;
+          const updatedMedia = atMax
+            ? newMedia.slice(0, maxFiles)
+            : [...selectedMedia, ...newMedia].slice(0, maxFiles);
           onMediaSelected(updatedMedia);
         } finally {
           setUploading(false);
@@ -113,15 +115,19 @@ export function MediaUploader({
       if (!result.canceled && result.assets) {
         setUploading(true);
         try {
-          // Compress image before returning it
           const compressedUri = await compressImage(result.assets[0].uri);
-          const updatedMedia = [...selectedMedia, compressedUri].slice(0, maxFiles);
+          const atMax = selectedMedia.length >= maxFiles;
+          const updatedMedia = atMax
+            ? [compressedUri]
+            : [...selectedMedia, compressedUri].slice(0, maxFiles);
           onMediaSelected(updatedMedia);
         } catch (error) {
           console.error("Error compressing image:", error);
-          // Fallback to original image if compression fails
           const newMedia = result.assets.map((asset) => asset.uri);
-          const updatedMedia = [...selectedMedia, ...newMedia].slice(0, maxFiles);
+          const atMax = selectedMedia.length >= maxFiles;
+          const updatedMedia = atMax
+            ? newMedia.slice(0, maxFiles)
+            : [...selectedMedia, ...newMedia].slice(0, maxFiles);
           onMediaSelected(updatedMedia);
         } finally {
           setUploading(false);
@@ -141,59 +147,82 @@ export function MediaUploader({
 
   const canAddMore = selectedMedia.length < maxFiles;
 
+  const onDropZonePress = () => {
+    if (uploading) return;
+    if (Platform.OS === "web") {
+      pickMedia();
+      return;
+    }
+    if (mediaType === "video") {
+      pickMedia();
+      return;
+    }
+    Alert.alert("Seleccionar", "Elige una opción", [
+      {text: "Galería", onPress: pickMedia},
+      {text: "Cámara", onPress: takePhoto},
+      {text: "Cancelar", style: "cancel"},
+    ]);
+  };
+
+  const mainLabel =
+    mediaType === "video"
+      ? "Seleccionar Video"
+      : mediaType === "photo"
+      ? "Seleccionar Foto"
+      : "Seleccionar Foto o Video";
+
+  const hasSelection = selectedMedia.length > 0;
+  const firstUri = selectedMedia[0];
+
   return (
     <View style={styles.container}>
-      {/* Selected Media Grid */}
-      {selectedMedia.length > 0 && (
-        <View style={styles.mediaGrid}>
-          {selectedMedia.map((uri, index) => (
-            <View key={index} style={[styles.mediaItem, {backgroundColor: colors.muted}]}>
-              <Image source={{uri}} style={styles.mediaImage} />
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => removeMedia(index)}
-                activeOpacity={0.8}>
-                <Ionicons name="close-circle" color="#ffffff" size={24} />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* Upload Buttons */}
-      {canAddMore && (
-        <View style={styles.uploadButtons}>
-          {mediaType !== "video" && (
-            <TouchableOpacity
-              style={[
-                styles.uploadButton,
-                {backgroundColor: colors.card, borderColor: colors.border},
-              ]}
-              onPress={takePhoto}
-              activeOpacity={0.8}
-              disabled={uploading}>
-              <View style={[styles.uploadIcon, {backgroundColor: colors.primary + "15"}]}>
-                <Ionicons name="camera" color={colors.primary} size={24} />
-              </View>
-              <Text style={[styles.uploadButtonText, {color: colors.foreground}]}>Cámara</Text>
-            </TouchableOpacity>
-          )}
-
+      {/* Un solo bloque: placeholder O preview, mismo tamaño */}
+      <View style={[styles.selectorCard, {backgroundColor: colors.card}]}>
+        {hasSelection ? (
           <TouchableOpacity
-            style={[
-              styles.uploadButton,
-              {backgroundColor: colors.card, borderColor: colors.border},
-            ]}
-            onPress={pickMedia}
             activeOpacity={0.8}
-            disabled={uploading}>
-            <View style={[styles.uploadIcon, {backgroundColor: colors.primary + "15"}]}>
-              <Ionicons name="images" color={colors.primary} size={24} />
-            </View>
-            <Text style={[styles.uploadButtonText, {color: colors.foreground}]}>Galería</Text>
+            onPress={onDropZonePress}
+            style={[styles.previewContainer, {backgroundColor: colors.primary + "08"}]}>
+            <Image source={{uri: firstUri}} style={styles.previewImage} resizeMode="cover" />
+            <TouchableOpacity
+              style={styles.removeButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                removeMedia(0);
+              }}
+              activeOpacity={0.8}>
+              <Ionicons name="close-circle" color="#ffffff" size={28} />
+            </TouchableOpacity>
+            {selectedMedia.length > 1 && (
+              <View style={[styles.moreBadge, {backgroundColor: colors.primary}]}>
+                <Text style={styles.moreBadgeText}>+{selectedMedia.length - 1}</Text>
+              </View>
+            )}
           </TouchableOpacity>
-        </View>
-      )}
+        ) : (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={onDropZonePress}
+            style={[
+              styles.dropZone,
+              {
+                borderColor: colors.primary + "80",
+                backgroundColor: colors.primary + "08",
+              },
+            ]}>
+            <View style={styles.dropZoneIconWrap}>
+              <Ionicons name="camera" color={colors.primary} size={48} />
+              <View style={[styles.dropZoneBadge, {backgroundColor: colors.primary}]}>
+                <Ionicons name="add" color="#FFFFFF" size={16} />
+              </View>
+            </View>
+            <Text style={[styles.dropZoneTitle, {color: colors.foreground}]}>{mainLabel}</Text>
+            <Text style={[styles.dropZoneSubtitle, {color: colors.mutedForeground}]}>
+              Alta resolución recomendada
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Upload Progress */}
       {uploading && (
@@ -205,14 +234,6 @@ export function MediaUploader({
         </View>
       )}
 
-      {/* Info Text */}
-      <Text style={[styles.infoText, {color: colors.mutedForeground}]}>
-        {mediaType === "photo"
-          ? `Puedes agregar hasta ${maxFiles} fotos`
-          : mediaType === "video"
-          ? "Selecciona un video (máx. 60 seg)"
-          : `Puedes agregar hasta ${maxFiles} archivos`}
-      </Text>
     </View>
   );
 }
@@ -221,52 +242,78 @@ const styles = StyleSheet.create({
   container: {
     gap: 16,
   },
-  mediaGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
+  removeButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 14,
   },
-  mediaItem: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
+  selectorCard: {
+    borderRadius: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 0,
+    gap: 20,
+  },
+  dropZone: {
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderRadius: 16,
+    minHeight: 200,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  previewContainer: {
+    borderRadius: 16,
+    width: "100%",
+    aspectRatio: 1,
     overflow: "hidden",
     position: "relative",
   },
-  mediaImage: {
+  previewImage: {
     width: "100%",
     height: "100%",
-  },
-  removeButton: {
     position: "absolute",
-    top: 4,
-    right: 4,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  moreBadge: {
+    position: "absolute",
+    bottom: 10,
+    right: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 12,
   },
-  uploadButtons: {
-    flexDirection: "row",
-    gap: 12,
+  moreBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
   },
-  uploadButton: {
-    flex: 1,
-    padding: 20,
-    borderRadius: 16,
-    alignItems: "center",
-    borderWidth: 2,
-    borderStyle: "dashed",
-    gap: 12,
+  dropZoneIconWrap: {
+    position: "relative",
   },
-  uploadIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  dropZoneBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
   },
-  uploadButtonText: {
-    fontSize: 15,
+  dropZoneTitle: {
+    fontSize: 16,
     fontWeight: "600",
+  },
+  dropZoneSubtitle: {
+    fontSize: 13,
   },
   uploadingOverlay: {
     position: "absolute",
@@ -294,9 +341,5 @@ const styles = StyleSheet.create({
   uploadingText: {
     fontSize: 14,
     fontWeight: "600",
-  },
-  infoText: {
-    fontSize: 13,
-    textAlign: "center",
   },
 });

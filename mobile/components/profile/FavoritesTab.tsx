@@ -49,7 +49,9 @@ export function FavoritesTab() {
   const router = useRouter();
   const {user, isAuthenticated} = useAuth();
 
-  const {favorites, isLoading, error, removeFavorite, refreshFavorites} = useFavorites();
+  const {favorites, isLoading, error, removeFavorite, refreshFavorites} = useFavorites({
+    onUnauthorized: () => router.replace("/login"),
+  });
   const [likedPosts, setLikedPosts] = useState<any[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -68,10 +70,13 @@ export function FavoritesTab() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchLikedPosts();
+    if (!isAuthenticated) {
+      router.replace("/login");
+      return;
     }
-  }, [isAuthenticated, fetchLikedPosts]);
+    fetchLikedPosts();
+  }, [isAuthenticated, fetchLikedPosts, router]);
+
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

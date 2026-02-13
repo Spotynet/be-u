@@ -643,6 +643,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   reservationsList: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
 });

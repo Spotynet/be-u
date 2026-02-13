@@ -13,7 +13,22 @@ export interface Favorite {
   created_at: string;
 }
 
-export const useFavorites = () => {
+function isUnauthorized(err: any): boolean {
+  const status = err?.response?.status ?? err?.status;
+  return (
+    status === 401 ||
+    err?.message?.includes("401") ||
+    err?.message?.includes("Unauthorized") ||
+    err?.message?.includes("Authentication credentials")
+  );
+}
+
+export type UseFavoritesOptions = {
+  onUnauthorized?: () => void;
+};
+
+export const useFavorites = (options?: UseFavoritesOptions) => {
+  const onUnauthorized = options?.onUnauthorized;
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,10 +46,7 @@ export const useFavorites = () => {
       const response = await favoriteApi.getFavorites();
       setFavorites(response.data.results || []);
     } catch (err: any) {
-      console.error("Error fetching favorites:", err);
-
-      // Handle 404, 401 (not authenticated), or API not available as empty state instead of error
-      if (
+      const isExpectedForGuest =
         err.status === 404 ||
         err.status === 401 ||
         err.response?.status === 404 ||
@@ -42,18 +54,20 @@ export const useFavorites = () => {
         err.message?.includes("404") ||
         err.message?.includes("401") ||
         err.message?.includes("Unauthorized") ||
+        err.message?.includes("Authentication credentials") ||
         err.message?.includes("not found") ||
-        err.message?.includes("Page not found")
-      ) {
+        err.message?.includes("Page not found");
+
+      if (isExpectedForGuest) {
         setFavorites([]);
         setError(null);
-        // Set empty stats when API is not available or user not authenticated
         setStats({
           total_count: 0,
           professionals_count: 0,
           places_count: 0,
         });
       } else {
+        console.error("Error fetching favorites:", err);
         const message = errorUtils.getErrorMessage(err);
         setError(message);
       }
@@ -67,10 +81,7 @@ export const useFavorites = () => {
       const response = await favoriteApi.getStats();
       setStats(response.data);
     } catch (err: any) {
-      console.error("Error fetching favorite stats:", err);
-
-      // Handle 404, 401 (not authenticated), or API not available as empty stats
-      if (
+      const isExpectedForGuest =
         err.status === 404 ||
         err.status === 401 ||
         err.response?.status === 404 ||
@@ -78,14 +89,18 @@ export const useFavorites = () => {
         err.message?.includes("404") ||
         err.message?.includes("401") ||
         err.message?.includes("Unauthorized") ||
+        err.message?.includes("Authentication credentials") ||
         err.message?.includes("not found") ||
-        err.message?.includes("Page not found")
-      ) {
+        err.message?.includes("Page not found");
+
+      if (isExpectedForGuest) {
         setStats({
           total_count: 0,
           professionals_count: 0,
           places_count: 0,
         });
+      } else {
+        console.error("Error fetching favorite stats:", err);
       }
     }
   }, []);
@@ -104,7 +119,11 @@ export const useFavorites = () => {
       fetchFavorites(); // Refresh list
       fetchStats(); // Refresh stats
       return response.data;
-    } catch (err) {
+    } catch (err: any) {
+      if (isUnauthorized(err)) {
+        onUnauthorized?.();
+        return;
+      }
       const message = errorUtils.getErrorMessage(err);
       Alert.alert("Error", message);
       throw err;
@@ -117,7 +136,11 @@ export const useFavorites = () => {
       Alert.alert("Éxito", "Eliminado de favoritos");
       fetchFavorites(); // Refresh list
       fetchStats(); // Refresh stats
-    } catch (err) {
+    } catch (err: any) {
+      if (isUnauthorized(err)) {
+        onUnauthorized?.();
+        return;
+      }
       const message = errorUtils.getErrorMessage(err);
       Alert.alert("Error", message);
       throw err;
@@ -137,7 +160,11 @@ export const useFavorites = () => {
       fetchFavorites(); // Refresh list
       fetchStats(); // Refresh stats
       return response.data;
-    } catch (err) {
+    } catch (err: any) {
+      if (isUnauthorized(err)) {
+        onUnauthorized?.();
+        return;
+      }
       const message = errorUtils.getErrorMessage(err);
       Alert.alert("Error", message);
       throw err;
@@ -150,7 +177,11 @@ export const useFavorites = () => {
       Alert.alert("Éxito", `${favoriteIds.length} favoritos eliminados`);
       fetchFavorites(); // Refresh list
       fetchStats(); // Refresh stats
-    } catch (err) {
+    } catch (err: any) {
+      if (isUnauthorized(err)) {
+        onUnauthorized?.();
+        return;
+      }
       const message = errorUtils.getErrorMessage(err);
       Alert.alert("Error", message);
       throw err;

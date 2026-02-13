@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.db import models
@@ -83,6 +84,57 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], parser_classes=[MultiPartParser, FormParser])
+    def upload_photo(self, request):
+        """Upload profile photo for any user (clients, professionals, places). Updates User.image."""
+        user = request.user
+        image_file = request.FILES.get('photo')
+        if not image_file:
+            return Response(
+                {"detail": "No photo file provided. Use field name 'photo'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+        if image_file.content_type not in allowed_types:
+            return Response(
+                {"detail": "Invalid file type. Only JPEG, PNG, GIF, and WebP allowed"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        max_size = 5 * 1024 * 1024  # 5MB
+        if image_file.size > max_size:
+            return Response(
+                {"detail": "File too large. Maximum size is 5MB"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            if user.image:
+                try:
+                    user.image.delete(save=False)
+                except Exception:
+                    pass
+            import uuid
+            file_extension = image_file.name.split('.')[-1] if '.' in image_file.name else 'jpg'
+            unique_filename = f"profile_photo_{uuid.uuid4()}.{file_extension}"
+            image_file.name = unique_filename
+            user.image = image_file
+            user.save(update_fields=['image'])
+            user.refresh_from_db()
+            final_url = user.image.url if user.image else None
+            if not final_url:
+                return Response(
+                    {"detail": "Error generating image URL"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+            return Response({
+                "message": "Profile photo uploaded successfully",
+                "user_image": final_url,
+            })
+        except Exception as e:
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 # Authentication Views

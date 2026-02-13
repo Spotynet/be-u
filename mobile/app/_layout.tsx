@@ -12,6 +12,7 @@ import {tokenRefreshScheduler} from "@/lib/api";
 import {ErrorBoundary} from "@/components/ErrorBoundary";
 import * as SplashScreen from "expo-splash-screen";
 import {useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold, Poppins_800ExtraBold} from "@expo-google-fonts/poppins";
+import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -22,6 +23,8 @@ export default function RootLayout() {
     Poppins_600SemiBold,
     Poppins_700Bold,
     Poppins_800ExtraBold,
+    ...Ionicons.font,
+    ...MaterialCommunityIcons.font,
   });
 
   useEffect(() => {

@@ -20,6 +20,11 @@ import {compressImages} from "@/lib/imageUtils";
 import {errorUtils} from "@/lib/api";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
+const GALLERY_COLUMNS = 3;
+const GALLERY_PADDING = 16;
+const GALLERY_GAP = 6;
+const GALLERY_ITEM_SIZE =
+  (SCREEN_WIDTH - GALLERY_PADDING * 2 - GALLERY_GAP * (GALLERY_COLUMNS - 1)) / GALLERY_COLUMNS;
 const API_BASE_URL = "https://stg.be-u.ai/api";
 
 // Helper function to convert relative URLs to absolute URLs
@@ -222,8 +227,6 @@ export const ImageGallery = ({maxImages = 10}: ImageGalleryProps) => {
   };
 
   const renderImageGrid = () => {
-    const imageSize = (SCREEN_WIDTH - 60) / 3; // 3 columns with padding
-
     return (
       <View style={styles.imageGrid}>
         {images.map((image, index) => {
@@ -232,7 +235,7 @@ export const ImageGallery = ({maxImages = 10}: ImageGalleryProps) => {
           return (
             <View
               key={image.id || index}
-              style={[styles.imageContainer, {width: imageSize, height: imageSize}]}>
+              style={[styles.imageContainer, {width: GALLERY_ITEM_SIZE, height: GALLERY_ITEM_SIZE}]}>
               <TouchableOpacity
                 style={styles.imageTouchable}
                 onPress={() => imageUrl && openImageModal(imageUrl)}
@@ -281,8 +284,8 @@ export const ImageGallery = ({maxImages = 10}: ImageGalleryProps) => {
             style={[
               styles.addImageButton,
               {
-                width: imageSize,
-                height: imageSize,
+                width: GALLERY_ITEM_SIZE,
+                height: GALLERY_ITEM_SIZE,
                 backgroundColor: colors.muted,
                 borderColor: colors.border,
               },
@@ -455,13 +458,12 @@ const styles = StyleSheet.create({
   imageGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginHorizontal: -5,
+    gap: GALLERY_GAP,
   },
   imageContainer: {
     position: "relative",
     borderRadius: 8,
     overflow: "visible",
-    margin: 5,
   },
   imageTouchable: {
     width: "100%",

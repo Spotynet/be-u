@@ -1,4 +1,13 @@
-import {View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Linking} from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+  Linking,
+  Platform,
+  TouchableOpacity,
+} from "react-native";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
@@ -8,15 +17,14 @@ import {reservationApi} from "@/lib/api";
 import {Location, Reservation} from "@/types/global";
 import {parseISODateAsLocal} from "@/lib/dateUtils";
 import {useAuth} from "@/features/auth";
-import {useNavigation} from "@/hooks/useNavigation";
 import ReservationQRCode from "@/components/reservation/ReservationQRCode";
 import {ReservationActions} from "@/components/reservation/ReservationActions";
 import {BookingLocationView} from "@/components/booking/BookingLocationView";
+import {AppHeader} from "@/components/ui/AppHeader";
 
 export default function ReservationDetailsScreen() {
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
-  const {goBack} = useNavigation();
   const {user} = useAuth();
 
   const params = useLocalSearchParams<{id?: string}>();
@@ -147,15 +155,16 @@ export default function ReservationDetailsScreen() {
   })();
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Header */}
-      <View style={[styles.header, {paddingTop: Math.max(insets.top + 12, 16), borderBottomColor: colors.border}]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => goBack("/(tabs)/perfil")} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={24} color={colors.foreground} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Reserva</Text>
-        <View style={styles.headerRight}>
-          {reservation && (
+    <View style={[styles.container, {backgroundColor: "#F0F1F3"}]}>
+      <AppHeader
+        title="Detalles de Reserva"
+        showBackButton={true}
+        backFallbackRoute="/(tabs)/perfil"
+        backButtonCircle={true}
+        backgroundColor="#FFFFFF"
+        borderBottom="rgba(0,0,0,0.08)"
+        rightExtra={
+          reservation ? (
             <ReservationActions
               reservation={reservation}
               isClient={reservation.client_details?.id === user?.id}
@@ -163,9 +172,9 @@ export default function ReservationDetailsScreen() {
               onCancelled={() => fetchReservation()}
               variant="header"
             />
-          )}
-        </View>
-      </View>
+          ) : null
+        }
+      />
 
       {isLoading ? (
         <View style={styles.center}>
@@ -190,44 +199,76 @@ export default function ReservationDetailsScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Summary */}
-          <View style={[styles.summaryCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-            <View style={styles.summaryTop}>
-              <ReservationQRCode code={reservation.code} size={120} showCodeText />
-              <View style={[styles.statusBadge, {backgroundColor: statusColor(reservation.status) + "15"}]}>
-                <Text style={[styles.statusText, {color: statusColor(reservation.status)}]}>{reservation.status_display}</Text>
-              </View>
+          {/* Tarjeta superior: QR centrado, badge arriba-derecha, textos centrados */}
+          <View style={styles.summaryCard}>
+            <View
+              style={[
+                styles.statusBadge,
+                styles.statusBadgePosition,
+                {
+                  backgroundColor:
+                    reservation.status === "CANCELLED" || reservation.status === "REJECTED"
+                      ? "#F87171"
+                      : statusColor(reservation.status) + "20",
+                },
+              ]}>
+              <Text
+                style={[
+                  styles.statusText,
+                  {
+                    color:
+                      reservation.status === "CANCELLED" || reservation.status === "REJECTED"
+                        ? "#ffffff"
+                        : statusColor(reservation.status),
+                  },
+                ]}>
+                {reservation.status_display}
+              </Text>
             </View>
-            <Text style={[styles.serviceName, {color: colors.foreground}]}>{serviceName}</Text>
-            <Text style={[styles.qrHint, {color: colors.mutedForeground}]}>
-              Escanea este código para verificar la reserva
-            </Text>
+            <View style={styles.summaryCenter}>
+              <View style={styles.qrWrapper}>
+                <ReservationQRCode
+                  code={reservation.code}
+                  size={120}
+                  showCodeText={false}
+                  backgroundColor="#ffffff"
+                  foregroundColor="#000000"
+                />
+              </View>
+              <Text style={styles.reservationCode}>{reservation.code}</Text>
+              <Text style={styles.serviceName}>{serviceName}</Text>
+              <Text style={styles.qrHint}>Escanea este código para verificar la reserva</Text>
+            </View>
           </View>
 
-          {/* Details */}
-          <View style={[styles.sectionCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-            {reservation.provider_type === "professional" && (
+          {/* Tarjeta inferior: profesional + fecha, hora, ubicación con iconos circulares rosa */}
+          <View style={styles.sectionCard}>
+            {(reservation.provider_type === "professional" || providerLine) && (
               <View style={styles.prominentBlock}>
-                <Text style={[styles.prominentLabel, {color: colors.mutedForeground}]}>Profesional</Text>
-                <Text style={[styles.prominentValue, {color: colors.foreground}]} numberOfLines={2}>
+                <Text style={styles.prominentLabel}>PROFESIONAL</Text>
+                <Text style={styles.prominentValue} numberOfLines={2}>
                   {providerLine}
                 </Text>
               </View>
             )}
 
-            <View style={styles.row}>
-              <Ionicons name="calendar" size={18} color={colors.primary} />
+            <View style={styles.detailRow}>
+              <View style={styles.detailIconCircle}>
+                <Ionicons name="calendar-outline" size={20} color="#EC4899" />
+              </View>
               <View style={styles.rowText}>
-                <Text style={[styles.rowLabel, {color: colors.mutedForeground}]}>Fecha</Text>
-                <Text style={[styles.rowValue, {color: colors.foreground}]}>{dateLabel}</Text>
+                <Text style={styles.rowLabel}>FECHA</Text>
+                <Text style={styles.rowValue}>{dateLabel}</Text>
               </View>
             </View>
 
-            <View style={styles.row}>
-              <Ionicons name="time" size={18} color={colors.primary} />
+            <View style={styles.detailRow}>
+              <View style={styles.detailIconCircle}>
+                <Ionicons name="time-outline" size={20} color="#EC4899" />
+              </View>
               <View style={styles.rowText}>
-                <Text style={[styles.rowLabel, {color: colors.mutedForeground}]}>Hora</Text>
-                <Text style={[styles.rowValue, {color: colors.foreground}]}>
+                <Text style={styles.rowLabel}>HORA</Text>
+                <Text style={styles.rowValue}>
                   {timeLabel}
                   {endTimeLabel ? ` - ${endTimeLabel}` : ""}
                 </Text>
@@ -235,21 +276,25 @@ export default function ReservationDetailsScreen() {
             </View>
 
             {!!addressLabel && (
-              <View style={styles.row}>
-                <Ionicons name="location-outline" size={18} color={colors.primary} />
+              <View style={styles.detailRow}>
+                <View style={styles.detailIconCircle}>
+                  <Ionicons name="location-outline" size={20} color="#EC4899" />
+                </View>
                 <View style={styles.rowText}>
-                  <Text style={[styles.rowLabel, {color: colors.mutedForeground}]}>Ubicación</Text>
-                  <Text style={[styles.rowValue, {color: colors.foreground}]}>{addressLabel}</Text>
+                  <Text style={styles.rowLabel}>UBICACIÓN</Text>
+                  <Text style={styles.rowValue}>{addressLabel}</Text>
                 </View>
               </View>
             )}
 
             {!!reservation.notes && (
-              <View style={styles.row}>
-                <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+              <View style={styles.detailRow}>
+                <View style={styles.detailIconCircle}>
+                  <Ionicons name="document-text-outline" size={20} color="#EC4899" />
+                </View>
                 <View style={styles.rowText}>
-                  <Text style={[styles.rowLabel, {color: colors.mutedForeground}]}>Notas</Text>
-                  <Text style={[styles.rowValue, {color: colors.foreground}]}>{reservation.notes}</Text>
+                  <Text style={styles.rowLabel}>NOTAS</Text>
+                  <Text style={styles.rowValue}>{reservation.notes}</Text>
                 </View>
               </View>
             )}
@@ -301,46 +346,109 @@ export default function ReservationDetailsScreen() {
   );
 }
 
+const cardShadow = Platform.select({
+  ios: {
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+  },
+  android: {elevation: 3},
+});
+
 const styles = StyleSheet.create({
   container: {flex: 1},
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-  },
-  backButton: {padding: 8, minWidth: 44, minHeight: 44, justifyContent: "center", alignItems: "center"},
-  headerTitle: {fontSize: 18, fontWeight: "800"},
-  headerRight: {minWidth: 44, alignItems: "flex-end", justifyContent: "center"},
   center: {flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24, gap: 12},
   loadingText: {fontSize: 14, fontWeight: "600"},
   errorTitle: {fontSize: 18, fontWeight: "800"},
   errorText: {fontSize: 14, textAlign: "center"},
   retryButton: {paddingHorizontal: 18, paddingVertical: 12, borderRadius: 12, marginTop: 4},
   retryButtonText: {color: "#fff", fontSize: 14, fontWeight: "800"},
-  content: {padding: 16, paddingBottom: 32, gap: 12},
-  summaryCard: {padding: 16, borderRadius: 16, borderWidth: 1},
-  summaryTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 10,
+  content: {padding: 16, paddingBottom: 32, gap: 16},
+  summaryCard: {
+    backgroundColor: "#FFFFFF",
+    padding: 20,
+    borderRadius: 20,
+    ...cardShadow,
+    position: "relative",
   },
-  statusBadge: {paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999},
+  statusBadgePosition: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    zIndex: 1,
+  },
+  summaryCenter: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  qrWrapper: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 156,
+    minHeight: 170,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#6b7280",
+        shadowOffset: {width: 3, height: 4},
+        shadowOpacity: 0.14,
+        shadowRadius: 10,
+      },
+      android: {elevation: 6},
+    }),
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
   statusText: {fontSize: 11, fontWeight: "800", textTransform: "uppercase"},
-  serviceName: {fontSize: 22, fontWeight: "900", letterSpacing: -0.4},
-  qrHint: {fontSize: 12, fontWeight: "600", marginTop: 6},
-  sectionCard: {padding: 14, borderRadius: 16, borderWidth: 1, gap: 12},
-  prominentBlock: {gap: 4, paddingBottom: 8},
-  prominentLabel: {fontSize: 12, fontWeight: "800", letterSpacing: 0.2},
-  prominentValue: {fontSize: 20, fontWeight: "900", letterSpacing: -0.2},
-  row: {flexDirection: "row", alignItems: "flex-start", gap: 10},
+  reservationCode: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#9ca3af",
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  serviceName: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#1f2937",
+    letterSpacing: -0.3,
+    textAlign: "center",
+  },
+  qrHint: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#6b7280",
+    marginTop: 8,
+    textAlign: "center",
+  },
+  sectionCard: {
+    backgroundColor: "#FFFFFF",
+    padding: 20,
+    borderRadius: 20,
+    gap: 16,
+    ...cardShadow,
+  },
+  prominentBlock: {gap: 4, paddingBottom: 4},
+  prominentLabel: {fontSize: 11, fontWeight: "800", letterSpacing: 0.5, color: "#9ca3af"},
+  prominentValue: {fontSize: 18, fontWeight: "800", color: "#1f2937", letterSpacing: -0.2},
+  detailRow: {flexDirection: "row", alignItems: "flex-start", gap: 14},
+  detailIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FDF2F8",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   rowText: {flex: 1, gap: 2},
-  rowLabel: {fontSize: 12, fontWeight: "700"},
-  rowValue: {fontSize: 14, fontWeight: "700"},
+  rowLabel: {fontSize: 11, fontWeight: "700", color: "#9ca3af", letterSpacing: 0.3},
+  rowValue: {fontSize: 14, fontWeight: "600", color: "#1f2937", lineHeight: 20},
   reasonBox: {flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1},
   reasonText: {flex: 1, fontSize: 13, fontWeight: "700", lineHeight: 18},
   calendarLink: {

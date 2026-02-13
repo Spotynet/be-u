@@ -146,7 +146,7 @@ export const useProfileCustomization = () => {
         formData.append("caption", caption);
       }
 
-      const response = await profileCustomizationApi.uploadProfileImage(formData);
+      const response = await profileCustomizationApi.uploadGalleryImage(formData);
       
       // Update images directly from response if available
       if (response.data?.images) {

@@ -85,7 +85,7 @@ export const SubCategoryBar = ({
                 <IconComponent
                   name={iconName as any}
                   size={20}
-                  color={isSelected ? highlightColor : colors.mutedForeground}
+                  color={isSelected ? (highlightColor ?? "#8b5cf6") : (colors.mutedForeground ?? "#6b7280")}
                 />
               </View>
             ) : null}

@@ -10,19 +10,20 @@ import {
   Platform,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useRouter} from "expo-router";
 import {useState, useEffect} from "react";
 import * as ImagePicker from "expo-image-picker";
 import {LinkedServiceSelector, type CustomServiceItem} from "@/components/posts/LinkedServiceSelector";
 import {postApi, tokenUtils, errorUtils, profileCustomizationApi} from "@/lib/api";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
+import {AppHeader} from "@/components/ui/AppHeader";
 
 export default function CreateBeforeAfterScreen() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {isAuthenticated} = useAuth();
 
   const [beforePhoto, setBeforePhoto] = useState<string | null>(null);
@@ -158,17 +159,13 @@ export default function CreateBeforeAfterScreen() {
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Header */}
-      <View style={[styles.header, {borderBottomColor: colors.border}]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Antes/Después</Text>
-        <TouchableOpacity onPress={handlePublish} style={styles.publishButton}>
-          <Text style={[styles.publishButtonText, {color: colors.primary}]}>Publicar</Text>
-        </TouchableOpacity>
-      </View>
-
+      <AppHeader
+        title="Antes/Después"
+        showBackButton={true}
+        onBackPress={() => router.back()}
+        backgroundColor={colors.background}
+        borderBottom={colors.border}
+      />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -181,8 +178,7 @@ export default function CreateBeforeAfterScreen() {
 
         {/* Preview Comparison */}
         {beforePhoto && afterPhoto && (
-          <View style={[styles.section, {backgroundColor: colors.card}]}>
-            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Vista Previa</Text>
+          <View style={styles.comparisonWrapper}>
             <View style={styles.comparisonContainer}>
               <Image source={{uri: beforePhoto}} style={styles.comparisonImage} />
               <View style={styles.divider} />
@@ -199,20 +195,16 @@ export default function CreateBeforeAfterScreen() {
         />
 
         {/* Description */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-            Descripción del Proceso
+        <View style={styles.fieldBlock}>
+          <Text style={[styles.fieldLabel, {color: colors.foreground}]}>
+            DESCRIPCIÓN DEL PROCESO
           </Text>
           <TextInput
             style={[
-              styles.textArea,
-              {
-                backgroundColor: colors.inputBackground,
-                color: colors.foreground,
-                borderColor: colors.border,
-              },
+              styles.descriptionInput,
+              {backgroundColor: colors.input, color: colors.foreground},
             ]}
-            placeholder="Describe el proceso de transformación..."
+            placeholder="Escribe algo sobre este trabajo..."
             placeholderTextColor={colors.mutedForeground}
             multiline
             numberOfLines={5}
@@ -222,17 +214,26 @@ export default function CreateBeforeAfterScreen() {
           />
         </View>
 
-        {/* Publish Button */}
+        <View style={{height: 24}} />
+      </ScrollView>
+
+      <View
+        style={[
+          styles.fixedBottom,
+          {
+            backgroundColor: colors.background,
+            borderTopColor: colors.border,
+            paddingBottom: Math.max(insets.bottom, 16),
+          },
+        ]}>
         <TouchableOpacity
           style={[styles.publishButtonLarge, {backgroundColor: colors.primary}]}
           onPress={handlePublish}
           activeOpacity={0.8}>
-          <Ionicons name="swap-horizontal" color="#ffffff" size={24} />
-          <Text style={styles.publishButtonLargeText}>Publicar Transformación</Text>
+          <Text style={styles.publishButtonLargeText}>Publicar en el feed</Text>
+          <Ionicons name="arrow-forward" color="#ffffff" size={22} />
         </TouchableOpacity>
-
-        <View style={{height: 40}} />
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -240,33 +241,6 @@ export default function CreateBeforeAfterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: Platform.OS === "ios" ? 60 : 48,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "flex-start",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  publishButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  publishButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
   },
   scrollView: {
     flex: 1,
@@ -341,6 +315,24 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 16,
   },
+  fieldBlock: {
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  descriptionInput: {
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 15,
+    minHeight: 100,
+  },
+  comparisonWrapper: {
+    marginBottom: 16,
+  },
   comparisonContainer: {
     flexDirection: "row",
     height: 200,
@@ -384,6 +376,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     fontSize: 15,
   },
+  fixedBottom: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
   publishButtonLarge: {
     flexDirection: "row",
     alignItems: "center",
@@ -391,7 +388,6 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 16,
     gap: 12,
-    marginTop: 8,
   },
   publishButtonLargeText: {
     color: "#ffffff",

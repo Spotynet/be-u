@@ -1,12 +1,17 @@
 import React from "react";
-import {View, Text, StyleSheet, TouchableOpacity, Linking} from "react-native";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Linking,
+  Platform,
+} from "react-native";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Reservation} from "@/types/global";
 import {Ionicons} from "@expo/vector-icons";
 import {parseISODateAsLocal} from "@/lib/dateUtils";
-import ReservationQRCode from "@/components/reservation/ReservationQRCode";
+import {getCategoryColor} from "@/constants/categories";
 
 interface ReservationCardProps {
   reservation: Reservation;
@@ -16,6 +21,7 @@ interface ReservationCardProps {
   onCancel?: (id: number) => void;
   onComplete?: (id: number) => void;
   onPress?: (reservation: Reservation) => void;
+  onScanPress?: (reservation: Reservation) => void;
 }
 
 export const ReservationCard = ({
@@ -26,19 +32,17 @@ export const ReservationCard = ({
   onCancel,
   onComplete,
   onPress,
+  onScanPress,
 }: ReservationCardProps) => {
-  const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
 
   const serviceName =
     reservation.service_details?.name ||
-    // Some list endpoints return a lightweight shape with `service_name`
     ((reservation as any).service_name as string | undefined) ||
     "Servicio";
 
-  // Use a touchable wrapper only when a press handler is provided so that
-  // action buttons inside the card remain interactive.
-  const Wrapper: React.ElementType = onPress ? TouchableOpacity : View;
+  const professionalName =
+    reservation.client_details?.name || reservation.provider_name || "";
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -76,89 +80,128 @@ export const ReservationCard = ({
   };
 
   const statusColor = getStatusColor(reservation.status);
+  const categoryColor = getCategoryColor(
+    reservation.service_details?.category_name ??
+      reservation.service_details?.category
+  );
+  const dateStr = parseISODateAsLocal(reservation.date).toLocaleDateString(
+    "es-MX",
+    {weekday: "short", month: "short", day: "numeric"}
+  );
+  const timeStr =
+    reservation.time.substring(0, 5) +
+    (reservation.end_time ? ` - ${reservation.end_time.substring(0, 5)}` : "");
 
-  const wrapperProps = onPress
-    ? {
-        onPress: () => onPress(reservation),
-        activeOpacity: 0.7,
-      }
+  const ContentWrapper = onPress ? TouchableOpacity : View;
+  const contentWrapperProps = onPress
+    ? {onPress: () => onPress(reservation), activeOpacity: 0.85}
     : {};
 
   return (
-    <Wrapper
-      style={[styles.card, {backgroundColor: colors.card, borderLeftColor: statusColor}]}
-      {...(wrapperProps as any)}>
-      <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <ReservationQRCode code={reservation.code} size={60} />
-            <View style={[styles.statusBadge, {backgroundColor: statusColor + "15"}]}>
-              <Text style={[styles.statusText, {color: statusColor}]}>
-                {getStatusLabel(reservation.status)}
-              </Text>
-            </View>
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.card,
+          borderLeftColor: categoryColor,
+          ...Platform.select({
+            ios: {
+              shadowColor: "#000",
+              shadowOffset: {width: 0, height: 2},
+              shadowOpacity: 0.08,
+              shadowRadius: 8,
+            },
+            android: {elevation: 3},
+          }),
+        },
+      ]}>
+      <ContentWrapper style={styles.content} {...contentWrapperProps}>
+        {/* Service name + Status badge */}
+        <View style={styles.titleRow}>
+          <Text
+            style={[styles.serviceName, {color: colors.foreground}]}
+            numberOfLines={1}>
+            {serviceName}
+          </Text>
+          <View style={[styles.statusBadge, {backgroundColor: statusColor}]}>
+            <Text style={styles.statusText}>
+              {getStatusLabel(reservation.status).toUpperCase()}
+            </Text>
           </View>
         </View>
 
-        {/* Service Info */}
-        <Text style={[styles.serviceName, {color: colors.foreground}]}>
-          {serviceName}
-        </Text>
+        {/* Professional */}
+        {professionalName ? (
+          <View style={[styles.infoItem, styles.professionalRow]}>
+            <Ionicons
+              name="person-outline"
+              size={16}
+              color={colors.mutedForeground}
+            />
+            <Text
+              style={[styles.infoText, {color: colors.mutedForeground}]}
+              numberOfLines={1}>
+              {professionalName}
+            </Text>
+          </View>
+        ) : null}
 
         {/* Date & Time */}
         <View style={styles.dateTimeRow}>
           <View style={styles.infoItem}>
-            <Ionicons name="calendar" size={16} color={colors.primary} />
+            <Ionicons
+              name="calendar-outline"
+              size={16}
+              color={colors.primary}
+            />
             <Text style={[styles.infoText, {color: colors.foreground}]}>
-              {parseISODateAsLocal(reservation.date).toLocaleDateString("es-MX", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              })}
+              {dateStr}
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <Ionicons name="time" size={16} color={colors.primary} />
+            <Ionicons name="time-outline" size={16} color={colors.primary} />
             <Text style={[styles.infoText, {color: colors.foreground}]}>
-              {reservation.time.substring(0, 5)}
-              {reservation.end_time && ` - ${reservation.end_time.substring(0, 5)}`}
+              {timeStr}
             </Text>
           </View>
-        </View>
-
-        {/* Client/Provider Info */}
-        <View style={styles.infoItem}>
-          <Ionicons name="person" size={16} color={colors.mutedForeground} />
-          <Text style={[styles.infoText, {color: colors.mutedForeground}]}>
-            {reservation.client_details?.name || reservation.provider_name}
-          </Text>
         </View>
 
         {/* Notes */}
-        {reservation.notes && (
+        {reservation.notes ? (
           <View style={[styles.notesContainer, {backgroundColor: colors.muted}]}>
             <Ionicons name="document-text" size={14} color={colors.mutedForeground} />
-            <Text style={[styles.notesText, {color: colors.foreground}]} numberOfLines={2}>
+            <Text
+              style={[styles.notesText, {color: colors.foreground}]}
+              numberOfLines={2}>
               {reservation.notes}
             </Text>
           </View>
-        )}
+        ) : null}
 
         {/* Cancellation/Rejection Reason */}
         {(reservation.cancellation_reason || reservation.rejection_reason) && (
-          <View style={[styles.reasonContainer, {backgroundColor: "#ef4444" + "10"}]}>
+          <View
+            style={[
+              styles.reasonContainer,
+              {backgroundColor: "#ef4444" + "10"},
+            ]}>
             <Ionicons name="alert-circle" size={14} color="#ef4444" />
-            <Text style={[styles.reasonText, {color: "#ef4444"}]} numberOfLines={2}>
-              {reservation.cancellation_reason || reservation.rejection_reason}
+            <Text
+              style={[styles.reasonText, {color: "#ef4444"}]}
+              numberOfLines={2}>
+              {reservation.cancellation_reason ||
+                reservation.rejection_reason}
             </Text>
           </View>
         )}
 
-        {/* Google Calendar Event Indicator */}
+        {/* Google Calendar Event */}
         {reservation.calendar_event_created && (
           <TouchableOpacity
-            style={[styles.calendarEventContainer, {backgroundColor: "#4285F4" + "15"}]}
+            style={[
+              styles.calendarEventContainer,
+              {backgroundColor: "#4285F4" + "15"},
+            ]}
             onPress={() => {
               if (reservation.calendar_event_link) {
                 Linking.openURL(reservation.calendar_event_link);
@@ -175,52 +218,42 @@ export const ReservationCard = ({
             )}
           </TouchableOpacity>
         )}
+      </ContentWrapper>
+
+      {/* Footer: Escanear al llegar | Ver detalle */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.footerAction}
+          onPress={() => (onScanPress ? onScanPress(reservation) : onPress?.(reservation))}
+          activeOpacity={0.7}
+          disabled={!onScanPress && !onPress}>
+          <Ionicons
+            name="qr-code-outline"
+            size={18}
+            color={colors.mutedForeground}
+          />
+          <Text style={[styles.footerActionTextMuted, {color: colors.mutedForeground}]}>
+            Escanear al llegar
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.footerAction}
+          onPress={() => onPress?.(reservation)}
+          activeOpacity={0.7}
+          disabled={!onPress}>
+          <Text style={[styles.footerActionTextPrimary, {color: colors.primary}]}>
+            Ver detalle
+          </Text>
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={colors.primary}
+          />
+        </TouchableOpacity>
       </View>
 
-      {/* Action Buttons */}
-      {showActions && (
-        <View style={styles.actions}>
-          {reservation.status === "PENDING" && onConfirm && onReject && (
-            <>
-              <TouchableOpacity
-                style={[styles.actionButton, {backgroundColor: "#10b981"}]}
-                onPress={() => onConfirm(reservation.id)}
-                activeOpacity={0.8}>
-                <Ionicons name="checkmark" size={18} color="#ffffff" />
-                <Text style={styles.actionText}>Confirmar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, {backgroundColor: "#ef4444"}]}
-                onPress={() => onReject(reservation.id)}
-                activeOpacity={0.8}>
-                <Ionicons name="close" size={18} color="#ffffff" />
-                <Text style={styles.actionText}>Rechazar</Text>
-              </TouchableOpacity>
-            </>
-          )}
 
-          {reservation.status === "CONFIRMED" && onComplete && (
-            <TouchableOpacity
-              style={[styles.actionButton, {backgroundColor: colors.primary}]}
-              onPress={() => onComplete(reservation.id)}
-              activeOpacity={0.8}>
-              <Ionicons name="checkmark-done" size={18} color="#ffffff" />
-              <Text style={styles.actionText}>Completar</Text>
-            </TouchableOpacity>
-          )}
-
-          {reservation.status === "PENDING" && onCancel && (
-            <TouchableOpacity
-              style={[styles.actionButton, {backgroundColor: "#ef4444"}]}
-              onPress={() => onCancel(reservation.id)}
-              activeOpacity={0.8}>
-              <Ionicons name="close-circle" size={18} color="#ffffff" />
-              <Text style={styles.actionText}>Cancelar</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-    </Wrapper>
+    </View>
   );
 };
 
@@ -234,21 +267,17 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
   },
-  header: {
+  titleRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 8,
   },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flexWrap: "wrap",
-  },
-  code: {
-    fontSize: 12,
-    fontWeight: "600",
+  serviceName: {
+    fontSize: 17,
+    fontWeight: "700",
+    flex: 1,
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -258,17 +287,10 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 11,
     fontWeight: "700",
-    textTransform: "uppercase",
+    color: "#ffffff",
   },
-  serviceName: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 12,
-  },
-  dateTimeRow: {
-    flexDirection: "row",
-    gap: 16,
-    marginBottom: 8,
+  professionalRow: {
+    marginBottom: 10,
   },
   infoItem: {
     flexDirection: "row",
@@ -278,6 +300,10 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 14,
     fontWeight: "500",
+  },
+  dateTimeRow: {
+    flexDirection: "row",
+    gap: 16,
   },
   notesContainer: {
     flexDirection: "row",
@@ -319,11 +345,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  footerAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  footerActionTextMuted: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  footerActionTextPrimary: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
   actions: {
     flexDirection: "row",
     gap: 8,
     padding: 16,
-    paddingTop: 0,
+    borderTopWidth: 1,
   },
   actionButton: {
     flex: 1,

@@ -88,18 +88,30 @@ class ProfileImageSerializer(serializers.ModelSerializer):
 
 
 class CustomServiceSerializer(serializers.ModelSerializer):
+    description = serializers.CharField(required=False, allow_blank=True, default="")
     category = serializers.CharField(default='Otros', required=False)
     is_active = serializers.BooleanField(default=True, required=False)
     availability_summary = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = CustomService
         fields = [
-            'id', 'name', 'description', 'price', 'duration_minutes', 
+            'id', 'name', 'description', 'price', 'duration_minutes',
             'category', 'is_active', 'availability_summary', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'availability_summary']
-    
+
+    def create(self, validated_data):
+        content_type = validated_data.pop('content_type', None) or self.context.get('content_type')
+        object_id = validated_data.pop('object_id', None) or self.context.get('object_id')
+        if not content_type or object_id is None:
+            raise serializers.ValidationError("content_type and object_id are required")
+        return CustomService.objects.create(
+            content_type=content_type,
+            object_id=object_id,
+            **validated_data
+        )
+
     def get_availability_summary(self, obj):
         """Get availability summary for the service provider"""
         try:

@@ -275,7 +275,7 @@ export default function Settings({embedded = false}: {embedded?: boolean} = {}) 
           {/* App Version */}
           <View style={styles.versionContainer}>
             <Text style={[styles.versionText, {color: colors.mutedForeground}]}>
-              nabbi App v1.0.0
+              nabbi App v1.3.10
             </Text>
           </View>
         </View>

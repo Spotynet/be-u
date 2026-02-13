@@ -1,234 +1,62 @@
-import {View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions} from "react-native";
-import {useState, useRef, useEffect, useMemo} from "react";
-import {Ionicons} from "@expo/vector-icons";
+import {View, Text, StyleSheet} from "react-native";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
-import {useSafeAreaInsets} from "react-native-safe-area-context";
-import Settings from "@/app/settings";
-import {FavoritesTab} from "@/components/profile/FavoritesTab";
-import {ProfileCustomizationTab} from "@/components/profile/ProfileCustomizationTab";
-import SettingsMenu from "@/components/profile/SettingsMenu";
 import {useAuth} from "@/features/auth";
-import {TourTarget} from "@/components/onboarding/TourTarget";
-import {useProviderTour} from "@/features/onboarding/ProviderTourProvider";
-
-const {width: SCREEN_WIDTH} = Dimensions.get("window");
-
-type TabKey = "settings" | "favorites" | "publicProfile";
+import {Ionicons} from "@expo/vector-icons";
+import React from "react";
+import {AppHeader} from "@/components/ui/AppHeader";
+import {ClientProfileTab, ProfessionalProfileTab} from "@/components/profile";
 
 export default function Perfil() {
   const {colors} = useThemeVariant();
-  const insets = useSafeAreaInsets();
   const {user, isAuthenticated} = useAuth();
-  const {currentStep, isActive} = useProviderTour();
-  const [activeTab, setActiveTab] = useState<TabKey>("settings");
-  const [isSettingsMenuVisible, setIsSettingsMenuVisible] = useState(false);
-  const slideAnim = useRef(new Animated.Value(0)).current;
 
-  const isProvider = user?.role === "PROFESSIONAL" || user?.role === "PLACE";
+  const isClient = user?.role === "CLIENT";
 
-  // Auto-switch to publicProfile tab when tour is active and on mipagina steps
-  useEffect(() => {
-    if (isActive && currentStep && currentStep.startsWith("mipagina_")) {
-      if (activeTab !== "publicProfile") {
-        setActiveTab("publicProfile");
-      }
-    }
-  }, [isActive, currentStep, activeTab]);
-
-  const tabs = useMemo(() => {
-    const base: {key: TabKey; label: string; icon: string}[] = [
-      {key: "settings", label: "Perfil", icon: "person-outline"},
-      {key: "favorites", label: "Guardados", icon: "heart-outline"},
-    ];
-    if (isAuthenticated && isProvider) {
-      base.push({key: "publicProfile", label: "Mi página", icon: "create-outline"});
-    }
-    return base;
-  }, [isAuthenticated, isProvider]);
-
-  useEffect(() => {
-    const tabIndex = tabs.findIndex((tab) => tab.key === activeTab);
-    Animated.spring(slideAnim, {
-      toValue: tabIndex,
-      useNativeDriver: true,
-      tension: 68,
-      friction: 12,
-    }).start();
-  }, [activeTab, slideAnim]);
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case "settings":
-        return <Settings embedded />;
-      case "favorites":
-        return <FavoritesTab />;
-      case "publicProfile":
-        return <ProfileCustomizationTab userRole={user?.role as "PROFESSIONAL" | "PLACE"} />;
-      default:
-        return null;
-    }
-  };
-
-  const tabCount = tabs.length;
-  const indicatorWidth = SCREEN_WIDTH / tabCount;
-  const inputRange = tabs.map((_, i) => i);
-  const outputRange = tabs.map((_, i) => i * indicatorWidth);
-
-  return (
-    <View style={[styles.container, {backgroundColor: colors.background}]}>
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.background,
-            borderBottomColor: colors.border,
-            paddingTop: Math.max(insets.top + 12, 16),
-          },
-        ]}>
-        <View style={styles.headerSpacer} />
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Perfil</Text>
-        <TouchableOpacity
-          style={styles.settingsIconButton}
-          onPress={() => setIsSettingsMenuVisible(true)}
-          activeOpacity={0.7}>
-          <View style={[styles.settingsIconContainer, {backgroundColor: colors.card}]}>
-            <Ionicons name="settings" color={colors.primary} size={22} />
-          </View>
-        </TouchableOpacity>
-      </View>
-      <View style={[styles.tabsHeader, {borderBottomColor: colors.border}]}>
-        {tabs.map((tab) => {
-          const tabButton = (
-            <TouchableOpacity
-              style={styles.tab}
-              onPress={() => setActiveTab(tab.key)}
-              activeOpacity={0.7}>
-              <Ionicons
-                name={activeTab === tab.key ? tab.icon.replace("-outline", "") : tab.icon}
-                color={activeTab === tab.key ? colors.primary : colors.mutedForeground}
-                size={22}
-              />
-              <Text
-                style={[
-                  styles.tabLabel,
-                  activeTab === tab.key
-                    ? {color: colors.primary, fontWeight: "700"}
-                    : {color: colors.mutedForeground, fontWeight: "600"},
-                ]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-
-          // Wrap "Mi página" tab with TourTarget
-          if (tab.key === "publicProfile") {
-            return (
-              <TourTarget key={tab.key} targetId="mipagina_tab" style={styles.tabWrapper}>
-                {tabButton}
-              </TourTarget>
-            );
-          }
-
-          return (
-            <View key={tab.key} style={styles.tabWrapper}>
-              {tabButton}
-            </View>
-          );
-        })}
-        <Animated.View
-          style={[
-            styles.indicator,
-            {
-              backgroundColor: colors.primary,
-              transform: [
-                {
-                  translateX: slideAnim.interpolate({
-                    inputRange,
-                    outputRange,
-                  }),
-                },
-              ],
-              width: indicatorWidth,
-            },
-          ]}
+  if (!isAuthenticated || !user) {
+    return (
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
+        <AppHeader
+          title="Perfil"
+          showBackButton={false}
+          backgroundColor={colors.background}
+          borderBottom={colors.border}
         />
+        <View style={styles.centeredContainer}>
+          <Ionicons name="person-outline" size={80} color={colors.mutedForeground} />
+          <Text style={[styles.emptyTitle, {color: colors.foreground}]}>
+            Inicia sesión para ver tu perfil
+          </Text>
+          <Text style={[styles.emptyDescription, {color: colors.mutedForeground}]}>
+            Accede a tu cuenta para gestionar tu perfil y tus favoritos
+          </Text>
+        </View>
       </View>
-      <View style={styles.tabContent}>{renderTabContent()}</View>
-      <SettingsMenu
-        visible={isSettingsMenuVisible}
-        onClose={() => setIsSettingsMenuVisible(false)}
-      />
-    </View>
-  );
+    );
+  }
+
+  return isClient ? <ClientProfileTab /> : <ProfessionalProfileTab />;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row",
+  centeredContainer: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
+    paddingHorizontal: 32,
   },
-  headerTitle: {
+  emptyTitle: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: "bold",
+    marginTop: 24,
+    marginBottom: 8,
+    textAlign: "center",
   },
-  headerSpacer: {
-    width: 40,
-  },
-  settingsIconButton: {
-    padding: 4,
-  },
-  settingsIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  tabsHeader: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    position: "relative",
-    alignItems: "stretch",
-    height: 60,
-  },
-  tabWrapper: {
-    flex: 1,
-  },
-  tab: {
-    width: "100%",
-    height: "100%",
-    paddingVertical: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-  tabLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  indicator: {
-    position: "absolute",
-    bottom: 0,
-    height: 3,
-    borderRadius: 3,
-  },
-  tabContent: {
-    flex: 1,
-    overflow: "hidden",
+  emptyDescription: {
+    fontSize: 15,
+    textAlign: "center",
+    marginBottom: 24,
   },
 });

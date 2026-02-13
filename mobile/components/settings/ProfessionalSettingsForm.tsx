@@ -531,7 +531,7 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
               style={[styles.input, styles.textArea, {color: colors.foreground}]}
               value={bio}
               onChangeText={setBio}
-              placeholder="Cuéntanos sobre tu experiencia profesional..."
+              placeholder="Agrega una descripción de tus servicios a brindar"
               placeholderTextColor={colors.mutedForeground}
               multiline
               numberOfLines={4}

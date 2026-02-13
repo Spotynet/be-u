@@ -51,8 +51,10 @@ export default function ProfileDetailScreen() {
   const stickyHeightRef = useRef<number>(44);
   const sectionOffsetsRef = useRef<Record<string, number>>({});
   
-  // Favorites functionality
-  const {toggleFavorite, isFavorited} = useFavorites();
+  // Favorites functionality (redirect to login on 401)
+  const {toggleFavorite, isFavorited} = useFavorites({
+    onUnauthorized: () => router.push("/login"),
+  });
   const [isFavorite, setIsFavorite] = useState(false);
 
   const getFavoriteTarget = () => {
@@ -77,6 +79,14 @@ export default function ProfileDetailScreen() {
   }, [profile, id, isFavorited]);
   
   const handleToggleFavorite = async () => {
+    if (!isAuthenticated || !user) {
+      Alert.alert(
+        "Inicia sesión",
+        "Necesitas iniciar sesión para guardar favoritos.",
+        [{text: "OK", onPress: () => router.push("/login")}]
+      );
+      return;
+    }
     const target = getFavoriteTarget();
     if (!target) return;
     

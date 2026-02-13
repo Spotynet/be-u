@@ -19,6 +19,8 @@ import {useState, useEffect, useRef} from "react";
 import {useAuth} from "@/features/auth";
 import {useGoogleAuth} from "@/hooks/useGoogleAuth";
 import {useNavigation} from "@/hooks/useNavigation";
+import {AppLogo} from "@/components/AppLogo";
+import {AppHeader} from "@/components/ui/AppHeader";
 
 export default function Login() {
   const {colors} = useThemeVariant();
@@ -124,25 +126,13 @@ export default function Login() {
       style={[styles.container, {backgroundColor: colors.background}]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
-      {/* Minimal header */}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.background,
-            borderBottomColor: colors.border,
-            paddingTop: Math.max(insets.top + 8, 12),
-          },
-        ]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => goBack("/(tabs)/")}
-          hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
-          <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Iniciar sesión</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <AppHeader
+        title="Iniciar sesión"
+        showBackButton
+        onBackPress={() => goBack("/(tabs)/")}
+        backgroundColor={colors.background}
+        borderBottom={colors.border}
+      />
 
       <ScrollView
         style={styles.content}
@@ -153,8 +143,23 @@ export default function Login() {
           {/* Logo + brand */}
           <View style={styles.hero}>
             <Animated.View style={[styles.logoWrap, {transform: [{scale: logoScale}]}]}>
-              <View style={[styles.logoCircle, {backgroundColor: colors.primary}]}>
-                <Ionicons name="sparkles" color={colors.primaryForeground} size={28} />
+              <View
+                style={[
+                  styles.logoBox,
+                  {
+                    backgroundColor: colors.card,
+                    shadowColor: colors.primary,
+                    ...Platform.select({
+                      ios: {
+                        shadowOffset: {width: 0, height: 0},
+                        shadowOpacity: 0.35,
+                        shadowRadius: 18,
+                      },
+                      android: {elevation: 12},
+                    }),
+                  },
+                ]}>
+                <AppLogo style={styles.heroLogo} resizeMode="contain" />
               </View>
             </Animated.View>
             <Text style={[styles.brandName, {color: colors.foreground}]}>nabbi</Text>
@@ -271,30 +276,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  backButton: {
-    padding: 8,
-    minWidth: 44,
-    minHeight: 44,
-    justifyContent: "center",
-    alignItems: "flex-start",
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    flex: 1,
-    textAlign: "center",
-  },
-  headerSpacer: {
-    width: 44,
-  },
   content: {
     flex: 1,
   },
@@ -309,12 +290,17 @@ const styles = StyleSheet.create({
   logoWrap: {
     marginBottom: 16,
   },
-  logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+  logoBox: {
+    width: 88,
+    height: 88,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
+  },
+  heroLogo: {
+    width: 52,
+    height: 52,
   },
   brandName: {
     fontSize: 26,

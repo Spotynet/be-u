@@ -367,3 +367,35 @@ export const getAvatarColorFromSubcategory = (
   // Return the subcategory color if found, otherwise default
   return subCategory?.color || "#8B5CF6";
 };
+
+/** Primary color per main category (matches ThemeVariants) */
+const MAIN_CATEGORY_PRIMARY_COLORS: Record<string, string> = {
+  belleza: "#EC4899",
+  bienestar: "#8B5CF6",
+  cuidado: "#8B5CF6",
+  mascotas: "#F97316",
+  todos: "#8B5CF6",
+};
+
+/**
+ * Get a hex color for a category (main or sub) by id or name.
+ * Used e.g. for reservation card border from professional/service category.
+ */
+export const getCategoryColor = (
+  categoryIdOrName?: string | number
+): string => {
+  if (categoryIdOrName == null || categoryIdOrName === "") return "#8B5CF6";
+  const normalized = String(categoryIdOrName).toLowerCase().trim();
+  if (MAIN_CATEGORY_PRIMARY_COLORS[normalized])
+    return MAIN_CATEGORY_PRIMARY_COLORS[normalized];
+  for (const [, subCategories] of Object.entries(SUB_CATEGORIES)) {
+    const sub = subCategories.find(
+      (s) =>
+        s.id.toLowerCase() === normalized ||
+        s.name.toLowerCase() === normalized ||
+        s.name.toLowerCase().replace(/\s+/g, "") === normalized.replace(/\s+/g, "")
+    );
+    if (sub?.color) return sub.color;
+  }
+  return "#8B5CF6";
+};

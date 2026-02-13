@@ -1,4 +1,7 @@
 export {ClientProfileView} from "./ClientProfileView";
+export {ClientProfileTab} from "./ClientProfileTab";
+export {ProfessionalProfileTab} from "./ProfessionalProfileTab";
+export {ClientProfileContent} from "./ClientProfileContent";
 export {ProfessionalProfileView} from "./ProfessionalProfileView";
 export {PlaceProfileView} from "./PlaceProfileView";
 export {ViewProfessionalProfile} from "./ViewProfessionalProfile";
@@ -9,6 +12,8 @@ export {EnhancedReservationsTab} from "./EnhancedReservationsTab";
 export {ReservationsTab} from "./ReservationsTab"; // Keep for backwards compatibility
 export {FavoritesTab} from "./FavoritesTab";
 export {ProfileCustomizationTab} from "./ProfileCustomizationTab";
+export {PublicProfileContent} from "./PublicProfileContent";
+export {ProfessionalSettingsContent} from "./ProfessionalSettingsContent";
 export {ImageGallery} from "./ImageGallery";
 export {ServiceManager} from "./ServiceManager";
 export {AvailabilityManager} from "./AvailabilityManager";

@@ -13,6 +13,9 @@ import {
   TextInput,
   Alert,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
+  FlatList,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
@@ -26,20 +29,40 @@ import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {postApi, tokenUtils, notificationApi} from "@/lib/api";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 import {getAvatarColorFromSubcategory} from "@/constants/categories";
+import {postFormats} from "@/constants/postFormats";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {TourTarget} from "@/components/onboarding/TourTarget";
+import {AppLogo} from "@/components/AppLogo";
+import {APP_HEADER_BUTTON_HIT} from "@/components/ui/AppHeader";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
+
+function formatCommentTime(createdAt: string | undefined): string {
+  if (!createdAt) return "";
+  const date = new Date(createdAt);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffMins < 1) return "Ahora";
+  if (diffMins < 60) return `${diffMins}m`;
+  if (diffHours < 24) return `${diffHours}h`;
+  if (diffDays === 1) return "1d";
+  if (diffDays < 7) return `${diffDays}d`;
+  return date.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+}
 
 // Carousel Component with indicators
 const CarouselView = ({images, colors, screenWidth}: {images: string[]; colors: any; screenWidth: number}) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const handleScroll = (event: any) => {
+  const updateIndex = (event: any) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(contentOffsetX / screenWidth);
-    setCurrentIndex(index);
+    const clamped = Math.max(0, Math.min(index, images.length - 1));
+    setCurrentIndex(clamped);
   };
 
   return (
@@ -51,23 +74,33 @@ const CarouselView = ({images, colors, screenWidth}: {images: string[]; colors: 
         showsHorizontalScrollIndicator={false}
         style={styles.carouselScrollView}
         contentContainerStyle={styles.carouselContent}
-        onMomentumScrollEnd={handleScroll}>
+        onScroll={updateIndex}
+        onMomentumScrollEnd={updateIndex}
+        scrollEventThrottle={16}>
         {images.map((imageUrl: string, index: number) => (
           <View key={index} style={styles.carouselSlide}>
             <Image source={{uri: imageUrl}} style={styles.carouselImage} resizeMode="cover" />
           </View>
         ))}
       </ScrollView>
+      {/* Contador tipo "1/5" en la esquina superior derecha */}
       {images.length > 1 && (
-        <View style={styles.carouselIndicators}>
+        <View style={styles.carouselCounterBadge}>
+          <Text style={styles.carouselCounterText}>
+            {currentIndex + 1}/{images.length}
+          </Text>
+        </View>
+      )}
+      {/* Puntos de paginación abajo, sobre la imagen: activo rosa, inactivos blancos */}
+      {images.length > 1 && (
+        <View style={styles.carouselDotsOverlay} pointerEvents="none">
           {images.map((_, index: number) => (
             <View
               key={index}
               style={[
                 styles.carouselDot,
                 {
-                  backgroundColor: index === currentIndex ? colors.primary : colors.mutedForeground + "50",
-                  width: index === currentIndex ? 24 : 8,
+                  backgroundColor: index === currentIndex ? colors.primary : "rgba(255, 255, 255, 0.9)",
                 },
               ]}
             />
@@ -106,8 +139,15 @@ export default function Home() {
   const [savingPost, setSavingPost] = useState(false);
   const [postOptionsPostId, setPostOptionsPostId] = useState<number | null>(null);
   const [postOptionsPosition, setPostOptionsPosition] = useState<{x: number; y: number; w: number; h: number} | null>(null);
+  const [showCreatePostModal, setShowCreatePostModal] = useState(false);
   const postOptionButtonRefs = useRef<Record<number, View | null>>({});
   const router = useRouter();
+
+  const availablePostFormats = postFormats.filter((format) => {
+    if (!user) return false;
+    if (format.id === "video" || format.id === "pet_adoption") return false;
+    return format.roles.includes(user.role);
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -240,7 +280,6 @@ export default function Home() {
     try {
       await postApi.createComment(postId, text);
       setCommentDrafts((d) => ({...d, [postId]: ""}));
-      setOpenCommentFor(null);
       await loadComments(postId); // refresh comments for this post
       fetchPosts();
     } catch (e: any) {
@@ -288,17 +327,18 @@ export default function Home() {
   }, []);
 
   const getCategoryIcon = (id: string, color: string, size: number = 24) => {
+    const iconColor = color ?? "#6b7280";
     switch (id) {
       case "belleza":
-        return <MaterialCommunityIcons name="spa-outline" size={size} color={color} />;
+        return <MaterialCommunityIcons name="spa-outline" size={size} color={iconColor} />;
       case "bienestar":
-        return <MaterialCommunityIcons name="meditation" size={size} color={color} />;
+        return <MaterialCommunityIcons name="meditation" size={size} color={iconColor} />;
       case "mascotas":
-        return <MaterialCommunityIcons name="paw" size={size} color={color} />;
+        return <MaterialCommunityIcons name="paw" size={size} color={iconColor} />;
       case "todos":
-        return <Ionicons name="apps" size={size} color={color} />;
+        return <Ionicons name="apps" size={size} color={iconColor} />;
       default:
-        return <Ionicons name="apps" size={size} color={color} />;
+        return <Ionicons name="apps" size={size} color={iconColor} />;
     }
   };
 
@@ -672,11 +712,7 @@ export default function Home() {
         key={post.id} 
         style={[
           styles.postCard, 
-          {
-            backgroundColor: colors.card,
-            borderWidth: 2,
-            borderColor: borderColor,
-          }
+          { backgroundColor: colors.card }
         ]}>
         <View style={styles.postHeader}>
           <TouchableOpacity 
@@ -696,14 +732,22 @@ export default function Home() {
               }
             }}
             activeOpacity={0.7}>
-            <View style={[styles.postAvatar, {backgroundColor: borderColor}]}>
-              {post.author_photo ? (
-                <Image source={{uri: post.author_photo}} style={styles.postAvatarImage} />
-              ) : (
-                <Text style={styles.postAvatarText}>
-                  {authorName.charAt(0).toUpperCase()}
-                </Text>
-              )}
+            <View style={[
+              styles.postAvatarRing,
+              { borderColor: borderColor },
+            ]}>
+              <View style={[
+                styles.postAvatar,
+                { backgroundColor: post.author_photo ? "transparent" : colors.muted },
+              ]}>
+                {post.author_photo ? (
+                  <Image source={{uri: post.author_photo}} style={styles.postAvatarImage} />
+                ) : (
+                  <Text style={styles.postAvatarText}>
+                    {authorName.charAt(0).toUpperCase()}
+                  </Text>
+                )}
+              </View>
             </View>
             <View style={styles.postUserInfo}>
               <Text style={[styles.postUserNameText, {color: colors.foreground}]} numberOfLines={1}>
@@ -751,24 +795,23 @@ export default function Home() {
           />
         )}
         
-        {/* Before/After Transformation */}
+        {/* Before/After Transformation - estilo split con divisor central y diamante */}
         {!isCarousel && isBeforeAfter && beforeUrl && afterUrl && (
           <View style={styles.transformationContainer}>
-            <View style={styles.transformationImage}>
-              <Image source={{uri: beforeUrl}} style={styles.transformationImg} />
-              <View style={[styles.transformationLabel, {backgroundColor: "rgba(0, 0, 0, 0.7)"}]}>
-                <Text style={styles.transformationLabelText}>Antes</Text>
+            <View style={styles.transformationHalf}>
+              <Image source={{uri: beforeUrl}} style={styles.transformationImg} resizeMode="cover" />
+              <View style={[styles.transformationLabel, styles.transformationLabelLeft]}>
+                <Text style={styles.transformationLabelText}>ANTES</Text>
               </View>
             </View>
-            <View style={[styles.transformationDivider, {backgroundColor: colors.primary}]}>
-              <Ionicons name="arrow-forward" color="#ffffff" size={16} />
-            </View>
-            <View style={styles.transformationImage}>
-              <Image source={{uri: afterUrl}} style={styles.transformationImg} />
-              <View style={[styles.transformationLabel, {backgroundColor: colors.primary}]}>
-                <Text style={styles.transformationLabelText}>Después</Text>
+            <View style={styles.transformationHalf}>
+              <Image source={{uri: afterUrl}} style={styles.transformationImg} resizeMode="cover" />
+              <View style={[styles.transformationLabel, styles.transformationLabelRight]}>
+                <Text style={styles.transformationLabelText}>DESPUÉS</Text>
               </View>
             </View>
+            <View style={styles.transformationDividerLine} />
+            <View style={styles.transformationDividerDiamond} />
           </View>
         )}
         
@@ -803,7 +846,7 @@ export default function Home() {
             disabled={liking.has(post.id)}>
             <Ionicons
               name={post.user_has_liked || likedPosts.has(post.id) ? "heart" : "heart-outline"}
-              color={post.user_has_liked || likedPosts.has(post.id) ? "#FF69B4" : colors.mutedForeground}
+              color={post.user_has_liked || likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
               size={22}
             />
             <Text style={[styles.postActionText, {color: colors.foreground}]}>
@@ -865,51 +908,6 @@ export default function Home() {
             <Text style={styles.reserveButtonText}>Reservar</Text>
           </TouchableOpacity>
         </View>
-        {openCommentFor === post.id && (
-          <View style={{flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 8}}>
-            <TextInput
-              placeholder="Escribe un comentario"
-              placeholderTextColor={colors.mutedForeground}
-              style={{
-                flex: 1,
-                borderWidth: 1,
-                borderColor: colors.border,
-                borderRadius: 12,
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                color: colors.foreground,
-              }}
-              value={commentDrafts[post.id] || ""}
-              onChangeText={(t) => setCommentDrafts((d) => ({...d, [post.id]: t}))}
-            />
-            <TouchableOpacity
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-                borderRadius: 12,
-                backgroundColor: colors.primary,
-              }}
-              onPress={() => submitComment(post.id)}
-              disabled={commenting.has(post.id)}>
-              <Text style={{color: "#fff", fontWeight: "700"}}>Enviar</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        {Array.isArray(commentsByPost[post.id]) && commentsByPost[post.id].length > 0 && (
-          <View style={{paddingTop: 8, gap: 6}}>
-            {commentsByPost[post.id].slice(0, 3).map((c: any) => (
-              <View key={c.id} style={{flexDirection: "row", gap: 8, alignItems: "flex-start"}}>
-                <Ionicons name="chatbubble-ellipses" size={14} color={colors.mutedForeground} />
-                <Text style={{flex: 1, color: colors.foreground}}>
-                  <Text style={{fontWeight: "700"}}>
-                    {c.author?.username || c.author?.first_name || "Usuario"}:
-                  </Text>
-                  {c.content || c.text}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
       </View>
     );
   };
@@ -941,27 +939,22 @@ export default function Home() {
         {post.description}
       </Text>
 
-      {/* Before/After Images */}
+      {/* Before/After Images - estilo split con divisor central y diamante */}
       <View style={styles.transformationContainer}>
-        <View style={styles.transformationImage}>
-          <Image source={{uri: post.beforeImage}} style={styles.transformationImg} />
-          <View style={[styles.transformationLabel, {backgroundColor: "rgba(0, 0, 0, 0.7)"}]}>
-            <Text style={styles.transformationLabelText}>Antes</Text>
+        <View style={styles.transformationHalf}>
+          <Image source={{uri: post.beforeImage}} style={styles.transformationImg} resizeMode="cover" />
+          <View style={[styles.transformationLabel, styles.transformationLabelLeft]}>
+            <Text style={styles.transformationLabelText}>ANTES</Text>
           </View>
         </View>
-        <View style={[styles.transformationDivider, {backgroundColor: colors.primary}]}>
-          <Ionicons name="arrow-forward" color="#ffffff" size={16} />
-        </View>
-        <View style={styles.transformationImage}>
-          <Image source={{uri: post.afterImage}} style={styles.transformationImg} />
-          <View
-            style={[
-              styles.transformationLabel,
-              {backgroundColor: getCategoryColor(post.category)},
-            ]}>
-            <Text style={styles.transformationLabelText}>Después</Text>
+        <View style={styles.transformationHalf}>
+          <Image source={{uri: post.afterImage}} style={styles.transformationImg} resizeMode="cover" />
+          <View style={[styles.transformationLabel, styles.transformationLabelRight]}>
+            <Text style={styles.transformationLabelText}>DESPUÉS</Text>
           </View>
         </View>
+        <View style={styles.transformationDividerLine} />
+        <View style={styles.transformationDividerDiamond} />
       </View>
 
       {/* Interactions */}
@@ -972,7 +965,7 @@ export default function Home() {
           activeOpacity={0.7}>
           <Ionicons
             name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-            color={likedPosts.has(post.id) ? "#FF69B4" : colors.mutedForeground}
+            color={likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
             size={24}
           />
           <Text style={[styles.postActionText, {color: colors.foreground}]}>
@@ -1042,7 +1035,7 @@ export default function Home() {
           activeOpacity={0.7}>
           <Ionicons
             name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-            color={likedPosts.has(post.id) ? "#FF69B4" : colors.mutedForeground}
+            color={likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
             size={24}
           />
           <Text style={[styles.postActionText, {color: colors.foreground}]}>
@@ -1113,7 +1106,7 @@ export default function Home() {
           activeOpacity={0.7}>
           <Ionicons
             name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-            color={likedPosts.has(post.id) ? "#FF69B4" : colors.mutedForeground}
+            color={likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
             size={24}
           />
           <Text style={[styles.postActionText, {color: colors.foreground}]}>
@@ -1248,7 +1241,7 @@ export default function Home() {
             activeOpacity={0.7}>
             <Ionicons
               name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-              color={likedPosts.has(post.id) ? "#FF69B4" : colors.mutedForeground}
+              color={likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
               size={20}
             />
             <Text style={[styles.reelActionText, {color: colors.foreground}]}>
@@ -1308,7 +1301,7 @@ export default function Home() {
           activeOpacity={0.7}>
           <Ionicons
             name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-            color={likedPosts.has(post.id) ? "#FF69B4" : colors.mutedForeground}
+            color={likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
             size={24}
           />
           <Text style={[styles.postActionText, {color: colors.foreground}]}>
@@ -1422,7 +1415,7 @@ export default function Home() {
           activeOpacity={0.7}>
           <Ionicons
             name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-            color={likedPosts.has(post.id) ? "#FF69B4" : colors.mutedForeground}
+            color={likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
             size={24}
           />
           <Text style={[styles.postActionText, {color: colors.foreground}]}>
@@ -1485,7 +1478,7 @@ export default function Home() {
           activeOpacity={0.7}>
           <Ionicons
             name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-            color={likedPosts.has(post.id) ? "#FF69B4" : colors.mutedForeground}
+            color={likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
             size={24}
           />
           <Text style={[styles.postActionText, {color: colors.foreground}]}>
@@ -1536,29 +1529,28 @@ export default function Home() {
         style={[
           styles.header,
           {
-            backgroundColor: colors.background,
+            backgroundColor: colors.card,
             borderBottomColor: colors.border,
-            paddingTop: Math.max(insets.top + 16, 20),
-            minHeight: Math.max(insets.top + 16, 20) + 38,
+            paddingTop: Math.max(insets.top + 12, 16),
+            paddingBottom: 12,
           },
         ]}>
-        <View style={styles.headerLeft}>
-          <Image
-            source={require("@/assets/images/be-u.png")}
-            style={styles.headerLogo}
-            resizeMode="contain"
-          />
-        </View>
+        <View style={styles.indexHeaderRow}>
+          <View style={styles.headerLeft}>
+            <AppLogo style={styles.headerLogo} resizeMode="contain" />
+          </View>
 
-        <View style={styles.headerCenter}>
-          <View style={styles.categorySelector}>
-            <View style={[styles.expandedCategoryOptions, {backgroundColor: colors.card}]}>
+          <View style={styles.headerCenter}>
+            <View style={styles.categorySelector}>
+            <View style={[styles.expandedCategoryOptions, {backgroundColor: colors.input}]}>
               {categories.map((category) => (
                 <Pressable
                   key={category.id}
                   style={[
                     styles.expandedCategoryOption,
-                    selectedMainCategory === category.id && styles.selectedCategoryOption,
+                    selectedMainCategory === category.id && {
+                      backgroundColor: colors.background,
+                    },
                   ]}
                   onPress={() => {
                     setSelectedMainCategory(category.id as any);
@@ -1593,22 +1585,31 @@ export default function Home() {
             <View style={styles.notificationIconWrap}>
               <Ionicons name="notifications-outline" color={colors.foreground} size={24} />
               {unreadNotificationsCount > 0 && (
-                <View style={[styles.notificationBadge, {backgroundColor: "#ef4444"}]} />
+                <View style={[styles.notificationBadge, {backgroundColor: colors.destructive}]} />
               )}
             </View>
           </TouchableOpacity>
           {user && user.role !== "CLIENT" && (
             <TourTarget targetId="posts_create">
-              <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/create-post")}>
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={() => {
+                  if (!user) {
+                    router.push("/login");
+                  } else {
+                    setShowCreatePostModal(true);
+                  }
+                }}>
                 <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
               </TouchableOpacity>
             </TourTarget>
           )}
         </View>
+        </View>
       </View>
 
       {/* Sub Category Bar (mock) */}
-      <View style={styles.subCategoryContainer}>
+      <View style={[styles.subCategoryContainer, {backgroundColor: colors.card}]}>
         <SubCategoryBar
           categories={currentSubcategories}
           selectedCategoryId={selectedSubCategory}
@@ -1741,6 +1742,184 @@ export default function Home() {
         </Pressable>
       </Modal>
 
+      {/* Modal de comentarios (sheet desde abajo) */}
+      <Modal
+        visible={openCommentFor != null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setOpenCommentFor(null)}>
+        <Pressable style={styles.commentsModalOverlay} onPress={() => setOpenCommentFor(null)}>
+          <Pressable style={[styles.commentsSheet, {backgroundColor: colors.card}]} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.commentsHandleBar} />
+            <View style={styles.commentsHeader}>
+              <Text style={styles.commentsTitle}>Comentarios</Text>
+              <Text style={styles.commentsCount}>
+                {openCommentFor != null
+                  ? (() => {
+                      const p = posts.find((x: any) => x.id === openCommentFor);
+                      return getCommentCount(p || {}) || (commentsByPost[openCommentFor]?.length ?? 0);
+                    })()
+                  : 0}
+              </Text>
+              <TouchableOpacity
+                hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}
+                onPress={() => setOpenCommentFor(null)}
+                style={styles.commentsCloseBtn}>
+                <Ionicons name="close" size={24} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+            <KeyboardAvoidingView
+              style={styles.commentsBody}
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              keyboardVerticalOffset={0}>
+              <FlatList
+                data={openCommentFor != null ? commentsByPost[openCommentFor] ?? [] : []}
+                keyExtractor={(item) => String(item.id)}
+                style={styles.commentsList}
+                contentContainerStyle={styles.commentsListContent}
+                ListEmptyComponent={
+                  loadingComments.has(openCommentFor!) ? (
+                    <View style={styles.commentsLoading}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    </View>
+                  ) : (
+                    <Text style={[styles.commentsEmpty, {color: colors.mutedForeground}]}>
+                      Sin comentarios aún. ¡Sé el primero!
+                    </Text>
+                  )
+                }
+                renderItem={({item: c}: {item: any}) => (
+                  <View style={styles.commentRow}>
+                    <View style={styles.commentAvatarWrap}>
+                      {c.author?.profile_image || c.author?.user_image ? (
+                        <Image
+                          source={{uri: c.author?.profile_image || c.author?.user_image}}
+                          style={styles.commentAvatar}
+                        />
+                      ) : (
+                        <View style={[styles.commentAvatar, styles.commentAvatarPlaceholder, {backgroundColor: colors.muted}]}>
+                          <Text style={[styles.commentAvatarLetter, {color: colors.foreground}]}>
+                            {(c.author?.username || c.author?.first_name || "U").charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.commentContent}>
+                      <Text style={[styles.commentUsername, {color: colors.foreground}]}>
+                        {c.author?.username || c.author?.first_name || "Usuario"}
+                      </Text>
+                      <Text style={[styles.commentText, {color: colors.foreground}]}>
+                        {c.content || c.text || ""}
+                      </Text>
+                      <View style={styles.commentMeta}>
+                        <Text style={[styles.commentTime, {color: colors.mutedForeground}]}>
+                          {formatCommentTime(c.created_at)}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+              />
+              <View style={[styles.commentsInputRow, {borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 12)}]}>
+                <View style={[styles.commentsInputAvatarRing, {borderColor: colors.primary}]}>
+                  <View style={[styles.commentsInputAvatar, {backgroundColor: colors.muted}]}>
+                    {user?.image || (user as any)?.profile_image ? (
+                      <Image
+                        source={{uri: (user?.image || (user as any)?.profile_image) as string}}
+                        style={styles.commentsInputAvatarImg}
+                      />
+                    ) : (
+                      <Text style={[styles.commentsInputAvatarLetter, {color: colors.foreground}]}>
+                        {(user?.firstName || (user as any)?.first_name || "U").charAt(0).toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <TextInput
+                  placeholder="Añade un comentario..."
+                  placeholderTextColor={colors.mutedForeground}
+                  style={[styles.commentsInput, {color: colors.foreground, backgroundColor: colors.input}]}
+                  value={openCommentFor != null ? commentDrafts[openCommentFor] ?? "" : ""}
+                  onChangeText={(t) =>
+                    openCommentFor != null &&
+                    setCommentDrafts((d) => ({...d, [openCommentFor]: t}))
+                  }
+                  multiline
+                  maxLength={2000}
+                />
+                <TouchableOpacity
+                  onPress={() => openCommentFor != null && submitComment(openCommentFor)}
+                  disabled={openCommentFor == null || commenting.has(openCommentFor)}
+                  style={styles.commentsPublishBtn}>
+                  <Text style={[styles.commentsPublishText, {color: colors.primary}]}>Publicar</Text>
+                </TouchableOpacity>
+              </View>
+            </KeyboardAvoidingView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal Crear Publicación (sheet desde abajo) */}
+      <Modal
+        visible={showCreatePostModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreatePostModal(false)}>
+        <Pressable style={styles.commentsModalOverlay} onPress={() => setShowCreatePostModal(false)}>
+          <Pressable
+            style={[styles.commentsSheet, styles.createPostSheet, {backgroundColor: colors.card, paddingBottom: Math.max(insets.bottom, 24)}]}
+            onPress={(e) => e.stopPropagation()}>
+            <View style={styles.commentsHandleBar} />
+            <View style={styles.createPostHeader}>
+              <Text style={[styles.createPostTitle, {color: colors.foreground}]}>Crear Publicación</Text>
+              <TouchableOpacity
+                hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}
+                onPress={() => setShowCreatePostModal(false)}
+                style={styles.createPostCloseBtn}>
+                <View style={[styles.createPostCloseCircle, {backgroundColor: colors.input}]}>
+                  <Ionicons name="close" size={20} color={colors.mutedForeground} />
+                </View>
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.createPostScroll}
+              contentContainerStyle={styles.createPostScrollContent}
+              showsVerticalScrollIndicator={false}>
+              {availablePostFormats.map((format) => (
+                <Pressable
+                  key={format.id}
+                  style={({pressed}) => [
+                    styles.createPostOptionRow,
+                    {backgroundColor: "#f3f4f6"},
+                    pressed && {opacity: 0.85},
+                  ]}
+                  onPress={() => {
+                    setShowCreatePostModal(false);
+                    router.push(`/posts/create-${format.id}` as any);
+                  }}>
+                  <View
+                    style={[
+                      styles.createPostOptionIconWrap,
+                      {backgroundColor: format.color + "25", borderColor: format.color + "60"},
+                    ]}>
+                    <Ionicons name={format.icon as any} size={24} color={format.color} />
+                  </View>
+                  <View style={styles.createPostOptionTextWrap}>
+                    <Text style={[styles.createPostOptionTitle, {color: colors.foreground}]}>
+                      {format.title}
+                    </Text>
+                    <Text style={[styles.createPostOptionSubtitle, {color: colors.mutedForeground}]}>
+                      {format.description}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Modal para editar texto del post */}
       <Modal
         visible={editPostId != null}
@@ -1790,15 +1969,18 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    top: 0,
   },
   header: {
+    position: "relative",
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+  indexHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    position: "relative",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
+    minHeight: APP_HEADER_BUTTON_HIT,
   },
   headerLeft: {
     flexDirection: "row",
@@ -1859,30 +2041,24 @@ const styles = StyleSheet.create({
   expandedCategoryOptions: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 18,
-    paddingHorizontal: 8,
+    borderRadius: 22,
+    paddingHorizontal: 6,
     paddingVertical: 4,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    gap: 4,
+    backgroundColor: "#EEF1F3",
+    gap: 0,
     flexShrink: 1,
   },
   expandedCategoryOption: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
     minWidth: 36,
     justifyContent: "center",
-    height: 36,
+    height: 40,
   },
-  selectedCategoryOption: {
-    backgroundColor: "transparent",
-  },
+  selectedCategoryOption: {},
   expandedCategoryEmoji: {
     fontSize: 16,
   },
@@ -2013,16 +2189,9 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   postCard: {
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: "#FFFFFF",
   },
   postHeader: {
     flexDirection: "row",
@@ -2035,11 +2204,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
   },
+  postAvatarRing: {
+    width: 53,
+    height: 53,
+    borderRadius: 26.5,
+    borderWidth: 2.5,
+    padding: 3,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
   postAvatar: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    marginRight: 12,
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
@@ -2047,7 +2225,7 @@ const styles = StyleSheet.create({
   postAvatarImage: {
     width: "100%",
     height: "100%",
-    borderRadius: 20,
+    borderRadius: 21,
     resizeMode: "cover",
   },
   postAvatarText: {
@@ -2093,11 +2271,18 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Transformation
+  // Transformation (antes/después) - split vertical, etiquetas en esquinas, divisor con diamante
   transformationContainer: {
     flexDirection: "row",
-    gap: 8,
+    position: "relative",
     marginBottom: 12,
+    overflow: "hidden",
+    borderRadius: 16,
+  },
+  transformationHalf: {
+    flex: 1,
+    position: "relative",
+    overflow: "hidden",
   },
   transformationImage: {
     flex: 1,
@@ -2105,23 +2290,49 @@ const styles = StyleSheet.create({
   },
   transformationImg: {
     width: "100%",
-    height: 200,
-    borderRadius: 16,
+    height: 220,
     resizeMode: "cover",
   },
   transformationLabel: {
     position: "absolute",
-    top: 12,
-    left: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    top: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  transformationLabelLeft: {
+    left: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  transformationLabelRight: {
+    right: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   transformationLabelText: {
-    color: "#ffffff",
-    fontSize: 11,
-    fontWeight: "800",
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "600",
     textTransform: "uppercase",
+  },
+  transformationDividerLine: {
+    position: "absolute",
+    left: "50%",
+    top: 0,
+    bottom: 0,
+    width: 2,
+    marginLeft: -1,
+    backgroundColor: "#e5e7eb",
+  },
+  transformationDividerDiamond: {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    width: 10,
+    height: 10,
+    marginLeft: -5,
+    marginTop: -5,
+    backgroundColor: "#d1d5db",
+    transform: [{ rotate: "45deg" }],
   },
   transformationDivider: {
     width: 32,
@@ -2281,15 +2492,32 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 16,
   },
-  carouselIndicators: {
+  carouselCounterBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  carouselCounterText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  carouselDotsOverlay: {
+    position: "absolute",
+    bottom: 12,
+    left: 0,
+    right: 0,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     gap: 6,
-    paddingTop: 12,
-    paddingBottom: 4,
   },
   carouselDot: {
+    width: 8,
     height: 8,
     borderRadius: 4,
   },
@@ -2526,28 +2754,33 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // Grid (Multiple Images)
+  // Grid (Mosaic) - contenedor redondeado, 2x2 con espacio blanco entre fotos
+  // postsSection padding 20 + postCard padding 16 = 72; grid padding 10*2 + gap 8
   gridContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 4,
+    gap: 8,
     marginBottom: 12,
+    padding: 10,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
   },
   gridItem: {
-    width: (SCREEN_WIDTH - 80) / 2,
-    height: (SCREEN_WIDTH - 80) / 2,
+    width: (SCREEN_WIDTH - 20 * 2 - 16 * 2 - 10 * 2 - 8) / 2,
+    height: (SCREEN_WIDTH - 20 * 2 - 16 * 2 - 10 * 2 - 8) / 2,
     position: "relative",
   },
   gridImage: {
     width: "100%",
     height: "100%",
-    borderRadius: 12,
+    borderRadius: 8,
     resizeMode: "cover",
   },
   gridOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
-    borderRadius: 12,
+    borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -2872,5 +3105,225 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
+  },
+
+  // Comments modal (sheet)
+  commentsModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  commentsSheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "90%",
+    minHeight: 400,
+  },
+  commentsHandleBar: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#E2E8F0",
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  commentsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    gap: 8,
+  },
+  commentsTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111",
+  },
+  commentsCount: {
+    fontSize: 14,
+    color: "#94A3B8",
+  },
+  commentsCloseBtn: {
+    marginLeft: "auto",
+    padding: 4,
+  },
+  createPostSheet: {
+    minHeight: 320,
+    maxHeight: "85%",
+  },
+  createPostHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  createPostTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  createPostCloseBtn: {
+    padding: 4,
+  },
+  createPostCloseCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  createPostScroll: {
+    maxHeight: 380,
+  },
+  createPostScrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 10,
+  },
+  createPostOptionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+  },
+  createPostOptionIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+  createPostOptionTextWrap: {
+    flex: 1,
+  },
+  createPostOptionTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  createPostOptionSubtitle: {
+    fontSize: 14,
+  },
+  commentsBody: {
+    flex: 1,
+    minHeight: 300,
+  },
+  commentsList: {
+    flex: 1,
+    maxHeight: 360,
+  },
+  commentsListContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  commentsLoading: {
+    paddingVertical: 32,
+    alignItems: "center",
+  },
+  commentsEmpty: {
+    fontSize: 14,
+    textAlign: "center",
+    paddingVertical: 32,
+  },
+  commentRow: {
+    flexDirection: "row",
+    marginBottom: 16,
+    gap: 12,
+  },
+  commentAvatarWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  commentAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  commentAvatarPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  commentAvatarLetter: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  commentContent: {
+    flex: 1,
+  },
+  commentUsername: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  commentText: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  commentMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  commentTime: {
+    fontSize: 12,
+  },
+  commentsInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+    borderTopWidth: 1,
+  },
+  commentsInputAvatarRing: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    padding: 2,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  commentsInputAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  commentsInputAvatarImg: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    resizeMode: "cover",
+  },
+  commentsInputAvatarLetter: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  commentsInput: {
+    flex: 1,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    maxHeight: 100,
+  },
+  commentsPublishBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  commentsPublishText: {
+    fontSize: 15,
+    fontWeight: "700",
   },
 });

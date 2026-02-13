@@ -1,7 +1,6 @@
 import React from "react";
 import {View, Text, TouchableOpacity, StyleSheet, Alert, Platform} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
-import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Notification} from "@/features/notifications";
 
@@ -26,55 +25,49 @@ export const NotificationCard = ({
   onConfirmReservation,
   onRejectReservation,
 }: NotificationCardProps) => {
-  const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
 
-  const getIcon = () => {
+  const getIcon = (): keyof typeof Ionicons.glyphMap => {
     switch (notification.type) {
-      case "reservation":
+      case "reserva":
         return "calendar";
-      case "review":
-        return "star";
-      case "system":
-        return "cog";
-      case "message":
-        return "chatbubble";
+      case "reseña":
+        return "star-outline";
+      case "sistema":
+        return "sync";
+      case "mensaje":
+        return "chatbubble-outline";
       default:
-        return "notifications";
+        return "notifications-outline";
     }
   };
 
-  const getIconColor = () => {
+  const getIconColor = (): string => {
+    const isUnread = notification.status === "unread";
     switch (notification.type) {
-      case "reservation":
-        return "#3b82f6"; // blue
-      case "review":
-        return "#f59e0b"; // amber
-      case "system":
-        return "#8b5cf6"; // purple default
-      case "message":
-        return "#10b981"; // emerald
+      case "reserva":
+        return isUnread ? colors.primary : colors.mutedForeground;
+      case "reseña":
+      case "sistema":
+      case "mensaje":
       default:
-        return colors.primary;
+        return colors.mutedForeground;
     }
   };
 
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffInMinutes < 1) {
-      return "Ahora";
-    } else if (diffInMinutes < 60) {
-      return `Hace ${diffInMinutes} min`;
-    } else if (diffInMinutes < 1440) {
-      const hours = Math.floor(diffInMinutes / 60);
-      return `Hace ${hours}h`;
-    } else {
-      const days = Math.floor(diffInMinutes / 1440);
-      return `Hace ${days}d`;
-    }
+    if (diffMins < 1) return "Ahora";
+    if (diffMins < 60) return `Hace ${diffMins} min`;
+    if (diffHours < 24) return `Hace ${diffHours}h`;
+    if (diffDays === 1) return "Ayer, " + date.toLocaleTimeString("es-ES", {hour: "2-digit", minute: "2-digit"});
+    return date.toLocaleDateString("es-ES", {day: "numeric", month: "short"}) + ", " + date.toLocaleTimeString("es-ES", {hour: "2-digit", minute: "2-digit"});
   };
 
   const handlePress = () => {
@@ -123,69 +116,44 @@ export const NotificationCard = ({
 
   return (
     <TouchableOpacity
-      style={[
-        styles.container,
-        {
-          backgroundColor: colors.card,
-          borderLeftColor: notification.status === "unread" ? colors.primary : "transparent",
-        },
-      ]}
+      style={[styles.container, {backgroundColor: "transparent"}]}
       onPress={handlePress}
       activeOpacity={0.7}>
-      {/* Header with icon and timestamp */}
-      <View style={styles.header}>
-        <View style={styles.iconContainer}>
-          <View style={[styles.iconWrapper, {backgroundColor: getIconColor() + "20"}]}>
-            <Ionicons name={getIcon()} color={getIconColor()} size={20} />
+      <View style={styles.row}>
+        <View style={styles.iconBlock}>
+          <View style={[styles.iconWrapper, {backgroundColor: getIconColor() + "18"}]}>
+            <Ionicons name={getIcon()} color={getIconColor()} size={22} />
           </View>
-          <View style={styles.headerText}>
-            <Text
-              style={[
-                styles.title,
-                {
-                  color: colors.foreground,
-                  fontWeight: notification.status === "unread" ? "700" : "600",
-                },
-              ]}
-              numberOfLines={2}>
-              {notification.title}
-            </Text>
-            <Text style={[styles.timestamp, {color: colors.mutedForeground}]}>
-              {formatTimestamp(notification.timestamp)}
-            </Text>
-          </View>
-        </View>
-
-        {/* Unread indicator and actions */}
-        <View style={styles.actions}>
           {notification.status === "unread" && (
             <View style={[styles.unreadDot, {backgroundColor: colors.primary}]} />
           )}
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={handleDelete}
-            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
-            <Ionicons name="close" color={colors.mutedForeground} size={18} />
-          </TouchableOpacity>
+        </View>
+        <View style={styles.body}>
+          <Text
+            style={[
+              styles.title,
+              {
+                color: colors.foreground,
+                fontWeight: notification.status === "unread" ? "700" : "600",
+              },
+            ]}
+            numberOfLines={2}>
+            {notification.title}
+          </Text>
+          <Text
+            style={[styles.message, {color: colors.mutedForeground}]}
+            numberOfLines={2}>
+            {notification.message}
+          </Text>
+          <Text style={[styles.timestamp, {color: colors.mutedForeground}]}>
+            {formatTimestamp(notification.timestamp)}
+          </Text>
         </View>
       </View>
 
-      {/* Message */}
-      <Text
-        style={[
-          styles.message,
-          {
-            color: colors.foreground,
-            opacity: notification.status === "unread" ? 1 : 0.8,
-          },
-        ]}
-        numberOfLines={3}>
-        {notification.message}
-      </Text>
-
-      {/* Metadata (if available) */}
+      {/* Metadata & actions (if available) */}
       {notification.metadata && (
-        <View style={styles.metadata}>
+        <View style={[styles.metadata, {marginLeft: 58}]}>
           {notification.metadata.reservationCode && (
             <View style={[styles.metadataChip, {backgroundColor: colors.background}]}>
               <Text style={[styles.metadataText, {color: colors.mutedForeground}]}>
@@ -205,7 +173,7 @@ export const NotificationCard = ({
       )}
 
       {canRespondInvite && (
-        <View style={styles.inviteActions}>
+        <View style={[styles.inviteActions, {marginLeft: 58}]}>
           {typeof onDeclineInvite === "function" && (
             <TouchableOpacity
               style={[
@@ -240,14 +208,14 @@ export const NotificationCard = ({
 
       {/* Reservation action buttons */}
       {canRespondReservation && (
-        <View style={styles.inviteActions}>
+        <View style={[styles.inviteActions, {marginLeft: 58}]}>
           {typeof onRejectReservation === "function" && (
             <TouchableOpacity
               style={[
                 styles.inviteButton,
                 {
                   borderWidth: 1,
-                  borderColor: "#ef4444",
+                  borderColor: colors.destructive,
                 },
               ]}
               onPress={() => {
@@ -269,8 +237,8 @@ export const NotificationCard = ({
                   ]
                 );
               }}>
-              <Ionicons name="close-circle" size={16} color="#ef4444" />
-              <Text style={[styles.inviteButtonText, {color: "#ef4444", marginLeft: 4}]}>
+              <Ionicons name="close-circle" size={16} color={colors.destructive} />
+              <Text style={[styles.inviteButtonText, {color: colors.destructive, marginLeft: 4}]}>
                 Rechazar
               </Text>
             </TouchableOpacity>
@@ -280,7 +248,7 @@ export const NotificationCard = ({
               style={[
                 styles.inviteButton,
                 {
-                  backgroundColor: "#10b981",
+                  backgroundColor: colors.success,
                 },
               ]}
               onPress={() => {
@@ -301,8 +269,8 @@ export const NotificationCard = ({
                   ]
                 );
               }}>
-              <Ionicons name="checkmark-circle" size={16} color="#ffffff" />
-              <Text style={[styles.inviteButtonText, {color: "#ffffff", marginLeft: 4}]}>
+              <Ionicons name="checkmark-circle" size={16} color={colors.primaryForeground} />
+              <Text style={[styles.inviteButtonText, {color: colors.primaryForeground, marginLeft: 4}]}>
                 Confirmar
               </Text>
             </TouchableOpacity>
@@ -315,66 +283,49 @@ export const NotificationCard = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 16,
-    borderRadius: 16,
-    borderLeftWidth: 4,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: 20,
+    paddingVertical: 4,
   },
-  header: {
+  row: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 12,
+    gap: 14,
   },
-  iconContainer: {
-    flexDirection: "row",
-    flex: 1,
-    gap: 12,
+  iconBlock: {
+    position: "relative",
   },
   iconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
   },
-  headerText: {
+  unreadDot: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  body: {
     flex: 1,
+    minWidth: 0,
   },
   title: {
     fontSize: 16,
+    fontWeight: "700",
     lineHeight: 22,
     marginBottom: 4,
-  },
-  timestamp: {
-    fontSize: 12,
-  },
-  actions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  deleteButton: {
-    padding: 4,
   },
   message: {
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 12,
+    marginBottom: 4,
+  },
+  timestamp: {
+    fontSize: 12,
   },
   metadata: {
     flexDirection: "row",

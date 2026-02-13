@@ -10,19 +10,20 @@ import {
   ActivityIndicator,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useRouter} from "expo-router";
 import {useState, useEffect} from "react";
 import {MediaUploader} from "@/components/posts/MediaUploader";
 import {LinkedServiceSelector, type CustomServiceItem} from "@/components/posts/LinkedServiceSelector";
 import {postApi, profileCustomizationApi} from "@/lib/api";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
+import {AppHeader} from "@/components/ui/AppHeader";
 
 export default function CreateCarouselScreen() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const {colors} = useThemeVariant();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {isAuthenticated} = useAuth();
 
   const [photos, setPhotos] = useState<string[]>([]);
@@ -139,40 +140,23 @@ export default function CreateCarouselScreen() {
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Header */}
-      <View style={[styles.header, {borderBottomColor: colors.border}]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Carrusel</Text>
-        <TouchableOpacity
-          onPress={handlePublish}
-          style={styles.publishButton}
-          disabled={isUploading}>
-          {isUploading ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Text style={[styles.publishButtonText, {color: colors.primary}]}>Publicar</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
+      <AppHeader
+        title="Carrusel"
+        showBackButton={true}
+        onBackPress={() => router.back()}
+        backgroundColor={colors.background}
+        borderBottom={colors.border}
+      />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, {paddingBottom: 100}]}
         showsVerticalScrollIndicator={false}>
-        {/* Photos Uploader */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-            Fotos (Máx. 5)
-          </Text>
-          <MediaUploader
-            mediaType="photo"
-            maxFiles={5}
-            onMediaSelected={setPhotos}
-            selectedMedia={photos}
-          />
-        </View>
+        <MediaUploader
+          mediaType="photo"
+          maxFiles={5}
+          onMediaSelected={setPhotos}
+          selectedMedia={photos}
+        />
 
         <LinkedServiceSelector
           customServices={customServices}
@@ -182,20 +166,19 @@ export default function CreateCarouselScreen() {
         />
 
         {/* Description */}
-        <View style={[styles.section, {backgroundColor: colors.card}]}>
-          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>
-            Descripción (Opcional)
+        <View style={styles.fieldBlock}>
+          <Text style={[styles.fieldLabel, {color: colors.foreground}]}>
+            DESCRIPCIÓN (OPCIONAL)
           </Text>
           <TextInput
             style={[
               styles.descriptionInput,
               {
-                backgroundColor: colors.background,
-                borderColor: colors.border,
+                backgroundColor: colors.input,
                 color: colors.foreground,
               },
             ]}
-            placeholder="Escribe una descripción para tu carrusel..."
+            placeholder="Escribe algo sobre este trabajo..."
             placeholderTextColor={colors.mutedForeground}
             value={description}
             onChangeText={setDescription}
@@ -207,7 +190,15 @@ export default function CreateCarouselScreen() {
       </ScrollView>
 
       {/* Publish Button (Fixed Bottom) */}
-      <View style={[styles.fixedBottomContainer, {backgroundColor: colors.background, borderTopColor: colors.border}]}>
+      <View
+        style={[
+          styles.fixedBottomContainer,
+          {
+            backgroundColor: colors.background,
+            borderTopColor: colors.border,
+            paddingBottom: Math.max(insets.bottom, 16),
+          },
+        ]}>
         <TouchableOpacity
           style={[styles.publishButtonLarge, {backgroundColor: colors.primary}]}
           onPress={handlePublish}
@@ -215,12 +206,11 @@ export default function CreateCarouselScreen() {
           disabled={isUploading || photos.length === 0}>
           {isUploading ? (
             <ActivityIndicator size="small" color="#ffffff" />
-          ) : (
-            <Ionicons name="layers" color="#ffffff" size={24} />
-          )}
+          ) : null}
           <Text style={styles.publishButtonLargeText}>
-            {isUploading ? "Publicando..." : "Publicar Carrusel"}
+            {isUploading ? "Publicando..." : "Publicar en el feed"}
           </Text>
+          {!isUploading && <Ionicons name="arrow-forward" color="#ffffff" size={22} />}
         </TouchableOpacity>
       </View>
     </View>
@@ -230,33 +220,6 @@ export default function CreateCarouselScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: Platform.OS === "ios" ? 60 : 48,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "flex-start",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  publishButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  publishButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
   },
   scrollView: {
     flex: 1,
@@ -282,10 +245,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 16,
   },
+  fieldBlock: {
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
   descriptionInput: {
-    borderWidth: 1,
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     minHeight: 100,
     fontSize: 15,
     textAlignVertical: "top",
@@ -297,7 +268,6 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: Platform.OS === "ios" ? 34 : 16,
     borderTopWidth: 1,
     shadowColor: "#000",
     shadowOffset: {

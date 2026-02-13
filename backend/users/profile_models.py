@@ -61,7 +61,7 @@ class CustomService(models.Model):
     provider = GenericForeignKey('content_type', 'object_id')
     
     name = models.CharField(max_length=200)
-    description = models.TextField()
+    description = models.TextField(blank=True, default="")
     price = models.DecimalField(max_digits=10, decimal_places=2)
     duration_minutes = models.PositiveIntegerField(help_text="Duration in minutes")
     category = models.CharField(max_length=100, default="Otros")

@@ -1,41 +1,55 @@
 import {Tabs} from "expo-router";
 import React from "react";
-import {View, StyleSheet, Image, Platform} from "react-native";
+import {View, Text, StyleSheet, Image} from "react-native";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 
 import {HapticTab} from "@/components/haptic-tab";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 
-const TAB_ICON_SIZE = 24;
+const TAB_ICON_SIZE = 22;
 
-function TabIcon({
+function TabIconWithLabel({
   name,
+  label,
   color,
   focused,
-  colors,
+  activeBg,
 }: {
   name: string;
+  label: string;
   color: string;
   focused: boolean;
-  colors: Record<string, string>;
+  activeBg?: string;
 }) {
   return (
-    <View style={[styles.tabIconWrap, focused && {backgroundColor: colors.primary + "22"}]}>
+    <View
+      style={[
+        styles.tabIconWrap,
+        focused && [styles.tabIconWrapActive, activeBg ? {backgroundColor: activeBg} : {}],
+      ]}>
       <Ionicons name={name as any} color={color} size={TAB_ICON_SIZE} />
+      <Text style={[styles.tabLabel, {color}]} numberOfLines={1}>
+        {label}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   tabIconWrap: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    minWidth: 48,
-    minHeight: 36,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 6,
+    minHeight: 40,
+  },
+  tabIconWrapActive: {},
+  tabLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 2,
   },
   centerButton: {
     width: 56,
@@ -44,10 +58,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4.65,
     elevation: 8,
@@ -60,32 +71,29 @@ const styles = StyleSheet.create({
 
 export default function TabLayout() {
   const {colors} = useThemeVariant();
-  const insets = useSafeAreaInsets();
-
-  const tabBarHeight = 72 + (Platform.OS === "ios" ? insets.bottom : 12);
-  const paddingBottom = Math.max(insets.bottom, 8);
+  const activeBg = colors.primary + "25";
+  const activeTint = colors.primary;
+  const inactiveTint = colors.tabIconDefault ?? colors.mutedForeground;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedForeground,
+        tabBarActiveTintColor: activeTint,
+        tabBarInactiveTintColor: inactiveTint,
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarShowLabel: true,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
-        },
+        tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: colors.background,
+          backgroundColor: colors.card,
+          borderTopWidth: 1,
           borderTopColor: colors.border,
-          height: tabBarHeight,
-          paddingBottom,
-          paddingTop: 8,
+          height: 75,
+          paddingTop: 12,
+          paddingBottom: 12,
         },
         tabBarItemStyle: {
-          paddingTop: 6,
+          paddingTop: 0,
+          paddingBottom: 0,
         },
       }}>
       <Tabs.Screen
@@ -93,7 +101,13 @@ export default function TabLayout() {
         options={{
           title: "Inicio",
           tabBarIcon: ({color, focused}) => (
-            <TabIcon name="home-outline" color={color} focused={focused} colors={colors} />
+            <TabIconWithLabel
+              name="home-outline"
+              label="Inicio"
+              color={color}
+              focused={focused}
+              activeBg={activeBg}
+            />
           ),
         }}
       />
@@ -103,7 +117,13 @@ export default function TabLayout() {
           href: null,
           title: "Explorar",
           tabBarIcon: ({color, focused}) => (
-            <TabIcon name="search-outline" color={color} focused={focused} colors={colors} />
+            <TabIconWithLabel
+              name="search-outline"
+              label="Explorar"
+              color={color}
+              focused={focused}
+              activeBg={activeBg}
+            />
           ),
         }}
       />
@@ -136,7 +156,13 @@ export default function TabLayout() {
           href: null,
           title: "Notificaciones",
           tabBarIcon: ({color, focused}) => (
-            <TabIcon name="notifications-outline" color={color} focused={focused} colors={colors} />
+            <TabIconWithLabel
+              name="notifications-outline"
+              label="Notificaciones"
+              color={color}
+              focused={focused}
+              activeBg={activeBg}
+            />
           ),
         }}
       />
@@ -145,7 +171,13 @@ export default function TabLayout() {
         options={{
           title: "Calendario",
           tabBarIcon: ({color, focused}) => (
-            <TabIcon name="calendar-outline" color={color} focused={focused} colors={colors} />
+            <TabIconWithLabel
+              name="calendar-outline"
+              label="Calendario"
+              color={color}
+              focused={focused}
+              activeBg={activeBg}
+            />
           ),
         }}
       />
@@ -154,7 +186,13 @@ export default function TabLayout() {
         options={{
           title: "Perfil",
           tabBarIcon: ({color, focused}) => (
-            <TabIcon name="person-outline" color={color} focused={focused} colors={colors} />
+            <TabIconWithLabel
+              name="person-outline"
+              label="Perfil"
+              color={color}
+              focused={focused}
+              activeBg={activeBg}
+            />
           ),
         }}
       />
