@@ -163,17 +163,6 @@ export default function ReservationDetailsScreen() {
         backButtonCircle={true}
         backgroundColor="#FFFFFF"
         borderBottom="rgba(0,0,0,0.08)"
-        rightExtra={
-          reservation ? (
-            <ReservationActions
-              reservation={reservation}
-              isClient={reservation.client_details?.id === user?.id}
-              onUpdated={(updated) => setReservation(updated)}
-              onCancelled={() => fetchReservation()}
-              variant="header"
-            />
-          ) : null
-        }
       />
 
       {isLoading ? (
@@ -318,6 +307,19 @@ export default function ReservationDetailsScreen() {
               </View>
             )}
           </View>
+
+          {/* Necesito hacer cambios / Mejorar horario (solo cliente, reserva activa) */}
+          {reservation &&
+            (reservation.status === "PENDING" || reservation.status === "CONFIRMED") &&
+            reservation.client_details?.id === user?.id && (
+              <ReservationActions
+                reservation={reservation}
+                isClient={true}
+                onUpdated={(updated) => setReservation(updated)}
+                onCancelled={() => fetchReservation()}
+                variant="body"
+              />
+            )}
 
           <BookingLocationView
             location={locationForMap}

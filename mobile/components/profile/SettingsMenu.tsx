@@ -14,7 +14,7 @@ import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useRouter} from "expo-router";
-import {profileCustomizationApi, errorUtils} from "@/lib/api";
+import {authApi, errorUtils} from "@/lib/api";
 
 interface SettingsMenuProps {
   visible: boolean;
@@ -42,7 +42,7 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
     try {
       setIsDeleting(true);
       setShowDeleteModal(false);
-      await profileCustomizationApi.deleteMyPublicProfile();
+      await authApi.deleteMyAccount();
       onClose();
       await logout();
       router.replace("/login");

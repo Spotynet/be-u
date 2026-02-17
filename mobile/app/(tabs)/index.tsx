@@ -1524,7 +1524,7 @@ export default function Home() {
   };
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.background}]}>
+    <View style={[styles.container, {backgroundColor: colors.contentBackground}]}>
       <View
         style={[
           styles.header,

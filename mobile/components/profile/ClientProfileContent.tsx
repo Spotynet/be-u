@@ -16,7 +16,7 @@ import {useAuth} from "@/features/auth";
 import {useUserProfile} from "@/features/users";
 import {useRouter} from "expo-router";
 import {useState} from "react";
-import {profileCustomizationApi, errorUtils} from "@/lib/api";
+import {profileCustomizationApi, authApi, errorUtils} from "@/lib/api";
 import * as ImagePicker from "expo-image-picker";
 import {Platform} from "react-native";
 
@@ -74,7 +74,7 @@ export function ClientProfileContent() {
     try {
       setIsDeleting(true);
       setShowDeleteModal(false);
-      await profileCustomizationApi.deleteMyPublicProfile();
+      await authApi.deleteMyAccount();
       await logout();
       router.replace("/login");
     } catch (error: any) {

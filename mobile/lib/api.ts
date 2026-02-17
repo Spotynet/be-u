@@ -1042,6 +1042,20 @@ export const notificationApi = {
     api.post<any>("/notifications/push-tokens/", data),
 };
 
+// Support / Feedback API
+export const supportApi = {
+  submitFeedback: (formData: FormData) =>
+    api.post<{ticket_id?: string; message?: string}>("/support/feedback/", formData, {
+      headers: {"Content-Type": "multipart/form-data"},
+      transformRequest: (data, headers) => {
+        if (headers) {
+          delete (headers as any)["Content-Type"];
+        }
+        return data;
+      },
+    }),
+};
+
 // Place–Professional Links API
 export type LinkedTimeSlot = {
   id?: number;

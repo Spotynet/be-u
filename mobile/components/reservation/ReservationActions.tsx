@@ -18,14 +18,17 @@ import {Reservation} from "@/types/global";
 import {useState, useEffect} from "react";
 import {CalendarView} from "@/components/calendar";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import {CancellationRetentionModal, RetentionAction} from "./CancellationRetentionModal";
+import {CancellationReasonModal} from "./CancellationReasonModal";
+import {CancellationSuccessModal} from "./CancellationSuccessModal";
 
 type ReservationActionsProps = {
   reservation: Reservation;
   isClient: boolean;
   onUpdated: (updated: Reservation) => void;
   onCancelled: () => void;
-  /** When "header", renders compact icon buttons for header placement */
-  variant?: "default" | "header";
+  /** "header" = compact icons; "default" = two buttons; "body" = link + Mejorar horario below card */
+  variant?: "default" | "header" | "body";
 };
 
 function formatDateForInput(dateStr: string): Date {
@@ -78,8 +81,9 @@ export function ReservationActions({
   const [dateAvailabilityError, setDateAvailabilityError] = useState<string | null>(null);
   const [showSimpleDatePicker, setShowSimpleDatePicker] = useState(false);
   const [showSimpleTimePicker, setShowSimpleTimePicker] = useState(false);
-  const [showCancelReasonModal, setShowCancelReasonModal] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
+  const [showRetentionModal, setShowRetentionModal] = useState(false);
+  const [showReasonModal, setShowReasonModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const providerId = Number(reservation.provider_details?.id ?? 0);
   const providerType = (reservation.provider_type || "professional") as "professional" | "place";
@@ -323,46 +327,46 @@ export function ReservationActions({
 
   if (!canModifyOrCancel) return null;
 
-  const openCancelReasonModal = () => {
-    setCancelReason("");
-    setShowCancelReasonModal(true);
+  const handleOpenRetention = () => {
+    setShowRetentionModal(true);
   };
 
-  const closeCancelReasonModal = () => setShowCancelReasonModal(false);
+  const handleRetentionChoose = (action: RetentionAction) => {
+    setShowRetentionModal(false);
+    if (action === "reschedule") {
+      openModifyModal();
+      return;
+    }
+    if (action === "cancel") {
+      setShowReasonModal(true);
+    }
+  };
 
-  const confirmCancelWithReason = () => {
-    closeCancelReasonModal();
-    Alert.alert(
-      "Cancelar reserva",
-      "¿Estás seguro de que deseas cancelar esta reserva?",
-      [
-        {text: "No", style: "cancel"},
-        {
-          text: "Sí, cancelar",
-          style: "destructive",
-          onPress: async () => {
-            setIsCancelling(true);
-            try {
-              await reservationApi.cancelReservation(reservation.id, cancelReason.trim() || undefined);
-              onCancelled();
-            } catch (e: any) {
-              const msg =
-                e?.response?.data?.detail ||
-                e?.response?.data?.reason?.[0] ||
-                e?.message ||
-                "No se pudo cancelar la reserva";
-              Alert.alert("Error", msg);
-            } finally {
-              setIsCancelling(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleConfirmCancelWithCode = async (reasonCode: string) => {
+    setIsCancelling(true);
+    try {
+      await reservationApi.cancelReservation(reservation.id, reasonCode);
+      setShowReasonModal(false);
+      setShowSuccessModal(true);
+    } catch (e: any) {
+      const msg =
+        e?.response?.data?.detail ||
+        e?.response?.data?.reason?.[0] ||
+        e?.message ||
+        "No se pudo cancelar la reserva";
+      Alert.alert("Error", msg);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleSuccessGoBack = () => {
+    setShowSuccessModal(false);
+    onCancelled();
   };
 
   const handleCancel = () => {
-    openCancelReasonModal();
+    handleOpenRetention();
   };
 
   const handleSaveModify = async () => {
@@ -454,9 +458,37 @@ export function ReservationActions({
     </View>
   );
 
+  const bodyLinks = variant === "body" && (
+    <View style={styles.bodyLinksContainer}>
+      <TouchableOpacity
+        style={styles.bodyLinkTouchable}
+        onPress={handleOpenRetention}
+        activeOpacity={0.7}>
+        <Text style={[styles.bodyLinkText, {color: colors.mutedForeground}]}>
+          Necesito hacer cambios
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.improveButton, {backgroundColor: colors.primary}]}
+        onPress={openModifyModal}
+        activeOpacity={0.85}>
+        <Ionicons name="calendar-outline" size={20} color={colors.primaryForeground} />
+        <Text style={[styles.improveButtonText, {color: colors.primaryForeground}]}>
+          Mejorar horario
+        </Text>
+      </TouchableOpacity>
+      <Text style={[styles.improveHint, {color: colors.mutedForeground}]}>
+        Busca una fecha más cercana sin perder tu lugar actual.
+      </Text>
+    </View>
+  );
+
+  const mainContent =
+    variant === "header" ? headerButtons : variant === "body" ? bodyLinks : defaultButtons;
+
   return (
     <>
-      {variant === "header" ? headerButtons : defaultButtons}
+      {mainContent}
       <Modal
         visible={showModifyModal}
         transparent
@@ -469,7 +501,10 @@ export function ReservationActions({
             style={[styles.modalContent, {backgroundColor: colors.card}]}
             onPress={(e) => e.stopPropagation()}>
             <Text style={[styles.modalTitle, {color: colors.foreground}]}>
-              Modificar reserva
+              Mejoremos tu cita
+            </Text>
+            <Text style={[styles.modalSubtitle, {color: colors.mutedForeground}]}>
+              Selecciona cuándo prefieres asistir. Mantendremos tu cita original hasta que aseguremos una de estas opciones.
             </Text>
 
             <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
@@ -615,6 +650,17 @@ export function ReservationActions({
                 multiline
                 numberOfLines={3}
               />
+
+              <View style={[styles.safeModeRow, {marginTop: 20}]}>
+                <View style={styles.safeModeLabelWrap}>
+                  <Text style={[styles.label, {color: colors.foreground, marginBottom: 2}]}>
+                    Modo Seguro
+                  </Text>
+                  <Text style={[styles.safeModeHint, {color: colors.mutedForeground}]}>
+                    No cancelar mi cita actual hasta confirmar la nueva.
+                  </Text>
+                </View>
+              </View>
             </ScrollView>
 
             <View style={styles.modalActions}>
@@ -636,7 +682,7 @@ export function ReservationActions({
                 {isSaving ? (
                   <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
-                  <Text style={styles.modalButtonPrimaryText}>Guardar cambios</Text>
+                  <Text style={styles.modalButtonPrimaryText}>Buscar mejor horario</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -644,48 +690,25 @@ export function ReservationActions({
         </Pressable>
       </Modal>
 
-      <Modal
-        visible={showCancelReasonModal}
-        transparent
-        animationType="fade"
-        onRequestClose={closeCancelReasonModal}>
-        <Pressable style={styles.modalOverlay} onPress={closeCancelReasonModal}>
-          <Pressable
-            style={[styles.modalContent, {backgroundColor: colors.card}]}
-            onPress={(e) => e.stopPropagation()}>
-            <Text style={[styles.modalTitle, {color: colors.foreground}]}>
-              Motivo de cancelación
-            </Text>
-            <Text style={[styles.label, {color: colors.mutedForeground, marginTop: 0}]}>
-              Indica el motivo por el cual cancelas esta reserva (opcional)
-            </Text>
-            <TextInput
-              style={[
-                styles.notesInput,
-                {borderColor: colors.border, color: colors.foreground, marginTop: 10},
-              ]}
-              placeholder="Ej: Cambié de planes, encontré otra opción..."
-              placeholderTextColor={colors.mutedForeground}
-              value={cancelReason}
-              onChangeText={setCancelReason}
-              multiline
-              numberOfLines={3}
-            />
-            <View style={[styles.modalActions, {marginTop: 16}]}>
-              <TouchableOpacity
-                style={[styles.modalButton, {borderColor: colors.border}]}
-                onPress={closeCancelReasonModal}>
-                <Text style={{color: colors.foreground}}>Volver</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonPrimary, {backgroundColor: "#ef4444"}]}
-                onPress={confirmCancelWithReason}>
-                <Text style={styles.modalButtonPrimaryText}>Continuar a confirmar</Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <CancellationRetentionModal
+        visible={showRetentionModal}
+        onClose={() => setShowRetentionModal(false)}
+        onChoose={handleRetentionChoose}
+      />
+      <CancellationReasonModal
+        visible={showReasonModal}
+        onClose={() => setShowReasonModal(false)}
+        onConfirmCancel={handleConfirmCancelWithCode}
+        onChooseReschedule={() => {
+          setShowReasonModal(false);
+          openModifyModal();
+        }}
+        isCancelling={isCancelling}
+      />
+      <CancellationSuccessModal
+        visible={showSuccessModal}
+        onGoBack={handleSuccessGoBack}
+      />
     </>
   );
 }
@@ -777,7 +800,22 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "800",
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
     marginBottom: 16,
+  },
+  safeModeRow: {
+    paddingVertical: 8,
+  },
+  safeModeLabelWrap: {
+    gap: 2,
+  },
+  safeModeHint: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   label: {
     fontSize: 14,
@@ -834,5 +872,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 10,
     borderWidth: 1,
+  },
+  bodyLinksContainer: {
+    gap: 12,
+    paddingVertical: 8,
+  },
+  bodyLinkTouchable: {
+    alignSelf: "flex-start",
+    paddingVertical: 4,
+  },
+  bodyLinkText: {
+    fontSize: 14,
+    fontWeight: "500",
+    textDecorationLine: "underline",
+  },
+  improveButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 14,
+    gap: 10,
+  },
+  improveButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  improveHint: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

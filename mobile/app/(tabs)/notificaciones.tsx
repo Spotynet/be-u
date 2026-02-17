@@ -223,7 +223,7 @@ export default function Notificaciones() {
         <AppHeader
           title="Notificaciones"
           showBackButton={true}
-          onBackPress={() => router.back()}
+          onBackPress={handleBack}
           backgroundColor={colors.background}
           borderBottom={colors.border}
         />
@@ -242,7 +242,7 @@ export default function Notificaciones() {
       <AppHeader
         title="Notificaciones"
         showBackButton={true}
-        onBackPress={() => router.back()}
+        onBackPress={handleBack}
         backgroundColor={colors.background}
         borderBottom={colors.border}
       />
