@@ -8,6 +8,7 @@ import {useAuth} from "@/features/auth";
 import {useServiceManagement} from "@/features/services";
 import {ServiceForm} from "@/components/services/ServiceForm";
 import {ServiceFormData} from "@/types/global";
+import {profileCustomizationApi} from "@/lib/api";
 
 export default function CreateServiceScreen() {
   const colorScheme = useColorScheme();
@@ -15,6 +16,7 @@ export default function CreateServiceScreen() {
   const router = useRouter();
   const {user} = useAuth();
   const {createService, isLoading} = useServiceManagement();
+  const [allowedCategoryIds, setAllowedCategoryIds] = React.useState<string[]>([]);
 
   const isPlaceUser = user?.role === "PLACE";
   const isProfessionalUser = user?.role === "PROFESSIONAL";
@@ -27,6 +29,30 @@ export default function CreateServiceScreen() {
       ]);
     }
   }, [user, isPlaceUser, isProfessionalUser]);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const loadProfileCategories = async () => {
+      try {
+        const response = await profileCustomizationApi.getProfileImages();
+        const rawCategories = response?.data?.category;
+        const categories = Array.isArray(rawCategories)
+          ? rawCategories
+          : rawCategories
+            ? [rawCategories]
+            : [];
+        if (mounted) {
+          setAllowedCategoryIds(categories.map((c: any) => String(c).toLowerCase().trim()));
+        }
+      } catch {
+        if (mounted) setAllowedCategoryIds([]);
+      }
+    };
+    loadProfileCategories();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSubmit = async (data: ServiceFormData) => {
     try {
@@ -83,7 +109,12 @@ export default function CreateServiceScreen() {
         </View>
 
         {/* Form */}
-        <ServiceForm isPlaceUser={isPlaceUser} onSubmit={handleSubmit} isSubmitting={isLoading} />
+        <ServiceForm
+          isPlaceUser={isPlaceUser}
+          onSubmit={handleSubmit}
+          isSubmitting={isLoading}
+          allowedCategoryIds={allowedCategoryIds}
+        />
       </View>
     </>
   );

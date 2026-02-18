@@ -13,7 +13,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useThemeVariant } from "@/contexts/ThemeVariantContext";
 import {
   CANCELLATION_REASONS,
-  CancellationReasonCode,
   CANCELLATION_REASON_HORARIO_INCORRECTO,
   CANCELLATION_REASON_YA_NO_LA_NECESITO,
 } from "@/constants/cancellationReasons";
@@ -26,6 +25,7 @@ interface CancellationReasonModalProps {
   onConfirmCancel: (reasonCode: string) => void;
   onChooseReschedule: () => void;
   isCancelling?: boolean;
+  reasons?: ReadonlyArray<{code: string; label: string}>;
 }
 
 export function CancellationReasonModal({
@@ -34,9 +34,10 @@ export function CancellationReasonModal({
   onConfirmCancel,
   onChooseReschedule,
   isCancelling = false,
+  reasons = CANCELLATION_REASONS,
 }: CancellationReasonModalProps) {
   const { colors } = useThemeVariant();
-  const [selectedCode, setSelectedCode] = useState<CancellationReasonCode | null>(null);
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [step, setStep] = useState<RetentionStep>("reason");
 
   const reset = () => {
@@ -49,7 +50,7 @@ export function CancellationReasonModal({
     onClose();
   };
 
-  const handleSelectReason = (code: CancellationReasonCode) => {
+  const handleSelectReason = (code: string) => {
     setSelectedCode(code);
   };
 
@@ -114,7 +115,7 @@ export function CancellationReasonModal({
                 contentContainerStyle={styles.chipsContent}
                 showsVerticalScrollIndicator={false}
               >
-                {CANCELLATION_REASONS.map(({ code, label }) => {
+                {reasons.map(({ code, label }) => {
                   const selected = selectedCode === code;
                   return (
                     <TouchableOpacity

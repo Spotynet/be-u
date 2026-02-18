@@ -5,6 +5,7 @@ from .profile_models import (
 )
 from .models import ProfessionalProfile, PlaceProfile, User
 from django.contrib.contenttypes.models import ContentType
+from services.category_rules import is_service_category_allowed_for_profile
 
 
 class TimeSlotSerializer(serializers.ModelSerializer):
@@ -100,6 +101,28 @@ class CustomServiceSerializer(serializers.ModelSerializer):
             'category', 'is_active', 'availability_summary', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'availability_summary']
+
+    def validate_category(self, value):
+        content_type = self.context.get("content_type")
+        object_id = self.context.get("object_id")
+
+        if not content_type or object_id is None:
+            return value
+
+        model_class = content_type.model_class()
+        if model_class is None:
+            return value
+
+        try:
+            profile = model_class.objects.get(id=object_id)
+        except model_class.DoesNotExist:
+            return value
+
+        if not is_service_category_allowed_for_profile(value, profile):
+            raise serializers.ValidationError(
+                "La categoria del servicio debe estar dentro de tus categorias activas."
+            )
+        return value
 
     def create(self, validated_data):
         content_type = validated_data.pop('content_type', None) or self.context.get('content_type')

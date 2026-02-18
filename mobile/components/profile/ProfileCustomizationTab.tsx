@@ -106,11 +106,12 @@ export const ProfileCustomizationTab = ({userRole = "PROFESSIONAL"}: ProfileCust
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* Sub-tab Navigation + View public profile (compact) */}
-      <View
-        style={[
-          styles.subTabRow,
-          {backgroundColor: colors.card, borderBottomColor: colors.border},
-        ]}>
+      <TourTarget targetId="mipagina_tab">
+        <View
+          style={[
+            styles.subTabRow,
+            {backgroundColor: colors.card, borderBottomColor: colors.border},
+          ]}>
         <View style={styles.subTabContainer}>
           <TourTarget targetId="mipagina_images">
             <TouchableOpacity
@@ -196,7 +197,8 @@ export const ProfileCustomizationTab = ({userRole = "PROFESSIONAL"}: ProfileCust
             </TouchableOpacity>
           </TourTarget>
         )}
-      </View>
+        </View>
+      </TourTarget>
 
       {isLoadingProfile && (
         <View style={[styles.subTabRow, {backgroundColor: colors.card, borderBottomColor: colors.border}]}>

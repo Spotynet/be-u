@@ -23,6 +23,7 @@ interface ServiceFormProps {
   isPlaceUser: boolean;
   onSubmit: (data: ServiceFormData) => void;
   isSubmitting?: boolean;
+  allowedCategoryIds?: string[];
 }
 
 export const ServiceForm: React.FC<ServiceFormProps> = ({
@@ -30,6 +31,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   isPlaceUser,
   onSubmit,
   isSubmitting = false,
+  allowedCategoryIds = [],
 }) => {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
@@ -89,6 +91,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
         {/* Service Type Selector */}
         <ServiceTypeSelector
           selectedServiceTypeId={formData.service}
+          allowedCategoryIds={allowedCategoryIds}
           onSelect={(serviceTypeId) => {
             setFormData({...formData, service: serviceTypeId});
             setErrors({...errors, service: ""});

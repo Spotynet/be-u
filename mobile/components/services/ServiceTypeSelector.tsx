@@ -19,11 +19,13 @@ import {CreateServiceTypeModal} from "./CreateServiceTypeModal";
 interface ServiceTypeSelectorProps {
   selectedServiceTypeId?: number;
   onSelect: (serviceTypeId: number) => void;
+  allowedCategoryIds?: string[];
 }
 
 export const ServiceTypeSelector: React.FC<ServiceTypeSelectorProps> = ({
   selectedServiceTypeId,
   onSelect,
+  allowedCategoryIds = [],
 }) => {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
@@ -54,7 +56,19 @@ export const ServiceTypeSelector: React.FC<ServiceTypeSelectorProps> = ({
     try {
       setLoading(true);
       const response = await serviceApi.getServiceTypes({search: searchQuery});
-      setServiceTypes(response.data.results || []);
+      const allServiceTypes = response.data.results || [];
+      if (!allowedCategoryIds.length) {
+        setServiceTypes(allServiceTypes);
+        return;
+      }
+      const normalizedAllowed = new Set(
+        allowedCategoryIds.map((item) => item.toLowerCase().trim())
+      );
+      const filtered = allServiceTypes.filter((serviceType: ServiceType) => {
+        const categoryName = String(serviceType.category_name || "").toLowerCase().trim();
+        return normalizedAllowed.has(categoryName);
+      });
+      setServiceTypes(filtered);
     } catch (error) {
       console.error("Error fetching service types:", error);
     } finally {

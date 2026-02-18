@@ -29,7 +29,9 @@ from django.utils.html import strip_tags
 from django.utils import timezone
 from django.shortcuts import render
 from django.db import transaction
+from django.contrib.contenttypes.models import ContentType
 from .models import GoogleAuthPendingCode, GoogleAuthCredentials
+from reservations.models import Reservation
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -760,8 +762,24 @@ def delete_my_account_view(request):
                 if deleted_codes and deleted_codes[0]:
                     logger.info(f"Deleted {deleted_codes[0]} EmailAuthCode(s) for user {user_id}")
 
+            # Remove provider-side reservations explicitly.
+            # GenericForeignKey does not cascade automatically when the provider profile is deleted.
+            if hasattr(user, "professional_profile"):
+                prof_ct = ContentType.objects.get_for_model(ProfessionalProfile)
+                Reservation.objects.filter(
+                    provider_content_type=prof_ct,
+                    provider_object_id=user.professional_profile.id,
+                ).delete()
+            if hasattr(user, "place_profile"):
+                place_ct = ContentType.objects.get_for_model(PlaceProfile)
+                Reservation.objects.filter(
+                    provider_content_type=place_ct,
+                    provider_object_id=user.place_profile.id,
+                ).delete()
+
             # Delete Google auth credentials explicitly so no orphan or race
             GoogleAuthCredentials.objects.filter(user=user).delete()
+            GoogleCalendarCredentials.objects.filter(user=user).delete()
 
             # This CASCADE-deletes: ClientProfile, ProfessionalProfile, PlaceProfile,
             # PublicProfile, posts, reservations, notifications, favorites, etc.

@@ -1,5 +1,5 @@
 import logging
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -20,6 +20,7 @@ from .permissions import IsPlaceOwner, IsProfessional, IsServiceOwner, CanManage
 from reservations.models import Reservation
 from reservations.availability import get_provider_schedule_for_date
 from users.models import ProfessionalProfile, PlaceProfile
+from .category_rules import is_service_category_allowed_for_profile
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,18 @@ class ServiceInPlaceViewSet(viewsets.ModelViewSet):
         
         try:
             place = user.place_profile
+            service_type = serializer.validated_data.get("service")
+            service_category_name = (
+                service_type.category.name if service_type and service_type.category else None
+            )
+            if not is_service_category_allowed_for_profile(service_category_name, place):
+                raise serializers.ValidationError(
+                    {
+                        "service": (
+                            "Este servicio no pertenece a las categorias activas de tu perfil."
+                        )
+                    }
+                )
             serializer.save(place=place)
         except AttributeError:
             # Auto-create place profile if missing
@@ -182,6 +195,18 @@ class ProfessionalServiceViewSet(viewsets.ModelViewSet):
         
         try:
             professional = user.professional_profile
+            service_type = serializer.validated_data.get("service")
+            service_category_name = (
+                service_type.category.name if service_type and service_type.category else None
+            )
+            if not is_service_category_allowed_for_profile(service_category_name, professional):
+                raise serializers.ValidationError(
+                    {
+                        "service": (
+                            "Este servicio no pertenece a las categorias activas de tu perfil."
+                        )
+                    }
+                )
             serializer.save(professional=professional)
         except AttributeError:
             # Auto-create professional profile if missing

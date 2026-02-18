@@ -498,6 +498,7 @@ export default function ProfileDetailScreen() {
         providerName,
         price: String(service?.price ?? 0),
         duration: String(durationMinutes),
+        category: String(service?.category || ""),
       },
     });
   };
@@ -763,7 +764,10 @@ export default function ProfileDetailScreen() {
         ref={scrollRef}
         style={styles.content}
         showsVerticalScrollIndicator={true}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {paddingBottom: Math.max(insets.bottom + 220, 260)},
+        ]}
         stickyHeaderIndices={[1]}
         onScroll={(e) => {
           const y = e?.nativeEvent?.contentOffset?.y ?? 0;

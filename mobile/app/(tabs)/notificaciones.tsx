@@ -14,7 +14,7 @@ import {useRouter} from "expo-router";
 import {NotificationCard} from "@/components/notifications";
 import {useNotifications, NotificationType, Notification as NotificationTypeModel} from "@/features/notifications";
 import {useAuth} from "@/features/auth";
-import {linkApi} from "@/lib/api";
+import {linkApi, trackingApi} from "@/lib/api";
 import {useIncomingReservations} from "@/features/reservations";
 import {AppHeader} from "@/components/ui/AppHeader";
 
@@ -53,6 +53,7 @@ export default function Notificaciones() {
   const {colors} = useThemeVariant();
   const router = useRouter();
   const {user, isAuthenticated} = useAuth();
+  const handleBack = () => router.back();
 
   const [activeFilter, setActiveFilter] = useState<"all" | NotificationType>("all");
 
@@ -183,6 +184,30 @@ export default function Notificaciones() {
     } catch (err: any) {
       console.error("Error handling reservation action:", err);
       // Error already handled in hooks
+    }
+  };
+
+  const handleTrackingAction = async (
+    notification: NotificationTypeModel,
+    trackingRequestId: number,
+    action: "accept" | "reject"
+  ) => {
+    try {
+      if (action === "accept") {
+        await trackingApi.accept(trackingRequestId);
+        Alert.alert("Tracking activo", "Has aceptado compartir tu ubicación para esta reserva.");
+      } else {
+        await trackingApi.reject(trackingRequestId);
+      }
+      await markAsRead(notification.id);
+      notification.metadata = {
+        ...notification.metadata,
+        status: action === "accept" ? "ACCEPTED" : "REJECTED",
+        action_required: false,
+      };
+      await refreshNotifications();
+    } catch (err: any) {
+      Alert.alert("Error", err?.message || "No se pudo actualizar el estado del tracking.");
     }
   };
 
@@ -371,6 +396,12 @@ export default function Notificaciones() {
                     notification.metadata?.action_required === true &&
                     reservationId &&
                     (user?.role === "PROFESSIONAL" || user?.role === "PLACE");
+                  const trackingRequestId = notification.metadata?.tracking_request_id;
+                  const isPendingTracking =
+                    notification.type === "sistema" &&
+                    notification.metadata?.status === "PENDING" &&
+                    notification.metadata?.action_required === true &&
+                    trackingRequestId;
 
                   return (
                     <NotificationCard
@@ -407,6 +438,26 @@ export default function Notificaciones() {
                       onRejectReservation={
                         isPendingReservation
                           ? (id) => handleReservationAction(id, "reject")
+                          : undefined
+                      }
+                      onAcceptTracking={
+                        isPendingTracking
+                          ? () =>
+                              handleTrackingAction(
+                                notification,
+                                Number.parseInt(String(trackingRequestId), 10),
+                                "accept"
+                              )
+                          : undefined
+                      }
+                      onRejectTracking={
+                        isPendingTracking
+                          ? () =>
+                              handleTrackingAction(
+                                notification,
+                                Number.parseInt(String(trackingRequestId), 10),
+                                "reject"
+                              )
                           : undefined
                       }
                     />

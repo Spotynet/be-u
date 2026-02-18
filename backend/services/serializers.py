@@ -3,6 +3,7 @@ from .models import ServicesCategory, ServicesType, ServiceInPlace, Professional
 from users.models import PlaceProfile, ProfessionalProfile
 from users.serializers import UserSerializer
 from django.contrib.contenttypes.models import ContentType
+from .category_rules import is_service_category_allowed_for_profile
 
 
 class ServicesCategorySerializer(serializers.ModelSerializer):
@@ -47,6 +48,20 @@ class ServiceInPlaceSerializer(serializers.ModelSerializer):
             return int(obj.time.total_seconds() / 60)
         return None
 
+    def validate_service(self, value):
+        place = None
+        if self.instance is not None:
+            place = self.instance.place
+        else:
+            user = self.context.get("request").user if self.context.get("request") else None
+            if user and hasattr(user, "place_profile"):
+                place = user.place_profile
+        if place and not is_service_category_allowed_for_profile(value.category.name, place):
+            raise serializers.ValidationError(
+                "Este servicio no pertenece a las categorias activas del lugar."
+            )
+        return value
+
 
 class ProfessionalServiceSerializer(serializers.ModelSerializer):
     service_details = ServicesTypeSerializer(source='service', read_only=True)
@@ -71,6 +86,20 @@ class ProfessionalServiceSerializer(serializers.ModelSerializer):
         if obj.time:
             return int(obj.time.total_seconds() / 60)
         return None
+
+    def validate_service(self, value):
+        professional = None
+        if self.instance is not None:
+            professional = self.instance.professional
+        else:
+            user = self.context.get("request").user if self.context.get("request") else None
+            if user and hasattr(user, "professional_profile"):
+                professional = user.professional_profile
+        if professional and not is_service_category_allowed_for_profile(value.category.name, professional):
+            raise serializers.ValidationError(
+                "Este servicio no pertenece a las categorias activas del profesional."
+            )
+        return value
 
 
 class ProviderAvailabilitySerializer(serializers.ModelSerializer):

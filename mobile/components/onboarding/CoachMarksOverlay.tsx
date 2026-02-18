@@ -16,19 +16,19 @@ import {useProviderTour} from "@/features/onboarding/ProviderTourProvider";
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get("window");
 
 const TOUR_STEPS: Record<string, string> = {
-  mipagina_tab: "Aquí editas tu página pública (lo que ve el cliente).",
+  mipagina_tab: "Este es tu panel principal para completar perfil, servicios y horarios.",
   mipagina_viewPublicProfile:
     "Ver perfil público te muestra cómo te ven los clientes. Úsalo para revisar tu perfil antes de publicarlo.",
   mipagina_images:
     "Agrega imágenes de tu trabajo para atraer más clientes. Puedes subir hasta 10 fotos.",
   mipagina_services:
-    "Crea y gestiona tus servicios aquí. Define precios, duración y descripciones.",
+    "Empieza por crear servicios claros (nombre, precio, duración y categoría).",
   mipagina_calendar:
-    "Configura tu disponibilidad para que los clientes puedan reservar citas contigo.",
+    "Configura horarios y disponibilidad para que los clientes puedan reservar.",
   mipagina_team:
     "Gestiona tu equipo de profesionales. Invita y vincula profesionales a tu lugar.",
   posts_create:
-    "Crea posts para atraer clientes. Aparecen en el feed y ayudan a mostrar tu trabajo.",
+    "Publica en el feed para mostrar resultados y atraer nuevas reservas.",
 };
 
 export const CoachMarksOverlay = () => {
@@ -51,7 +51,10 @@ export const CoachMarksOverlay = () => {
     width: number;
     height: number;
   } | null>(null);
+  const [targetRetries, setTargetRetries] = useState(0);
   const [fadeAnim] = useState(new Animated.Value(0));
+  const MAX_TARGET_RETRIES = 6;
+  const TARGET_RETRY_DELAY_MS = 350;
 
   // Update target rect when step changes
   useEffect(() => {
@@ -59,32 +62,33 @@ export const CoachMarksOverlay = () => {
       const rect = getCurrentTargetRect();
       if (rect) {
         setTargetRect(rect);
+        setTargetRetries(0);
         // Fade in
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
         }).start();
-      } else {
-        // Retry after a short delay if target not found
-        const timeoutId = setTimeout(() => {
-          const retryRect = getCurrentTargetRect();
-          if (retryRect) {
-            setTargetRect(retryRect);
-            Animated.timing(fadeAnim, {
-              toValue: 1,
-              duration: 300,
-              useNativeDriver: true,
-            }).start();
-          }
-        }, 300);
-        return () => clearTimeout(timeoutId);
+        return;
       }
+
+      setTargetRect(null);
+      if (targetRetries >= MAX_TARGET_RETRIES) {
+        // Safe fallback: avoid blocking UI if a target never renders.
+        skipTour();
+        return;
+      }
+
+      const timeoutId = setTimeout(() => {
+        setTargetRetries((prev) => prev + 1);
+      }, TARGET_RETRY_DELAY_MS);
+      return () => clearTimeout(timeoutId);
     } else {
       setTargetRect(null);
+      setTargetRetries(0);
       fadeAnim.setValue(0);
     }
-  }, [isActive, currentStep, getCurrentTargetRect, fadeAnim]);
+  }, [isActive, currentStep, targetRetries, getCurrentTargetRect, skipTour, fadeAnim]);
 
   if (!isActive || !currentStep) {
     return null;

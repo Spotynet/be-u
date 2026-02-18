@@ -19,11 +19,13 @@ import {useState} from "react";
 import {profileCustomizationApi, authApi, errorUtils} from "@/lib/api";
 import * as ImagePicker from "expo-image-picker";
 import {Platform} from "react-native";
+import {useProviderTour} from "@/features/onboarding/ProviderTourProvider";
 
 export function ProfessionalSettingsContent() {
   const {colors, colorMode, setColorMode} = useThemeVariant();
   const {user, logout, refreshToken} = useAuth();
   const {refreshProfile} = useUserProfile();
+  const {startTour} = useProviderTour();
   const router = useRouter();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -75,6 +77,12 @@ export function ProfessionalSettingsContent() {
         break;
       case "team":
         router.push("/place/manage-links");
+        break;
+      case "group_sessions":
+        router.push("/group-sessions" as any);
+        break;
+      case "onboarding":
+        startTour();
         break;
       default:
         break;
@@ -206,6 +214,15 @@ export function ProfessionalSettingsContent() {
           <Text style={[styles.optionText, {color: colors.foreground}]}>Horarios</Text>
           <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
         </TouchableOpacity>
+        <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />
+        <TouchableOpacity
+          style={styles.optionRow}
+          onPress={() => handleOptionPress("group_sessions")}
+          activeOpacity={0.7}>
+          <Ionicons name="people-circle-outline" color={colors.foreground} size={22} />
+          <Text style={[styles.optionText, {color: colors.foreground}]}>Sesiones grupales</Text>
+          <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+        </TouchableOpacity>
         {isPlace && (
           <>
             <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />
@@ -286,6 +303,15 @@ export function ProfessionalSettingsContent() {
           activeOpacity={0.7}>
           <Ionicons name="help-circle-outline" color={colors.foreground} size={22} />
           <Text style={[styles.optionText, {color: colors.foreground}]}>Soporte Técnico</Text>
+          <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+        </TouchableOpacity>
+        <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />
+        <TouchableOpacity
+          style={styles.optionRow}
+          onPress={() => handleOptionPress("onboarding")}
+          activeOpacity={0.7}>
+          <Ionicons name="sparkles-outline" color={colors.foreground} size={22} />
+          <Text style={[styles.optionText, {color: colors.foreground}]}>Ver onboarding de nuevo</Text>
           <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
         </TouchableOpacity>
         <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />

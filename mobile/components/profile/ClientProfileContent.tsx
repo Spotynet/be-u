@@ -19,11 +19,13 @@ import {useState} from "react";
 import {profileCustomizationApi, authApi, errorUtils} from "@/lib/api";
 import * as ImagePicker from "expo-image-picker";
 import {Platform} from "react-native";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
 
 // Light-mode specific accents (peach/logout) - use primary tints in dark
 
 export function ClientProfileContent() {
   const {colors, colorMode, setColorMode} = useThemeVariant();
+  const insets = useSafeAreaInsets();
   const {user, logout, refreshToken} = useAuth();
   const {refreshProfile} = useUserProfile();
   const router = useRouter();
@@ -139,7 +141,10 @@ export function ClientProfileContent() {
   return (
     <ScrollView
       style={[styles.scroll, {backgroundColor: colors.contentBackground}]}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[
+        styles.scrollContent,
+        {paddingBottom: Math.max(insets.bottom + 80, 120)},
+      ]}
       showsVerticalScrollIndicator={false}>
       {/* Profile section */}
       <View style={styles.profileSection}>

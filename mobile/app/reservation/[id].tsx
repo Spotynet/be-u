@@ -13,7 +13,7 @@ import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useLocalSearchParams} from "expo-router";
 import {useEffect, useMemo, useState} from "react";
-import {reservationApi} from "@/lib/api";
+import {reservationApi, trackingApi} from "@/lib/api";
 import {Location, Reservation} from "@/types/global";
 import {parseISODateAsLocal} from "@/lib/dateUtils";
 import {useAuth} from "@/features/auth";
@@ -21,6 +21,7 @@ import ReservationQRCode from "@/components/reservation/ReservationQRCode";
 import {ReservationActions} from "@/components/reservation/ReservationActions";
 import {BookingLocationView} from "@/components/booking/BookingLocationView";
 import {AppHeader} from "@/components/ui/AppHeader";
+import * as LocationExpo from "expo-location";
 
 export default function ReservationDetailsScreen() {
   const {colors} = useThemeVariant();
@@ -33,6 +34,8 @@ export default function ReservationDetailsScreen() {
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [trackingRequest, setTrackingRequest] = useState<any | null>(null);
+  const [trackingBusy, setTrackingBusy] = useState(false);
 
   const fetchReservation = async () => {
     if (!Number.isFinite(reservationId) || reservationId <= 0) {
@@ -58,6 +61,82 @@ export default function ReservationDetailsScreen() {
     fetchReservation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservationId]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadTracking = async () => {
+      if (!Number.isFinite(reservationId) || reservationId <= 0 || !user) return;
+      try {
+        const response = await trackingApi.list();
+        const rows = response.data?.results || [];
+        const active = rows.find(
+          (row: any) =>
+            row.reservation === reservationId &&
+            ["PENDING", "ACCEPTED"].includes(String(row.status || "").toUpperCase())
+        );
+        if (mounted) setTrackingRequest(active || null);
+      } catch {
+        if (mounted) setTrackingRequest(null);
+      }
+    };
+    loadTracking();
+    return () => {
+      mounted = false;
+    };
+  }, [reservationId, user?.id]);
+
+  useEffect(() => {
+    if (!trackingRequest?.id || trackingRequest.status !== "ACCEPTED" || !user) return;
+    if (reservation?.client_details?.id === user.id) {
+      // Client sends foreground location updates.
+      let subscription: LocationExpo.LocationSubscription | null = null;
+      (async () => {
+        const permission = await LocationExpo.requestForegroundPermissionsAsync();
+        if (permission.status !== "granted") return;
+        subscription = await LocationExpo.watchPositionAsync(
+          {
+            accuracy: LocationExpo.Accuracy.Balanced,
+            timeInterval: 15000,
+            distanceInterval: 15,
+          },
+          async (position) => {
+            try {
+              await trackingApi.ping(trackingRequest.id, {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy_meters: position.coords.accuracy || undefined,
+              });
+            } catch {
+              // silent
+            }
+          }
+        );
+      })();
+      return () => {
+        subscription?.remove();
+      };
+    }
+  }, [trackingRequest?.id, trackingRequest?.status, reservation?.client_details?.id, user?.id]);
+
+  useEffect(() => {
+    if (!trackingRequest?.id || !user) return;
+    const isProvider =
+      (user?.role === "PROFESSIONAL" || user?.role === "PLACE") &&
+      reservation?.client_details?.id !== user?.id;
+    if (!isProvider) return;
+    const currentStatus = String(trackingRequest?.status || "").toUpperCase();
+    if (!["PENDING", "ACCEPTED"].includes(currentStatus)) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const response = await trackingApi.status(trackingRequest.id);
+        setTrackingRequest(response.data);
+      } catch {
+        // silent
+      }
+    }, 8000);
+    return () => clearInterval(intervalId);
+  }, [trackingRequest?.id, trackingRequest?.status, reservation?.client_details?.id, user?.id, user?.role]);
 
   const statusColor = (status?: string) => {
     switch (String(status || "").toUpperCase()) {
@@ -136,6 +215,13 @@ export default function ReservationDetailsScreen() {
   })();
 
   const locationForMap = (() => {
+    if (trackingRequest?.latest_latitude != null && trackingRequest?.latest_longitude != null) {
+      return {
+        latitude: Number(trackingRequest.latest_latitude),
+        longitude: Number(trackingRequest.latest_longitude),
+        address: "Ubicación en vivo del cliente",
+      } satisfies Location;
+    }
     if (reservation?.service_latitude && reservation?.service_longitude) {
       return {
         latitude: reservation.service_latitude,
@@ -308,18 +394,85 @@ export default function ReservationDetailsScreen() {
             )}
           </View>
 
-          {/* Necesito hacer cambios / Mejorar horario (solo cliente, reserva activa) */}
+          {/* Acciones de reserva para cliente o proveedor */}
           {reservation &&
             (reservation.status === "PENDING" || reservation.status === "CONFIRMED") &&
-            reservation.client_details?.id === user?.id && (
-              <ReservationActions
-                reservation={reservation}
-                isClient={true}
-                onUpdated={(updated) => setReservation(updated)}
-                onCancelled={() => fetchReservation()}
-                variant="body"
-              />
-            )}
+            (() => {
+              const isClientReservation = reservation.client_details?.id === user?.id;
+              const isProviderReservation =
+                (user?.role === "PROFESSIONAL" || user?.role === "PLACE") && !isClientReservation;
+              if (!isClientReservation && !isProviderReservation) return null;
+              return (
+                <ReservationActions
+                  reservation={reservation}
+                  isClient={isClientReservation}
+                  isProvider={isProviderReservation}
+                  onUpdated={(updated) => setReservation(updated)}
+                  onCancelled={() => fetchReservation()}
+                  variant="body"
+                />
+              );
+            })()}
+
+          {reservation && (() => {
+            const isClientReservation = reservation.client_details?.id === user?.id;
+            const isProviderReservation =
+              (user?.role === "PROFESSIONAL" || user?.role === "PLACE") && !isClientReservation;
+            if (!isClientReservation && !isProviderReservation) return null;
+            return (
+              <View style={styles.trackingCard}>
+                <Text style={styles.rowLabel}>TRACKING EN VIVO</Text>
+                <Text style={styles.rowValue}>
+                  {trackingRequest
+                    ? trackingRequest.status === "PENDING"
+                      ? "Solicitud enviada. Esperando respuesta."
+                      : trackingRequest.status === "ACCEPTED"
+                        ? "Tracking activo."
+                        : `Tracking ${String(trackingRequest.status).toLowerCase()}.`
+                    : "Sin tracking activo para esta reserva."}
+                </Text>
+                <View style={styles.trackingButtonsRow}>
+                  {isProviderReservation && !trackingRequest && (
+                    <TouchableOpacity
+                      style={[styles.trackingButton, {backgroundColor: colors.primary}]}
+                      onPress={async () => {
+                        try {
+                          setTrackingBusy(true);
+                          const response = await trackingApi.request(reservation.id);
+                          setTrackingRequest(response.data);
+                        } catch (e: any) {
+                          const message =
+                            e?.response?.data?.error || e?.message || "No se pudo iniciar tracking";
+                          setError(String(message));
+                        } finally {
+                          setTrackingBusy(false);
+                        }
+                      }}
+                      disabled={trackingBusy}>
+                      <Text style={styles.trackingButtonText}>
+                        {trackingBusy ? "Enviando..." : "Solicitar ubicación"}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  {trackingRequest &&
+                    ["PENDING", "ACCEPTED"].includes(String(trackingRequest.status || "").toUpperCase()) && (
+                      <TouchableOpacity
+                        style={[styles.trackingButton, {backgroundColor: "#ef4444"}]}
+                        onPress={async () => {
+                          try {
+                            await trackingApi.stop(trackingRequest.id);
+                            setTrackingRequest(null);
+                          } catch {
+                            // silent
+                          }
+                        }}>
+                        <Text style={styles.trackingButtonText}>Detener tracking</Text>
+                      </TouchableOpacity>
+                    )}
+                </View>
+              </View>
+            );
+          })()}
 
           <BookingLocationView
             location={locationForMap}
@@ -453,6 +606,27 @@ const styles = StyleSheet.create({
   rowValue: {fontSize: 14, fontWeight: "600", color: "#1f2937", lineHeight: 20},
   reasonBox: {flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1},
   reasonText: {flex: 1, fontSize: 13, fontWeight: "700", lineHeight: 18},
+  trackingCard: {
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderRadius: 16,
+    gap: 10,
+    ...cardShadow,
+  },
+  trackingButtonsRow: {
+    flexDirection: "row",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  trackingButton: {
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  trackingButtonText: {
+    color: "#ffffff",
+    fontWeight: "700",
+  },
   calendarLink: {
     flexDirection: "row",
     alignItems: "center",

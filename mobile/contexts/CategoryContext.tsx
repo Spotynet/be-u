@@ -14,6 +14,8 @@ export type SubCategory = {
 interface CategoryContextType {
   selectedMainCategory: MainCategory;
   setSelectedMainCategory: (category: MainCategory) => void;
+  selectedServiceCategory: MainCategory;
+  setSelectedServiceCategory: (category: MainCategory) => void;
   selectedSubCategory: string;
   setSelectedSubCategory: (subCategory: string) => void;
   subcategoriesByMainCategory: {[key in MainCategory]: SubCategory[]};
@@ -28,6 +30,7 @@ interface CategoryProviderProps {
 
 export const CategoryProvider = ({children}: CategoryProviderProps) => {
   const [selectedMainCategory, setSelectedMainCategory] = useState<MainCategory>("belleza");
+  const [selectedServiceCategory, setSelectedServiceCategory] = useState<MainCategory>("belleza");
   const [selectedSubCategory, setSelectedSubCategory] = useState("todos");
 
   const mainCategories: SubCategory[] = [
@@ -100,6 +103,8 @@ export const CategoryProvider = ({children}: CategoryProviderProps) => {
       value={{
         selectedMainCategory,
         setSelectedMainCategory,
+        selectedServiceCategory,
+        setSelectedServiceCategory,
         selectedSubCategory,
         setSelectedSubCategory,
         subcategoriesByMainCategory,

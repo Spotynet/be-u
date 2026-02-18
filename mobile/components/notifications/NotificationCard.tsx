@@ -13,6 +13,8 @@ interface NotificationCardProps {
   onDeclineInvite?: (notification: Notification, linkId: number) => void;
   onConfirmReservation?: (reservationId: number) => void;
   onRejectReservation?: (reservationId: number) => void;
+  onAcceptTracking?: (trackingRequestId: number) => void;
+  onRejectTracking?: (trackingRequestId: number) => void;
 }
 
 export const NotificationCard = ({
@@ -24,6 +26,8 @@ export const NotificationCard = ({
   onDeclineInvite,
   onConfirmReservation,
   onRejectReservation,
+  onAcceptTracking,
+  onRejectTracking,
 }: NotificationCardProps) => {
   const {colors} = useThemeVariant();
 
@@ -113,6 +117,15 @@ export const NotificationCard = ({
     reservationStatus === "PENDING" &&
     actionRequired &&
     (typeof onConfirmReservation === "function" || typeof onRejectReservation === "function");
+
+  const trackingRequestId = notification.metadata?.tracking_request_id;
+  const trackingStatus = notification.metadata?.status;
+  const canRespondTracking =
+    notification.type === "sistema" &&
+    trackingRequestId &&
+    trackingStatus === "PENDING" &&
+    notification.metadata?.action_required === true &&
+    (typeof onAcceptTracking === "function" || typeof onRejectTracking === "function");
 
   return (
     <TouchableOpacity
@@ -272,6 +285,40 @@ export const NotificationCard = ({
               <Ionicons name="checkmark-circle" size={16} color={colors.primaryForeground} />
               <Text style={[styles.inviteButtonText, {color: colors.primaryForeground, marginLeft: 4}]}>
                 Confirmar
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {canRespondTracking && (
+        <View style={[styles.inviteActions, {marginLeft: 58}]}>
+          {typeof onRejectTracking === "function" && (
+            <TouchableOpacity
+              style={[
+                styles.inviteButton,
+                {
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => onRejectTracking(trackingRequestId)}>
+              <Text style={[styles.inviteButtonText, {color: colors.mutedForeground}]}>
+                Rechazar
+              </Text>
+            </TouchableOpacity>
+          )}
+          {typeof onAcceptTracking === "function" && (
+            <TouchableOpacity
+              style={[
+                styles.inviteButton,
+                {
+                  backgroundColor: colors.primary,
+                },
+              ]}
+              onPress={() => onAcceptTracking(trackingRequestId)}>
+              <Text style={[styles.inviteButtonText, {color: colors.primaryForeground}]}>
+                Compartir ubicación
               </Text>
             </TouchableOpacity>
           )}

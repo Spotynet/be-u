@@ -24,6 +24,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import {useRouter, useLocalSearchParams} from "expo-router";
 import {useNavigation} from "@/hooks/useNavigation";
 import {formatPrice} from "@/lib/priceUtils";
+import {useCategory} from "@/contexts/CategoryContext";
 
 export default function BookingScreen() {
   const colorScheme = useColorScheme();
@@ -32,6 +33,7 @@ export default function BookingScreen() {
   const router = useRouter();
   const {goBack} = useNavigation();
   const {user, isAuthenticated} = useAuth();
+  const {setSelectedServiceCategory} = useCategory();
   const params = useLocalSearchParams<{
     serviceInstanceId?: string;
     serviceTypeId?: string;
@@ -41,6 +43,7 @@ export default function BookingScreen() {
     providerName?: string;
     price?: string;
     duration?: string;
+    category?: string;
   }>();
 
   const {state, isLoading, selectService, setNotes, createReservation} =
@@ -68,6 +71,8 @@ export default function BookingScreen() {
   const [timeAvailabilityError, setTimeAvailabilityError] = useState<string | null>(null);
   const [disabledDaysIndexes, setDisabledDaysIndexes] = useState<number[] | undefined>(undefined);
   const [resolvedProviderId, setResolvedProviderId] = useState<number | null>(null);
+  const [groupSessionsForDate, setGroupSessionsForDate] = useState<any[]>([]);
+  const [selectedGroupSessionId, setSelectedGroupSessionId] = useState<number | null>(null);
 
   // Service info from params - all data comes directly from navigation
   // Parse and validate required params
@@ -91,6 +96,13 @@ export default function BookingScreen() {
 
   const providerTypeForAvailability =
     serviceInfo?.serviceType === "professional_service" ? "professional" : "place";
+  useEffect(() => {
+    const incomingCategory = String(params.category || "").toLowerCase().trim();
+    if (incomingCategory === "belleza" || incomingCategory === "bienestar" || incomingCategory === "mascotas") {
+      setSelectedServiceCategory(incomingCategory);
+    }
+  }, [params.category, setSelectedServiceCategory]);
+
   const providerIdForAvailability = resolvedProviderId ?? serviceInfo?.providerId ?? 0;
 
   // Redirect guests to login — reservations require an account
@@ -323,6 +335,8 @@ export default function BookingScreen() {
     setTimeAvailabilityError(null);
     setDateAvailabilityError(null);
     setAvailableTimes([]);
+    setSelectedGroupSessionId(null);
+    setGroupSessionsForDate([]);
     setShowDatePicker(false);
     
     // Fetch provider schedule for selected date
@@ -456,7 +470,6 @@ export default function BookingScreen() {
 
           if (filtered.length === 0) {
             setDateAvailabilityError(UNAVAILABLE_MSG);
-            return;
           }
         } catch (slotsErr) {
           // Fallback to local computation if slots endpoint fails
@@ -466,6 +479,22 @@ export default function BookingScreen() {
           } else {
             setAvailableTimes([]);
           }
+        }
+
+        try {
+          const {groupSessionApi} = await import("@/lib/api");
+          const groupSessionsResponse = await groupSessionApi.list({
+            provider_type: providerType as "professional" | "place",
+            provider_id: providerIdForAvailability,
+            service: serviceInfo.serviceTypeId,
+            date_from: date,
+          });
+          const sessions = (groupSessionsResponse.data?.results || []).filter(
+            (session: any) => session.date === date && session.remaining_slots > 0
+          );
+          setGroupSessionsForDate(sessions);
+        } catch {
+          setGroupSessionsForDate([]);
         }
 
         // Check if provider is available on this day
@@ -607,7 +636,7 @@ export default function BookingScreen() {
     }
 
     // Final availability check before submission
-    if (!isTimeSlotAvailable(selectedTime)) {
+    if (!selectedGroupSessionId && !isTimeSlotAvailable(selectedTime)) {
       Alert.alert(
         "Hora no disponible",
         "La hora seleccionada ya no está disponible. Por favor selecciona otra hora."
@@ -628,22 +657,29 @@ export default function BookingScreen() {
       const dateStr = formatLocalDate(selectedDate);
       
       // Create reservation with simplified data structure
-      const reservationData = {
-        service_instance_type: serviceInfo.serviceType as "place_service" | "professional_service" | "custom_service",
-        service_instance_id: serviceInfo.serviceInstanceId,
-        // Provide provider context so backend can resolve IDs consistently with availability endpoints
-        provider_type: providerTypeForAvailability,
-        provider_id: providerIdForAvailability,
-        date: dateStr,
-        time: timeSlot.time,
-        notes: localNotes,
-      };
-
       const {reservationApi} = await import("@/lib/api");
-      
-      console.log("Sending reservation data:", reservationData);
-      
-      const response = await reservationApi.createReservation(reservationData);
+      const {groupSessionApi} = await import("@/lib/api");
+      let response: any;
+
+      if (selectedGroupSessionId) {
+        response = await groupSessionApi.reserve(selectedGroupSessionId, localNotes);
+      } else {
+        const reservationData = {
+          service_instance_type: serviceInfo.serviceType as
+            | "place_service"
+            | "professional_service"
+            | "custom_service",
+          service_instance_id: serviceInfo.serviceInstanceId,
+          // Provide provider context so backend can resolve IDs consistently with availability endpoints
+          provider_type: providerTypeForAvailability,
+          provider_id: providerIdForAvailability,
+          date: dateStr,
+          time: timeSlot.time,
+          notes: localNotes,
+        };
+        console.log("Sending reservation data:", reservationData);
+        response = await reservationApi.createReservation(reservationData);
+      }
       
       console.log("Reservation created successfully:", response.data);
       
@@ -651,7 +687,7 @@ export default function BookingScreen() {
       setReservationSuccess(true);
       
       // Auto-redirect to reservation details page after showing success message
-      const reservationId = response?.data?.id;
+      const reservationId = response?.data?.id || response?.data?.reservation?.id;
       setTimeout(() => {
         if (reservationId) {
           router.push(`/reservation/${reservationId}` as any);
@@ -1013,6 +1049,45 @@ export default function BookingScreen() {
                         })}
                       </ScrollView>
                     )}
+                  </View>
+                )}
+
+                {groupSessionsForDate.length > 0 && (
+                  <View style={styles.availableTimesContainer}>
+                    <Text style={[styles.availableTimesTitle, {color: colors.foreground}]}>
+                      Sesiones grupales con cupos
+                    </Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.availableTimesRow}>
+                      {groupSessionsForDate.map((session: any) => {
+                        const selected = selectedGroupSessionId === session.id;
+                        return (
+                          <TouchableOpacity
+                            key={session.id}
+                            style={[
+                              styles.availableTimeChip,
+                              {
+                                backgroundColor: selected ? colors.primary : colors.card,
+                                borderColor: selected ? colors.primary : colors.border,
+                              },
+                            ]}
+                            onPress={() => {
+                              setSelectedGroupSessionId(session.id);
+                              const [h, m] = String(session.time).slice(0, 5).split(":").map(Number);
+                              const d = new Date(selectedDate || new Date());
+                              d.setHours(h, m, 0, 0);
+                              setSelectedTime(d);
+                            }}>
+                            <Text
+                              style={[
+                                styles.availableTimeText,
+                                {color: selected ? "#ffffff" : colors.foreground},
+                              ]}>
+                              {String(session.time).slice(0, 5)} ({session.remaining_slots} cupos)
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
                   </View>
                 )}
               </View>

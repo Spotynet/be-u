@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reserva modificada</title>
+  </head>
+  <body style="font-family: Arial, sans-serif; color: #111827; line-height: 1.5;">
+    <h2 style="margin-bottom: 8px;">Reserva modificada</h2>
+    <p>Hola {{ recipient_name }},</p>
+    <p>
+      {{ actor_name }} modificó la reserva <strong>{{ reservation_code }}</strong>.
+    </p>
+    <p><strong>Servicio:</strong> {{ service_name }}</p>
+    <p><strong>Nueva fecha:</strong> {{ date }}</p>
+    <p><strong>Nueva hora:</strong> {{ time }}</p>
+    {% if notes %}
+    <p><strong>Notas:</strong> {{ notes }}</p>
+    {% endif %}
+    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+    <p style="color: #6b7280; font-size: 13px;">
+      Este correo fue enviado automáticamente por Nabbi.
+    </p>
+  </body>
+</html>

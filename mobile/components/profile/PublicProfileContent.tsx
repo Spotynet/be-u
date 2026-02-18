@@ -34,6 +34,7 @@ import {
 } from "@/constants/categories";
 import {AvailabilityDisplay} from "@/components/profile/AvailabilityDisplay";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {useCategory} from "@/contexts/CategoryContext";
 
 export interface PublicProfileContentProps {
   profileId: number;
@@ -43,6 +44,7 @@ export function PublicProfileContent({profileId}: PublicProfileContentProps) {
   const {colors} = useThemeVariant();
   const router = useRouter();
   const {user, isAuthenticated} = useAuth();
+  const {selectedMainCategory} = useCategory();
 
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
@@ -303,6 +305,7 @@ export function PublicProfileContent({profileId}: PublicProfileContentProps) {
         providerName,
         price: String(service?.price ?? 0),
         duration: String(durationMinutes),
+        category: String(service?.category || ""),
       },
     });
   };
@@ -366,7 +369,13 @@ export function PublicProfileContent({profileId}: PublicProfileContentProps) {
   };
 
   const renderServices = () => {
-    if (services.length === 0) {
+    const filteredServices = services.filter((service) => {
+      if (!service?.category) return true;
+      const normalizedServiceCategory = String(service.category).toLowerCase().trim();
+      return normalizedServiceCategory === selectedMainCategory.toLowerCase().trim();
+    });
+
+    if (filteredServices.length === 0) {
       return (
         <View style={styles.noContentContainer}>
           <Ionicons name="briefcase-outline" size={60} color={colors.mutedForeground} />
@@ -378,7 +387,7 @@ export function PublicProfileContent({profileId}: PublicProfileContentProps) {
     }
     return (
       <View style={styles.servicesContainer}>
-        {services.map((service, index) => (
+        {filteredServices.map((service, index) => (
           <TouchableOpacity
             key={service.id || index}
             style={styles.serviceCard}

@@ -5,6 +5,7 @@ import {useRouter} from "expo-router";
 
 const TOUR_PENDING_KEY = "@provider_tour_pending_v1";
 const TOUR_COMPLETED_KEY = "@provider_tour_completed_v1";
+const TOUR_PROGRESS_KEY = "@provider_tour_progress_v1";
 
 export type TourStep =
   | "mipagina_tab"
@@ -51,7 +52,7 @@ interface ProviderTourProviderProps {
 const TOUR_STEPS: Array<{id: TourStep; message: string; requiresPlace?: boolean}> = [
   {
     id: "mipagina_tab",
-    message: "Aquí editas tu página pública (lo que ve el cliente).",
+    message: "Este es tu panel principal para completar perfil, servicios y horarios.",
   },
   {
     id: "mipagina_viewPublicProfile",
@@ -63,11 +64,11 @@ const TOUR_STEPS: Array<{id: TourStep; message: string; requiresPlace?: boolean}
   },
   {
     id: "mipagina_services",
-    message: "Crea y gestiona tus servicios aquí. Define precios, duración y descripciones.",
+    message: "Empieza por crear servicios claros (nombre, precio, duración y categoría).",
   },
   {
     id: "mipagina_calendar",
-    message: "Configura tu disponibilidad para que los clientes puedan reservar citas contigo.",
+    message: "Configura horarios y disponibilidad para que los clientes puedan reservar.",
   },
   {
     id: "mipagina_team",
@@ -76,7 +77,7 @@ const TOUR_STEPS: Array<{id: TourStep; message: string; requiresPlace?: boolean}
   },
   {
     id: "posts_create",
-    message: "Crea posts para atraer clientes. Aparecen en el feed y ayudan a mostrar tu trabajo.",
+    message: "Publica en el feed para mostrar resultados y atraer nuevas reservas.",
   },
 ];
 
@@ -107,6 +108,7 @@ export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
       try {
         const pending = await AsyncStorage.getItem(TOUR_PENDING_KEY);
         const completed = await AsyncStorage.getItem(TOUR_COMPLETED_KEY);
+        const savedStep = await AsyncStorage.getItem(TOUR_PROGRESS_KEY);
 
         if (pending === "1" && !completed) {
           // Small delay to ensure UI is rendered
@@ -115,7 +117,8 @@ export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
               // Prevent re-initialization while the tour is running
               hasInitializedRef.current = true;
               setIsActive(true);
-              setCurrentStep(availableSteps[0].id);
+              const validSavedStep = availableSteps.some((step) => step.id === savedStep);
+              setCurrentStep(validSavedStep ? (savedStep as TourStep) : availableSteps[0].id);
               router.push("/(tabs)/perfil");
             }
           }, 500);
@@ -134,6 +137,12 @@ export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
     hasInitializedRef.current = true;
     setIsActive(true);
     setCurrentStep(availableSteps[0].id);
+    AsyncStorage.multiSet([
+      [TOUR_PENDING_KEY, "1"],
+      [TOUR_PROGRESS_KEY, availableSteps[0].id],
+    ])
+      .then(() => AsyncStorage.removeItem(TOUR_COMPLETED_KEY))
+      .catch(() => {});
     // Navigate to perfil tab to start the tour
     router.push("/(tabs)/perfil");
   }, [availableSteps, router]);
@@ -156,6 +165,7 @@ export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
     try {
       await AsyncStorage.setItem(TOUR_COMPLETED_KEY, "1");
       await AsyncStorage.removeItem(TOUR_PENDING_KEY);
+      await AsyncStorage.removeItem(TOUR_PROGRESS_KEY);
     } catch (error) {
       console.error("Error completing tour:", error);
     }
@@ -178,6 +188,7 @@ export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
     if (currentIndex < availableSteps.length - 1) {
       const nextStepId = availableSteps[currentIndex + 1].id;
       setCurrentStep(nextStepId);
+      AsyncStorage.setItem(TOUR_PROGRESS_KEY, nextStepId).catch(() => {});
 
       // Navigate to appropriate screen for the step
       if (nextStepId === "posts_create") {
@@ -194,6 +205,7 @@ export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
     if (currentIndex > 0) {
       const previousStepId = availableSteps[currentIndex - 1].id;
       setCurrentStep(previousStepId);
+      AsyncStorage.setItem(TOUR_PROGRESS_KEY, previousStepId).catch(() => {});
 
       // Navigate to appropriate screen
       if (previousStepId === "posts_create") {
@@ -215,6 +227,7 @@ export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
     try {
       await AsyncStorage.setItem(TOUR_COMPLETED_KEY, "1");
       await AsyncStorage.removeItem(TOUR_PENDING_KEY);
+      await AsyncStorage.removeItem(TOUR_PROGRESS_KEY);
     } catch (error) {
       console.error("Error skipping tour:", error);
     }

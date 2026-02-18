@@ -18,7 +18,14 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-def check_slot_availability(provider_ct, provider_id, date, start_time, duration):
+def check_slot_availability(
+    provider_ct,
+    provider_id,
+    date,
+    start_time,
+    duration,
+    exclude_reservation_id=None,
+):
     """
     Check if a time slot is available for booking.
     
@@ -122,6 +129,14 @@ def check_slot_availability(provider_ct, provider_id, date, start_time, duration
         if start_time < availability.start_time or end_time > availability.end_time:
             return False, "Requested time is outside provider's working hours"
     
+    excluded_code = None
+    if exclude_reservation_id:
+        excluded_code = (
+            Reservation.objects.filter(id=exclude_reservation_id)
+            .values_list("code", flat=True)
+            .first()
+        )
+
     # Check for conflicts with existing reservations (TimeSlotBlock with reason=BOOKED)
     booked_conflicts = TimeSlotBlock.objects.filter(
         content_type=provider_ct,
@@ -131,6 +146,8 @@ def check_slot_availability(provider_ct, provider_id, date, start_time, duration
     ).filter(
         Q(start_time__lt=end_time, end_time__gt=start_time)
     )
+    if excluded_code:
+        booked_conflicts = booked_conflicts.exclude(notes__contains=excluded_code)
     
     if booked_conflicts.exists():
         return False, "Time slot is already booked"
@@ -175,6 +192,8 @@ def check_slot_availability(provider_ct, provider_id, date, start_time, duration
         date=date,
         status__in=['PENDING', 'CONFIRMED']
     )
+    if exclude_reservation_id:
+        existing_reservations = existing_reservations.exclude(id=exclude_reservation_id)
     
     # Manual check for reservation conflicts
     for reservation in existing_reservations:

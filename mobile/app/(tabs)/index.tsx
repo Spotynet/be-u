@@ -119,6 +119,8 @@ export default function Home() {
   const {
     selectedMainCategory,
     setSelectedMainCategory,
+    selectedServiceCategory,
+    setSelectedServiceCategory,
     selectedSubCategory,
     setSelectedSubCategory,
     subcategoriesByMainCategory,
@@ -321,10 +323,32 @@ export default function Home() {
     // If user had Mascotas selected previously, force a visible category.
     if (selectedMainCategory === "mascotas") {
       setSelectedMainCategory("belleza");
+      setSelectedServiceCategory("belleza");
       setSelectedSubCategory("todos");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const effectiveFeedCategory = selectedServiceCategory || selectedMainCategory;
+
+  // Keep UI selection in sync when service category is changed from other entry points.
+  useEffect(() => {
+    if (
+      selectedServiceCategory &&
+      selectedServiceCategory !== selectedMainCategory &&
+      selectedServiceCategory !== "mascotas"
+    ) {
+      setSelectedMainCategory(selectedServiceCategory);
+      setSelectedSubCategory("todos");
+      setVariant(selectedServiceCategory);
+    }
+  }, [
+    selectedServiceCategory,
+    selectedMainCategory,
+    setSelectedMainCategory,
+    setSelectedSubCategory,
+    setVariant,
+  ]);
 
   const getCategoryIcon = (id: string, color: string, size: number = 24) => {
     const iconColor = color ?? "#6b7280";
@@ -358,14 +382,14 @@ export default function Home() {
     }
     
     if (Array.isArray(authorCategory)) {
-      // If category is a list, check if selectedMainCategory is in the list
+      // If category is a list, check if effective category is in the list
       // Also handle case-insensitive comparison
       categoryMatches = authorCategory.some((cat: string) => 
-        cat && cat.toLowerCase() === selectedMainCategory.toLowerCase()
+        cat && cat.toLowerCase() === effectiveFeedCategory.toLowerCase()
       );
     } else if (typeof authorCategory === 'string') {
       // If category is a string, do direct comparison (case-insensitive)
-      categoryMatches = authorCategory.toLowerCase() === selectedMainCategory.toLowerCase();
+      categoryMatches = authorCategory.toLowerCase() === effectiveFeedCategory.toLowerCase();
     }
     
     if (!categoryMatches) {
@@ -374,7 +398,14 @@ export default function Home() {
     
     // Debug log for first few posts
     if (posts.indexOf(post) < 3) {
-      console.log(`📱 Post ${post.id} category:`, authorCategory, "Selected:", selectedMainCategory, "Matches:", categoryMatches);
+      console.log(
+        `📱 Post ${post.id} category:`,
+        authorCategory,
+        "Selected:",
+        effectiveFeedCategory,
+        "Matches:",
+        categoryMatches
+      );
     }
     
     // If "todos" subcategory is selected, show all posts in the main category
@@ -404,14 +435,14 @@ export default function Home() {
     }
     
     if (Array.isArray(authorCategory)) {
-      // If category is a list, check if selectedMainCategory is in the list
+      // If category is a list, check if effective category is in the list
       // Also handle case-insensitive comparison
       categoryMatches = authorCategory.some((cat: string) => 
-        cat && cat.toLowerCase() === selectedMainCategory.toLowerCase()
+        cat && cat.toLowerCase() === effectiveFeedCategory.toLowerCase()
       );
     } else if (typeof authorCategory === 'string') {
       // If category is a string, do direct comparison (case-insensitive)
-      categoryMatches = authorCategory.toLowerCase() === selectedMainCategory.toLowerCase();
+      categoryMatches = authorCategory.toLowerCase() === effectiveFeedCategory.toLowerCase();
     }
     
     if (!categoryMatches) {
@@ -432,7 +463,7 @@ export default function Home() {
     try {
       setLoading(true);
       console.log("📱 Fetching posts from API...");
-      const res = await postApi.getPosts();
+      const res = await postApi.getPosts({category: effectiveFeedCategory});
       const postsData = res.data.results || [];
       console.log(`📱 Fetched ${postsData.length} posts from API`);
       
@@ -460,12 +491,12 @@ export default function Home() {
 
   useEffect(() => {
     fetchPosts();
-  }, []);
+  }, [effectiveFeedCategory]);
 
   const onRefresh = async () => {
     try {
       setRefreshing(true);
-      const res = await postApi.getPosts();
+      const res = await postApi.getPosts({category: effectiveFeedCategory});
       const postsData = res.data.results || [];
       setPosts(postsData);
       
@@ -681,6 +712,7 @@ export default function Home() {
     );
     const authorProfileId = post.author_profile_id;
     const authorProfileType = post.author_profile_type;
+    const isOwnPost = user?.id != null && post.author?.id === user.id;
 
     const handleReservePress = () => {
       if (!authorProfileId) {
@@ -712,7 +744,7 @@ export default function Home() {
         key={post.id} 
         style={[
           styles.postCard, 
-          { backgroundColor: colors.card }
+          {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}
         ]}>
         <View style={styles.postHeader}>
           <TouchableOpacity 
@@ -868,52 +900,57 @@ export default function Home() {
             </Text>
           </TouchableOpacity>
           {/* Reservar Button */}
-          <TouchableOpacity
-            style={[styles.reserveButton, {backgroundColor: colors.primary}]}
-            activeOpacity={0.8}
-            onPress={() => {
-              const profileId = post.author_public_profile_id || post.author_profile_id;
-              const isOwnPost = user?.id != null && post.author?.id === user.id;
-              if (isOwnPost) {
-                return;
-              }
-              if (!user) {
-                Alert.alert(
-                  "Inicia sesión",
-                  "Necesitas iniciar sesión para reservar.",
-                  [{text: "OK", onPress: () => router.push("/login")}]
-                );
-                return;
-              }
-              if (post.linked_service_id != null && post.linked_provider_id != null && post.linked_service_name) {
-                router.push({
-                  pathname: "/booking",
-                  params: {
-                    serviceInstanceId: String(post.linked_service_id),
-                    serviceTypeId: String(post.linked_service_id),
-                    serviceName: post.linked_service_name,
-                    serviceType: post.linked_service_type || "professional_service",
-                    providerId: String(post.linked_provider_id),
-                    providerName: post.author_display_name || "",
-                    price: post.linked_service_price != null ? String(post.linked_service_price) : "",
-                    duration: post.linked_service_duration_minutes != null ? String(post.linked_service_duration_minutes) : "60",
-                  },
-                } as any);
-              } else if (profileId) {
-                router.push(`/profile/${profileId}` as any);
-              } else {
-                console.warn("No profile ID found for navigation");
-              }
-            }}>
-            <Text style={styles.reserveButtonText}>Reservar</Text>
-          </TouchableOpacity>
+          {!isOwnPost && (
+            <TouchableOpacity
+              style={[styles.reserveButton, {backgroundColor: colors.primary}]}
+              activeOpacity={0.8}
+              onPress={() => {
+                const profileId = post.author_public_profile_id || post.author_profile_id;
+                if (!user) {
+                  Alert.alert(
+                    "Inicia sesión",
+                    "Necesitas iniciar sesión para reservar.",
+                    [{text: "OK", onPress: () => router.push("/login")}]
+                  );
+                  return;
+                }
+                if (post.linked_service_id != null && post.linked_provider_id != null && post.linked_service_name) {
+                  const normalizedCategory =
+                    typeof post?.author_category === "string"
+                      ? post.author_category.toLowerCase()
+                      : Array.isArray(post?.author_category) && post.author_category[0]
+                        ? String(post.author_category[0]).toLowerCase()
+                        : effectiveFeedCategory;
+                  router.push({
+                    pathname: "/booking",
+                    params: {
+                      serviceInstanceId: String(post.linked_service_id),
+                      serviceTypeId: String(post.linked_service_id),
+                      serviceName: post.linked_service_name,
+                      serviceType: post.linked_service_type || "professional_service",
+                      providerId: String(post.linked_provider_id),
+                      providerName: post.author_display_name || "",
+                      price: post.linked_service_price != null ? String(post.linked_service_price) : "",
+                      duration: post.linked_service_duration_minutes != null ? String(post.linked_service_duration_minutes) : "60",
+                      category: normalizedCategory,
+                    },
+                  } as any);
+                } else if (profileId) {
+                  router.push(`/profile/${profileId}` as any);
+                } else {
+                  console.warn("No profile ID found for navigation");
+                }
+              }}>
+              <Text style={styles.reserveButtonText}>Reservar</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
   };
 
   const renderTransformation = (post: any) => (
-    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card}]}>
+    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
       {/* User Header */}
       <View style={styles.postHeader}>
         <Image source={{uri: post.user.avatar}} style={styles.postAvatar} />
@@ -986,7 +1023,7 @@ export default function Home() {
   );
 
   const renderVideo = (post: any) => (
-    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card}]}>
+    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
       {/* User Header */}
       <View style={styles.postHeader}>
         <Image source={{uri: post.user.avatar}} style={styles.postAvatar} />
@@ -1056,7 +1093,7 @@ export default function Home() {
   );
 
   const renderReview = (post: any) => (
-    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card}]}>
+    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
       {/* User Header */}
       <View style={styles.postHeader}>
         <Image source={{uri: post.user.avatar}} style={styles.postAvatar} />
@@ -1127,7 +1164,7 @@ export default function Home() {
   );
 
   const renderPoll = (post: any) => (
-    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card}]}>
+    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
       {/* User Header */}
       <View style={styles.postHeader}>
         <Image source={{uri: post.user.avatar}} style={styles.postAvatar} />
@@ -1187,7 +1224,7 @@ export default function Home() {
   );
 
   const renderReel = (post: any) => (
-    <View key={post.id} style={[styles.reelCard, {backgroundColor: colors.card}]}>
+    <View key={post.id} style={[styles.reelCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
       {/* Reel Thumbnail */}
       <TouchableOpacity style={styles.reelThumbnail} activeOpacity={0.95}>
         <Image source={{uri: post.thumbnail}} style={styles.reelImage} />
@@ -1263,7 +1300,7 @@ export default function Home() {
   );
 
   const renderSnapshot = (post: any) => (
-    <View key={post.id} style={[styles.snapshotCard, {backgroundColor: colors.card}]}>
+    <View key={post.id} style={[styles.snapshotCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
       {/* User Header */}
       <View style={styles.postHeader}>
         <Image source={{uri: post.user.avatar}} style={styles.postAvatar} />
@@ -1370,7 +1407,7 @@ export default function Home() {
   );
 
   const renderGrid = (post: any) => (
-    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card}]}>
+    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
       {/* User Header */}
       <View style={styles.postHeader}>
         <Image source={{uri: post.user.avatar}} style={styles.postAvatar} />
@@ -1436,7 +1473,7 @@ export default function Home() {
   );
 
   const renderCarousel = (post: any) => (
-    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card}]}>
+    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
       {/* User Header */}
       <View style={styles.postHeader}>
         <Image source={{uri: post.user.avatar}} style={styles.postAvatar} />
@@ -1554,6 +1591,7 @@ export default function Home() {
                   ]}
                   onPress={() => {
                     setSelectedMainCategory(category.id as any);
+                    setSelectedServiceCategory(category.id as any);
                     setVariant(category.id as any);
                   }}
                   delayPressIn={0}>
@@ -2191,7 +2229,6 @@ const styles = StyleSheet.create({
   postCard: {
     borderRadius: 24,
     padding: 16,
-    backgroundColor: "#FFFFFF",
   },
   postHeader: {
     flexDirection: "row",

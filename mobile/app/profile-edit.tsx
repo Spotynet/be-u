@@ -46,6 +46,7 @@ export default function ProfileEdit() {
         <AppHeader
           title="Información Personal"
           showBackButton
+          backFallbackRoute="/(tabs)/perfil"
           onBackPress={() => router.back()}
           backgroundColor={colors.background}
           borderBottom={colors.border}
@@ -62,6 +63,7 @@ export default function ProfileEdit() {
       <AppHeader
         title="Información Personal"
         showBackButton
+        backFallbackRoute="/(tabs)/perfil"
         onBackPress={() => router.back()}
         backgroundColor={colors.background}
         borderBottom={colors.border}

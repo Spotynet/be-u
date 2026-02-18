@@ -6,12 +6,21 @@ import {useRouter} from "expo-router";
 import {AppHeader, APP_HEADER_ICON_SIZE, APP_HEADER_BUTTON_HIT} from "@/components/ui/AppHeader";
 import {PublicProfileContent} from "@/components/profile/PublicProfileContent";
 import {profileCustomizationApi} from "@/lib/api";
+import {useAuth} from "@/features/auth";
 
 export function ProfessionalProfileTab() {
   const {colors} = useThemeVariant();
   const router = useRouter();
+  const {user} = useAuth();
   const [publicProfileId, setPublicProfileId] = useState<number | null>(null);
   const [isLoadingId, setIsLoadingId] = useState(true);
+  const displayName =
+    [
+      (user as any)?.firstName || (user as any)?.first_name,
+      (user as any)?.lastName || (user as any)?.last_name,
+    ]
+      .filter(Boolean)
+      .join(" ") || "Perfil";
 
   useEffect(() => {
     const fetchPublicProfileId = async () => {
@@ -33,7 +42,7 @@ export function ProfessionalProfileTab() {
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       <AppHeader
-        title="Perfil"
+        title={displayName}
         showBackButton={false}
         backgroundColor={colors.background}
         borderBottom={colors.border}

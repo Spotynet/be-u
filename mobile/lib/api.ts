@@ -829,6 +829,42 @@ export const reservationApi = {
   }>("/services/availability/schedule/", {params}),
 };
 
+export const groupSessionApi = {
+  list: (params?: {
+    provider_type?: "professional" | "place";
+    provider_id?: number;
+    service?: number;
+    date_from?: string;
+  }) => api.get<{results: any[]; count: number}>("/reservations/group-sessions/", {params}),
+  create: (data: {
+    service: number;
+    date: string;
+    time: string;
+    duration: string; // HH:MM:SS
+    capacity: number;
+    notes?: string;
+    service_instance_id?: number;
+  }) => api.post<any>("/reservations/group-sessions/", data),
+  update: (id: number, data: any) => api.patch<any>(`/reservations/group-sessions/${id}/`, data),
+  reserve: (id: number, notes?: string) =>
+    api.post<any>(`/reservations/group-sessions/${id}/reserve/`, {notes}),
+};
+
+export const trackingApi = {
+  request: (reservationId: number, expiresMinutes: number = 120) =>
+    api.post<any>("/reservations/tracking-requests/", {
+      reservation_id: reservationId,
+      expires_minutes: expiresMinutes,
+    }),
+  list: (params?: {status?: string}) => api.get<{results: any[]; count: number}>("/reservations/tracking-requests/", {params}),
+  status: (id: number) => api.get<any>(`/reservations/tracking-requests/${id}/status/`),
+  accept: (id: number) => api.post<any>(`/reservations/tracking-requests/${id}/accept/`),
+  reject: (id: number) => api.post<any>(`/reservations/tracking-requests/${id}/reject/`),
+  stop: (id: number) => api.post<any>(`/reservations/tracking-requests/${id}/stop/`),
+  ping: (id: number, data: {latitude: number; longitude: number; accuracy_meters?: number}) =>
+    api.post<any>(`/reservations/tracking-requests/${id}/ping/`, data),
+};
+
 const REVIEW_ENDPOINT = "/reviews/reviews/";
 
 const postReviewFormData = (formData: FormData) =>
@@ -919,7 +955,7 @@ export const favoriteApi = {
 // Post/Publication management API functions
 export const postApi = {
   // Get posts feed
-  getPosts: (params?: {page?: number; author?: number; type?: string}) =>
+  getPosts: (params?: {page?: number; author?: number; type?: string; category?: string}) =>
     api.get<{results: any[]; count: number}>("/posts/list/", {params}),
 
   // Get single post

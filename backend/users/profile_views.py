@@ -230,7 +230,12 @@ def custom_service_detail_view(request, service_id):
     )
     
     if request.method == 'PUT':
-        serializer = CustomServiceSerializer(service, data=request.data, partial=True)
+        serializer = CustomServiceSerializer(
+            service,
+            data=request.data,
+            partial=True,
+            context={'content_type': content_type, 'object_id': object_id}
+        )
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)

@@ -21,10 +21,15 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import {CancellationRetentionModal, RetentionAction} from "./CancellationRetentionModal";
 import {CancellationReasonModal} from "./CancellationReasonModal";
 import {CancellationSuccessModal} from "./CancellationSuccessModal";
+import {
+  CANCELLATION_REASONS,
+  PROVIDER_CANCELLATION_REASONS,
+} from "@/constants/cancellationReasons";
 
 type ReservationActionsProps = {
   reservation: Reservation;
   isClient: boolean;
+  isProvider?: boolean;
   onUpdated: (updated: Reservation) => void;
   onCancelled: () => void;
   /** "header" = compact icons; "default" = two buttons; "body" = link + Mejorar horario below card */
@@ -57,6 +62,7 @@ function formatTimeFromDate(d: Date): string {
 export function ReservationActions({
   reservation,
   isClient,
+  isProvider = false,
   onUpdated,
   onCancelled,
   variant = "default",
@@ -95,7 +101,7 @@ export function ReservationActions({
       : 60;
 
   const canModifyOrCancel =
-    isClient &&
+    (isClient || isProvider) &&
     (reservation.status === "PENDING" || reservation.status === "CONFIRMED");
 
   const UNAVAILABLE_MSG =
@@ -366,6 +372,10 @@ export function ReservationActions({
   };
 
   const handleCancel = () => {
+    if (isProvider) {
+      setShowReasonModal(true);
+      return;
+    }
     handleOpenRetention();
   };
 
@@ -704,6 +714,7 @@ export function ReservationActions({
           openModifyModal();
         }}
         isCancelling={isCancelling}
+        reasons={isProvider ? PROVIDER_CANCELLATION_REASONS : CANCELLATION_REASONS}
       />
       <CancellationSuccessModal
         visible={showSuccessModal}

@@ -54,6 +54,16 @@ class PostViewSet(viewsets.ModelViewSet):
         if post_type:
             queryset = queryset.filter(post_type=post_type)
 
+        # Filter by author's main category (PublicProfile.category JSON/list or legacy string)
+        category = self.request.query_params.get('category', None)
+        if category:
+            category_token = str(category).strip().lower()
+            if category_token:
+                queryset = queryset.filter(
+                    Q(author__public_profile__category__contains=[category_token]) |
+                    Q(author__public_profile__category=category_token)
+                )
+
         return queryset
 
     def retrieve(self, request, *args, **kwargs):

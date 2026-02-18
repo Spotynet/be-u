@@ -177,3 +177,87 @@ def send_reservation_notification_to_provider(reservation):
     except Exception as e:
         logger.error(f"❌ Failed to send notification email to provider for reservation {reservation.code}: {e}", exc_info=True)
         return False
+
+
+def send_reservation_change_email(
+    reservation,
+    recipient_email: str,
+    recipient_name: str,
+    actor_name: str,
+    change_type: str,
+):
+    """
+    Send reservation change/cancellation email to a specific recipient.
+
+    change_type: "cancelled" | "updated"
+    """
+    try:
+        if not recipient_email:
+            logger.warning(
+                f"Cannot send reservation change email: missing recipient for reservation {reservation.code}"
+            )
+            return False
+
+        provider = reservation.provider
+        provider_name = "N/A"
+        if provider and hasattr(provider, "name"):
+            if hasattr(provider, "last_name"):
+                provider_name = f"{provider.name} {provider.last_name}".strip()
+            else:
+                provider_name = provider.name
+
+        client = reservation.client
+        client_name = (
+            f"{client.user.first_name} {client.user.last_name}".strip()
+            or client.user.username
+            or "Cliente"
+        )
+
+        template_name = (
+            "emails/reservation_cancelled_update.html"
+            if change_type == "cancelled"
+            else "emails/reservation_updated_update.html"
+        )
+        subject = (
+            f"Reserva cancelada - {reservation.service.name}"
+            if change_type == "cancelled"
+            else f"Reserva modificada - {reservation.service.name}"
+        )
+
+        context = {
+            "reservation": reservation,
+            "recipient_name": recipient_name or "Usuario",
+            "actor_name": actor_name or "Nabbi",
+            "change_type": change_type,
+            "provider_name": provider_name,
+            "client_name": client_name,
+            "service_name": reservation.service.name,
+            "date": reservation.date.strftime("%d/%m/%Y"),
+            "time": reservation.time.strftime("%H:%M"),
+            "reservation_code": reservation.code,
+            "notes": reservation.notes or "",
+            "cancellation_reason": reservation.cancellation_reason or "",
+        }
+
+        html_message = render_to_string(template_name, context)
+        plain_message = strip_tags(html_message)
+        from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@be-u.ai")
+
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=from_email,
+            recipient_list=[recipient_email],
+            html_message=html_message,
+            fail_silently=True,
+        )
+        logger.info(
+            f"✅ Reservation {change_type} email sent to {recipient_email} for reservation {reservation.code}"
+        )
+        return True
+    except Exception as e:
+        logger.error(
+            f"❌ Failed to send reservation {change_type} email for reservation {reservation.code}: {e}",
+            exc_info=True,
+        )
+        return False

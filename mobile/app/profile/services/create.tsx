@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import React, {useEffect, useState} from "react";
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "../../../contexts/ThemeVariantContext";
 import {profileCustomizationApi} from "../../../lib/api";
 import {useNavigation} from "../../../hooks/useNavigation";
+import {MAIN_CATEGORIES} from "../../../constants/categories";
 
 export default function CreateServiceScreen() {
   const router = useRouter();
@@ -24,12 +25,45 @@ export default function CreateServiceScreen() {
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
+  const [allowedCategories, setAllowedCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("otros");
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     price: "",
     duration_minutes: "",
   });
+
+  useEffect(() => {
+    let mounted = true;
+    const loadAllowedCategories = async () => {
+      try {
+        const response = await profileCustomizationApi.getProfileImages();
+        const rawCategories = response?.data?.category;
+        const categories = Array.isArray(rawCategories)
+          ? rawCategories
+          : rawCategories
+            ? [rawCategories]
+            : [];
+        if (!mounted) return;
+        if (categories.length > 0) {
+          setAllowedCategories(categories);
+          setSelectedCategory(categories[0]);
+        } else {
+          setAllowedCategories([]);
+          setSelectedCategory("otros");
+        }
+      } catch {
+        if (!mounted) return;
+        setAllowedCategories([]);
+        setSelectedCategory("otros");
+      }
+    };
+    loadAllowedCategories();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSave = async () => {
     // Validation
@@ -57,7 +91,7 @@ export default function CreateServiceScreen() {
         description: formData.description.trim() || "",
         price: Number(formData.price),
         duration_minutes: Number(formData.duration_minutes),
-        category: "Otros",
+        category: selectedCategory,
         is_active: true,
       });
 
@@ -154,6 +188,39 @@ export default function CreateServiceScreen() {
             numberOfLines={4}
             textAlignVertical="top"
           />
+        </View>
+
+        {/* Category */}
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Categoría del servicio</Text>
+          <View style={styles.categoryChipsWrap}>
+            {(allowedCategories.length > 0 ? allowedCategories : ["otros"]).map((categoryId) => {
+              const categoryName =
+                MAIN_CATEGORIES.find((c) => c.id === (categoryId as any))?.name || categoryId;
+              const active = selectedCategory === categoryId;
+              return (
+                <TouchableOpacity
+                  key={categoryId}
+                  style={[
+                    styles.categoryChip,
+                    {
+                      backgroundColor: active ? colors.primary : colors.card,
+                      borderColor: active ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => setSelectedCategory(categoryId)}
+                  activeOpacity={0.8}>
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      {color: active ? colors.primaryForeground : colors.foreground},
+                    ]}>
+                    {categoryName}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         {/* Price */}
@@ -259,5 +326,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     minHeight: 100,
+  },
+  categoryChipsWrap: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  categoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  categoryChipText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 });

@@ -132,26 +132,39 @@ export default function Settings({embedded = false}: {embedded?: boolean} = {}) 
   if (profileLoading) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        {!embedded && (
-          <View
-            style={[
-              styles.header,
-              {
-                backgroundColor: colors.background,
-                borderBottomColor: colors.border,
-                paddingTop: Math.max(insets.top + 16, 20),
-              },
-            ]}>
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: colors.background,
+              borderBottomColor: colors.border,
+              paddingTop: Math.max(insets.top + 16, 20),
+            },
+          ]}>
+          {embedded ? (
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => goBack("/(tabs)/perfil")}
               activeOpacity={0.7}>
               <Ionicons name="arrow-back" color={colors.foreground} size={24} />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Configuración</Text>
+          ) : (
+            <View style={styles.headerSpacer} />
+          )}
+          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Configuración</Text>
+          {embedded ? (
             <View style={styles.placeholder} />
-          </View>
-        )}
+          ) : (
+            <TouchableOpacity
+              style={styles.settingsIconButton}
+              onPress={() => setIsSettingsMenuVisible(true)}
+              activeOpacity={0.7}>
+              <View style={[styles.settingsIconContainer, {backgroundColor: colors.card}]}>
+                <Ionicons name="settings" color={colors.primary} size={22} />
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, {color: colors.mutedForeground}]}>
@@ -240,18 +253,29 @@ export default function Settings({embedded = false}: {embedded?: boolean} = {}) 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* Header */}
-      {!embedded && (
-        <View
-          style={[
-            styles.header,
-            {
-              backgroundColor: colors.background,
-              borderBottomColor: colors.border,
-              paddingTop: Math.max(insets.top + 16, 20),
-            },
-          ]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.background,
+            borderBottomColor: colors.border,
+            paddingTop: Math.max(insets.top + 16, 20),
+          },
+        ]}>
+        {embedded ? (
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => goBack("/(tabs)/perfil")}
+            activeOpacity={0.7}>
+            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
+          </TouchableOpacity>
+        ) : (
           <View style={styles.headerSpacer} />
-          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Configuración</Text>
+        )}
+        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Configuración</Text>
+        {embedded ? (
+          <View style={styles.placeholder} />
+        ) : (
           <TouchableOpacity
             style={styles.settingsIconButton}
             onPress={() => setIsSettingsMenuVisible(true)}
@@ -260,8 +284,8 @@ export default function Settings({embedded = false}: {embedded?: boolean} = {}) 
               <Ionicons name="settings" color={colors.primary} size={22} />
             </View>
           </TouchableOpacity>
-        </View>
-      )}
+        )}
+      </View>
 
       {/* Content */}
       <ScrollView 
