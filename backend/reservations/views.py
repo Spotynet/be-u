@@ -14,7 +14,7 @@ from .serializers import (
 from .permissions import IsReservationClient, IsReservationProvider, CanViewReservation
 from django.http import Http404
 from users.models import ProfessionalProfile, PlaceProfile
-from services.models import TimeSlotBlock
+from services.models import TimeSlotBlock, ProfessionalService, ServiceInPlace
 from reservations.availability import check_slot_availability
 from users.profile_models import PlaceProfessionalLink
 
@@ -754,12 +754,18 @@ class GroupSessionViewSet(viewsets.ModelViewSet):
         if user.role == "PROFESSIONAL":
             ct = ContentType.objects.get_for_model(ProfessionalProfile)
             provider_id = user.professional_profile.id
+            service_instance_ct = ContentType.objects.get_for_model(ProfessionalService)
         elif user.role == "PLACE":
             ct = ContentType.objects.get_for_model(PlaceProfile)
             provider_id = user.place_profile.id
+            service_instance_ct = ContentType.objects.get_for_model(ServiceInPlace)
         else:
             raise PermissionError("Only professionals and places can create group sessions")
-        serializer.save(provider_content_type=ct, provider_object_id=provider_id)
+        serializer.save(
+            provider_content_type=ct,
+            provider_object_id=provider_id,
+            service_instance_type=service_instance_ct,
+        )
 
     @action(detail=True, methods=["post"], url_path="reserve")
     def reserve(self, request, pk=None):

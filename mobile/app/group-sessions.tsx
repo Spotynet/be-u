@@ -8,10 +8,14 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Platform,
+  Modal,
+  Pressable,
 } from "react-native";
 import {useRouter} from "expo-router";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {groupSessionApi, serviceApi} from "@/lib/api";
 import {useAuth} from "@/features/auth";
 
@@ -25,6 +29,37 @@ const toDurationString = (minutes: number) => {
   return `${h}:${m}:00`;
 };
 
+const formatDate = (d: Date) => {
+  const y = d.getFullYear();
+  const m = (d.getMonth() + 1).toString().padStart(2, "0");
+  const day = d.getDate().toString().padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+const formatTime = (d: Date) => {
+  const h = d.getHours().toString().padStart(2, "0");
+  const m = d.getMinutes().toString().padStart(2, "0");
+  return `${h}:${m}`;
+};
+
+type ServiceItem = {
+  id: number;
+  name: string;
+  service: number;
+  service_type_id?: number;
+  duration_minutes?: number;
+  price?: number;
+};
+
+const normalizeService = (s: any): ServiceItem => ({
+  id: s.id,
+  name: s.name || s.service_name || s.service?.name || "Servicio",
+  service: s.service ?? s.service_type_id ?? s.service_details?.id ?? s.id,
+  service_type_id: s.service_type_id ?? s.service,
+  duration_minutes: s.duration_minutes ?? 60,
+  price: s.price,
+});
+
 export default function GroupSessionsScreen() {
   const router = useRouter();
   const {colors} = useThemeVariant();
@@ -33,13 +68,26 @@ export default function GroupSessionsScreen() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [services, setServices] = useState<any[]>([]);
+  const [services, setServices] = useState<ServiceItem[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
 
   const [selectedServiceInstanceId, setSelectedServiceInstanceId] = useState<number | null>(null);
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const [capacity, setCapacity] = useState("1");
+  const [dateValue, setDateValue] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(12, 0, 0, 0);
+    return d;
+  });
+  const [timeValue, setTimeValue] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(14, 0, 0, 0);
+    return d;
+  });
+  const [capacity, setCapacity] = useState(1);
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showServiceModal, setShowServiceModal] = useState(false);
 
   const selectedService = useMemo(
     () => services.find((svc) => svc.id === selectedServiceInstanceId),
@@ -49,11 +97,15 @@ export default function GroupSessionsScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [serviceResponse, sessionResponse] = await Promise.all([
-        isPlace ? serviceApi.getPlaceServices() : serviceApi.getProfessionalServices(),
+      const [sessionResponse, placeRes, profRes] = await Promise.all([
         groupSessionApi.list(),
+        isPlace ? serviceApi.getPlaceServices({is_active: true}) : Promise.resolve({data: {results: []}}),
+        !isPlace ? serviceApi.getProfessionalServices({is_active: true}) : Promise.resolve({data: {results: []}}),
       ]);
-      setServices(serviceResponse.data?.results || []);
+
+      const serviceList =
+        isPlace ? placeRes.data?.results || placeRes.data || [] : profRes.data?.results || profRes.data || [];
+      setServices(serviceList.map(normalizeService));
       setSessions(sessionResponse.data?.results || []);
     } catch (error: any) {
       Alert.alert("Error", error?.message || "No se pudo cargar sesiones grupales.");
@@ -69,19 +121,18 @@ export default function GroupSessionsScreen() {
   const handleCreate = async () => {
     if (!selectedService) {
       Alert.alert("Servicio requerido", "Selecciona un servicio para la sesión grupal.");
+      setShowServiceModal(true);
       return;
     }
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      Alert.alert("Fecha inválida", "Usa formato YYYY-MM-DD.");
-      return;
-    }
-    if (!time || !/^\d{2}:\d{2}$/.test(time)) {
-      Alert.alert("Hora inválida", "Usa formato HH:MM.");
-      return;
-    }
-    const parsedCapacity = Number(capacity);
-    if (!Number.isFinite(parsedCapacity) || parsedCapacity <= 0) {
-      Alert.alert("Cupos inválidos", "El número de cupos debe ser mayor a 0.");
+    const dateStr = formatDate(dateValue);
+    const timeStr = formatTime(timeValue);
+    const parsedCapacity = Math.max(1, capacity);
+
+    const now = new Date();
+    const sessionDateTime = new Date(dateValue);
+    sessionDateTime.setHours(timeValue.getHours(), timeValue.getMinutes(), 0, 0);
+    if (sessionDateTime <= now) {
+      Alert.alert("Fecha inválida", "La sesión debe programarse en el futuro.");
       return;
     }
 
@@ -91,14 +142,22 @@ export default function GroupSessionsScreen() {
       await groupSessionApi.create({
         service: selectedService.service,
         service_instance_id: selectedService.id,
-        date,
-        time: `${time}:00`,
+        date: dateStr,
+        time: `${timeStr}:00`,
         duration: toDurationString(durationMinutes),
         capacity: parsedCapacity,
       });
-      setDate("");
-      setTime("");
-      setCapacity("1");
+      setDateValue(() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        return d;
+      });
+      setTimeValue(() => {
+        const d = new Date();
+        d.setHours(14, 0, 0, 0);
+        return d;
+      });
+      setCapacity(1);
       setSelectedServiceInstanceId(null);
       await loadData();
     } catch (error: any) {
@@ -107,6 +166,19 @@ export default function GroupSessionsScreen() {
       setSaving(false);
     }
   };
+
+  const onDateChange = (_: any, d?: Date) => {
+    if (Platform.OS === "android") setShowDatePicker(false);
+    if (d) setDateValue(d);
+  };
+
+  const onTimeChange = (_: any, d?: Date) => {
+    if (Platform.OS === "android") setShowTimePicker(false);
+    if (d) setTimeValue(d);
+  };
+
+  const minDate = new Date();
+  minDate.setDate(minDate.getDate() + 1);
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
@@ -126,56 +198,95 @@ export default function GroupSessionsScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Crear sesión</Text>
           <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
-            <Text style={[styles.label, {color: colors.foreground}]}>Servicio</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-              {services.map((service) => {
-                const active = selectedServiceInstanceId === service.id;
-                return (
-                  <TouchableOpacity
-                    key={service.id}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: active ? colors.primary : colors.background,
-                        borderColor: active ? colors.primary : colors.border,
-                      },
-                    ]}
-                    onPress={() => setSelectedServiceInstanceId(service.id)}>
-                    <Text style={{color: active ? colors.primaryForeground : colors.foreground}}>
-                      {service.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            {/* Servicio */}
+            <Text style={[styles.label, {color: colors.foreground}]}>Servicio *</Text>
+            <TouchableOpacity
+              style={[
+                styles.pickerButton,
+                {backgroundColor: colors.background, borderColor: colors.border},
+                !selectedService && {borderColor: "#ef4444"},
+              ]}
+              onPress={() => setShowServiceModal(true)}
+              activeOpacity={0.7}>
+              <Text style={[styles.pickerButtonText, {color: selectedService ? colors.foreground : colors.mutedForeground}]}>
+                {selectedService ? `${selectedService.name} (${selectedService.duration_minutes || 60} min)` : "Seleccionar servicio"}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color={colors.mutedForeground} />
+            </TouchableOpacity>
 
-            <Text style={[styles.label, {color: colors.foreground}]}>Fecha (YYYY-MM-DD)</Text>
-            <TextInput
-              style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-              placeholder="2026-02-28"
-              placeholderTextColor={colors.mutedForeground}
-              value={date}
-              onChangeText={setDate}
-            />
+            {/* Fecha */}
+            <Text style={[styles.label, {color: colors.foreground}]}>Fecha</Text>
+            <TouchableOpacity
+              style={[styles.pickerButton, {backgroundColor: colors.background, borderColor: colors.border}]}
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.7}>
+              <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+              <Text style={[styles.pickerButtonText, {color: colors.foreground}]}>
+                {dateValue.toLocaleDateString("es-MX", {weekday: "long", day: "numeric", month: "long", year: "numeric"})}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color={colors.mutedForeground} />
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={dateValue}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                minimumDate={minDate}
+                onChange={onDateChange}
+                locale="es-MX"
+                onTouchCancel={() => Platform.OS === "ios" && setShowDatePicker(false)}
+              />
+            )}
+            {Platform.OS === "ios" && showDatePicker && (
+              <TouchableOpacity style={styles.iosPickerDone} onPress={() => setShowDatePicker(false)}>
+                <Text style={{color: colors.primary, fontWeight: "700"}}>Listo</Text>
+              </TouchableOpacity>
+            )}
 
-            <Text style={[styles.label, {color: colors.foreground}]}>Hora (HH:MM)</Text>
-            <TextInput
-              style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-              placeholder="15:30"
-              placeholderTextColor={colors.mutedForeground}
-              value={time}
-              onChangeText={setTime}
-            />
+            {/* Hora */}
+            <Text style={[styles.label, {color: colors.foreground}]}>Hora</Text>
+            <TouchableOpacity
+              style={[styles.pickerButton, {backgroundColor: colors.background, borderColor: colors.border}]}
+              onPress={() => setShowTimePicker(true)}
+              activeOpacity={0.7}>
+              <Ionicons name="time-outline" size={20} color={colors.primary} />
+              <Text style={[styles.pickerButtonText, {color: colors.foreground}]}>
+                {timeValue.toLocaleTimeString("es-MX", {hour: "2-digit", minute: "2-digit"})}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color={colors.mutedForeground} />
+            </TouchableOpacity>
+            {showTimePicker && (
+              <DateTimePicker
+                value={timeValue}
+                mode="time"
+                is24Hour={true}
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={onTimeChange}
+                locale="es-MX"
+              />
+            )}
+            {Platform.OS === "ios" && showTimePicker && (
+              <TouchableOpacity style={styles.iosPickerDone} onPress={() => setShowTimePicker(false)}>
+                <Text style={{color: colors.primary, fontWeight: "700"}}>Listo</Text>
+              </TouchableOpacity>
+            )}
 
+            {/* Cupos */}
             <Text style={[styles.label, {color: colors.foreground}]}>Cupos</Text>
-            <TextInput
-              style={[styles.input, {borderColor: colors.border, color: colors.foreground}]}
-              placeholder="1"
-              placeholderTextColor={colors.mutedForeground}
-              keyboardType="numeric"
-              value={capacity}
-              onChangeText={setCapacity}
-            />
+            <View style={[styles.capacityRow, {backgroundColor: colors.background, borderColor: colors.border}]}>
+              <TouchableOpacity
+                style={[styles.capacityBtn, {backgroundColor: colors.muted}]}
+                onPress={() => setCapacity((c) => Math.max(1, c - 1))}
+                disabled={capacity <= 1}>
+                <Ionicons name="remove" size={24} color={capacity <= 1 ? colors.mutedForeground : colors.foreground} />
+              </TouchableOpacity>
+              <Text style={[styles.capacityValue, {color: colors.foreground}]}>{capacity}</Text>
+              <TouchableOpacity
+                style={[styles.capacityBtn, {backgroundColor: colors.muted}]}
+                onPress={() => setCapacity((c) => Math.min(99, c + 1))}>
+                <Ionicons name="add" size={24} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={[styles.primaryButton, {backgroundColor: colors.primary}]}
@@ -209,6 +320,67 @@ export default function GroupSessionsScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* Modal selector de servicio */}
+      <Modal
+        visible={showServiceModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowServiceModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowServiceModal(false)}>
+          <Pressable style={[styles.modalContent, {backgroundColor: colors.card}]} onPress={(e) => e.stopPropagation()}>
+            <View style={[styles.modalHeader, {borderBottomColor: colors.border}]}>
+              <Text style={[styles.modalTitle, {color: colors.foreground}]}>Seleccionar servicio</Text>
+              <TouchableOpacity onPress={() => setShowServiceModal(false)} hitSlop={12}>
+                <Ionicons name="close" size={24} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+            {services.length === 0 ? (
+              <View style={styles.modalEmpty}>
+                <Ionicons name="briefcase-outline" size={48} color={colors.mutedForeground} />
+                <Text style={[styles.modalEmptyText, {color: colors.mutedForeground}]}>
+                  No tienes servicios. Crea servicios en tu perfil primero.
+                </Text>
+                <TouchableOpacity
+                  style={[styles.modalGoProfile, {backgroundColor: colors.primary}]}
+                  onPress={() => {
+                    setShowServiceModal(false);
+                    router.push("/profile/services");
+                  }}>
+                  <Text style={[styles.modalGoProfileText, {color: colors.primaryForeground}]}>Ir a servicios</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <ScrollView style={styles.modalList} keyboardShouldPersistTaps="handled">
+                {services.map((svc) => {
+                  const isActive = selectedServiceInstanceId === svc.id;
+                  return (
+                    <TouchableOpacity
+                      key={svc.id}
+                      style={[
+                        styles.modalItem,
+                        {borderBottomColor: colors.border},
+                        isActive && {backgroundColor: colors.primary + "15"},
+                      ]}
+                      onPress={() => {
+                        setSelectedServiceInstanceId(svc.id);
+                        setShowServiceModal(false);
+                      }}
+                      activeOpacity={0.7}>
+                      <Text style={[styles.modalItemName, {color: colors.foreground}]}>{svc.name}</Text>
+                      <Text style={[styles.modalItemMeta, {color: colors.mutedForeground}]}>
+                        {svc.duration_minutes || 60} min
+                        {svc.price != null ? ` · ${svc.price} MXN` : ""}
+                      </Text>
+                      {isActive && <Ionicons name="checkmark-circle" size={22} color={colors.primary} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -226,19 +398,68 @@ const styles = StyleSheet.create({
   backButton: {width: 36, alignItems: "center"},
   headerTitle: {fontSize: 17, fontWeight: "700"},
   centered: {flex: 1, justifyContent: "center", alignItems: "center"},
-  content: {padding: 16, gap: 12},
+  content: {padding: 16, gap: 12, paddingBottom: 40},
   sectionTitle: {fontSize: 16, fontWeight: "700"},
   card: {borderRadius: 12, borderWidth: 1, padding: 12, gap: 8},
   label: {fontSize: 13, fontWeight: "600"},
-  input: {
+  pickerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     borderWidth: 1,
     borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  chipsRow: {gap: 8},
-  chip: {paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999, borderWidth: 1},
+  pickerButtonText: {fontSize: 15, flex: 1},
+  iosPickerDone: {marginTop: 8, alignSelf: "flex-end"},
+  capacityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  capacityBtn: {
+    width: 48,
+    height: 48,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  capacityValue: {fontSize: 18, fontWeight: "700", flex: 1, textAlign: "center"},
   primaryButton: {marginTop: 6, borderRadius: 10, paddingVertical: 12, alignItems: "center"},
   primaryButtonText: {fontWeight: "700"},
   sessionTitle: {fontSize: 15, fontWeight: "700"},
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "70%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {fontSize: 18, fontWeight: "700"},
+  modalEmpty: {padding: 32, alignItems: "center", gap: 16},
+  modalEmptyText: {fontSize: 15, textAlign: "center"},
+  modalGoProfile: {paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12},
+  modalGoProfileText: {fontWeight: "700"},
+  modalList: {maxHeight: 360},
+  modalItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  modalItemName: {fontSize: 16, fontWeight: "600", flex: 1},
+  modalItemMeta: {fontSize: 13},
 });

@@ -22,6 +22,7 @@ import {
   postApi,
   linkApi,
   profileCustomizationApi,
+  serviceApi,
   PlaceProfessionalLink,
   api,
 } from "@/lib/api";
@@ -72,13 +73,52 @@ export function PublicProfileContent({profileId}: PublicProfileContentProps) {
       setProfile(profileData);
 
       let servicesData: any[] = [];
+      const userId = typeof profileData.user === "object" ? profileData.user?.id : profileData.user;
       try {
         const servicesResponse = await profileCustomizationApi.getCustomServices({
-          user: profileData.user,
+          user: userId,
         });
         servicesData = servicesResponse.data || [];
       } catch {
         servicesData = [];
+      }
+      // Fallback: fetch ProfessionalServices or PlaceServices when CustomServices is empty
+      if (servicesData.length === 0 && userId != null) {
+        try {
+          if (profileData.profile_type === "PROFESSIONAL") {
+            const profId = profileData.professional_profile_id;
+            const res = await serviceApi.getProfessionalServices({
+              ...(profId ? {professional: profId} : {user: userId}),
+              is_active: true,
+            });
+            const results = res.data?.results || res.data || [];
+            servicesData = results.map((s: any) => ({
+              id: s.id,
+              name: s.name || s.service_name || s.service?.name,
+              description: s.description || "",
+              price: s.price,
+              duration_minutes: s.duration_minutes ?? 60,
+              category: s.service?.category?.name || s.service_details?.category?.name || "General",
+            }));
+          } else if (profileData.profile_type === "PLACE") {
+            const placeId = profileData.place_profile_id;
+            const res = await serviceApi.getPlaceServices({
+              ...(placeId ? {place: placeId} : {user: userId}),
+              is_active: true,
+            });
+            const results = res.data?.results || res.data || [];
+            servicesData = results.map((s: any) => ({
+              id: s.id,
+              name: s.name || s.service_name || s.service?.name,
+              description: s.description || "",
+              price: s.price,
+              duration_minutes: s.duration_minutes ?? 60,
+              category: s.service?.category?.name || s.service_details?.category?.name || "General",
+            }));
+          }
+        } catch {
+          // Keep servicesData as []
+        }
       }
       setServices(servicesData);
 
@@ -370,6 +410,7 @@ export function PublicProfileContent({profileId}: PublicProfileContentProps) {
 
   const renderServices = () => {
     const filteredServices = services.filter((service) => {
+      if (selectedMainCategory === "todos" || !selectedMainCategory) return true;
       if (!service?.category) return true;
       const normalizedServiceCategory = String(service.category).toLowerCase().trim();
       return normalizedServiceCategory === selectedMainCategory.toLowerCase().trim();

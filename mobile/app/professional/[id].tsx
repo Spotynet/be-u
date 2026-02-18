@@ -130,18 +130,30 @@ export default function ProfessionalDetailScreen() {
       const professionalResponse = await providerApi.getProfessionalProfile(Number(numericId));
       const professionalData = professionalResponse.data;
 
-      // Fetch professional services
-      const servicesResponse = await serviceApi.getProfessionalServices({
-        professional: Number(numericId),
+      // Fetch professional services - use professional_profile_id (ProfessionalProfile) or user (User)
+      // numericId is PublicProfile.id; the services API expects professional=ProfessionalProfile.id or user=User.id
+      const professionalProfileId = professionalData.professional_profile_id;
+      const userId =
+        typeof professionalData.user === "object"
+          ? professionalData.user?.id
+          : professionalData.user;
+      const servicesParams: {professional?: number; user?: number; is_active?: boolean} = {
         is_active: true,
-      });
+      };
+      if (professionalProfileId) {
+        servicesParams.professional = Number(professionalProfileId);
+      } else if (userId != null) {
+        servicesParams.user = Number(userId);
+      }
+      const servicesResponse = await serviceApi.getProfessionalServices(servicesParams);
 
       // Transform API response to match expected format for UI
       const displayName =
         professionalData.user?.display_name || professionalData.display_name || "";
       const transformedProfessional: ProfessionalProfile = {
         id: professionalData.id,
-        user_id: professionalData.user?.id || professionalData.id,
+        user_id: professionalData.user?.id ?? professionalData.user ?? professionalData.id,
+        professional_profile_id: professionalData.professional_profile_id,
         email: professionalData.user?.email || "",
         name: displayName || professionalData.user?.first_name || professionalData.name || "Nombre no disponible",
         last_name: displayName ? "" : professionalData.user?.last_name || professionalData.last_name || "",
@@ -600,8 +612,8 @@ export default function ProfessionalDetailScreen() {
 
                           // Get the correct provider ID (professional_profile_id if available, otherwise use numericId)
                           // The numericId might be PublicProfile.id, but we need ProfessionalProfile.id for availability
-                          const providerId = professionalData.professional_profile_id 
-                            ? professionalData.professional_profile_id.toString() 
+                          const providerId = (professional as any)?.professional_profile_id
+                            ? String((professional as any).professional_profile_id)
                             : numericId || "";
                           
                           // Navigate directly to booking screen with service info

@@ -36,6 +36,8 @@ import {AppLogo} from "@/components/AppLogo";
 import {APP_HEADER_BUTTON_HIT} from "@/components/ui/AppHeader";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
+// Mosaic grid: postsSection padding 20*2 + postCard padding 16*2 + grid padding 10*2 + gap 8
+const GRID_ITEM_SIZE = (SCREEN_WIDTH - 20 * 2 - 16 * 2 - 10 * 2 - 8) / 2;
 
 function formatCommentTime(createdAt: string | undefined): string {
   if (!createdAt) return "";
@@ -849,9 +851,20 @@ export default function Home() {
         
         {/* Mosaic Grid */}
         {!isCarousel && !isBeforeAfter && isMosaic && mediaUrls.length > 0 && (
-          <View style={styles.gridContainer}>
+          <View style={[styles.gridContainer, {backgroundColor: colors.muted}]}>
             {mediaUrls.slice(0, 4).map((url: string, index: number) => (
-              <TouchableOpacity key={index} style={styles.gridItem} activeOpacity={0.9}>
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.gridItem,
+                  {
+                    width: GRID_ITEM_SIZE,
+                    height: GRID_ITEM_SIZE,
+                    marginRight: index % 2 === 0 ? 8 : 0,
+                    marginBottom: 8,
+                  },
+                ]}
+                activeOpacity={0.9}>
                 <Image source={{uri: url}} style={styles.gridImage} />
                 {index === 3 && mediaUrls.length > 4 && (
                   <View style={styles.gridOverlay}>
@@ -2791,21 +2804,16 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // Grid (Mosaic) - contenedor redondeado, 2x2 con espacio blanco entre fotos
-  // postsSection padding 20 + postCard padding 16 = 72; grid padding 10*2 + gap 8
+  // Grid (Mosaic) - contenedor redondeado, 2x2. backgroundColor y tamaños se aplican inline según tema
   gridContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
     marginBottom: 12,
     padding: 10,
     borderRadius: 16,
-    backgroundColor: "#FFFFFF",
     overflow: "hidden",
   },
   gridItem: {
-    width: (SCREEN_WIDTH - 20 * 2 - 16 * 2 - 10 * 2 - 8) / 2,
-    height: (SCREEN_WIDTH - 20 * 2 - 16 * 2 - 10 * 2 - 8) / 2,
     position: "relative",
   },
   gridImage: {

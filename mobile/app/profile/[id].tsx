@@ -118,17 +118,54 @@ export default function ProfileDetailScreen() {
 
       // Fetch services using the SAME endpoint as settings page
       let servicesData: any[] = [];
-      
+      const userId = typeof profileData.user === "object" ? profileData.user?.id : profileData.user;
+
       try {
-        // Use /profile/services/ endpoint with user parameter (same as settings page)
         const servicesResponse = await profileCustomizationApi.getCustomServices({
-          user: profileData.user,
+          user: userId,
         });
-        console.log("📋 Custom services response:", servicesResponse.data);
         servicesData = servicesResponse.data || [];
       } catch (serviceError) {
-        console.log("Services not available:", serviceError);
         servicesData = [];
+      }
+
+      // Fallback: fetch ProfessionalServices or PlaceServices when CustomServices is empty
+      if (servicesData.length === 0 && userId != null) {
+        try {
+          if (profileData.profile_type === "PROFESSIONAL") {
+            const profId = profileData.professional_profile_id;
+            const res = await serviceApi.getProfessionalServices({
+              ...(profId ? {professional: profId} : {user: userId}),
+              is_active: true,
+            });
+            const results = res.data?.results || res.data || [];
+            servicesData = results.map((s: any) => ({
+              id: s.id,
+              name: s.name || s.service_name || s.service?.name,
+              description: s.description || "",
+              price: s.price,
+              duration_minutes: s.duration_minutes ?? 60,
+              category: s.service?.category?.name || s.service_details?.category?.name || "General",
+            }));
+          } else if (profileData.profile_type === "PLACE") {
+            const placeId = profileData.place_profile_id;
+            const res = await serviceApi.getPlaceServices({
+              ...(placeId ? {place: placeId} : {user: userId}),
+              is_active: true,
+            });
+            const results = res.data?.results || res.data || [];
+            servicesData = results.map((s: any) => ({
+              id: s.id,
+              name: s.name || s.service_name || s.service?.name,
+              description: s.description || "",
+              price: s.price,
+              duration_minutes: s.duration_minutes ?? 60,
+              category: s.service?.category?.name || s.service_details?.category?.name || "General",
+            }));
+          }
+        } catch {
+          // Keep servicesData as []
+        }
       }
 
       setServices(servicesData);

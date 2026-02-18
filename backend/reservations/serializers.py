@@ -606,6 +606,16 @@ class GroupSessionSerializer(serializers.ModelSerializer):
             duration = duration or self.instance.duration
             date = date or self.instance.date
             time_value = time_value or self.instance.time
+        else:
+            # On create: infer service_instance_type from request user if not provided
+            request = self.context.get("request")
+            if not service_instance_type and request and request.user:
+                if request.user.role == "PROFESSIONAL":
+                    service_instance_type = ContentType.objects.get_for_model(ProfessionalService)
+                elif request.user.role == "PLACE":
+                    service_instance_type = ContentType.objects.get_for_model(ServiceInPlace)
+                if service_instance_type:
+                    attrs["service_instance_type"] = service_instance_type
 
         errors = {}
 
