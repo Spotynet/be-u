@@ -23,7 +23,7 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useCategory} from "@/contexts/CategoryContext";
 import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
 import {useState, useRef, useEffect, useCallback} from "react";
-import {useRouter} from "expo-router";
+import {useRouter, Link} from "expo-router";
 import {useFocusEffect} from "@react-navigation/native";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {postApi, tokenUtils, notificationApi} from "@/lib/api";
@@ -1632,14 +1632,16 @@ export default function Home() {
         </View>
 
         <View style={styles.headerRight} pointerEvents="box-none">
-          <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/notificaciones")}>
-            <View style={styles.notificationIconWrap}>
-              <Ionicons name="notifications-outline" color={colors.foreground} size={24} />
-              {unreadNotificationsCount > 0 && (
-                <View style={[styles.notificationBadge, {backgroundColor: colors.destructive}]} />
-              )}
-            </View>
-          </TouchableOpacity>
+          <Link href="/notificaciones" asChild>
+            <TouchableOpacity style={styles.headerButton} activeOpacity={0.7}>
+              <View style={styles.notificationIconWrap}>
+                <Ionicons name="notifications-outline" color={colors.foreground} size={24} />
+                {unreadNotificationsCount > 0 && (
+                  <View style={[styles.notificationBadge, {backgroundColor: colors.destructive}]} />
+                )}
+              </View>
+            </TouchableOpacity>
+          </Link>
           {user && user.role !== "CLIENT" && (
             <TourTarget targetId="posts_create">
               <TouchableOpacity

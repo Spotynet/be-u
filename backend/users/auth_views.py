@@ -31,7 +31,9 @@ from django.shortcuts import render
 from django.db import transaction
 from django.contrib.contenttypes.models import ContentType
 from .models import GoogleAuthPendingCode, GoogleAuthCredentials
-from reservations.models import Reservation
+from .profile_models import ProfileImage, CustomService, AvailabilitySchedule
+from reservations.models import Reservation, GroupSession
+from services.models import ProviderAvailability, TimeSlotBlock
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -743,12 +745,25 @@ def logout_view(request):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+def _delete_provider_generic_data(content_type, object_id):
+    """
+    Delete all records that reference a provider (ProfessionalProfile or PlaceProfile)
+    via GenericForeignKey. These do NOT cascade when the profile is deleted.
+    """
+    ProfileImage.objects.filter(content_type=content_type, object_id=object_id).delete()
+    CustomService.objects.filter(content_type=content_type, object_id=object_id).delete()
+    AvailabilitySchedule.objects.filter(content_type=content_type, object_id=object_id).delete()
+    ProviderAvailability.objects.filter(content_type=content_type, object_id=object_id).delete()
+    TimeSlotBlock.objects.filter(content_type=content_type, object_id=object_id).delete()
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def delete_my_account_view(request):
     """
     Permanently delete the authenticated user and all related data.
     Uses a transaction so either everything is deleted or nothing is.
+    Deletes all data that references the user via FK or GenericForeignKey.
     """
     try:
         user = request.user
@@ -756,34 +771,49 @@ def delete_my_account_view(request):
         user_email = (user.email or "").strip().lower()
 
         with transaction.atomic():
-            # Remove any email auth codes for this user so they cannot be reused
+            # 1. Remove email auth codes so they cannot be reused
             if user_email:
                 deleted_codes = EmailAuthCode.objects.filter(email=user_email).delete()
                 if deleted_codes and deleted_codes[0]:
                     logger.info(f"Deleted {deleted_codes[0]} EmailAuthCode(s) for user {user_id}")
 
-            # Remove provider-side reservations explicitly.
-            # GenericForeignKey does not cascade automatically when the provider profile is deleted.
+            # 2. Remove provider-side reservations (GenericForeignKey does not cascade)
             if hasattr(user, "professional_profile"):
+                prof = user.professional_profile
                 prof_ct = ContentType.objects.get_for_model(ProfessionalProfile)
                 Reservation.objects.filter(
                     provider_content_type=prof_ct,
-                    provider_object_id=user.professional_profile.id,
+                    provider_object_id=prof.id,
                 ).delete()
+                # 3. GroupSessions (GenericForeignKey does not cascade)
+                GroupSession.objects.filter(
+                    provider_content_type=prof_ct,
+                    provider_object_id=prof.id,
+                ).delete()
+                # 4. ProfileImage, CustomService, AvailabilitySchedule, ProviderAvailability, TimeSlotBlock
+                _delete_provider_generic_data(prof_ct, prof.id)
+
             if hasattr(user, "place_profile"):
+                place = user.place_profile
                 place_ct = ContentType.objects.get_for_model(PlaceProfile)
                 Reservation.objects.filter(
                     provider_content_type=place_ct,
-                    provider_object_id=user.place_profile.id,
+                    provider_object_id=place.id,
                 ).delete()
+                GroupSession.objects.filter(
+                    provider_content_type=place_ct,
+                    provider_object_id=place.id,
+                ).delete()
+                _delete_provider_generic_data(place_ct, place.id)
 
-            # Delete Google auth credentials explicitly so no orphan or race
+            # 5. Google credentials (explicit delete before user cascade)
             GoogleAuthCredentials.objects.filter(user=user).delete()
             GoogleCalendarCredentials.objects.filter(user=user).delete()
 
-            # This CASCADE-deletes: ClientProfile, ProfessionalProfile, PlaceProfile,
-            # PublicProfile, posts, reservations, notifications, favorites, etc.
-            user.delete()
+            # 6. Delete the User record from the database (CASCADE deletes ClientProfile,
+            #    ProfessionalProfile, PlaceProfile, PublicProfile, posts, notifications,
+            #    favorites, Service, TrackingRequest, CalendarEvent, etc.)
+            User.objects.filter(pk=user_id).delete()
 
         logger.info(f"User {user_id} ({user_email}) and all related data deleted successfully")
         return Response(

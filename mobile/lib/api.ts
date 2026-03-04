@@ -22,8 +22,8 @@ export interface ApiError {
 }
 
 // API Configuration - HARDCODED for testing
-//const API_BASE_URL = "http://127.0.0.1:8000/api";
-const API_BASE_URL = "https://stg.be-u.ai/api";
+const API_BASE_URL = "http://127.0.0.1:8000/api";
+//const API_BASE_URL = "https://stg.be-u.ai/api";
 
 console.log("🔧 HARDCODED API URL:", API_BASE_URL);
 const AUTH_TOKEN_KEY = "@auth_token";
@@ -209,7 +209,18 @@ export const apiCall = async <T = any>(
           errorMessage = errorData;
         }
       } else {
-        errorMessage = errorData?.detail || errorData?.error || errorData?.message || axiosError.message || "An error occurred";
+        // Django REST framework validation errors: { "field": ["msg1", "msg2"] }
+        const fieldErrors = errorData && typeof errorData === "object" && !Array.isArray(errorData)
+          ? Object.entries(errorData)
+              .filter(([, v]) => Array.isArray(v) && v.length > 0)
+              .map(([, msgs]) => (msgs as string[])[0])
+              .filter(Boolean)
+          : [];
+        if (fieldErrors.length > 0) {
+          errorMessage = fieldErrors.join(". ");
+        } else {
+          errorMessage = errorData?.detail || errorData?.error || errorData?.message || axiosError.message || "An error occurred";
+        }
       }
     } else {
       errorMessage = axiosError.message || "An error occurred";
@@ -836,6 +847,7 @@ export const groupSessionApi = {
     service?: number;
     date_from?: string;
   }) => api.get<{results: any[]; count: number}>("/reservations/group-sessions/", {params}),
+  get: (id: number) => api.get<any>(`/reservations/group-sessions/${id}/`),
   create: (data: {
     service: number;
     date: string;
@@ -844,8 +856,10 @@ export const groupSessionApi = {
     capacity: number;
     notes?: string;
     service_instance_id?: number;
+    service_instance_type?: "place_service" | "professional_service" | "custom_service";
   }) => api.post<any>("/reservations/group-sessions/", data),
   update: (id: number, data: any) => api.patch<any>(`/reservations/group-sessions/${id}/`, data),
+  delete: (id: number) => api.delete(`/reservations/group-sessions/${id}/`),
   reserve: (id: number, notes?: string) =>
     api.post<any>(`/reservations/group-sessions/${id}/reserve/`, {notes}),
 };
@@ -1419,20 +1433,32 @@ export const errorUtils = {
       return typeof errorField === "string" ? errorField : JSON.stringify(errorField);
     }
     
-    // Priority 3: Check for serializer errors (Django REST Framework validation errors)
+    // Priority 3: Check for serializer/field errors (Django REST Framework)
+    // e.g. { category: ["La categoria del servicio debe estar dentro de tus categorias activas."] }
+    const data = error?.response?.data;
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      const fieldKeys = Object.keys(data).filter(
+        (k) => k !== "message" && k !== "status" && k !== "statusText" && k !== "url" && k !== "method"
+      );
+      for (const key of fieldKeys) {
+        const val = data[key];
+        const msg = Array.isArray(val) ? val[0] : val;
+        if (msg && typeof msg === "string") {
+          return msg;
+        }
+      }
+    }
     if (error?.response?.data?.errors) {
       const errors = error.response.data.errors;
-      // If it's an object with field errors, extract the first one
       if (typeof errors === "object" && !Array.isArray(errors)) {
         const firstKey = Object.keys(errors)[0];
         if (firstKey) {
-          const firstError = Array.isArray(errors[firstKey]) 
-            ? errors[firstKey][0] 
+          const firstError = Array.isArray(errors[firstKey])
+            ? errors[firstKey][0]
             : errors[firstKey];
           return `${firstKey}: ${firstError}`;
         }
       }
-      // If it's an array, return the first error
       if (Array.isArray(errors) && errors.length > 0) {
         return errors[0];
       }

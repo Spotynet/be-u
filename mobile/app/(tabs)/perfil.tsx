@@ -5,6 +5,7 @@ import {Ionicons} from "@expo/vector-icons";
 import React from "react";
 import {AppHeader} from "@/components/ui/AppHeader";
 import {ClientProfileTab, ProfessionalProfileTab} from "@/components/profile";
+import {Redirect} from "expo-router";
 
 export default function Perfil() {
   const {colors} = useThemeVariant();
@@ -13,25 +14,7 @@ export default function Perfil() {
   const isClient = user?.role === "CLIENT";
 
   if (!isAuthenticated || !user) {
-    return (
-      <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <AppHeader
-          title="Perfil"
-          showBackButton={false}
-          backgroundColor={colors.background}
-          borderBottom={colors.border}
-        />
-        <View style={styles.centeredContainer}>
-          <Ionicons name="person-outline" size={80} color={colors.mutedForeground} />
-          <Text style={[styles.emptyTitle, {color: colors.foreground}]}>
-            Inicia sesión para ver tu perfil
-          </Text>
-          <Text style={[styles.emptyDescription, {color: colors.mutedForeground}]}>
-            Accede a tu cuenta para gestionar tu perfil y tus favoritos
-          </Text>
-        </View>
-      </View>
-    );
+    return <Redirect href="/login" />;
   }
 
   return isClient ? <ClientProfileTab /> : <ProfessionalProfileTab />;

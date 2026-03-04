@@ -273,9 +273,18 @@ def create_reservation_notification(sender, instance, created, **kwargs):
         except Exception as e:
             logger.error(f"❌ Error sending confirmation email to provider for reservation {instance.code}: {e}", exc_info=True)
 
-        # Note: Client email is sent automatically via Google Calendar when the event is created
-        # The client is added as an attendee with responseStatus='accepted'
-        # This ensures the client receives the calendar invite without requiring RSVP confirmation
+        # Send confirmation email to client for CONFIRMED reservations (e.g. group session reserves)
+        # Google Calendar also sends invite when event is created, but provider may not have calendar connected
+        if instance.status == Reservation.Status.CONFIRMED:
+            try:
+                from .emails import send_reservation_confirmation_to_client
+                email_sent_to_client = send_reservation_confirmation_to_client(instance)
+                if email_sent_to_client:
+                    logger.info(f"✅ Confirmation email sent to client for reservation {instance.code}")
+                else:
+                    logger.warning(f"⚠️ Failed to send confirmation email to client for reservation {instance.code}")
+            except Exception as e:
+                logger.error(f"❌ Error sending confirmation email to client for reservation {instance.code}: {e}", exc_info=True)
 
         # If reservations are created already CONFIRMED, also create Google Calendar event immediately
         # This is done in a separate try/except to ensure it doesn't block reservation creation

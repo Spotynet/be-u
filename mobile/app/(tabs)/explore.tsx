@@ -13,7 +13,8 @@ import {
 import {SafeMapView, Region} from "@/components/map/SafeMapView";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useCategory} from "@/contexts/CategoryContext";
-import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";

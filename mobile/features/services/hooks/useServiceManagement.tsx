@@ -1,8 +1,22 @@
 import {useState, useCallback} from "react";
-import {serviceApi, errorUtils} from "@/lib/api";
+import {serviceApi, profileCustomizationApi, errorUtils} from "@/lib/api";
 import {UserService} from "@/types/global";
 import {Alert} from "react-native";
 import {useAuth} from "@/features/auth";
+
+function mapCustomToUserService(raw: any): UserService {
+  return {
+    id: raw.id,
+    type: "custom_service",
+    name: raw.name || "",
+    description: raw.description,
+    category: raw.category || "otros",
+    price: Number(raw.price) || 0,
+    duration: Number(raw.duration_minutes) || 0,
+    is_active: raw.is_active !== false,
+    created_at: raw.created_at,
+  };
+}
 
 export const useServiceManagement = () => {
   const {user} = useAuth();
@@ -14,8 +28,17 @@ export const useServiceManagement = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await serviceApi.getMyServices();
-      setServices(response.data.results || []);
+      const [myRes, customRes] = await Promise.all([
+        serviceApi.getMyServices(),
+        profileCustomizationApi.getCustomServices().catch(() => ({data: []})),
+      ]);
+      const placeOrProf = (myRes.data.results || []) as UserService[];
+      const rawCustom = customRes.data;
+      const customList = Array.isArray(rawCustom)
+        ? rawCustom
+        : rawCustom?.results ?? [];
+      const customMapped = customList.map(mapCustomToUserService);
+      setServices([...placeOrProf, ...customMapped]);
     } catch (err) {
       const message = errorUtils.getErrorMessage(err);
       setError(message);
@@ -74,27 +97,34 @@ export const useServiceManagement = () => {
 
   const updateService = async (
     serviceId: number,
-    serviceType: "place_service" | "professional_service",
+    serviceType: "place_service" | "professional_service" | "custom_service",
     data: any
   ) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Convert duration if provided
-      if (data.duration) {
-        const hours = Math.floor(data.duration / 60);
-        const minutes = data.duration % 60;
-        data.time = `${hours.toString().padStart(2, "0")}:${minutes
-          .toString()
-          .padStart(2, "0")}:00`;
-        delete data.duration;
-      }
-
-      if (serviceType === "place_service") {
-        await serviceApi.updatePlaceService(serviceId, data);
+      if (serviceType === "custom_service") {
+        const payload: any = { ...data };
+        if (payload.duration != null) {
+          payload.duration_minutes = payload.duration;
+          delete payload.duration;
+        }
+        await profileCustomizationApi.updateCustomService(serviceId, payload);
       } else {
-        await serviceApi.updateProfessionalService(serviceId, data);
+        if (data.duration) {
+          const hours = Math.floor(data.duration / 60);
+          const minutes = data.duration % 60;
+          data.time = `${hours.toString().padStart(2, "0")}:${minutes
+            .toString()
+            .padStart(2, "0")}:00`;
+          delete data.duration;
+        }
+        if (serviceType === "place_service") {
+          await serviceApi.updatePlaceService(serviceId, data);
+        } else {
+          await serviceApi.updateProfessionalService(serviceId, data);
+        }
       }
 
       Alert.alert("Éxito", "Servicio actualizado correctamente");
@@ -111,13 +141,15 @@ export const useServiceManagement = () => {
 
   const deleteService = async (
     serviceId: number,
-    serviceType: "place_service" | "professional_service"
+    serviceType: "place_service" | "professional_service" | "custom_service"
   ) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      if (serviceType === "place_service") {
+      if (serviceType === "custom_service") {
+        await profileCustomizationApi.deleteCustomService(serviceId);
+      } else if (serviceType === "place_service") {
         await serviceApi.deletePlaceService(serviceId);
       } else {
         await serviceApi.deleteProfessionalService(serviceId);
@@ -137,11 +169,11 @@ export const useServiceManagement = () => {
 
   const toggleServiceStatus = async (
     serviceId: number,
-    serviceType: "place_service" | "professional_service",
+    serviceType: "place_service" | "professional_service" | "custom_service",
     currentStatus: boolean
   ) => {
     try {
-      await updateService(serviceId, serviceType, {is_active: !currentStatus});
+      await updateService(serviceId, serviceType, { is_active: !currentStatus });
     } catch (err) {
       // Error already handled in updateService
     }

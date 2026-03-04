@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import {Ionicons} from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useRouter} from "expo-router";
@@ -64,7 +64,7 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
         router.push("/agenda");
         break;
       case "notifications":
-        router.push("/(tabs)/notificaciones");
+        router.push("/notificaciones");
         break;
       case "privacy":
         // router.push("/privacy-security");

@@ -2,6 +2,7 @@
 .vscode/
 .DS_Store
 .env
+deploy.env
 *.log
 
 # === Backend (Django) ===

@@ -252,6 +252,47 @@ export const ReservationCard = ({
         </TouchableOpacity>
       </View>
 
+      {/* Action buttons: Confirm/Reject (PENDING), Cancel (PENDING/CONFIRMED), Complete (CONFIRMED) */}
+      {showActions && (onConfirm || onReject || onCancel || onComplete) && (
+        <View style={[styles.actions, {borderTopColor: colors.border}]}>
+          {reservation.status === "PENDING" && onConfirm && (
+            <TouchableOpacity
+              style={[styles.actionButton, {backgroundColor: "#10b981"}]}
+              onPress={() => onConfirm(reservation.id)}
+              activeOpacity={0.8}>
+              <Ionicons name="checkmark-circle" size={18} color="#ffffff" />
+              <Text style={styles.actionText}>Confirmar</Text>
+            </TouchableOpacity>
+          )}
+          {reservation.status === "PENDING" && onReject && (
+            <TouchableOpacity
+              style={[styles.actionButton, {backgroundColor: "#ef4444"}]}
+              onPress={() => onReject(reservation.id)}
+              activeOpacity={0.8}>
+              <Ionicons name="close-circle" size={18} color="#ffffff" />
+              <Text style={styles.actionText}>Rechazar</Text>
+            </TouchableOpacity>
+          )}
+          {(reservation.status === "PENDING" || reservation.status === "CONFIRMED") && onCancel && (
+            <TouchableOpacity
+              style={[styles.actionButton, {backgroundColor: "#f59e0b"}]}
+              onPress={() => onCancel(reservation.id)}
+              activeOpacity={0.8}>
+              <Ionicons name="trash-outline" size={18} color="#ffffff" />
+              <Text style={styles.actionText}>Cancelar</Text>
+            </TouchableOpacity>
+          )}
+          {reservation.status === "CONFIRMED" && onComplete && (
+            <TouchableOpacity
+              style={[styles.actionButton, {backgroundColor: "#10b981"}]}
+              onPress={() => onComplete(reservation.id)}
+              activeOpacity={0.8}>
+              <Ionicons name="checkmark-done" size={18} color="#ffffff" />
+              <Text style={styles.actionText}>Completar</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
     </View>
   );

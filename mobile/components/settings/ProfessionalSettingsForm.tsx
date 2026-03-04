@@ -333,8 +333,12 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
     
     // Ciudad se toma desde la ubicación (backend)
 
+    // Profile data for Professional/Place profile (used by /auth/profile/)
+    // Include categories so backend ProfessionalProfile/PlaceProfile stays in sync
     const profileData = {
       bio,
+      category: selectedCategories ?? [],
+      sub_categories: selectedSubcategories ?? [],
     };
 
     // Always update public profile (category/sub_categories) first so it persists even if auth profile update fails

@@ -23,6 +23,7 @@ import {
   linkApi,
   profileCustomizationApi,
   serviceApi,
+  groupSessionApi,
   PlaceProfessionalLink,
   api,
 } from "@/lib/api";
@@ -53,11 +54,12 @@ export function PublicProfileContent({profileId}: PublicProfileContentProps) {
   const [linkedProfessionals, setLinkedProfessionals] = useState<PlaceProfessionalLink[]>([]);
   const [linkedProfessionalsDetails, setLinkedProfessionalsDetails] = useState<any[]>([]);
   const [linkedPlaces, setLinkedPlaces] = useState<PlaceProfessionalLink[]>([]);
+  const [groupSessions, setGroupSessions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<"team" | "services" | "details" | "hours">(
-    "services"
-  );
+  const [activeSection, setActiveSection] = useState<
+    "team" | "services" | "group_sessions" | "details" | "hours"
+  >("services");
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef<any>(null);
@@ -121,6 +123,62 @@ export function PublicProfileContent({profileId}: PublicProfileContentProps) {
         }
       }
       setServices(servicesData);
+
+      if (profileData.profile_type === "PROFESSIONAL") {
+        const profId =
+          profileData.professional_profile_id ??
+          profileData.professional_profile?.id ??
+          profileData.professional?.id;
+        if (profId) {
+          try {
+            const today = new Date().toISOString().slice(0, 10);
+            const gsRes = await groupSessionApi.list({
+              provider_type: "professional",
+              provider_id: Number(profId),
+              date_from: today,
+            });
+            const results = gsRes.data?.results || [];
+            setGroupSessions(
+              results.filter(
+                (s: any) =>
+                  s.status === "ACTIVE" && (s.remaining_slots ?? s.capacity - (s.booked_slots || 0)) > 0
+              )
+            );
+          } catch {
+            setGroupSessions([]);
+          }
+        } else {
+          setGroupSessions([]);
+        }
+      } else if (profileData.profile_type === "PLACE") {
+        const placeId =
+          profileData.place_profile_id ??
+          profileData.place_profile?.id ??
+          profileData.place?.id;
+        if (placeId) {
+          try {
+            const today = new Date().toISOString().slice(0, 10);
+            const gsRes = await groupSessionApi.list({
+              provider_type: "place",
+              provider_id: Number(placeId),
+              date_from: today,
+            });
+            const results = gsRes.data?.results || [];
+            setGroupSessions(
+              results.filter(
+                (s: any) =>
+                  s.status === "ACTIVE" && (s.remaining_slots ?? s.capacity - (s.booked_slots || 0)) > 0
+              )
+            );
+          } catch {
+            setGroupSessions([]);
+          }
+        } else {
+          setGroupSessions([]);
+        }
+      } else {
+        setGroupSessions([]);
+      }
 
       if (profileData.profile_type === "PLACE") {
         const userId = profileData.user;
@@ -381,8 +439,12 @@ export function PublicProfileContent({profileId}: PublicProfileContentProps) {
     (profile?.profile_type === "PLACE" && linkedProfessionalsDetails.length > 0) ||
     (profile?.profile_type === "PROFESSIONAL" && linkedPlaces.length > 0);
 
-  const sections: Array<{key: "team" | "services" | "details" | "hours"; label: string}> = [
+  const hasGroupSessionsSection =
+    profile?.profile_type === "PROFESSIONAL" || profile?.profile_type === "PLACE";
+
+  const sections: Array<{key: "team" | "services" | "group_sessions" | "details" | "hours"; label: string}> = [
     {key: "services", label: "Servicios"},
+    ...(hasGroupSessionsSection ? [{key: "group_sessions" as const, label: "Sesiones grupales"}] : []),
     {key: "details", label: "Detalles"},
     {key: "hours", label: "Horario"},
     ...(hasTeamSection
@@ -465,6 +527,59 @@ export function PublicProfileContent({profileId}: PublicProfileContentProps) {
                     </Text>
                   </View>
                 )}
+              </View>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
+  const renderGroupSessions = () => {
+    const activeSessions = groupSessions.filter(
+      (s: any) =>
+        s.status === "ACTIVE" && (s.remaining_slots ?? s.capacity - (s.booked_slots || 0)) > 0
+    );
+    if (activeSessions.length === 0) {
+      return (
+        <View style={styles.noContentContainer}>
+          <Ionicons name="people-outline" size={60} color={colors.mutedForeground} />
+          <Text style={[styles.noContentText, {color: colors.mutedForeground}]}>
+            No hay sesiones grupales activas con cupos disponibles
+          </Text>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.servicesContainer}>
+        {activeSessions.map((session: any) => (
+          <TouchableOpacity
+            key={session.id}
+            style={styles.serviceCard}
+            activeOpacity={0.7}
+            onPress={() => router.push(`/group-sessions/${session.id}` as any)}>
+            <View style={styles.serviceContent}>
+              <View style={styles.serviceTopLine}>
+                <Text style={[styles.serviceName, {color: colors.foreground}]} numberOfLines={1}>
+                  {session.service_name || "Sesión grupal"}
+                </Text>
+                <Text style={[styles.servicePrice, {color: colors.primary}]} numberOfLines={1}>
+                  {session.booked_slots ?? 0}/{session.capacity}
+                </Text>
+              </View>
+              <View style={styles.serviceMetaLine}>
+                <View style={styles.serviceMetaItem}>
+                  <Ionicons name="calendar-outline" color={colors.mutedForeground} size={14} />
+                  <Text style={[styles.serviceMetaText, {color: colors.mutedForeground}]}>
+                    {session.date}
+                  </Text>
+                </View>
+                <View style={styles.serviceMetaItem}>
+                  <Ionicons name="time-outline" color={colors.mutedForeground} size={14} />
+                  <Text style={[styles.serviceMetaText, {color: colors.mutedForeground}]}>
+                    {String(session.time).slice(0, 5)}
+                  </Text>
+                </View>
               </View>
             </View>
           </TouchableOpacity>
@@ -650,6 +765,14 @@ export function PublicProfileContent({profileId}: PublicProfileContentProps) {
           {renderServices()}
           <View style={[styles.sectionDivider, {backgroundColor: colors.border}]} />
         </View>
+
+        {hasGroupSessionsSection && (
+          <View onLayout={onSectionLayout("group_sessions")} style={styles.section}>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Sesiones grupales</Text>
+            {renderGroupSessions()}
+            <View style={[styles.sectionDivider, {backgroundColor: colors.border}]} />
+          </View>
+        )}
 
         <View onLayout={onSectionLayout("details")} style={styles.section}>
           <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Detalles</Text>

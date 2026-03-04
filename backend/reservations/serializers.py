@@ -540,6 +540,9 @@ class GroupSessionSerializer(serializers.ModelSerializer):
     provider_type = serializers.SerializerMethodField()
     provider_name = serializers.SerializerMethodField()
     remaining_slots = serializers.SerializerMethodField()
+    service_name = serializers.CharField(source="service.name", read_only=True)
+    # service, service_instance_type, service_instance_id from model
+    # View pre-processes service_instance_type="custom_service" into pk values
 
     class Meta:
         model = GroupSession
@@ -547,7 +550,9 @@ class GroupSessionSerializer(serializers.ModelSerializer):
             "id",
             "provider_type",
             "provider_name",
+            "provider_object_id",
             "service",
+            "service_name",
             "service_instance_type",
             "service_instance_id",
             "date",
@@ -590,6 +595,9 @@ class GroupSessionSerializer(serializers.ModelSerializer):
         return obj.remaining_slots
 
     def validate(self, attrs):
+        request = self.context.get("request")
+        # Allow client to send service_instance_type as string e.g. "custom_service"
+        raw_type = attrs.get("service_instance_type") or (request.data.get("service_instance_type") if request else None)
         service_instance_type = attrs.get("service_instance_type")
         service_instance_id = attrs.get("service_instance_id")
         service = attrs.get("service")
@@ -607,15 +615,70 @@ class GroupSessionSerializer(serializers.ModelSerializer):
             date = date or self.instance.date
             time_value = time_value or self.instance.time
         else:
-            # On create: infer service_instance_type from request user if not provided
-            request = self.context.get("request")
-            if not service_instance_type and request and request.user:
+            # Create: resolve service_instance_type (client may send string "custom_service")
+            if str(raw_type) == "custom_service" and service_instance_id:
+                # Custom service path: validate and resolve placeholder ServicesType
+                try:
+                    custom = CustomService.objects.select_related("content_type").get(id=service_instance_id)
+                except CustomService.DoesNotExist:
+                    raise serializers.ValidationError(
+                        {"service_instance_id": ["Servicio no encontrado."]}
+                    )
+                if not request or not request.user.is_authenticated:
+                    raise serializers.ValidationError(
+                        {"service_instance_id": ["Debes iniciar sesión."]}
+                    )
+                provider = custom.provider
+                if not provider:
+                    raise serializers.ValidationError(
+                        {"service_instance_id": ["Servicio no válido."]}
+                    )
+                # Check ownership: provider must be current user's profile
                 if request.user.role == "PROFESSIONAL":
-                    service_instance_type = ContentType.objects.get_for_model(ProfessionalService)
+                    if getattr(provider, "user_id", None) != request.user.id:
+                        raise serializers.ValidationError(
+                            {"service_instance_id": ["El servicio no pertenece a tu perfil."]}
+                        )
                 elif request.user.role == "PLACE":
-                    service_instance_type = ContentType.objects.get_for_model(ServiceInPlace)
-                if service_instance_type:
-                    attrs["service_instance_type"] = service_instance_type
+                    if getattr(provider, "user_id", None) != request.user.id:
+                        raise serializers.ValidationError(
+                            {"service_instance_id": ["El servicio no pertenece a tu perfil."]}
+                        )
+                else:
+                    raise serializers.ValidationError(
+                        {"service_instance_type": ["Solo profesionales y lugares pueden crear sesiones grupales."]}
+                    )
+                category, _ = ServicesCategory.objects.get_or_create(
+                    name="Personalizado",
+                    defaults={"description": "Servicios personalizados"},
+                )
+                service_type, _ = ServicesType.objects.get_or_create(
+                    category=category,
+                    name=custom.name[:100],
+                    defaults={
+                        "description": custom.description or f"Servicio personalizado: {custom.name}",
+                    },
+                )
+                attrs["service"] = service_type
+                attrs["service_instance_type"] = ContentType.objects.get_for_model(CustomService)
+                attrs["service_instance_id"] = custom.id
+                service_instance_type = attrs["service_instance_type"]
+                service_instance_id = attrs["service_instance_id"]
+                service = service_type
+                service_instance_obj = custom
+            else:
+                service_instance_obj = None
+                if not service_instance_type and request and request.user:
+                    if request.user.role == "PROFESSIONAL":
+                        service_instance_type = ContentType.objects.get_for_model(ProfessionalService)
+                    elif request.user.role == "PLACE":
+                        service_instance_type = ContentType.objects.get_for_model(ServiceInPlace)
+                    if service_instance_type:
+                        attrs["service_instance_type"] = service_instance_type
+        # Re-read after possible custom path
+        service_instance_type = attrs.get("service_instance_type") or service_instance_type
+        service_instance_id = attrs.get("service_instance_id") or service_instance_id
+        service = attrs.get("service") or service
 
         errors = {}
 
@@ -623,8 +686,12 @@ class GroupSessionSerializer(serializers.ModelSerializer):
             errors["service_instance_id"] = [
                 "service_instance_type and service_instance_id are required for group sessions."
             ]
+        if service is None and not errors:
+            errors["service"] = ["Selecciona un servicio."]
         if capacity is not None and capacity <= 0:
             errors["capacity"] = ["Capacity must be greater than 0."]
+        if self.instance and capacity is not None and capacity < getattr(self.instance, "booked_slots", 0):
+            errors["capacity"] = ["Capacity cannot be less than the number of already booked slots."]
         if duration is not None and duration <= timedelta(0):
             errors["duration"] = ["Duration must be greater than 0."]
         if date and time_value:
@@ -634,42 +701,44 @@ class GroupSessionSerializer(serializers.ModelSerializer):
             if starts_at <= timezone.now():
                 errors["date"] = ["Group session must be scheduled in the future."]
 
-        service_instance_obj = None
-        if service_instance_type and service_instance_id:
+        if not errors and service_instance_type and service_instance_id:
             model = service_instance_type.model_class()
-            if model not in (ProfessionalService, ServiceInPlace):
-                errors["service_instance_type"] = [
-                    "service_instance_type must be ProfessionalService or ServiceInPlace."
-                ]
-            else:
+            if model == CustomService:
+                service_instance_obj = CustomService.objects.filter(id=service_instance_id).first()
+            elif model in (ProfessionalService, ServiceInPlace):
                 service_instance_obj = model.objects.filter(id=service_instance_id).first()
-                if not service_instance_obj:
-                    errors["service_instance_id"] = ["Service instance not found."]
-                elif service and service_instance_obj.service_id != service.id:
+                if service_instance_obj and service and getattr(service_instance_obj, "service_id", None) != service.id:
                     errors["service"] = [
                         "Selected service does not match the service instance."
                     ]
+            else:
+                errors["service_instance_type"] = [
+                    "service_instance_type must be ProfessionalService, ServiceInPlace or CustomService."
+                ]
+                service_instance_obj = None
 
-        request = self.context.get("request")
-        if request and service_instance_obj:
-            user = request.user
-            if user.role == "PROFESSIONAL":
-                if not isinstance(service_instance_obj, ProfessionalService):
-                    errors["service_instance_type"] = [
-                        "Professionals can only create group sessions from professional services."
-                    ]
-                elif service_instance_obj.professional.user_id != user.id:
-                    errors["service_instance_id"] = ["Service instance does not belong to this professional."]
-            elif user.role == "PLACE":
-                if not isinstance(service_instance_obj, ServiceInPlace):
-                    errors["service_instance_type"] = [
-                        "Places can only create group sessions from place services."
-                    ]
-                elif service_instance_obj.place.user_id != user.id:
-                    errors["service_instance_id"] = ["Service instance does not belong to this place."]
+            if not errors and service_instance_obj and model in (ProfessionalService, ServiceInPlace):
+                user = request.user if request else None
+                if user and user.role == "PROFESSIONAL":
+                    if not isinstance(service_instance_obj, ProfessionalService):
+                        errors["service_instance_type"] = [
+                            "Professionals can only create group sessions from professional services."
+                        ]
+                    elif service_instance_obj.professional.user_id != user.id:
+                        errors["service_instance_id"] = ["Service instance does not belong to this professional."]
+                elif user and user.role == "PLACE":
+                    if not isinstance(service_instance_obj, ServiceInPlace):
+                        errors["service_instance_type"] = [
+                            "Places can only create group sessions from place services."
+                        ]
+                    elif service_instance_obj.place.user_id != user.id:
+                        errors["service_instance_id"] = ["Service instance does not belong to this place."]
 
         if errors:
             raise serializers.ValidationError(errors)
+        # Don't pass string service_instance_type to model; view will set ContentType for place/professional
+        if not isinstance(attrs.get("service_instance_type"), ContentType):
+            attrs.pop("service_instance_type", None)
         return attrs
 
 
@@ -732,7 +801,7 @@ class ReservationUpdateSerializer(serializers.ModelSerializer):
         fields = ['date', 'time', 'notes', 'status']
     
     def validate(self, attrs):
-        # Only allow updates if reservation is pending
+        # Allow updates if reservation is PENDING or CONFIRMED (client or provider can edit)
         if self.instance.status not in ['PENDING', 'CONFIRMED']:
             raise serializers.ValidationError("Cannot update completed or cancelled reservations")
         

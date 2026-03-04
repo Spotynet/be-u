@@ -5,7 +5,7 @@ import {
   VectorIcon,
 } from "expo-router/unstable-native-tabs";
 import React from "react";
-import {MaterialCommunityIcons} from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 

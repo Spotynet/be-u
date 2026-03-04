@@ -14,7 +14,8 @@ from .serializers import (
 from .permissions import IsReservationClient, IsReservationProvider, CanViewReservation
 from django.http import Http404
 from users.models import ProfessionalProfile, PlaceProfile
-from services.models import TimeSlotBlock, ProfessionalService, ServiceInPlace
+from users.profile_models import CustomService
+from services.models import TimeSlotBlock, ProfessionalService, ServiceInPlace, ServicesCategory, ServicesType
 from reservations.availability import check_slot_availability
 from users.profile_models import PlaceProfessionalLink
 
@@ -544,7 +545,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['patch'], url_path='cancel')
     def cancel_reservation(self, request, pk=None):
-        """Cancel a reservation (client or provider)"""
+        """Cancel a reservation (client or provider). Both can cancel PENDING and CONFIRMED."""
         reservation = self.get_object()
         
         is_client = reservation.client.user == request.user
@@ -749,22 +750,86 @@ class GroupSessionViewSet(viewsets.ModelViewSet):
                 queryset = queryset.none()
         return queryset.order_by("date", "time")
 
+    def create(self, request, *args, **kwargs):
+        """Pre-process service_instance_type (custom_service, professional_service, place_service)."""
+        raw_type = request.data.get("service_instance_type")
+        raw_str = str(raw_type) if raw_type is not None else ""
+        if raw_str == "custom_service":
+            try:
+                sid = int(request.data.get("service_instance_id") or 0)
+            except (TypeError, ValueError):
+                sid = 0
+            if sid:
+                try:
+                    custom = CustomService.objects.select_related("content_type").get(id=sid)
+                except CustomService.DoesNotExist:
+                    return Response(
+                        {"service_instance_id": ["Servicio no encontrado."]},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                provider = getattr(custom, "provider", None)
+                if not provider or getattr(provider, "user_id", None) != request.user.id:
+                    return Response(
+                        {"service_instance_id": ["El servicio no pertenece a tu perfil."]},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                cat, _ = ServicesCategory.objects.get_or_create(
+                    name="Personalizado",
+                    defaults={"description": "Servicios personalizados"},
+                )
+                st, _ = ServicesType.objects.get_or_create(
+                    category=cat,
+                    name=custom.name[:100],
+                    defaults={"description": custom.description or f"Servicio personalizado: {custom.name}"},
+                )
+                ct = ContentType.objects.get_for_model(CustomService)
+                data = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+                if hasattr(data, "_mutable"):
+                    data._mutable = True
+                data["service"] = st.pk
+                data["service_instance_type"] = ct.pk
+                data["service_instance_id"] = custom.id
+                serializer = self.get_serializer(data=data)
+                serializer.is_valid(raise_exception=True)
+                self.perform_create(serializer)
+                headers = self.get_success_headers(serializer.data)
+                return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        # Convert professional_service/place_service string to ContentType pk for serializer
+        if raw_str in ("professional_service", "place_service"):
+            model_cls = ProfessionalService if raw_str == "professional_service" else ServiceInPlace
+            ct = ContentType.objects.get_for_model(model_cls)
+            data = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+            if hasattr(data, "_mutable"):
+                data._mutable = True
+            data["service_instance_type"] = ct.pk
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         user = self.request.user
         if user.role == "PROFESSIONAL":
             ct = ContentType.objects.get_for_model(ProfessionalProfile)
             provider_id = user.professional_profile.id
-            service_instance_ct = ContentType.objects.get_for_model(ProfessionalService)
+            default_service_instance_ct = ContentType.objects.get_for_model(ProfessionalService)
         elif user.role == "PLACE":
             ct = ContentType.objects.get_for_model(PlaceProfile)
             provider_id = user.place_profile.id
-            service_instance_ct = ContentType.objects.get_for_model(ServiceInPlace)
+            default_service_instance_ct = ContentType.objects.get_for_model(ServiceInPlace)
         else:
             raise PermissionError("Only professionals and places can create group sessions")
+        validated = serializer.validated_data
+        # Use serializer-resolved type/id when present (e.g. custom service)
+        service_instance_ct = validated.get("service_instance_type") or default_service_instance_ct
+        service_instance_id = validated.get("service_instance_id")
         serializer.save(
             provider_content_type=ct,
             provider_object_id=provider_id,
             service_instance_type=service_instance_ct,
+            service_instance_id=service_instance_id,
         )
 
     @action(detail=True, methods=["post"], url_path="reserve")
@@ -775,15 +840,19 @@ class GroupSessionViewSet(viewsets.ModelViewSet):
         if session.remaining_slots <= 0:
             return Response({"error": "No slots available"}, status=status.HTTP_400_BAD_REQUEST)
 
-        service_instance_type = "professional_service"
-        if session.provider_content_type.model == "placeprofile":
+        st_ct = getattr(session, "service_instance_type", None)
+        if st_ct and getattr(st_ct, "model", None) == "customservice":
+            service_instance_type = "custom_service"
+        elif session.provider_content_type.model == "placeprofile":
             service_instance_type = "place_service"
+        else:
+            service_instance_type = "professional_service"
 
         serializer = ReservationCreateSerializer(
             data={
                 "group_session_id": session.id,
                 "service_instance_type": service_instance_type,
-                "service_instance_id": session.service_instance_id or session.service.id,
+                "service_instance_id": session.service_instance_id or getattr(session.service, "id", None),
                 "date": session.date,
                 "time": session.time,
                 "notes": request.data.get("notes", ""),

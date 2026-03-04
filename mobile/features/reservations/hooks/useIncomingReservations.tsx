@@ -76,6 +76,18 @@ export const useIncomingReservations = () => {
     }
   };
 
+  const cancelReservation = async (id: number, reason?: string) => {
+    try {
+      await reservationApi.cancelReservation(id, reason);
+      Alert.alert("Éxito", "Reservación cancelada");
+      fetchReservations();
+    } catch (err) {
+      const message = errorUtils.getErrorMessage(err);
+      Alert.alert("Error", message);
+      throw err;
+    }
+  };
+
   return {
     reservations,
     isLoading,
@@ -85,6 +97,7 @@ export const useIncomingReservations = () => {
     confirmReservation,
     rejectReservation,
     completeReservation,
+    cancelReservation,
     refreshReservations: fetchReservations,
   };
 };

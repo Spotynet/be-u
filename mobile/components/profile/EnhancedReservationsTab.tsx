@@ -74,12 +74,14 @@ export function EnhancedReservationsTab({
     confirmReservation,
     rejectReservation,
     completeReservation,
+    cancelReservation: providerCancelReservation,
   } = useIncomingReservations();
 
   const isClient = userRole === "CLIENT";
   const isProvider = userRole === "PROFESSIONAL" || userRole === "PLACE";
   const isPlace = userRole === "PLACE";
-  const canManageAsProvider = userRole === "PROFESSIONAL";
+  const canManageAsProvider = isProvider; // PROFESSIONAL and PLACE can edit/cancel/complete
+  const cancelReservationFn = isClient ? cancelReservation : providerCancelReservation;
 
   const fetchTeamLinks = async () => {
     try {
@@ -227,6 +229,18 @@ export function EnhancedReservationsTab({
   };
 
   const handleCancel = async (id: number) => {
+    const doCancel = async (reason?: string) => {
+      try {
+        await cancelReservationFn(id, reason);
+        if (isPlace) fetchTeamReservations();
+      } catch (err) {
+        // Error already handled
+      }
+    };
+    if (Platform.OS === "web") {
+      doCancel();
+      return;
+    }
     Alert.prompt(
       "Cancelar Reserva",
       "¿Por qué cancelas esta reserva? (opcional)",
@@ -235,13 +249,7 @@ export function EnhancedReservationsTab({
         {
           text: "Cancelar Reserva",
           style: "destructive",
-          onPress: async (reason) => {
-            try {
-              await cancelReservation(id, reason);
-            } catch (err) {
-              // Error already handled
-            }
-          },
+          onPress: (reason) => doCancel(reason),
         },
       ],
       "plain-text"
@@ -513,7 +521,7 @@ export function EnhancedReservationsTab({
               showActions={canManageAsProvider}
               onConfirm={canManageAsProvider ? handleConfirm : undefined}
               onReject={canManageAsProvider ? handleReject : undefined}
-              onCancel={isClient ? handleCancel : undefined}
+              onCancel={(isClient || isProvider) ? handleCancel : undefined}
               onComplete={canManageAsProvider && timeTab === "history" ? handleComplete : undefined}
               onPress={() => router.push(`/reservation/${item.id}` as any)}
             />

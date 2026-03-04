@@ -8,7 +8,7 @@ import {
   Dimensions,
   Animated,
 } from "react-native";
-import {Ionicons} from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import Svg, {Rect, Defs, Mask} from "react-native-svg";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useProviderTour} from "@/features/onboarding/ProviderTourProvider";

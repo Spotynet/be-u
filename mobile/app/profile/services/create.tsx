@@ -17,7 +17,9 @@ import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "../../../contexts/ThemeVariantContext";
 import {profileCustomizationApi} from "../../../lib/api";
 import {useNavigation} from "../../../hooks/useNavigation";
-import {MAIN_CATEGORIES} from "../../../constants/categories";
+import {MAIN_CATEGORIES, getSubCategories} from "../../../constants/categories";
+
+const NAME_MAX_LENGTH = 100;
 
 export default function CreateServiceScreen() {
   const router = useRouter();
@@ -26,7 +28,8 @@ export default function CreateServiceScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [allowedCategories, setAllowedCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("otros");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>("");
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -49,14 +52,17 @@ export default function CreateServiceScreen() {
         if (categories.length > 0) {
           setAllowedCategories(categories);
           setSelectedCategory(categories[0]);
+          setSelectedSubcategory("");
         } else {
           setAllowedCategories([]);
-          setSelectedCategory("otros");
+          setSelectedCategory("");
+          setSelectedSubcategory("");
         }
       } catch {
         if (!mounted) return;
         setAllowedCategories([]);
-        setSelectedCategory("otros");
+        setSelectedCategory("");
+        setSelectedSubcategory("");
       }
     };
     loadAllowedCategories();
@@ -66,9 +72,30 @@ export default function CreateServiceScreen() {
   }, []);
 
   const handleSave = async () => {
+    // If the profile has no active categories, block creation with a clear message
+    if (!allowedCategories.length) {
+      Alert.alert(
+        "Configura tus categorías",
+        "Antes de crear servicios, agrega al menos una categoría activa en tu perfil público.",
+        [
+          {text: "Cancelar", style: "cancel"},
+          {text: "Ir a configuración", onPress: () => router.push("/profile/config")},
+        ]
+      );
+      return;
+    }
+
     // Validation
     if (!formData.name.trim()) {
       Alert.alert("Error", "El nombre del servicio es requerido");
+      return;
+    }
+    if (formData.name.length > NAME_MAX_LENGTH) {
+      Alert.alert("Error", `El nombre no puede superar ${NAME_MAX_LENGTH} caracteres`);
+      return;
+    }
+    if (allowedCategories.length > 0 && !selectedCategory) {
+      Alert.alert("Error", "Selecciona una categoría");
       return;
     }
     if (!formData.price || isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
@@ -86,12 +113,13 @@ export default function CreateServiceScreen() {
 
     setLoading(true);
     try {
+      // Backend validates against main categories only (belleza, bienestar, mascotas)
       await profileCustomizationApi.createCustomService({
-        name: formData.name.trim(),
+        name: formData.name.trim().slice(0, NAME_MAX_LENGTH),
         description: formData.description.trim() || "",
         price: Number(formData.price),
         duration_minutes: Number(formData.duration_minutes),
-        category: selectedCategory,
+        category: selectedCategory || "otros",
         is_active: true,
       });
 
@@ -101,7 +129,7 @@ export default function CreateServiceScreen() {
     } catch (err: any) {
       console.error("Error creating service:", err);
       const data = err?.response?.data;
-      const message =
+      let message =
         typeof data?.error === "string"
           ? data.error
           : typeof data?.detail === "string"
@@ -111,6 +139,18 @@ export default function CreateServiceScreen() {
                   .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
                   .join("\n")
               : err?.message || "No se pudo crear el servicio";
+
+      // If backend complains about category not being in active categories,
+      // show a more user-friendly explanation and shortcut.
+      if (
+        typeof message === "string" &&
+        message.toLowerCase().includes("categoria del servicio debe estar dentro de tus categorias activas")
+      ) {
+        message =
+          "La categoría seleccionada no coincide con tus categorías activas. " +
+          "Actualiza tus categorías en el perfil antes de crear este servicio.";
+      }
+
       Alert.alert("Error", message);
     } finally {
       setLoading(false);
@@ -157,24 +197,107 @@ export default function CreateServiceScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        {/* Service Name */}
+        {/* Service Name — free text, max 100 chars */}
         <View style={styles.inputGroup}>
-          <Text style={[styles.label, {color: colors.foreground}]}>Nombre del Servicio</Text>
+          <Text style={[styles.label, {color: colors.foreground}]}>
+            Nombre del servicio <Text style={{color: "#ef4444"}}>*</Text>
+          </Text>
           <TextInput
             style={[
               styles.input,
               {backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground},
             ]}
             value={formData.name}
-            onChangeText={(text) => setFormData({...formData, name: text})}
+            onChangeText={(text) =>
+              setFormData({...formData, name: text.slice(0, NAME_MAX_LENGTH)})
+            }
             placeholder="Ej: Corte de cabello"
             placeholderTextColor={colors.mutedForeground}
+            maxLength={NAME_MAX_LENGTH}
           />
+          <Text style={[styles.hint, {color: colors.mutedForeground}]}>
+            {formData.name.length}/{NAME_MAX_LENGTH} caracteres
+          </Text>
         </View>
+
+        {/* Category selector */}
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>
+            Categoría <Text style={{color: "#ef4444"}}>*</Text>
+          </Text>
+          <View style={styles.categoryChipsWrap}>
+            {(allowedCategories.length > 0 ? allowedCategories : ["belleza", "bienestar", "mascotas", "otros"]).map(
+              (categoryId) => {
+                const categoryName =
+                  MAIN_CATEGORIES.find((c) => c.id === (categoryId as any))?.name || categoryId;
+                const active = selectedCategory === categoryId;
+                return (
+                  <TouchableOpacity
+                    key={categoryId}
+                    style={[
+                      styles.categoryChip,
+                      {
+                        backgroundColor: active ? colors.primary : colors.card,
+                        borderColor: active ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      setSelectedCategory(categoryId);
+                      setSelectedSubcategory("");
+                    }}
+                    activeOpacity={0.8}>
+                    <Text
+                      style={[
+                        styles.categoryChipText,
+                        {color: active ? colors.primaryForeground : colors.foreground},
+                      ]}>
+                      {categoryName}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }
+            )}
+          </View>
+        </View>
+
+        {/* Subcategory selector — only when a main category is selected */}
+        {selectedCategory && getSubCategories(selectedCategory).length > 0 && (
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, {color: colors.foreground}]}>Subcategoría</Text>
+            <View style={styles.categoryChipsWrap}>
+              {getSubCategories(selectedCategory).map((sub) => {
+                const active = selectedSubcategory === sub.id;
+                return (
+                  <TouchableOpacity
+                    key={sub.id}
+                    style={[
+                      styles.categoryChip,
+                      {
+                        backgroundColor: active ? colors.primary : colors.card,
+                        borderColor: active ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={() =>
+                      setSelectedSubcategory(active ? "" : sub.id)
+                    }
+                    activeOpacity={0.8}>
+                    <Text
+                      style={[
+                        styles.categoryChipText,
+                        {color: active ? colors.primaryForeground : colors.foreground},
+                      ]}>
+                      {sub.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
 
         {/* Service Description */}
         <View style={styles.inputGroup}>
-          <Text style={[styles.label, {color: colors.foreground}]}>Descripción</Text>
+          <Text style={[styles.label, {color: colors.foreground}]}>Descripción (opcional)</Text>
           <TextInput
             style={[
               styles.textArea,
@@ -188,39 +311,6 @@ export default function CreateServiceScreen() {
             numberOfLines={4}
             textAlignVertical="top"
           />
-        </View>
-
-        {/* Category */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, {color: colors.foreground}]}>Categoría del servicio</Text>
-          <View style={styles.categoryChipsWrap}>
-            {(allowedCategories.length > 0 ? allowedCategories : ["otros"]).map((categoryId) => {
-              const categoryName =
-                MAIN_CATEGORIES.find((c) => c.id === (categoryId as any))?.name || categoryId;
-              const active = selectedCategory === categoryId;
-              return (
-                <TouchableOpacity
-                  key={categoryId}
-                  style={[
-                    styles.categoryChip,
-                    {
-                      backgroundColor: active ? colors.primary : colors.card,
-                      borderColor: active ? colors.primary : colors.border,
-                    },
-                  ]}
-                  onPress={() => setSelectedCategory(categoryId)}
-                  activeOpacity={0.8}>
-                  <Text
-                    style={[
-                      styles.categoryChipText,
-                      {color: active ? colors.primaryForeground : colors.foreground},
-                    ]}>
-                    {categoryName}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
         </View>
 
         {/* Price */}
@@ -311,6 +401,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 8,
+  },
+  hint: {
+    fontSize: 12,
+    marginTop: 4,
   },
   input: {
     borderWidth: 1,

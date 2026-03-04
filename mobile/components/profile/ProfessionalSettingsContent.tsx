@@ -59,7 +59,7 @@ export function ProfessionalSettingsContent() {
         router.push("/guardados");
         break;
       case "notifications":
-        router.push("/(tabs)/notificaciones");
+        router.push("/notificaciones");
         break;
       case "privacy":
         break;
@@ -70,7 +70,8 @@ export function ProfessionalSettingsContent() {
         router.push("/profile/images");
         break;
       case "services":
-        router.push("/profile/services");
+        // Go to native services management used by reservations / group sessions
+        router.push("/services");
         break;
       case "schedule":
         router.push("/availability");

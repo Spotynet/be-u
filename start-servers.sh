@@ -3,20 +3,19 @@
 echo "Starting Be-U Development Servers..."
 echo
 
-echo "Starting Django Backend on port 8000..."
-cd backend && python run_server.py &
+echo "Starting Django Backend on port 8000 (using .venv)..."
+cd backend && source .venv/bin/activate && python run_server.py &
 BACKEND_PID=$!
 
 echo
-echo "Starting Next.js Frontend on port 3000..."
-cd ../web && npm run dev &
-FRONTEND_PID=$!
+echo "Starting Expo Mobile (web mode, -w)..."
+cd ../mobile && npm run start -- -w &
+MOBILE_PID=$!
 
 echo
 echo "Both servers are starting..."
-echo "Backend: http://localhost:8000/api/ (internal)"
-echo "Frontend: http://localhost:3000/ (public)"
-echo "API: http://localhost:3000/api/ (proxied)"
+echo "Backend API: http://localhost:8000/api/ (internal)"
+echo "Mobile (Expo web -w): usually http://localhost:19006 or as shown in Expo logs"
 echo
 echo "Press Ctrl+C to stop both servers"
 

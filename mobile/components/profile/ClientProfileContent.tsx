@@ -60,7 +60,7 @@ export function ClientProfileContent() {
         router.push("/guardados");
         break;
       case "notifications":
-        router.push("/(tabs)/notificaciones");
+        router.push("/notificaciones");
         break;
       case "privacy":
         break;

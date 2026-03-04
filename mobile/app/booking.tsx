@@ -15,7 +15,7 @@ import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
-import {Ionicons} from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import {useState, useEffect} from "react";
 import {useAuth} from "@/features/auth";
 import {useReservationFlow} from "@/features/reservations";
@@ -1082,7 +1082,7 @@ export default function BookingScreen() {
                                 styles.availableTimeText,
                                 {color: selected ? "#ffffff" : colors.foreground},
                               ]}>
-                              {String(session.time).slice(0, 5)} ({session.remaining_slots} cupos)
+                              {String(session.time).slice(0, 5)} ({session.booked_slots ?? 0}/{session.capacity})
                             </Text>
                           </TouchableOpacity>
                         );

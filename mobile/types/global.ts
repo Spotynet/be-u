@@ -147,7 +147,19 @@ export interface ProfessionalService {
   created_at: string;
 }
 
-export type UserService = PlaceService | ProfessionalService;
+export interface CustomServiceItem {
+  id: number;
+  type: "custom_service";
+  name: string;
+  description?: string;
+  category: string;
+  price: number;
+  duration: number;
+  is_active: boolean;
+  created_at?: string;
+}
+
+export type UserService = PlaceService | ProfessionalService | CustomServiceItem;
 
 export type ReservationStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "REJECTED";
 

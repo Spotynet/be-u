@@ -7,28 +7,34 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect} from "react";
 import {useAuth} from "@/features/auth";
-import {useServiceManagement} from "@/features/services";
 import {useRouter} from "expo-router";
-import {serviceApi, errorUtils} from "@/lib/api";
+import {profileCustomizationApi, errorUtils} from "@/lib/api";
+import {MAIN_CATEGORIES, getSubCategories} from "@/constants/categories";
+
+const NAME_MAX_LENGTH = 100;
 
 export default function CreateServiceScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const router = useRouter();
   const {user, isAuthenticated} = useAuth();
-  const {createService, isLoading: creating} = useServiceManagement();
 
-  const [serviceTypes, setServiceTypes] = useState<any[]>([]);
-  const [loadingTypes, setLoadingTypes] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [allowedCategories, setAllowedCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSubcategory, setSelectedSubcategory] = useState("");
 
   const [formData, setFormData] = useState({
-    service: 0,
+    name: "",
     description: "",
     duration: 60,
     price: 0,
@@ -36,60 +42,102 @@ export default function CreateServiceScreen() {
   });
 
   const [errors, setErrors] = useState({
-    service: "",
+    name: "",
+    category: "",
     price: "",
     duration: "",
   });
 
   useEffect(() => {
-    fetchServiceTypes();
+    let mounted = true;
+    const load = async () => {
+      try {
+        setLoadingCategories(true);
+        const res = await profileCustomizationApi.getProfileImages();
+        const raw = res?.data?.category;
+        const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+        if (!mounted) return;
+        if (list.length > 0) {
+          setAllowedCategories(list);
+          setSelectedCategory(list[0]);
+          setSelectedSubcategory("");
+        } else {
+          setAllowedCategories(["belleza", "bienestar", "mascotas", "otros"]);
+          setSelectedCategory("belleza");
+        }
+      } catch {
+        if (!mounted) return;
+        setAllowedCategories(["belleza", "bienestar", "mascotas", "otros"]);
+        setSelectedCategory("belleza");
+      } finally {
+        if (mounted) setLoadingCategories(false);
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const fetchServiceTypes = async () => {
-    try {
-      setLoadingTypes(true);
-      const response = await serviceApi.getServiceTypes();
-      setServiceTypes(response.data.results || []);
-    } catch (err) {
-      const message = errorUtils.getErrorMessage(err);
-      Alert.alert("Error", message);
-    } finally {
-      setLoadingTypes(false);
-    }
-  };
-
   const validateForm = (): boolean => {
-    const newErrors = {service: "", price: "", duration: ""};
-    let isValid = true;
-
-    if (formData.service === 0) {
-      newErrors.service = "Selecciona un tipo de servicio";
-      isValid = false;
+    const next = {name: "", category: "", price: "", duration: ""};
+    let ok = true;
+    if (!formData.name.trim()) {
+      next.name = "El nombre es requerido";
+      ok = false;
+    } else if (formData.name.length > NAME_MAX_LENGTH) {
+      next.name = `Máximo ${NAME_MAX_LENGTH} caracteres`;
+      ok = false;
     }
-
+    if (allowedCategories.length > 0 && !selectedCategory) {
+      next.category = "Selecciona una categoría";
+      ok = false;
+    }
     if (formData.price <= 0) {
-      newErrors.price = "El precio debe ser mayor a 0";
-      isValid = false;
+      next.price = "El precio debe ser mayor a 0";
+      ok = false;
     }
-
     if (formData.duration <= 0) {
-      newErrors.duration = "La duración debe ser mayor a 0";
-      isValid = false;
+      next.duration = "La duración debe ser mayor a 0";
+      ok = false;
     }
-
-    setErrors(newErrors);
-    return isValid;
+    setErrors(next);
+    return ok;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
+    if (allowedCategories.length === 0) {
+      Alert.alert(
+        "Configura tus categorías",
+        "Agrega al menos una categoría activa en tu perfil público antes de crear servicios.",
+        [
+          {text: "Cancelar", style: "cancel"},
+          {text: "Ir a configuración", onPress: () => router.push("/profile/config")},
+        ]
+      );
+      return;
+    }
 
+    setLoading(true);
     try {
-      await createService(formData);
-      // Navigate to services page instead of going back
-      router.push("/services");
-    } catch (err) {
-      // Error already handled in hook
+      // Backend only accepts main categories (belleza, bienestar, mascotas) for validation
+      await profileCustomizationApi.createCustomService({
+        name: formData.name.trim().slice(0, NAME_MAX_LENGTH),
+        description: formData.description.trim() || "",
+        price: Number(formData.price),
+        duration_minutes: Number(formData.duration),
+        category: selectedCategory || "otros",
+        is_active: true,
+      });
+      Alert.alert("Éxito", "Servicio creado correctamente", [
+        {text: "OK", onPress: () => router.push("/services")},
+      ]);
+    } catch (err: any) {
+      const msg = errorUtils.getErrorMessage(err);
+      Alert.alert("Error", msg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -106,8 +154,14 @@ export default function CreateServiceScreen() {
     );
   }
 
+  const categoriesToShow =
+    allowedCategories.length > 0 ? allowedCategories : ["belleza", "bienestar", "mascotas", "otros"];
+  const subcategories = selectedCategory ? getSubCategories(selectedCategory) : [];
+
   return (
-    <View style={[styles.container, {backgroundColor: colors.background}]}>
+    <KeyboardAvoidingView
+      style={[styles.container, {backgroundColor: colors.background}]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}>
       {/* Header */}
       <View
         style={[
@@ -124,139 +178,200 @@ export default function CreateServiceScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      {/* Form */}
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.form}>
-          {/* Service Type Selection */}
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, {color: colors.foreground}]}>Tipo de Servicio *</Text>
-            {loadingTypes ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.serviceTypesScroll}>
-                {serviceTypes.map((type) => {
-                  const isSelected = formData.service === type.id;
-                  return (
-                    <TouchableOpacity
-                      key={type.id}
-                      style={[
-                        styles.serviceTypeCard,
-                        {
-                          backgroundColor: isSelected ? colors.primary : colors.card,
-                          borderColor: isSelected ? colors.primary : colors.border,
-                        },
-                      ]}
-                      onPress={() => setFormData({...formData, service: type.id})}
-                      activeOpacity={0.7}>
-                      <Text
-                        style={[
-                          styles.serviceTypeName,
-                          {color: isSelected ? "#ffffff" : colors.foreground},
-                        ]}>
-                        {type.name}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.serviceTypeCategory,
-                          {color: isSelected ? "#ffffff" : colors.mutedForeground},
-                        ]}>
-                        {type.category_name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
-            {errors.service ? (
-              <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.service}</Text>
-            ) : null}
-          </View>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.form}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
+        {/* Nombre — texto libre, máx 100 */}
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>
+            Nombre del servicio <Text style={{color: "#ef4444"}}>*</Text>
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.card,
+                color: colors.foreground,
+                borderColor: colors.border,
+              },
+            ]}
+            value={formData.name}
+            onChangeText={(text) =>
+              setFormData({...formData, name: text.slice(0, NAME_MAX_LENGTH)})
+            }
+            placeholder="Ej: Corte de cabello"
+            placeholderTextColor={colors.mutedForeground}
+            maxLength={NAME_MAX_LENGTH}
+          />
+          <Text style={[styles.hint, {color: colors.mutedForeground}]}>
+            {formData.name.length}/{NAME_MAX_LENGTH} caracteres
+          </Text>
+          {errors.name ? (
+            <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.name}</Text>
+          ) : null}
+        </View>
 
-          {/* Description */}
+        {/* Categoría */}
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>
+            Categoría <Text style={{color: "#ef4444"}}>*</Text>
+          </Text>
+          {loadingCategories ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <View style={styles.chipsWrap}>
+              {categoriesToShow.map((catId) => {
+                const name =
+                  MAIN_CATEGORIES.find((c) => c.id === (catId as any))?.name || catId;
+                const active = selectedCategory === catId;
+                return (
+                  <TouchableOpacity
+                    key={catId}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: active ? colors.primary : colors.card,
+                        borderColor: active ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      setSelectedCategory(catId);
+                      setSelectedSubcategory("");
+                    }}
+                    activeOpacity={0.8}>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        {color: active ? "#ffffff" : colors.foreground},
+                      ]}>
+                      {name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+          {errors.category ? (
+            <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.category}</Text>
+          ) : null}
+        </View>
+
+        {/* Subcategoría */}
+        {selectedCategory && subcategories.length > 0 && (
           <View style={styles.formGroup}>
-            <Text style={[styles.label, {color: colors.foreground}]}>Descripción (Opcional)</Text>
+            <Text style={[styles.label, {color: colors.foreground}]}>Subcategoría</Text>
+            <View style={styles.chipsWrap}>
+              {subcategories.map((sub) => {
+                const active = selectedSubcategory === sub.id;
+                return (
+                  <TouchableOpacity
+                    key={sub.id}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: active ? colors.primary : colors.card,
+                        borderColor: active ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={() => setSelectedSubcategory(active ? "" : sub.id)}
+                    activeOpacity={0.8}>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        {color: active ? "#ffffff" : colors.foreground},
+                      ]}>
+                      {sub.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Descripción */}
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Descripción (opcional)</Text>
+          <TextInput
+            style={[
+              styles.textArea,
+              {
+                backgroundColor: colors.card,
+                color: colors.foreground,
+                borderColor: colors.border,
+              },
+            ]}
+            value={formData.description}
+            onChangeText={(text) => setFormData({...formData, description: text})}
+            placeholder="Describe tu servicio..."
+            placeholderTextColor={colors.mutedForeground}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
+        </View>
+
+        {/* Duración */}
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Duración (minutos) *</Text>
+          <View
+            style={[
+              styles.inputContainer,
+              {backgroundColor: colors.card, borderColor: colors.border},
+            ]}>
+            <Ionicons name="time-outline" size={20} color={colors.mutedForeground} />
             <TextInput
-              style={[
-                styles.textArea,
-                {
-                  backgroundColor: colors.card,
-                  color: colors.foreground,
-                  borderColor: colors.border,
-                },
-              ]}
-              value={formData.description}
-              onChangeText={(text) => setFormData({...formData, description: text})}
-              placeholder="Describe tu servicio..."
+              style={[styles.input, {color: colors.foreground}]}
+              value={formData.duration.toString()}
+              onChangeText={(text) => setFormData({...formData, duration: parseInt(text, 10) || 0})}
+              placeholder="60"
               placeholderTextColor={colors.mutedForeground}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
+              keyboardType="numeric"
+            />
+            <Text style={[styles.inputSuffix, {color: colors.mutedForeground}]}>min</Text>
+          </View>
+          {errors.duration ? (
+            <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.duration}</Text>
+          ) : null}
+        </View>
+
+        {/* Precio */}
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Precio *</Text>
+          <View
+            style={[
+              styles.inputContainer,
+              {backgroundColor: colors.card, borderColor: colors.border},
+            ]}>
+            <Ionicons name="cash-outline" size={20} color={colors.mutedForeground} />
+            <Text style={[styles.inputPrefix, {color: colors.mutedForeground}]}>$</Text>
+            <TextInput
+              style={[styles.input, {color: colors.foreground}]}
+              value={formData.price.toString()}
+              onChangeText={(text) =>
+                setFormData({...formData, price: parseFloat(text) || 0})
+              }
+              placeholder="0"
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="decimal-pad"
             />
           </View>
+          {errors.price ? (
+            <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.price}</Text>
+          ) : null}
+        </View>
 
-          {/* Duration */}
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, {color: colors.foreground}]}>Duración (minutos) *</Text>
-            <View
-              style={[
-                styles.inputContainer,
-                {backgroundColor: colors.card, borderColor: colors.border},
-              ]}>
-              <Ionicons name="time-outline" size={20} color={colors.mutedForeground} />
-              <TextInput
-                style={[styles.input, {color: colors.foreground}]}
-                value={formData.duration.toString()}
-                onChangeText={(text) => setFormData({...formData, duration: parseInt(text) || 0})}
-                placeholder="60"
-                placeholderTextColor={colors.mutedForeground}
-                keyboardType="numeric"
-              />
-              <Text style={[styles.inputSuffix, {color: colors.mutedForeground}]}>min</Text>
-            </View>
-            {errors.duration ? (
-              <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.duration}</Text>
-            ) : null}
-          </View>
-
-          {/* Price */}
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, {color: colors.foreground}]}>Precio *</Text>
-            <View
-              style={[
-                styles.inputContainer,
-                {backgroundColor: colors.card, borderColor: colors.border},
-              ]}>
-              <Ionicons name="cash-outline" size={20} color={colors.mutedForeground} />
-              <Text style={[styles.inputPrefix, {color: colors.mutedForeground}]}>$</Text>
-              <TextInput
-                style={[styles.input, {color: colors.foreground}]}
-                value={formData.price.toString()}
-                onChangeText={(text) => setFormData({...formData, price: parseFloat(text) || 0})}
-                placeholder="0.00"
-                placeholderTextColor={colors.mutedForeground}
-                keyboardType="decimal-pad"
-              />
-            </View>
-            {errors.price ? (
-              <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.price}</Text>
-            ) : null}
-          </View>
-
-          {/* Info Card */}
-          <View style={[styles.infoCard, {backgroundColor: colors.primary + "10"}]}>
-            <Ionicons name="information-circle" size={20} color={colors.primary} />
-            <Text style={[styles.infoText, {color: colors.primary}]}>
-              Este servicio estará disponible para que los clientes lo reserven según tu
-              disponibilidad configurada.
-            </Text>
-          </View>
+        <View style={[styles.infoCard, {backgroundColor: colors.primary + "10"}]}>
+          <Ionicons name="information-circle" size={20} color={colors.primary} />
+          <Text style={[styles.infoText, {color: colors.primary}]}>
+            Este servicio estará disponible para que los clientes lo reserven según tu
+            disponibilidad configurada.
+          </Text>
         </View>
       </ScrollView>
 
-      {/* Create Button */}
       <View
         style={[
           styles.footer,
@@ -265,9 +380,9 @@ export default function CreateServiceScreen() {
         <TouchableOpacity
           style={[styles.createButton, {backgroundColor: colors.primary}]}
           onPress={handleSubmit}
-          disabled={creating}
+          disabled={loading}
           activeOpacity={0.9}>
-          {creating ? (
+          {loading ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
             <>
@@ -277,7 +392,7 @@ export default function CreateServiceScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -309,6 +424,7 @@ const styles = StyleSheet.create({
   },
   form: {
     padding: 20,
+    paddingBottom: 40,
   },
   formGroup: {
     marginBottom: 24,
@@ -318,23 +434,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 10,
   },
-  serviceTypesScroll: {
-    gap: 12,
-  },
-  serviceTypeCard: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    minWidth: 140,
-  },
-  serviceTypeName: {
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  serviceTypeCategory: {
+  hint: {
     fontSize: 12,
-    fontWeight: "500",
+    marginTop: 4,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
   },
   inputContainer: {
     flexDirection: "row",
@@ -349,10 +455,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  input: {
-    flex: 1,
-    fontSize: 16,
-  },
   inputSuffix: {
     fontSize: 14,
     fontWeight: "500",
@@ -363,6 +465,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     fontSize: 15,
     minHeight: 100,
+  },
+  chipsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
   errorText: {
     fontSize: 13,
@@ -392,10 +509,6 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 20,
     fontWeight: "700",
-  },
-  errorText: {
-    fontSize: 15,
-    textAlign: "center",
   },
   footer: {
     padding: 16,
