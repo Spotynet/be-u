@@ -15,6 +15,8 @@ import {useRouter} from "expo-router";
 import {useState, useEffect} from "react";
 import {MediaUploader} from "@/components/posts/MediaUploader";
 import {LinkedServiceSelector, type CustomServiceItem} from "@/components/posts/LinkedServiceSelector";
+import {LinkedGroupSessionSelector} from "@/components/posts/LinkedGroupSessionSelector";
+import {SubcategorySelector} from "@/components/posts/SubcategorySelector";
 import {postApi, profileCustomizationApi} from "@/lib/api";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
@@ -31,6 +33,8 @@ export default function CreateMosaicPostScreen() {
   const [isUploading, setIsUploading] = useState(false);
   const [customServices, setCustomServices] = useState<CustomServiceItem[]>([]);
   const [linkedServiceId, setLinkedServiceId] = useState<number | null>(null);
+  const [linkedGroupSessionId, setLinkedGroupSessionId] = useState<number | null>(null);
+  const [linkedSubcategory, setLinkedSubcategory] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -65,7 +69,9 @@ export default function CreateMosaicPostScreen() {
         formData.append("content", description);
       }
       formData.append("post_type", "mosaic");
-      if (linkedServiceId != null) formData.append("linked_service_id", String(linkedServiceId));
+      if (linkedGroupSessionId != null) formData.append("linked_group_session_id", String(linkedGroupSessionId));
+      else if (linkedServiceId != null) formData.append("linked_service_id", String(linkedServiceId));
+      if (linkedSubcategory) formData.append("linked_subcategory", linkedSubcategory);
 
       // Add photos to FormData
       if (Platform.OS === "web") {
@@ -131,10 +137,27 @@ export default function CreateMosaicPostScreen() {
           selectedMedia={photos}
         />
 
+        <SubcategorySelector
+          selectedSubcategory={linkedSubcategory}
+          onSelect={setLinkedSubcategory}
+        />
+
+        <LinkedGroupSessionSelector
+          selectedSessionId={linkedGroupSessionId}
+          onSelect={(id) => {
+            setLinkedGroupSessionId(id);
+            if (id != null) setLinkedServiceId(null);
+          }}
+          colors={colors}
+        />
+
         <LinkedServiceSelector
           customServices={customServices}
           linkedServiceId={linkedServiceId}
-          onSelect={setLinkedServiceId}
+          onSelect={(id) => {
+            setLinkedServiceId(id);
+            if (id != null) setLinkedGroupSessionId(null);
+          }}
           colors={colors}
         />
 

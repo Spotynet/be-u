@@ -316,7 +316,8 @@ export default function PostDetailScreen() {
               style={[styles.reserveButton, { backgroundColor: colors.primary }]}
               onPress={() => {
                 const isOwnPost = user?.id != null && post.author?.id === user.id;
-                if (isOwnPost) return;
+                const hasBookingLink = post.linked_group_session_id != null || (post.linked_service_id != null && post.linked_provider_id != null);
+                if (isOwnPost && !hasBookingLink) return;
                 if (!user) {
                   Alert.alert(
                     "Inicia sesión",
@@ -325,7 +326,14 @@ export default function PostDetailScreen() {
                   );
                   return;
                 }
-                if (post.linked_service_id != null && post.linked_provider_id != null && post.linked_service_name) {
+                if (post.linked_group_session_id != null) {
+                  router.push({
+                    pathname: "/booking",
+                    params: {
+                      groupSessionId: String(post.linked_group_session_id),
+                    },
+                  } as any);
+                } else if (post.linked_service_id != null && post.linked_provider_id != null && post.linked_service_name) {
                   router.push({
                     pathname: "/booking",
                     params: {

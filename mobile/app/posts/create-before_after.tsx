@@ -15,6 +15,8 @@ import {useRouter} from "expo-router";
 import {useState, useEffect} from "react";
 import * as ImagePicker from "expo-image-picker";
 import {LinkedServiceSelector, type CustomServiceItem} from "@/components/posts/LinkedServiceSelector";
+import {LinkedGroupSessionSelector} from "@/components/posts/LinkedGroupSessionSelector";
+import {SubcategorySelector} from "@/components/posts/SubcategorySelector";
 import {postApi, tokenUtils, errorUtils, profileCustomizationApi} from "@/lib/api";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
@@ -31,6 +33,8 @@ export default function CreateBeforeAfterScreen() {
   const [description, setDescription] = useState("");
   const [customServices, setCustomServices] = useState<CustomServiceItem[]>([]);
   const [linkedServiceId, setLinkedServiceId] = useState<number | null>(null);
+  const [linkedGroupSessionId, setLinkedGroupSessionId] = useState<number | null>(null);
+  const [linkedSubcategory, setLinkedSubcategory] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -116,7 +120,9 @@ export default function CreateBeforeAfterScreen() {
       form.append("after", afterFile as any);
       form.append("caption", description);
       form.append("post_type", "before_after");
-      if (linkedServiceId != null) form.append("linked_service_id", String(linkedServiceId));
+      if (linkedGroupSessionId != null) form.append("linked_group_session_id", String(linkedGroupSessionId));
+      else if (linkedServiceId != null) form.append("linked_service_id", String(linkedServiceId));
+      if (linkedSubcategory) form.append("linked_subcategory", linkedSubcategory);
 
       await postApi.createBeforeAfterPost(form);
 
@@ -187,10 +193,27 @@ export default function CreateBeforeAfterScreen() {
           </View>
         )}
 
+        <SubcategorySelector
+          selectedSubcategory={linkedSubcategory}
+          onSelect={setLinkedSubcategory}
+        />
+
+        <LinkedGroupSessionSelector
+          selectedSessionId={linkedGroupSessionId}
+          onSelect={(id) => {
+            setLinkedGroupSessionId(id);
+            if (id != null) setLinkedServiceId(null);
+          }}
+          colors={colors}
+        />
+
         <LinkedServiceSelector
           customServices={customServices}
           linkedServiceId={linkedServiceId}
-          onSelect={setLinkedServiceId}
+          onSelect={(id) => {
+            setLinkedServiceId(id);
+            if (id != null) setLinkedGroupSessionId(null);
+          }}
           colors={colors}
         />
 

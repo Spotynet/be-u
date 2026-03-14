@@ -66,6 +66,13 @@ class PostSerializer(serializers.ModelSerializer):
     author_public_profile_id = serializers.SerializerMethodField()
     author_profile_type = serializers.SerializerMethodField()
     author_photo = serializers.SerializerMethodField()
+    linked_group_session_date = serializers.SerializerMethodField()
+    linked_group_session_time = serializers.SerializerMethodField()
+    linked_group_session_capacity = serializers.SerializerMethodField()
+    linked_group_session_booked_slots = serializers.SerializerMethodField()
+    linked_group_session_service_name = serializers.SerializerMethodField()
+    linked_group_session_provider_type = serializers.SerializerMethodField()
+    linked_group_session_provider_object_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
@@ -75,8 +82,14 @@ class PostSerializer(serializers.ModelSerializer):
             'author_category', 'author_sub_categories', 'author_display_name',
             'author_rating', 'author_profile_id', 'author_public_profile_id', 'author_profile_type',
             'author_photo',
+            'linked_subcategory',
             'linked_service_id', 'linked_service_type', 'linked_provider_id',
             'linked_service_name', 'linked_service_price', 'linked_service_duration_minutes',
+            'linked_group_session_id',
+            'linked_group_session_date', 'linked_group_session_time',
+            'linked_group_session_capacity', 'linked_group_session_booked_slots',
+            'linked_group_session_service_name', 'linked_group_session_provider_type',
+            'linked_group_session_provider_object_id',
         ]
         read_only_fields = ['id', 'author', 'created_at', 'updated_at']
 
@@ -205,6 +218,49 @@ class PostSerializer(serializers.ModelSerializer):
                     return profile.images[0]  # Return first image
         return None
 
+    def _get_linked_group_session(self, obj):
+        if not obj.linked_group_session_id:
+            return None
+        from reservations.models import GroupSession
+        try:
+            return GroupSession.objects.select_related('service').get(id=obj.linked_group_session_id)
+        except GroupSession.DoesNotExist:
+            return None
+
+    def get_linked_group_session_date(self, obj):
+        gs = self._get_linked_group_session(obj)
+        return str(gs.date) if gs else None
+
+    def get_linked_group_session_time(self, obj):
+        gs = self._get_linked_group_session(obj)
+        return str(gs.time)[:5] if gs and gs.time else None
+
+    def get_linked_group_session_capacity(self, obj):
+        gs = self._get_linked_group_session(obj)
+        return gs.capacity if gs else None
+
+    def get_linked_group_session_booked_slots(self, obj):
+        gs = self._get_linked_group_session(obj)
+        return gs.booked_slots if gs else None
+
+    def get_linked_group_session_service_name(self, obj):
+        gs = self._get_linked_group_session(obj)
+        return gs.service.name if gs and gs.service else None
+
+    def get_linked_group_session_provider_type(self, obj):
+        gs = self._get_linked_group_session(obj)
+        if not gs or not gs.provider_content_type:
+            return None
+        if gs.provider_content_type.model == 'professionalprofile':
+            return 'professional'
+        if gs.provider_content_type.model == 'placeprofile':
+            return 'place'
+        return None
+
+    def get_linked_group_session_provider_object_id(self, obj):
+        gs = self._get_linked_group_session(obj)
+        return gs.provider_object_id if gs else None
+
 class PostCreateSerializer(serializers.ModelSerializer):
     media = serializers.ListField(
         child=serializers.FileField(),
@@ -212,10 +268,12 @@ class PostCreateSerializer(serializers.ModelSerializer):
         required=False
     )
     linked_service_id = serializers.IntegerField(required=False, allow_null=True)
+    linked_group_session_id = serializers.IntegerField(required=False, allow_null=True)
+    linked_subcategory = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     class Meta:
         model = Post
-        fields = ['post_type', 'content', 'media', 'expires_at', 'linked_service_id']
+        fields = ['post_type', 'content', 'media', 'expires_at', 'linked_service_id', 'linked_group_session_id', 'linked_subcategory']
 
     def create(self, validated_data):
         from django.contrib.contenttypes.models import ContentType
@@ -223,9 +281,59 @@ class PostCreateSerializer(serializers.ModelSerializer):
         from users.models import PublicProfile, ProfessionalProfile, PlaceProfile
 
         linked_service_id = validated_data.pop('linked_service_id', None)
+        linked_group_session_id = validated_data.pop('linked_group_session_id', None)
+        linked_subcategory = validated_data.pop('linked_subcategory', None)
         media_files = validated_data.pop('media', [])
 
-        if linked_service_id is not None:
+        # Validate linked_subcategory is one of author's sub_categories
+        if linked_subcategory and linked_subcategory.strip():
+            author = self.context['request'].user
+            try:
+                profile = PublicProfile.objects.get(user=author)
+                sub_cats = profile.sub_categories or []
+                if not isinstance(sub_cats, list):
+                    sub_cats = [sub_cats] if sub_cats else []
+                sub_cats_lower = [str(s).strip().lower() for s in sub_cats if s]
+                if sub_cats_lower and linked_subcategory.strip().lower() not in sub_cats_lower:
+                    raise serializers.ValidationError({
+                        'linked_subcategory': 'La subcategoría debe ser una de las subcategorías de tu perfil.'
+                    })
+                validated_data['linked_subcategory'] = linked_subcategory.strip()
+            except PublicProfile.DoesNotExist:
+                validated_data['linked_subcategory'] = None
+        else:
+            validated_data['linked_subcategory'] = None
+
+        # linked_service_id and linked_group_session_id are mutually exclusive
+        if linked_group_session_id is not None:
+            author = self.context['request'].user
+            from reservations.models import GroupSession
+            from users.models import PublicProfile, ProfessionalProfile, PlaceProfile
+            try:
+                gs = GroupSession.objects.select_related('provider_content_type').get(id=linked_group_session_id)
+            except GroupSession.DoesNotExist:
+                raise serializers.ValidationError({
+                    'linked_group_session_id': 'Sesión grupal no encontrada.'
+                })
+            if gs.status != GroupSession.Status.ACTIVE:
+                raise serializers.ValidationError({
+                    'linked_group_session_id': 'La sesión grupal no está activa.'
+                })
+            # Validate session belongs to author (provider.user == author)
+            provider = gs.provider
+            if not provider or getattr(provider, 'user_id', None) != author.id:
+                raise serializers.ValidationError({
+                    'linked_group_session_id': 'La sesión grupal no pertenece a tu perfil.'
+                })
+            try:
+                public_profile = PublicProfile.objects.get(user=author)
+                validated_data['linked_group_session_id'] = gs.id
+                validated_data['linked_provider_id'] = public_profile.id
+            except PublicProfile.DoesNotExist:
+                raise serializers.ValidationError({
+                    'linked_group_session_id': 'Solo perfiles profesional o lugar pueden vincular sesiones grupales.'
+                })
+        elif linked_service_id is not None:
             author = self.context['request'].user
             try:
                 public_profile = PublicProfile.objects.get(user=author)

@@ -44,6 +44,7 @@ export default function BookingScreen() {
     price?: string;
     duration?: string;
     category?: string;
+    groupSessionId?: string;
   }>();
 
   const {state, isLoading, selectService, setNotes, createReservation} =
@@ -73,15 +74,26 @@ export default function BookingScreen() {
   const [resolvedProviderId, setResolvedProviderId] = useState<number | null>(null);
   const [groupSessionsForDate, setGroupSessionsForDate] = useState<any[]>([]);
   const [selectedGroupSessionId, setSelectedGroupSessionId] = useState<number | null>(null);
+  const [groupSessionInfo, setGroupSessionInfo] = useState<{
+    serviceInfo: {
+      serviceInstanceId: number;
+      serviceTypeId: number;
+      serviceName: string;
+      serviceType: string;
+      providerId: number;
+      providerName: string;
+      price: number;
+      duration: number;
+    };
+  } | null>(null);
 
-  // Service info from params - all data comes directly from navigation
-  // Parse and validate required params
+  // Service info from params - all data comes directly from navigation (or from fetched group session)
   const parsedServiceInstanceId = params.serviceInstanceId ? parseInt(params.serviceInstanceId) : 0;
   const parsedServiceTypeId = params.serviceTypeId ? parseInt(params.serviceTypeId) : 0;
   
   const hasRequiredParams = parsedServiceInstanceId > 0 && parsedServiceTypeId > 0;
 
-  const serviceInfo = hasRequiredParams
+  const serviceInfo = groupSessionInfo?.serviceInfo ?? (hasRequiredParams
     ? {
         serviceInstanceId: parsedServiceInstanceId,
         serviceTypeId: parsedServiceTypeId,
@@ -92,7 +104,76 @@ export default function BookingScreen() {
         price: parseFloat(params.price || "0"),
         duration: parseInt(params.duration || "60"),
       }
-    : null;
+    : null);
+
+  // When groupSessionId is in params, fetch the session and initialize state
+  useEffect(() => {
+    const gsId = params.groupSessionId ? parseInt(params.groupSessionId) : 0;
+    if (gsId <= 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const {groupSessionApi} = await import("@/lib/api");
+        const res = await groupSessionApi.get(gsId);
+        const s = res.data;
+        if (cancelled || !s) return;
+        const providerType = s.provider_type === "place" ? "place" : "professional";
+        const providerId = s.provider_object_id ?? 0;
+        const svcInstanceId = s.service_instance_id ?? s.service ?? 0;
+        const svcTypeId = s.service ?? 0;
+        const durationMinutes = s.duration
+          ? (typeof s.duration === "string"
+              ? (() => {
+                  const parts = String(s.duration).split(":");
+                  const h = parseInt(parts[0] || "0", 10);
+                  const m = parseInt(parts[1] || "0", 10);
+                  return h * 60 + m;
+                })()
+              : Number(s.duration))
+          : 60;
+        if (cancelled) return;
+        setGroupSessionInfo({
+          serviceInfo: {
+            serviceInstanceId: svcInstanceId,
+            serviceTypeId: svcTypeId,
+            serviceName: s.service_name ?? "Sesión grupal",
+            serviceType: providerType === "place" ? "place_service" : "professional_service",
+            providerId,
+            providerName: s.provider_name ?? "Proveedor",
+            price: 0,
+            duration: durationMinutes,
+          },
+        });
+        setResolvedProviderId(providerId);
+        setSelectedGroupSessionId(gsId);
+        const dateStr = s.date;
+        if (dateStr) {
+          const d = new Date(dateStr + "T12:00:00");
+          setSelectedDate(d);
+        }
+        const timeStr = String(s.time ?? "").slice(0, 5);
+        if (timeStr) {
+          const [h, m] = timeStr.split(":").map(Number);
+          const timeDate = new Date();
+          timeDate.setHours(h || 0, m || 0, 0, 0);
+          setSelectedTime(timeDate);
+        }
+        selectService({
+          serviceInstanceId: svcInstanceId,
+          serviceTypeId: svcTypeId,
+          serviceName: s.service_name ?? "Sesión grupal",
+          serviceType: providerType === "place" ? "place_service" : "professional_service",
+          providerId,
+          providerName: s.provider_name ?? "Proveedor",
+          price: 0,
+          duration: durationMinutes,
+        });
+      } catch (err) {
+        if (!cancelled) console.error("Failed to load group session:", err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [params.groupSessionId]);
 
   const providerTypeForAvailability =
     serviceInfo?.serviceType === "professional_service" ? "professional" : "place";

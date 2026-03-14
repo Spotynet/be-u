@@ -64,6 +64,13 @@ class PostViewSet(viewsets.ModelViewSet):
                     Q(author__public_profile__category=category_token)
                 )
 
+        # Filter by post's linked_subcategory (single subcategory the post is linked to)
+        subcategory = self.request.query_params.get('subcategory', None)
+        if subcategory:
+            subcat_token = str(subcategory).strip().lower()
+            if subcat_token and subcat_token != 'todos':
+                queryset = queryset.filter(linked_subcategory__iexact=subcat_token)
+
         return queryset
 
     def retrieve(self, request, *args, **kwargs):
@@ -353,6 +360,38 @@ def _resolve_linked_service_for_post(request):
     }
 
 
+def _resolve_linked_group_session_for_post(request):
+    """If request has linked_group_session_id, validate and return dict. Else return {}."""
+    from reservations.models import GroupSession
+    from users.models import PublicProfile
+
+    raw = request.data.get('linked_group_session_id')
+    if raw is None or raw == '':
+        return {}
+    try:
+        gs_id = int(raw)
+    except (TypeError, ValueError):
+        return {}
+    author = request.user
+    try:
+        gs = GroupSession.objects.select_related('provider_content_type').get(id=gs_id)
+    except GroupSession.DoesNotExist:
+        return {}
+    if gs.status != GroupSession.Status.ACTIVE:
+        return {}
+    provider = gs.provider
+    if not provider or getattr(provider, 'user_id', None) != author.id:
+        return {}
+    try:
+        public_profile = PublicProfile.objects.get(user=author)
+    except PublicProfile.DoesNotExist:
+        return {}
+    return {
+        'linked_group_session_id': gs.id,
+        'linked_provider_id': public_profile.id,
+    }
+
+
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser])
 def create_transformation_post(request):
@@ -390,13 +429,34 @@ def create_transformation_post(request):
     if extra_parts:
         full_content = (caption + "\n\n" + " | ".join(extra_parts)).strip()
 
-    linked_kwargs = _resolve_linked_service_for_post(request)
+    # Prefer linked_group_session_id over linked_service_id if both present
+    raw_gs = request.data.get('linked_group_session_id')
+    if raw_gs is not None and str(raw_gs).strip() != '':
+        linked_kwargs = _resolve_linked_group_session_for_post(request)
+    else:
+        linked_kwargs = _resolve_linked_service_for_post(request)
+
+    # Resolve linked_subcategory (must be one of author's sub_categories)
+    linked_subcategory = None
+    raw_sub = request.data.get('linked_subcategory', '').strip()
+    if raw_sub:
+        try:
+            from users.models import PublicProfile
+            profile = PublicProfile.objects.get(user=request.user)
+            sub_cats = profile.sub_categories or []
+            if isinstance(sub_cats, list):
+                sub_cats_lower = [str(s).strip().lower() for s in sub_cats if s]
+                if raw_sub.lower() in sub_cats_lower:
+                    linked_subcategory = raw_sub
+        except PublicProfile.DoesNotExist:
+            pass
 
     # Create post
     post = Post.objects.create(
         author=request.user,
         post_type='before_after',
         content=full_content,
+        linked_subcategory=linked_subcategory,
         **linked_kwargs,
     )
 

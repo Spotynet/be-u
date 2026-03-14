@@ -22,8 +22,8 @@ export interface ApiError {
 }
 
 // API Configuration - HARDCODED for testing
-const API_BASE_URL = "http://127.0.0.1:8000/api";
-//const API_BASE_URL = "https://stg.be-u.ai/api";
+//const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = "https://stg.be-u.ai/api";
 
 console.log("🔧 HARDCODED API URL:", API_BASE_URL);
 const AUTH_TOKEN_KEY = "@auth_token";
@@ -969,7 +969,7 @@ export const favoriteApi = {
 // Post/Publication management API functions
 export const postApi = {
   // Get posts feed
-  getPosts: (params?: {page?: number; author?: number; type?: string; category?: string}) =>
+  getPosts: (params?: {page?: number; author?: number; type?: string; category?: string; subcategory?: string}) =>
     api.get<{results: any[]; count: number}>("/posts/list/", {params}),
 
   // Get single post

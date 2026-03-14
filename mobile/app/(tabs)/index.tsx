@@ -912,8 +912,8 @@ export default function Home() {
               {getCommentCount(post)}
             </Text>
           </TouchableOpacity>
-          {/* Reservar Button */}
-          {!isOwnPost && (
+          {/* Reservar Button - show when post has booking link or when not own post */}
+          {(!isOwnPost || post.linked_group_session_id != null || (post.linked_service_id != null && post.linked_provider_id != null)) && (
             <TouchableOpacity
               style={[styles.reserveButton, {backgroundColor: colors.primary}]}
               activeOpacity={0.8}
@@ -927,7 +927,14 @@ export default function Home() {
                   );
                   return;
                 }
-                if (post.linked_service_id != null && post.linked_provider_id != null && post.linked_service_name) {
+                if (post.linked_group_session_id != null) {
+                  router.push({
+                    pathname: "/booking",
+                    params: {
+                      groupSessionId: String(post.linked_group_session_id),
+                    },
+                  } as any);
+                } else if (post.linked_service_id != null && post.linked_provider_id != null && post.linked_service_name) {
                   const normalizedCategory =
                     typeof post?.author_category === "string"
                       ? post.author_category.toLowerCase()
