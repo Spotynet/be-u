@@ -3,7 +3,13 @@ import {reservationApi, errorUtils} from "@/lib/api";
 import {Reservation, ReservationStatus} from "@/types/global";
 import {Alert} from "react-native";
 
-export const useReservations = (userId?: number) => {
+type UseReservationsOptions = {
+  /** When true, use getMyReservations (no pagination, includes group sessions). Client role only. */
+  asClient?: boolean;
+};
+
+export const useReservations = (userId?: number, options?: UseReservationsOptions) => {
+  const asClient = options?.asClient ?? false;
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -13,19 +19,48 @@ export const useReservations = (userId?: number) => {
     try {
       setIsLoading(true);
       setError(null);
-      const params: any = {};
-      if (userId) params.user = userId;
-      if (filter !== "all") params.status = filter;
 
-      const response = await reservationApi.getReservations(params);
-      setReservations(response.data.results || []);
+      if (!asClient) {
+        // Non-client: use getReservations (for providers this isn't used; caller uses useIncomingReservations)
+        const params: any = {};
+        if (userId) params.user = userId;
+        if (filter !== "all") params.status = filter;
+        const response = await reservationApi.getReservations(params);
+        setReservations(response.data.results || []);
+        return;
+      }
+
+      // Client: use getMyReservations (no pagination) - includes group session reservations
+      const filterParam = filter === "all" ? "upcoming" : filter;
+      const response = await reservationApi.getMyReservations({filter: filterParam});
+      let allResults: any[] = response.data.results || [];
+      if (filter === "all") {
+        const pastRes = await reservationApi.getMyReservations({filter: "past"});
+        const pastResults = pastRes.data.results || [];
+        const seen = new Set(allResults.map((r: any) => r.id));
+        for (const r of pastResults) {
+          if (!seen.has(r.id)) {
+            seen.add(r.id);
+            allResults = [...allResults, r];
+          }
+        }
+        allResults.sort((a, b) => {
+          const da = a.date || "";
+          const ta = a.time || "";
+          const db = b.date || "";
+          const tb = b.time || "";
+          if (da !== db) return db.localeCompare(da);
+          return tb.localeCompare(ta);
+        });
+      }
+      setReservations(allResults);
     } catch (err) {
       const message = errorUtils.getErrorMessage(err);
       setError(message);
     } finally {
       setIsLoading(false);
     }
-  }, [userId, filter]);
+  }, [userId, filter, asClient]);
 
   useEffect(() => {
     fetchReservations();

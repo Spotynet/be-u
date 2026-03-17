@@ -862,7 +862,21 @@ export const groupSessionApi = {
   delete: (id: number) => api.delete(`/reservations/group-sessions/${id}/`),
   reserve: (id: number, notes?: string) =>
     api.post<any>(`/reservations/group-sessions/${id}/reserve/`, {notes}),
+  participants: (id: number) =>
+    api.get<{results: GroupSessionParticipant[]; count: number}>(
+      `/reservations/group-sessions/${id}/participants/`
+    ),
 };
+
+export interface GroupSessionParticipant {
+  id: number;
+  client_name: string;
+  client_email: string;
+  client_phone: string;
+  status: string;
+  notes: string;
+  created_at: string;
+}
 
 export const trackingApi = {
   request: (reservationId: number, expiresMinutes: number = 120) =>

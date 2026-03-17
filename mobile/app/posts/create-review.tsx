@@ -57,6 +57,7 @@ export default function CreateReviewScreen() {
           name: s.name || s.service_name || "",
           price: s.price != null ? String(s.price) : "",
           duration_minutes: s.duration_minutes,
+          category: s.category ?? "otros",
         })));
       })
       .catch(() => { if (!cancelled) setCustomServices([]); });

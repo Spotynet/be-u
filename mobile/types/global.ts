@@ -197,6 +197,15 @@ export interface Reservation {
   service_longitude?: number;
   service_address?: string;
   provider_location?: Location;
+  // Group session link
+  group_session?: number | null;
+  group_session_details?: {
+    id: number;
+    capacity: number;
+    booked_slots: number;
+    remaining_slots: number;
+    status: string;
+  } | null;
   // Google Calendar integration
   calendar_event_created?: boolean;
   calendar_event_link?: string;

@@ -123,6 +123,7 @@ class GroupSession(models.Model):
     capacity = models.PositiveIntegerField(default=1)
     booked_slots = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    sub_category = models.CharField(max_length=100, blank=True, null=True, help_text="Subcategory of the provider linked to this session")
     notes = models.TextField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)

@@ -14,8 +14,7 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useRouter} from "expo-router";
 import {useState, useEffect} from "react";
 import {MediaUploader} from "@/components/posts/MediaUploader";
-import {LinkedServiceSelector, type CustomServiceItem} from "@/components/posts/LinkedServiceSelector";
-import {LinkedGroupSessionSelector} from "@/components/posts/LinkedGroupSessionSelector";
+import {LinkedItemSelector, type CustomServiceItem} from "@/components/posts/LinkedItemSelector";
 import {SubcategorySelector} from "@/components/posts/SubcategorySelector";
 import {postApi, profileCustomizationApi} from "@/lib/api";
 import {useAuth} from "@/features/auth/hooks/useAuth";
@@ -48,6 +47,7 @@ export default function CreatePetAdoptionScreen() {
           name: s.name || s.service_name || "",
           price: s.price != null ? String(s.price) : "",
           duration_minutes: s.duration_minutes,
+          category: s.category ?? "otros",
         })));
       })
       .catch(() => { if (!cancelled) setCustomServices([]); });
@@ -146,23 +146,14 @@ export default function CreatePetAdoptionScreen() {
           onSelect={setLinkedSubcategory}
         />
 
-        <LinkedGroupSessionSelector
-          selectedSessionId={linkedGroupSessionId}
-          onSelect={(id) => {
-            setLinkedGroupSessionId(id);
-            if (id != null) setLinkedServiceId(null);
-          }}
-          colors={colors}
-        />
-
-        <LinkedServiceSelector
+        <LinkedItemSelector
           customServices={customServices}
           linkedServiceId={linkedServiceId}
-          onSelect={(id) => {
-            setLinkedServiceId(id);
-            if (id != null) setLinkedGroupSessionId(null);
-          }}
+          linkedGroupSessionId={linkedGroupSessionId}
+          onSelectService={setLinkedServiceId}
+          onSelectGroupSession={setLinkedGroupSessionId}
           colors={colors}
+          subcategoryFilter={linkedSubcategory}
         />
 
         {/* Description */}

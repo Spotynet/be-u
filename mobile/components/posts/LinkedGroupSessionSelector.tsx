@@ -17,6 +17,7 @@ export type GroupSessionItem = {
   date: string;
   time: string;
   service_name: string;
+  service_sub_category: string | null;
   capacity: number;
   booked_slots: number;
   remaining_slots: number;
@@ -26,12 +27,15 @@ type Props = {
   selectedSessionId: number | null;
   onSelect: (id: number | null) => void;
   colors: Record<string, string>;
+  /** When set, only show sessions whose service.sub_category matches */
+  subcategoryFilter?: string | null;
 };
 
 export function LinkedGroupSessionSelector({
   selectedSessionId,
   onSelect,
   colors,
+  subcategoryFilter,
 }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
   const [sessions, setSessions] = useState<GroupSessionItem[]>([]);
@@ -50,13 +54,27 @@ export function LinkedGroupSessionSelector({
       .then((res) => {
         if (cancelled) return;
         const list = res.data?.results ?? [];
+        const now = new Date();
+        const todayStr = now.toISOString().slice(0, 10);
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
         const items: GroupSessionItem[] = list
-          .filter((s: any) => (s.remaining_slots ?? s.capacity - s.booked_slots) > 0)
+          .filter((s: any) => {
+            if ((s.remaining_slots ?? (s.capacity - s.booked_slots)) <= 0) return false;
+            // Exclude sessions that are entirely in the past (including today but past time)
+            if (s.date < todayStr) return false;
+            if (s.date === todayStr) {
+              const [h, m] = String(s.time ?? "00:00").slice(0, 5).split(":").map(Number);
+              if ((h || 0) * 60 + (m || 0) <= nowMinutes) return false;
+            }
+            return true;
+          })
           .map((s: any) => ({
             id: s.id,
             date: s.date,
             time: String(s.time ?? "").slice(0, 5),
             service_name: s.service_name ?? "Sesión grupal",
+            service_sub_category: s.service_sub_category ?? null,
             capacity: s.capacity ?? 1,
             booked_slots: s.booked_slots ?? 0,
             remaining_slots: s.remaining_slots ?? Math.max(0, (s.capacity ?? 1) - (s.booked_slots ?? 0)),
@@ -74,11 +92,31 @@ export function LinkedGroupSessionSelector({
     };
   }, [canHaveSessions]);
 
+  // Filter sessions by subcategory when a filter is active
+  const filteredSessions = subcategoryFilter
+    ? sessions.filter(
+        (s) =>
+          s.service_sub_category != null &&
+          s.service_sub_category.toLowerCase() === subcategoryFilter.toLowerCase()
+      )
+    : sessions;
+
+  // Auto-clear when selected session no longer appears in the filtered list
+  useEffect(() => {
+    if (
+      selectedSessionId != null &&
+      filteredSessions.length > 0 &&
+      !filteredSessions.find((s) => s.id === selectedSessionId)
+    ) {
+      onSelect(null);
+    }
+  }, [subcategoryFilter]);
+
   if (!canHaveSessions) return null;
-  if (loading && sessions.length === 0) return null;
+  if (loading && filteredSessions.length === 0) return null;
 
   const selectedSession = selectedSessionId != null
-    ? sessions.find((s) => s.id === selectedSessionId)
+    ? filteredSessions.find((s) => s.id === selectedSessionId)
     : null;
 
   const openPicker = () => setModalVisible(true);
@@ -177,7 +215,7 @@ export function LinkedGroupSessionSelector({
                   onPress={() => handleSelect(null)}>
                   <Text style={[styles.optionName, {color: colors.foreground}]}>Ninguna</Text>
                 </TouchableOpacity>
-                {sessions.map((s) => (
+                {filteredSessions.map((s) => (
                   <TouchableOpacity
                     key={s.id}
                     style={[

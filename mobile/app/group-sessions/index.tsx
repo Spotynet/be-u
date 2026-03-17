@@ -85,6 +85,8 @@ export default function GroupSessionsScreen() {
   const [sessions, setSessions] = useState<any[]>([]);
 
   const [selectedServiceInstanceId, setSelectedServiceInstanceId] = useState<number | null>(null);
+  const [subCategories, setSubCategories] = useState<string[]>([]);
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
   const [dateValue, setDateValue] = useState<Date>(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -117,11 +119,12 @@ export default function GroupSessionsScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [sessionResponse, placeRes, profRes, customRes] = await Promise.all([
+      const [sessionResponse, placeRes, profRes, customRes, profileRes] = await Promise.all([
         groupSessionApi.list(),
         isPlace ? serviceApi.getPlaceServices({is_active: true}) : Promise.resolve({data: {results: []}}),
         !isPlace ? serviceApi.getProfessionalServices({is_active: true}) : Promise.resolve({data: {results: []}}),
         profileCustomizationApi.getCustomServices().catch(() => ({data: []})),
+        profileCustomizationApi.getProfileImages().catch(() => ({data: {sub_categories: []}})),
       ]);
 
       const placeOrProList =
@@ -135,6 +138,10 @@ export default function GroupSessionsScreen() {
         .map(normalizeCustomService);
       setServices([...placeOrProItems, ...customItems]);
       setSessions(sessionResponse.data?.results || []);
+      const rawSubCats: string[] = Array.isArray(profileRes.data?.sub_categories)
+        ? profileRes.data.sub_categories
+        : [];
+      setSubCategories(rawSubCats);
     } catch (error: any) {
       Alert.alert("Error", error?.message || "No se pudo cargar sesiones grupales.");
     } finally {
@@ -225,6 +232,7 @@ export default function GroupSessionsScreen() {
           time: `${timeStr}:00`,
           duration: toDurationString(duration),
           capacity: parsedCapacity,
+          ...(selectedSubCategory ? {sub_category: selectedSubCategory} : {}),
         };
         if (isCustom) {
           payload.service_instance_type = "custom_service";
@@ -247,6 +255,7 @@ export default function GroupSessionsScreen() {
       });
       setCapacity(1);
       setSelectedServiceInstanceId(null);
+      setSelectedSubCategory(null);
       setExtraDates([]);
       setWeeklyDays([]);
       setWeeklyEndDate(null);
@@ -499,6 +508,31 @@ export default function GroupSessionsScreen() {
               </>
             )}
 
+            {/* Subcategoría */}
+            {subCategories.length > 0 && (
+              <>
+                <Text style={[styles.label, {color: colors.foreground}]}>Subcategoría (opcional)</Text>
+                <View style={styles.recurrenceRow}>
+                  {subCategories.map((sc) => {
+                    const active = selectedSubCategory === sc;
+                    return (
+                      <TouchableOpacity
+                        key={sc}
+                        style={[
+                          styles.recurrenceChip,
+                          {borderColor: colors.border, backgroundColor: active ? colors.primary : colors.background},
+                        ]}
+                        onPress={() => setSelectedSubCategory(active ? null : sc)}>
+                        <Text style={[styles.recurrenceChipText, {color: active ? colors.primaryForeground : colors.foreground}]}>
+                          {sc}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+
             {/* Cupos */}
             <Text style={[styles.label, {color: colors.foreground}]}>Cupos</Text>
             <View style={[styles.capacityRow, {backgroundColor: colors.background, borderColor: colors.border}]}>
@@ -548,6 +582,9 @@ export default function GroupSessionsScreen() {
                   </Text>
                   {session.service_name && (
                     <Text style={[styles.sessionService, {color: colors.mutedForeground}]}>{session.service_name}</Text>
+                  )}
+                  {session.sub_category && (
+                    <Text style={[styles.sessionService, {color: colors.primary, fontWeight: "600"}]}>{session.sub_category}</Text>
                   )}
                 <Text style={{color: colors.mutedForeground}}>
                   Cupos: {session.booked_slots ?? 0}/{session.capacity}

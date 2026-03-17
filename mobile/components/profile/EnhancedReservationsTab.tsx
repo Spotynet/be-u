@@ -54,6 +54,10 @@ export function EnhancedReservationsTab({
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamError, setTeamError] = useState<string | null>(null);
 
+  const isClient = userRole === "CLIENT";
+  const isProvider = userRole === "PROFESSIONAL" || userRole === "PLACE";
+  const isPlace = userRole === "PLACE";
+
   // For clients
   const {
     reservations: clientReservations,
@@ -61,7 +65,7 @@ export function EnhancedReservationsTab({
     error: clientError,
     refreshReservations: refreshClient,
     cancelReservation,
-  } = useReservations(user?.id);
+  } = useReservations(user?.id, {asClient: isClient});
 
   // For providers
   const {
@@ -77,9 +81,6 @@ export function EnhancedReservationsTab({
     cancelReservation: providerCancelReservation,
   } = useIncomingReservations();
 
-  const isClient = userRole === "CLIENT";
-  const isProvider = userRole === "PROFESSIONAL" || userRole === "PLACE";
-  const isPlace = userRole === "PLACE";
   const canManageAsProvider = isProvider; // PROFESSIONAL and PLACE can edit/cancel/complete
   const cancelReservationFn = isClient ? cancelReservation : providerCancelReservation;
 

@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {
   View,
   Text,
@@ -15,6 +15,29 @@ export type CustomServiceItem = {
   name: string;
   price: string;
   duration_minutes?: number;
+  /** Main category stored on CustomService (belleza | bienestar | mascotas | otros) */
+  category?: string;
+};
+
+/** Maps each subcategory id → its parent main category */
+const SUB_TO_MAIN: Record<string, string> = {
+  // belleza
+  cabello: "belleza",
+  barberia: "belleza",
+  // bienestar
+  spa_relajacion: "bienestar",
+  yoga: "bienestar",
+  meditacion: "bienestar",
+  nutricion_alimentacion: "bienestar",
+  fisioterapia: "bienestar",
+  entrenamiento: "bienestar",
+  psicologia: "bienestar",
+  terapias_alternativas: "bienestar",
+  // mascotas
+  estetica_mascotas: "mascotas",
+  spa_mascotas: "mascotas",
+  cuidadores: "mascotas",
+  paseadores: "mascotas",
 };
 
 type Props = {
@@ -22,6 +45,8 @@ type Props = {
   linkedServiceId: number | null;
   onSelect: (id: number | null) => void;
   colors: Record<string, string>;
+  /** When set, only show services whose category matches the parent main category */
+  subcategoryFilter?: string | null;
 };
 
 export function LinkedServiceSelector({
@@ -29,12 +54,39 @@ export function LinkedServiceSelector({
   linkedServiceId,
   onSelect,
   colors,
+  subcategoryFilter,
 }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
-  if (customServices.length === 0) return null;
+
+  // Determine the main category required by the current subcategory filter
+  const requiredMainCategory = subcategoryFilter
+    ? (SUB_TO_MAIN[subcategoryFilter.toLowerCase()] ?? null)
+    : null;
+
+  // Filter services to those matching the main category (or all if no filter)
+  const filteredServices = requiredMainCategory
+    ? customServices.filter(
+        (s) =>
+          !s.category ||
+          s.category.toLowerCase() === requiredMainCategory.toLowerCase()
+      )
+    : customServices;
+
+  // Auto-clear selection when the selected service no longer appears in the filtered list
+  useEffect(() => {
+    if (
+      linkedServiceId != null &&
+      filteredServices.length > 0 &&
+      !filteredServices.find((s) => s.id === linkedServiceId)
+    ) {
+      onSelect(null);
+    }
+  }, [subcategoryFilter]);
+
+  if (filteredServices.length === 0) return null;
 
   const selectedService = linkedServiceId != null
-    ? customServices.find((s) => s.id === linkedServiceId)
+    ? filteredServices.find((s) => s.id === linkedServiceId)
     : null;
 
   const openPicker = () => setModalVisible(true);
@@ -122,7 +174,7 @@ export function LinkedServiceSelector({
               onPress={() => handleSelect(null)}>
               <Text style={[styles.optionName, {color: colors.foreground}]}>Ninguno</Text>
             </TouchableOpacity>
-            {customServices.map((s) => (
+            {filteredServices.map((s) => (
               <TouchableOpacity
                 key={s.id}
                 style={[

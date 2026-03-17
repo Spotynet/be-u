@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 class ReservationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing reservations"""
     queryset = Reservation.objects.select_related(
-        'client__user', 'service', 'professional', 'place'
+        'client__user', 'service', 'professional', 'place', 'group_session'
     ).all()
     permission_classes = [IsAuthenticated]
     
@@ -358,7 +358,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
         )
 
         reservations = Reservation.objects.select_related(
-            'client__user', 'service', 'professional', 'place'
+            'client__user', 'service', 'professional', 'place', 'group_session'
         ).filter(
             Q(provider_content_type=place_ct, provider_object_id=place_profile.id) |
             Q(provider_content_type=prof_ct, provider_object_id__in=linked_professional_ids)
@@ -748,6 +748,15 @@ class GroupSessionViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(provider_content_type=ct, provider_object_id=user.place_profile.id)
             except Exception:
                 queryset = queryset.none()
+
+        # Apply optional date filters for provider's own sessions
+        date_from = self.request.query_params.get("date_from")
+        if date_from:
+            queryset = queryset.filter(date__gte=date_from)
+        date_to = self.request.query_params.get("date_to")
+        if date_to:
+            queryset = queryset.filter(date__lte=date_to)
+
         return queryset.order_by("date", "time")
 
     def create(self, request, *args, **kwargs):
@@ -831,6 +840,40 @@ class GroupSessionViewSet(viewsets.ModelViewSet):
             service_instance_type=service_instance_ct,
             service_instance_id=service_instance_id,
         )
+
+    @action(detail=True, methods=["get"], url_path="participants")
+    def participants(self, request, pk=None):
+        """Return the list of reservations (participants) for a group session.
+        Only accessible by the session owner (professional or place).
+        """
+        session = self.get_object()
+
+        # Verify requester is the session owner
+        provider = session.provider
+        if not provider or getattr(provider, "user_id", None) != request.user.id:
+            return Response(
+                {"error": "Only the session owner can view participants."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        reservations = session.reservations.select_related(
+            "client__user"
+        ).exclude(status__in=["CANCELLED", "REJECTED"]).order_by("created_at")
+
+        data = [
+            {
+                "id": r.id,
+                "client_name": f"{r.client.user.first_name} {r.client.user.last_name}".strip()
+                    or r.client.user.email,
+                "client_email": r.client.user.email,
+                "client_phone": getattr(r.client, "phone", None) or "",
+                "status": r.status,
+                "notes": r.notes or "",
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in reservations
+        ]
+        return Response({"results": data, "count": len(data)})
 
     @action(detail=True, methods=["post"], url_path="reserve")
     def reserve(self, request, pk=None):

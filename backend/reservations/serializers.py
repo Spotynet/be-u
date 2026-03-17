@@ -541,6 +541,7 @@ class GroupSessionSerializer(serializers.ModelSerializer):
     provider_name = serializers.SerializerMethodField()
     remaining_slots = serializers.SerializerMethodField()
     service_name = serializers.CharField(source="service.name", read_only=True)
+    service_sub_category = serializers.CharField(source="service.sub_category", read_only=True, allow_null=True)
     # service, service_instance_type, service_instance_id from model
     # View pre-processes service_instance_type="custom_service" into pk values
 
@@ -553,6 +554,8 @@ class GroupSessionSerializer(serializers.ModelSerializer):
             "provider_object_id",
             "service",
             "service_name",
+            "service_sub_category",
+            "sub_category",
             "service_instance_type",
             "service_instance_id",
             "date",

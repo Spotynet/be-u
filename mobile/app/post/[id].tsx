@@ -327,12 +327,7 @@ export default function PostDetailScreen() {
                   return;
                 }
                 if (post.linked_group_session_id != null) {
-                  router.push({
-                    pathname: "/booking",
-                    params: {
-                      groupSessionId: String(post.linked_group_session_id),
-                    },
-                  } as any);
+                  router.push(`/group-sessions/${post.linked_group_session_id}` as any);
                 } else if (post.linked_service_id != null && post.linked_provider_id != null && post.linked_service_name) {
                   router.push({
                     pathname: "/booking",

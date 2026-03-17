@@ -13,7 +13,7 @@ import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useLocalSearchParams} from "expo-router";
 import {useEffect, useMemo, useState} from "react";
-import {reservationApi, trackingApi} from "@/lib/api";
+import {reservationApi, trackingApi, groupSessionApi, type GroupSessionParticipant} from "@/lib/api";
 import {Location, Reservation} from "@/types/global";
 import {parseISODateAsLocal} from "@/lib/dateUtils";
 import {useAuth} from "@/features/auth";
@@ -36,6 +36,9 @@ export default function ReservationDetailsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [trackingRequest, setTrackingRequest] = useState<any | null>(null);
   const [trackingBusy, setTrackingBusy] = useState(false);
+
+  const [participants, setParticipants] = useState<GroupSessionParticipant[]>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
 
   const fetchReservation = async () => {
     if (!Number.isFinite(reservationId) || reservationId <= 0) {
@@ -61,6 +64,26 @@ export default function ReservationDetailsScreen() {
     fetchReservation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservationId]);
+
+  // Load group session participants when reservation is fetched and viewer is the provider
+  useEffect(() => {
+    const gsId = reservation?.group_session;
+    const isProvider = user?.role === "PROFESSIONAL" || user?.role === "PLACE";
+    if (!gsId || !isProvider) return;
+    let mounted = true;
+    (async () => {
+      try {
+        setLoadingParticipants(true);
+        const res = await groupSessionApi.participants(Number(gsId));
+        if (mounted) setParticipants(res.data.results);
+      } catch {
+        // 403 for non-owners — ignore silently
+      } finally {
+        if (mounted) setLoadingParticipants(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [reservation?.group_session, user?.role]);
 
   useEffect(() => {
     let mounted = true;
@@ -479,6 +502,83 @@ export default function ReservationDetailsScreen() {
             address={addressLabel}
           />
 
+          {/* Participantes de sesión grupal (solo al proveedor) */}
+          {reservation.group_session != null &&
+            (user?.role === "PROFESSIONAL" || user?.role === "PLACE") && (
+              <View style={styles.participantsCard}>
+                <View style={styles.participantsHeader}>
+                  <View style={styles.participantsIconCircle}>
+                    <Ionicons name="people" size={20} color="#EC4899" />
+                  </View>
+                  <View style={{flex: 1}}>
+                    <Text style={styles.participantsLabel}>PARTICIPANTES</Text>
+                    <Text style={styles.participantsCount}>
+                      {reservation.group_session_details
+                        ? `${reservation.group_session_details.booked_slots} / ${reservation.group_session_details.capacity} cupos`
+                        : `${participants.length} reservados`}
+                    </Text>
+                  </View>
+                  {loadingParticipants && (
+                    <ActivityIndicator size="small" color="#EC4899" />
+                  )}
+                </View>
+
+                {!loadingParticipants && participants.length === 0 && (
+                  <Text style={styles.participantsEmpty}>
+                    Aún no hay reservas confirmadas.
+                  </Text>
+                )}
+
+                {participants.map((p, idx) => (
+                  <View
+                    key={p.id}
+                    style={[
+                      styles.participantRow,
+                      idx < participants.length - 1 && styles.participantRowBorder,
+                    ]}>
+                    <View style={styles.participantAvatar}>
+                      <Text style={styles.participantAvatarText}>
+                        {(p.client_name?.[0] ?? "?").toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={styles.participantInfo}>
+                      <Text style={styles.participantName}>
+                        {p.client_name || p.client_email}
+                      </Text>
+                      {!!p.client_phone && (
+                        <Text style={styles.participantSub}>{p.client_phone}</Text>
+                      )}
+                      {!!p.client_email && (
+                        <Text style={styles.participantSub}>{p.client_email}</Text>
+                      )}
+                      {!!p.notes && (
+                        <Text style={styles.participantSub}>Nota: {p.notes}</Text>
+                      )}
+                    </View>
+                    <View
+                      style={[
+                        styles.participantPill,
+                        {
+                          backgroundColor:
+                            p.status === "CONFIRMED" ? "#dcfce7" : "#fef3c7",
+                        },
+                      ]}>
+                      <Text
+                        style={[
+                          styles.participantPillText,
+                          {
+                            color:
+                              p.status === "CONFIRMED" ? "#16a34a" : "#b45309",
+                          },
+                        ]}>
+                        {p.status === "CONFIRMED" ? "Confirmado" : p.status}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
           {/* Google Calendar */}
           {reservation.calendar_event_created && (
             <TouchableOpacity
@@ -637,6 +737,47 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   calendarLinkText: {flex: 1, fontSize: 14, fontWeight: "800"},
+  participantsCard: {
+    backgroundColor: "#FFFFFF",
+    padding: 20,
+    borderRadius: 20,
+    gap: 12,
+    ...cardShadow,
+  },
+  participantsHeader: {flexDirection: "row", alignItems: "center", gap: 14},
+  participantsIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FDF2F8",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  participantsLabel: {fontSize: 11, fontWeight: "800", letterSpacing: 0.5, color: "#9ca3af"},
+  participantsCount: {fontSize: 15, fontWeight: "700", color: "#1f2937"},
+  participantsEmpty: {fontSize: 13, color: "#9ca3af", fontStyle: "italic", paddingVertical: 4},
+  participantRow: {flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 10},
+  participantRowBorder: {borderBottomWidth: 1, borderBottomColor: "#f3f4f6"},
+  participantAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#EC4899",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  participantAvatarText: {color: "#fff", fontWeight: "700", fontSize: 16},
+  participantInfo: {flex: 1, gap: 2},
+  participantName: {fontSize: 14, fontWeight: "700", color: "#1f2937"},
+  participantSub: {fontSize: 12, color: "#6b7280"},
+  participantPill: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    marginTop: 2,
+  },
+  participantPillText: {fontSize: 11, fontWeight: "700"},
 });
 
 

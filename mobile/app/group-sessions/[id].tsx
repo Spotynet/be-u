@@ -10,12 +10,14 @@ import {
   Platform,
   KeyboardAvoidingView,
   TextInput,
+  Modal,
+  Pressable,
 } from "react-native";
 import {useRouter, useLocalSearchParams} from "expo-router";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import {groupSessionApi} from "@/lib/api";
+import {groupSessionApi, profileCustomizationApi, type GroupSessionParticipant} from "@/lib/api";
 import {useAuth} from "@/features/auth";
 import {AppHeader} from "@/components/ui/AppHeader";
 
@@ -82,6 +84,12 @@ export default function GroupSessionDetailsScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
+  const [participants, setParticipants] = useState<GroupSessionParticipant[]>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [subCategories, setSubCategories] = useState<string[]>([]);
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
+  const [showSubCatModal, setShowSubCatModal] = useState(false);
+
   const loadSession = async () => {
     if (!Number.isFinite(sessionId) || sessionId <= 0) {
       setLoading(false);
@@ -101,6 +109,7 @@ export default function GroupSessionDetailsScreen() {
         setDurationMinutes(parseDurationToMinutes(s.duration));
         setCapacity(s.capacity ?? 1);
         setNotes(s.notes ?? "");
+        setSelectedSubCategory(s.sub_category ?? null);
       }
     } catch (e: any) {
       Alert.alert("Error", e?.message || "No se pudo cargar la sesión.", [
@@ -111,9 +120,36 @@ export default function GroupSessionDetailsScreen() {
     }
   };
 
+  const loadParticipants = async () => {
+    try {
+      setLoadingParticipants(true);
+      const res = await groupSessionApi.participants(sessionId);
+      setParticipants(res.data.results);
+    } catch {
+      // silently ignore — non-owners get a 403 which is expected
+    } finally {
+      setLoadingParticipants(false);
+    }
+  };
+
   useEffect(() => {
     loadSession();
   }, [sessionId]);
+
+  useEffect(() => {
+    if (sessionId > 0) loadParticipants();
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!user || (user.role !== "PROFESSIONAL" && user.role !== "PLACE")) return;
+    profileCustomizationApi
+      .getProfileImages()
+      .then((res) => {
+        const cats: string[] = Array.isArray(res.data?.sub_categories) ? res.data.sub_categories : [];
+        setSubCategories(cats);
+      })
+      .catch(() => {});
+  }, [user]);
 
   const handleSave = async () => {
     if (!session) return;
@@ -132,9 +168,11 @@ export default function GroupSessionDetailsScreen() {
         duration: toDurationString(durationMinutes),
         capacity: Math.max(1, capacity),
         notes: notes.trim() || undefined,
+        sub_category: selectedSubCategory || null,
       });
       setEditing(false);
       await loadSession();
+      await loadParticipants();
       Alert.alert("Listo", "Sesión actualizada.");
     } catch (e: any) {
       const msg =
@@ -299,6 +337,9 @@ export default function GroupSessionDetailsScreen() {
                   value={`${session.booked_slots ?? 0}/${session.capacity}`}
                   colors={colors}
                 />
+                {session.sub_category ? (
+                  <DetailRow icon="pricetag-outline" label="Subcategoría" value={session.sub_category} colors={colors} />
+                ) : null}
                 {session.notes ? (
                   <DetailRow icon="document-text-outline" label="Notas" value={session.notes} colors={colors} />
                 ) : null}
@@ -382,6 +423,22 @@ export default function GroupSessionDetailsScreen() {
                   </TouchableOpacity>
                 </View>
 
+                {subCategories.length > 0 && (
+                  <>
+                    <Text style={[styles.label, {color: colors.foreground}]}>Subcategoría (opcional)</Text>
+                    <TouchableOpacity
+                      style={[styles.pickerButton, {backgroundColor: colors.background, borderColor: colors.border}]}
+                      onPress={() => setShowSubCatModal(true)}
+                      activeOpacity={0.7}>
+                      <Ionicons name="pricetag-outline" size={20} color={colors.primary} />
+                      <Text style={[styles.pickerText, {color: selectedSubCategory ? colors.foreground : colors.mutedForeground}]}>
+                        {selectedSubCategory ?? "Sin subcategoría"}
+                      </Text>
+                      <Ionicons name="chevron-down" size={20} color={colors.mutedForeground} />
+                    </TouchableOpacity>
+                  </>
+                )}
+
                 <Text style={[styles.label, {color: colors.foreground}]}>Notas</Text>
                 <TextInput
                   style={[styles.notesInput, {backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground}]}
@@ -395,6 +452,68 @@ export default function GroupSessionDetailsScreen() {
               </>
             )}
           </View>
+
+          {/* Participantes (solo visible al dueño) */}
+          {isOwner && (
+            <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+              <View style={styles.participantsHeader}>
+                <Ionicons name="people" size={18} color={colors.primary} />
+                <Text style={[styles.participantsTitle, {color: colors.foreground}]}>
+                  Participantes ({participants.length}/{session.capacity})
+                </Text>
+                {loadingParticipants && <ActivityIndicator size="small" color={colors.primary} />}
+              </View>
+
+              {!loadingParticipants && participants.length === 0 && (
+                <Text style={[styles.emptyParticipants, {color: colors.mutedForeground}]}>
+                  Aún no hay reservas para esta sesión.
+                </Text>
+              )}
+
+              {participants.map((p, idx) => (
+                <View
+                  key={p.id}
+                  style={[
+                    styles.participantRow,
+                    idx < participants.length - 1 && {
+                      borderBottomWidth: 1,
+                      borderBottomColor: colors.border,
+                    },
+                  ]}>
+                  <View style={[styles.participantAvatar, {backgroundColor: colors.primary}]}>
+                    <Text style={styles.participantAvatarText}>
+                      {(p.client_name?.[0] ?? "?").toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.participantInfo}>
+                    <Text style={[styles.participantName, {color: colors.foreground}]}>
+                      {p.client_name || p.client_email}
+                    </Text>
+                    {!!p.client_phone && (
+                      <Text style={[styles.participantSub, {color: colors.mutedForeground}]}>
+                        {p.client_phone}
+                      </Text>
+                    )}
+                    {!!p.client_email && (
+                      <Text style={[styles.participantSub, {color: colors.mutedForeground}]}>
+                        {p.client_email}
+                      </Text>
+                    )}
+                    {!!p.notes && (
+                      <Text style={[styles.participantSub, {color: colors.mutedForeground}]}>
+                        Nota: {p.notes}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={[styles.statusPill, {backgroundColor: p.status === "CONFIRMED" ? "#22c55e22" : "#f59e0b22"}]}>
+                    <Text style={[styles.statusPillText, {color: p.status === "CONFIRMED" ? "#16a34a" : "#b45309"}]}>
+                      {p.status === "CONFIRMED" ? "Confirmado" : p.status}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* Acciones */}
           <View style={styles.actions}>
@@ -461,6 +580,43 @@ export default function GroupSessionDetailsScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showSubCatModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSubCatModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowSubCatModal(false)}>
+          <Pressable style={[styles.modalContent, {backgroundColor: colors.card}]} onPress={(e) => e.stopPropagation()}>
+            <View style={[styles.modalHeader, {borderBottomColor: colors.border}]}>
+              <Text style={[styles.modalTitle, {color: colors.foreground}]}>Subcategoría</Text>
+              <TouchableOpacity onPress={() => setShowSubCatModal(false)} hitSlop={12}>
+                <Ionicons name="close" size={24} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalList} keyboardShouldPersistTaps="handled">
+              <TouchableOpacity
+                style={[styles.modalItem, {borderBottomColor: colors.border}, !selectedSubCategory && {backgroundColor: colors.primary + "15"}]}
+                onPress={() => {setSelectedSubCategory(null); setShowSubCatModal(false);}}>
+                <Text style={[styles.modalItemName, {color: colors.foreground}]}>Sin subcategoría</Text>
+                {!selectedSubCategory && <Ionicons name="checkmark-circle" size={22} color={colors.primary} />}
+              </TouchableOpacity>
+              {subCategories.map((sc) => {
+                const active = selectedSubCategory === sc;
+                return (
+                  <TouchableOpacity
+                    key={sc}
+                    style={[styles.modalItem, {borderBottomColor: colors.border}, active && {backgroundColor: colors.primary + "15"}]}
+                    onPress={() => {setSelectedSubCategory(sc); setShowSubCatModal(false);}}>
+                    <Text style={[styles.modalItemName, {color: colors.foreground}]}>{sc}</Text>
+                    {active && <Ionicons name="checkmark-circle" size={22} color={colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -540,6 +696,29 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: "top",
   },
+  participantsHeader: {flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4},
+  participantsTitle: {fontSize: 15, fontWeight: "700", flex: 1},
+  emptyParticipants: {fontSize: 14, fontStyle: "italic", paddingVertical: 8},
+  participantRow: {flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 12},
+  participantAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  participantAvatarText: {color: "#fff", fontWeight: "700", fontSize: 16},
+  participantInfo: {flex: 1, gap: 2},
+  participantName: {fontSize: 14, fontWeight: "600"},
+  participantSub: {fontSize: 12},
+  statusPill: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    marginTop: 2,
+  },
+  statusPillText: {fontSize: 11, fontWeight: "600"},
   actions: {gap: 12},
   actionBtn: {
     flexDirection: "row",
@@ -553,4 +732,17 @@ const styles = StyleSheet.create({
   saveBtn: {},
   cancelBtn: {},
   actionBtnText: {fontWeight: "700", fontSize: 15},
+  modalOverlay: {flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end"},
+  modalContent: {borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "60%"},
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {fontSize: 18, fontWeight: "700"},
+  modalList: {maxHeight: 320},
+  modalItem: {flexDirection: "row", alignItems: "center", padding: 16, borderBottomWidth: 1, gap: 12},
+  modalItemName: {fontSize: 16, fontWeight: "600", flex: 1},
 });
