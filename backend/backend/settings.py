@@ -39,7 +39,7 @@ SECRET_KEY = 'django-insecure-t+roqsej)7g3t9t#@t1s&)b%i-7euhxd7_do1wjtz#6hpv20uc
 # Default to True for localhost development
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'stg.be-u.ai', 'be-u.ai', '*.be-u.ai']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'stg.be-u.ai', 'be-u.ai', '*.be-u.ai', 'nabbi-api-dev.spotynet.com']
 CORS_ALLOW_ALL_ORIGINS = True
 
 # Application definition
@@ -271,8 +271,8 @@ else:
 # AWS credentials - always defined to avoid import errors, but only used when USE_S3=True
 AWS_ACCESS_KEY_ID = 'AKIAXBZV5BYXMHMUVG4S'
 AWS_SECRET_ACCESS_KEY = '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'
-AWS_STORAGE_BUCKET_NAME = 'stg-be-u'
-AWS_S3_REGION_NAME = 'us-east-2'
+AWS_STORAGE_BUCKET_NAME = 'nabbi'
+AWS_S3_REGION_NAME = 'us-east-1'
 AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
 
 # IMPORTANT: Set to None to avoid ACL errors when Block Public Access is enabled
