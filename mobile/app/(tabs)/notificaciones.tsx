@@ -249,8 +249,6 @@ export default function Notificaciones() {
           title="Notificaciones"
           showBackButton={true}
           onBackPress={handleBack}
-          backgroundColor={colors.background}
-          borderBottom={colors.border}
         />
         <View style={styles.centeredContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -268,8 +266,6 @@ export default function Notificaciones() {
         title="Notificaciones"
         showBackButton={true}
         onBackPress={handleBack}
-        backgroundColor={colors.background}
-        borderBottom={colors.border}
       />
       {/* Filter Tabs */}
       <View style={[styles.filterTabsWrapper, {borderBottomColor: colors.border}]}>

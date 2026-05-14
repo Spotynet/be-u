@@ -167,8 +167,6 @@ export default function CreatePhotoPostScreen() {
         title="Foto"
         showBackButton={true}
         onBackPress={() => router.back()}
-        backgroundColor={colors.background}
-        borderBottom={colors.border}
       />
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}

@@ -10,7 +10,7 @@ import {
   Animated,
   Alert,
 } from "react-native";
-import {Colors} from "@/constants/theme";
+import {Colors, useAppTheme} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
@@ -30,6 +30,8 @@ const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
 export default function ProfileDetailScreen() {
   const {colors} = useThemeVariant();
+  const theme = useAppTheme();
+  const styles = makeStyles(colors, theme);
   const router = useRouter();
   const {goBack} = useNavigation();
   const {id} = useLocalSearchParams<{id: string}>();
@@ -820,12 +822,12 @@ export default function ProfileDetailScreen() {
               <View style={styles.postGridOverlay}>
                 <View style={styles.postGridStats}>
                   <View style={styles.postGridStat}>
-                    <Ionicons name="heart" size={16} color="#ffffff" />
+                    <Ionicons name="heart" size={16} color={theme.white} />
                     <Text style={styles.postGridStatText}>{post.likes_count || 0}</Text>
                   </View>
                   {post.comments_count > 0 && (
                     <View style={styles.postGridStat}>
-                      <Ionicons name="chatbubble" size={16} color="#ffffff" />
+                      <Ionicons name="chatbubble" size={16} color={theme.white} />
                       <Text style={styles.postGridStatText}>{post.comments_count}</Text>
                     </View>
                   )}
@@ -949,7 +951,7 @@ export default function ProfileDetailScreen() {
                     style={styles.viewAllPhotosButton}
                     activeOpacity={0.85}
                     onPress={() => router.push(`/profile/photos/${Number(id)}` as any)}>
-                    <Ionicons name="images-outline" size={14} color="#ffffff" />
+                    <Ionicons name="images-outline" size={14} color={theme.white} />
                     <Text style={styles.viewAllPhotosText}>
                       Ver las {profile.images.length} fotos
                     </Text>
@@ -1121,7 +1123,7 @@ export default function ProfileDetailScreen() {
                         router.push(`/profile/${profileId}`);
                       }}>
                       <View style={[styles.teamAvatar, {backgroundColor: colors.primary}]}>
-                          <Ionicons name="business" color="#ffffff" size={18} />
+                        <Ionicons name="business" color={theme.white} size={18} />
                       </View>
                         <View style={styles.teamLine}>
                           <Text style={[styles.teamLineName, {color: colors.foreground}]} numberOfLines={1}>
@@ -1156,7 +1158,8 @@ export default function ProfileDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, theme: any) {
+  return StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -1256,7 +1259,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   postGridStatText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 12,
     fontWeight: "700",
     textShadowColor: "rgba(0, 0, 0, 0.5)",
@@ -1295,7 +1298,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.55)",
   },
   viewAllPhotosText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 12,
     fontWeight: "800",
     letterSpacing: -0.1,
@@ -1309,7 +1312,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   profileAvatarText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 16,
     fontWeight: "700",
   },
@@ -1467,7 +1470,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   primaryActionText: {
-    color: "#ffffff",
+    color: theme.white,
     fontWeight: "700",
   },
   secondaryAction: {
@@ -1678,7 +1681,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   primaryButtonText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -1720,7 +1723,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   retryButtonText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -1758,7 +1761,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 3,
-    borderColor: "#ffffff",
+    borderColor: theme.white,
     overflow: "hidden",
   },
   teamStoryAvatarImage: {
@@ -1768,7 +1771,7 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
   teamStoryAvatarText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 20,
     fontWeight: "700",
   },
@@ -1796,7 +1799,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   teamAvatarText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 18,
     fontWeight: "700",
   },
@@ -1847,4 +1850,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
   },
-});
+  });
+}

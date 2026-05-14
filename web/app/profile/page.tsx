@@ -46,7 +46,8 @@ export default function ProfilePage() {
       // Load services
       try {
         const servicesResponse = await serviceApi.getMyServices();
-        setServices(servicesResponse.data);
+        const raw = servicesResponse.data;
+        setServices(Array.isArray(raw) ? raw : (raw?.results ?? []));
       } catch (err: any) {
         console.error("Error loading services:", err);
         setServices([]);
@@ -235,9 +236,18 @@ export default function ProfilePage() {
                               {/* Decorative Ring */}
                               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 p-0.5 animate-pulse"></div>
                               {/* Avatar Container */}
-                              <div className="relative h-20 w-20 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 text-white flex items-center justify-center font-bold text-2xl shadow-lg shadow-pink-500/30 ring-4 ring-white">
-                                {(publicProfile.display_name || "U").charAt(0).toUpperCase()}
-                              </div>
+                              {publicProfile.user_image ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={publicProfile.user_image}
+                                  alt={publicProfile.display_name}
+                                  className="relative h-20 w-20 rounded-full object-cover shadow-lg shadow-pink-500/30 ring-4 ring-white"
+                                />
+                              ) : (
+                                <div className="relative h-20 w-20 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 text-white flex items-center justify-center font-bold text-2xl shadow-lg shadow-pink-500/30 ring-4 ring-white">
+                                  {(publicProfile.display_name || "U").charAt(0).toUpperCase()}
+                                </div>
+                              )}
                               {/* Status Indicator */}
                               <div className="absolute bottom-0 right-0 h-5 w-5 rounded-full bg-green-500 border-2 border-white shadow-sm"></div>
                             </div>
@@ -299,24 +309,67 @@ export default function ProfilePage() {
                     {/* Details */}
                     <div className="mt-6 space-y-3">
                       {publicProfile.description && (
-                        <p className="text-gray-700">{publicProfile.description}</p>
+                        <p className="text-gray-700 text-sm">{publicProfile.description}</p>
                       )}
-                      {publicProfile.category && (
+                      {publicProfile.bio && publicProfile.bio !== publicProfile.description && (
+                        <p className="text-gray-600 text-sm italic">{publicProfile.bio}</p>
+                      )}
+
+                      <div className="flex flex-wrap gap-x-6 gap-y-2 pt-1">
+                        {publicProfile.category && (
+                          <div>
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Categoría</span>
+                            <p className="text-sm text-gray-800 font-medium">{publicProfile.category}</p>
+                          </div>
+                        )}
+                        {publicProfile.city && (
+                          <div>
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ubicación</span>
+                            <p className="text-sm text-gray-800 font-medium">
+                              {publicProfile.city}{publicProfile.country ? `, ${publicProfile.country}` : ""}
+                            </p>
+                          </div>
+                        )}
+                        {publicProfile.rating > 0 && (
+                          <div>
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Rating</span>
+                            <p className="text-sm text-gray-800 font-medium">{publicProfile.rating.toFixed(1)} / 5.0</p>
+                          </div>
+                        )}
                         <div>
-                          <span className="text-sm font-medium">Category:</span>
-                          <span className="ml-2 text-sm text-gray-600">{publicProfile.category}</span>
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Servicios</span>
+                          <p className="text-sm text-gray-800 font-medium">{services.length} registrados</p>
                         </div>
-                      )}
-                      {publicProfile.city && (
-                        <div>
-                          <span className="text-sm font-medium">Location:</span>
-                          <span className="ml-2 text-sm text-gray-600">{publicProfile.city}</span>
-                        </div>
-                      )}
-                      <div>
-                        <span className="text-sm font-medium">Rating:</span>
-                        <span className="ml-2 text-sm text-gray-600">{publicProfile.rating}/5.0</span>
                       </div>
+
+                      {/* Profile images gallery */}
+                      {publicProfile.images && publicProfile.images.length > 0 && (
+                        <div className="pt-2">
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Fotos del perfil</span>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {publicProfile.images.map((url, i) => (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                key={i}
+                                src={url}
+                                alt={`Foto ${i + 1}`}
+                                className="w-16 h-16 object-cover rounded-lg border border-pink-100 shadow-sm"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* sub_categories */}
+                      {publicProfile.sub_categories && publicProfile.sub_categories.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {publicProfile.sub_categories.map((sc, i) => (
+                            <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-100">
+                              {sc}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

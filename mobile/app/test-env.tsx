@@ -1,5 +1,6 @@
 import React, {useEffect} from "react";
 import {View, Text, StyleSheet} from "react-native";
+import {getApiBaseUrl} from "@/lib/apiConfig";
 
 export default function TestEnvScreen() {
   useEffect(() => {
@@ -14,7 +15,7 @@ export default function TestEnvScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Environment Test</Text>
       <Text style={styles.info}>Check console for environment variables</Text>
-      <Text style={styles.value}>API URL: https://stg.be-u.ai/api (HARDCODED)</Text>
+      <Text style={styles.value}>API URL: {getApiBaseUrl()}</Text>
       <Text style={styles.value}>Node ENV: {process.env.NODE_ENV || "Not set"}</Text>
       <Text style={styles.value}>Debug: {process.env.EXPO_PUBLIC_DEBUG || "Not set"}</Text>
       <Text style={styles.value}>EAS Build: {process.env.EXPO_PUBLIC_EAS_BUILD || "Not set"}</Text>

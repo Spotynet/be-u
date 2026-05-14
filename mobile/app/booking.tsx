@@ -25,10 +25,13 @@ import {useRouter, useLocalSearchParams} from "expo-router";
 import {useNavigation} from "@/hooks/useNavigation";
 import {formatPrice} from "@/lib/priceUtils";
 import {useCategory} from "@/contexts/CategoryContext";
+import {useAppTheme} from "@/constants/theme";
 
 export default function BookingScreen() {
   const colorScheme = useColorScheme();
+  const theme = useAppTheme();
   const {colors} = useThemeVariant();
+  const styles = makeStyles(colors, theme);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const {goBack} = useNavigation();
@@ -1320,7 +1323,8 @@ export default function BookingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, theme: any) {
+  return StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -1713,4 +1717,5 @@ const styles = StyleSheet.create({
     marginHorizontal: -4, // Slight negative margin to give more space
     paddingRight: 4, // Ensure right padding for Sunday
   },
-});
+  });
+}

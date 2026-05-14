@@ -209,18 +209,19 @@ export const ProfessionalProfileView = ({
                     }
                     return subCategory ? (
                       <View
-                        key={idx}
-                        style={[
-                          styles.subcategoryBadge,
-                          {
-                            backgroundColor: subCategory.color ? subCategory.color + "20" : colors.muted + "40",
-                            borderColor: subCategory.color || colors.border,
-                          },
-                        ]}>
-                        <Text style={[styles.subcategoryText, {color: subCategory.color || colors.foreground}]}>
-                          {subCategory.name}
-                        </Text>
+                          key={idx}
+                          style={[
+                              styles.subcategoryBadge,
+                              {
+                                  backgroundColor: colors.secondary,
+                                  borderColor: colors.secondary,
+                              },
+                          ]}>
+                          <Text style={[styles.subcategoryText, {color: colors.primaryForeground}]}>
+                              {subCategory.name}
+                          </Text>
                       </View>
+
                     ) : null;
                   })}
                 </View>

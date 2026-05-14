@@ -9,7 +9,6 @@ import {
   Platform,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
-import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useAuth} from "@/features/auth";
 import {useUserProfile, useProfileUpdate} from "@/features/users";
 import {useRouter, Redirect} from "expo-router";
@@ -18,7 +17,11 @@ import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {ClientSettingsForm} from "@/components/settings";
 import {AppHeader} from "@/components/ui/AppHeader";
 
+import {useAppTheme} from "@/constants/theme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
+
 export default function ProfileEdit() {
+  const theme = useAppTheme();
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const {user} = useAuth();
@@ -26,6 +29,48 @@ export default function ProfileEdit() {
   const {updateProfile, isLoading: updating} = useProfileUpdate(user?.id || 0, "CLIENT");
   const router = useRouter();
   const formRef = useRef<{save: () => Promise<void>} | null>(null);
+
+  const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg },
+    loading: { flex: 1, justifyContent: "center", alignItems: "center" },
+    keyboardAvoid: { flex: 1 },
+    scroll: { flex: 1, backgroundColor: colors.bg },
+    scrollContent: { padding: 24 },
+    fixedBottom: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      backgroundColor: colors.bg,
+      borderTopColor: colors.border,
+      ...Platform.select({
+        ios: {
+          shadowColor: "#000",
+          shadowOffset: {width: 0, height: -2},
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+        },
+        android: {elevation: 5},
+      }),
+    },
+    saveBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 18,
+      borderRadius: 16,
+      gap: 12,
+      backgroundColor: colors.brandDark,
+    },
+    saveBtnText: {
+      color: theme.white,
+      fontSize: 18,
+      fontWeight: "700",
+    },
+  });
 
   if (!user || user.role !== "CLIENT") {
     return <Redirect href="/(tabs)/perfil" />;
@@ -48,8 +93,6 @@ export default function ProfileEdit() {
           showBackButton
           backFallbackRoute="/(tabs)/perfil"
           onBackPress={() => router.back()}
-          backgroundColor={colors.background}
-          borderBottom={colors.border}
         />
         <View style={styles.loading}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -65,8 +108,6 @@ export default function ProfileEdit() {
         showBackButton
         backFallbackRoute="/(tabs)/perfil"
         onBackPress={() => router.back()}
-        backgroundColor={colors.background}
-        borderBottom={colors.border}
       />
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
@@ -123,41 +164,3 @@ export default function ProfileEdit() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {flex: 1},
-  loading: {flex: 1, justifyContent: "center", alignItems: "center"},
-  keyboardAvoid: {flex: 1},
-  scroll: {flex: 1},
-  scrollContent: {padding: 24},
-  fixedBottom: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: {width: 0, height: -2},
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {elevation: 5},
-    }),
-  },
-  saveBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 18,
-    borderRadius: 16,
-    gap: 12,
-  },
-  saveBtnText: {
-    color: "#ffffff",
-    fontSize: 18,
-    fontWeight: "700",
-  },
-});

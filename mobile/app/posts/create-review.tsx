@@ -206,8 +206,6 @@ export default function CreateReviewScreen() {
         title="Dejar Reseña"
         showBackButton={true}
         onBackPress={() => router.back()}
-        backgroundColor={colors.background}
-        borderBottom={colors.border}
       />
       {isLoading ? (
         <View style={styles.loadingContainer}>

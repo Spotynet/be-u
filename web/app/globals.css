@@ -11,67 +11,67 @@
   --shadow-dropdown: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
-/* Light Theme (Default) */
+/* Light Theme (Default) — nabbi brand: verde salvia #558367 + terracota + ámbar + teal + arena */
 :root,
 [data-theme="light"] {
   /* Background colors */
-  --color-background: #ffffff;
-  --color-background-secondary: #f8fafc;
+  --color-background: #faf8f3;
+  --color-background-secondary: #e3d8c6;
 
   /* Text colors */
-  --color-foreground: #0f172a;
-  --color-foreground-secondary: #475569;
-  --color-foreground-muted: #64748b;
+  --color-foreground: #1f3328;
+  --color-foreground-secondary: #3d6050;
+  --color-foreground-muted: #5a7d6a;
 
   /* Card colors */
   --color-card: #ffffff;
-  --color-card-foreground: #0f172a;
-  --color-card-border: #e2e8f0;
+  --color-card-foreground: #1f3328;
+  --color-card-border: #ccd8ce;
 
-  /* Primary colors */
-  --color-primary: #3b82f6;
+  /* Primary colors — verde salvia #558367 */
+  --color-primary: #558367;
   --color-primary-foreground: #ffffff;
-  --color-primary-hover: #2563eb;
-  --color-primary-light: #dbeafe;
-  --color-primary-dark: #1e40af;
+  --color-primary-hover: #426856;
+  --color-primary-light: #d8eae0;
+  --color-primary-dark: #1f3328;
 
-  /* Secondary colors */
-  --color-secondary: #64748b;
-  --color-secondary-foreground: #ffffff;
-  --color-secondary-hover: #475569;
-  --color-secondary-light: #f1f5f9;
-  --color-secondary-dark: #334155;
+  /* Secondary colors — amarillo #F6C531 */
+  --color-secondary: #F6C531;
+  --color-secondary-foreground: #12211A;
+  --color-secondary-hover: #e0b020;
+  --color-secondary-light: #fef8dc;
+  --color-secondary-dark: #b8920f;
 
-  /* Accent colors */
-  --color-accent: #8b5cf6;
+  /* Accent colors — teal #225D65 */
+  --color-accent: #225D65;
   --color-accent-foreground: #ffffff;
-  --color-accent-hover: #7c3aed;
+  --color-accent-hover: #1a4a52;
 
   /* Status colors */
-  --color-success: #10b981;
+  --color-success: #558367;
   --color-success-foreground: #ffffff;
-  --color-success-light: #d1fae5;
+  --color-success-light: #d8eae0;
 
-  --color-warning: #f59e0b;
+  --color-warning: #D39932;
   --color-warning-foreground: #ffffff;
-  --color-warning-light: #fef3c7;
+  --color-warning-light: #fef6dc;
 
-  --color-error: #ef4444;
+  --color-error: #c0392b;
   --color-error-foreground: #ffffff;
-  --color-error-light: #fee2e2;
+  --color-error-light: #fde8e8;
 
   /* Border colors */
-  --color-border: #e2e8f0;
-  --color-border-light: #f1f5f9;
-  --color-border-dark: #cbd5e1;
+  --color-border: #ccd8ce;
+  --color-border-light: #e3d8c6;
+  --color-border-dark: #a8c0b0;
 
   /* Input colors */
   --color-input: #ffffff;
-  --color-input-border: #d1d5db;
-  --color-input-focus: #3b82f6;
+  --color-input-border: #ccd8ce;
+  --color-input-focus: #558367;
 
   /* Ring colors */
-  --color-ring: #3b82f6;
+  --color-ring: #558367;
 }
 
 /* Dark Theme */
@@ -321,6 +321,94 @@
   /* Ring colors */
   --color-ring: #8b5cf6;
 }
+
+/* ── Landing page responsive helpers ──────────────────────────── */
+.lp-section   { padding-top: 52px;  padding-bottom: 52px;  }
+.lp-hero      { padding-top: 60px;  padding-bottom: 72px;  overflow: hidden; position: relative; }
+.lp-cta       { padding-top: 64px;  padding-bottom: 64px;  }
+
+@media (min-width: 768px) {
+  .lp-section { padding-top: 84px;  padding-bottom: 84px;  }
+  .lp-hero    { padding-top: 88px;  padding-bottom: 120px; }
+  .lp-cta     { padding-top: 90px;  padding-bottom: 90px;  }
+}
+
+/* Phone mockup column — hidden below 520px, visible from sm up */
+.lp-phone-col { display: none; }
+@media (min-width: 520px) {
+  .lp-phone-col { display: flex; align-items: center; justify-content: center; margin-top: 40px; }
+}
+@media (min-width: 1024px) {
+  .lp-phone-col { margin-top: 0; }
+}
+
+/* Step body text */
+.lp-step-body { max-width: 100%; margin: 0 auto; }
+@media (min-width: 768px) { .lp-step-body { max-width: 260px; } }
+
+/* Header button — compact on xs, normal from sm */
+.lp-header-btn { padding: 8px 14px; font-size: 13px; }
+@media (min-width: 480px) { .lp-header-btn { padding: 9px 22px; font-size: 14px; } }
+
+/* Hero headline */
+.lp-h1 { font-size: clamp(2rem, 9vw, 4.4rem); letter-spacing: -0.04em; line-height: 1.06; }
+@media (min-width: 640px) { .lp-h1 { font-size: clamp(2.4rem, 6vw, 4.4rem); } }
+@media (min-width: 1024px) { .lp-h1 { font-size: clamp(2.6rem, 5.5vw, 4.4rem); } }
+
+
+/* Professionals cards — no translate hover on touch */
+@media (hover: none) {
+  .lp-pro-card:hover { transform: none !important; }
+}
+
+/* Footer columns — 2 cols on tablet */
+.lp-footer-grid { display: grid; grid-template-columns: 1fr; gap: 32px; }
+@media (min-width: 640px) { .lp-footer-grid { grid-template-columns: 1fr 1fr; gap: 32px; } }
+@media (min-width: 1024px) { .lp-footer-grid { grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; } }
+
+/* Dashboard utilities */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Animations */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(-1deg); }
+  50%       { transform: translateY(-10px) rotate(1deg); }
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+@keyframes pop-in {
+  0%   { opacity: 0; transform: scale(0.8) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50%       { transform: rotate(3deg); }
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+.float-anim   { animation: float 4s ease-in-out infinite; }
+.float-slow   { animation: float-slow 5s ease-in-out infinite; }
+.pop-in       { animation: pop-in 0.5s ease both; }
+.wiggle       { animation: wiggle 2s ease-in-out infinite; }
 
 /* Base styles */
 * {

@@ -23,14 +23,18 @@ import { Calendar, DateData } from 'react-native-calendars';
 
 type ViewMode = 'week' | 'day';
 
+import {useAppTheme} from "@/constants/theme";
+
 export default function AgendaScreen() {
   const { colors } = useThemeVariant();
+  const theme = useAppTheme();
   const insets = useSafeAreaInsets();
   const { goBack } = useNavigation();
   const { user } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [selectedDay, setSelectedDay] = useState<Date>(new Date());
   const [showCalendarPicker, setShowCalendarPicker] = useState(false);
+
 
   const isProvider = user?.role === 'PROFESSIONAL' || user?.role === 'PLACE';
 
@@ -109,7 +113,7 @@ export default function AgendaScreen() {
               <Text
                 style={[
                   styles.viewModeText,
-                  { color: viewMode === 'week' ? '#ffffff' : colors.foreground },
+                  { color: viewMode === 'week' ? theme.white : colors.textPrimary },
                 ]}>
                 Semana
               </Text>
@@ -124,7 +128,7 @@ export default function AgendaScreen() {
               <Text
                 style={[
                   styles.viewModeText,
-                  { color: viewMode === 'day' ? '#ffffff' : colors.foreground },
+                  { color: viewMode === 'day' ? theme.white : colors.textPrimary },
                 ]}>
                 Día
               </Text>
@@ -193,7 +197,7 @@ export default function AgendaScreen() {
                 calendarBackground: colors.background,
                 textSectionTitleColor: colors.mutedForeground,
                 selectedDayBackgroundColor: colors.primary,
-                selectedDayTextColor: '#ffffff',
+                selectedDayTextColor: theme.white,
                 todayTextColor: colors.primary,
                 dayTextColor: colors.foreground,
                 textDisabledColor: colors.mutedForeground,
@@ -231,126 +235,44 @@ export default function AgendaScreen() {
   );
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  placeholder: {
-    width: 40,
-  },
-  viewModeSelector: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
-    borderBottomWidth: 1,
-  },
-  viewModeOption: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  viewModeText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  daySelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  dayNavButton: {
-    padding: 8,
-  },
-  dayPickerButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  dayPickerText: {
-    fontSize: 15,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 32,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    gap: 16,
-  },
-  emptyText: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  emptySubtext: {
-    fontSize: 15,
-    textAlign: 'center',
-  },
+  container: { flex: 1 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 16, borderBottomWidth: 1 },
+  backButton: { padding: 8 },
+  headerTitle: { fontSize: 20, fontWeight: "700" },
+  placeholder: { width: 40 },
+  viewModeSelector: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 8, gap: 8, borderBottomWidth: 1 },
+  viewModeOption: { flex: 1, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, alignItems: "center" },
+  viewModeText: { fontSize: 14, fontWeight: "600" },
+  daySelector: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
+  dayNavButton: { padding: 8 },
+  dayPickerButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 8, paddingHorizontal: 12 },
+  dayPickerText: { fontSize: 15, fontWeight: "600", textTransform: "capitalize" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)", justifyContent: "flex-end" },
+  modalContent: { borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32 },
+  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1 },
+  modalTitle: { fontSize: 18, fontWeight: "700" },
+  emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32, gap: 16 },
+  emptyText: { fontSize: 20, fontWeight: "700" },
+  emptySubtext: { fontSize: 15, textAlign: "center" },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

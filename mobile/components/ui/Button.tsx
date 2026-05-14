@@ -26,16 +26,16 @@ export const Button = ({
     // Variant styles
     switch (variant) {
       case "primary":
-        baseStyle.push({backgroundColor: colors.primary});
+        baseStyle.push({backgroundColor: colors.accent});
         break;
       case "secondary":
-        baseStyle.push({backgroundColor: colors.secondary});
+        baseStyle.push({backgroundColor: colors.primary});
         break;
       case "outline":
         baseStyle.push({
           backgroundColor: "transparent",
           borderWidth: 1,
-          borderColor: colors.border,
+          borderColor: colors.primary,
         });
         break;
     }
@@ -61,13 +61,13 @@ export const Button = ({
 
     switch (variant) {
       case "primary":
-        textStyle.push({color: colors.primaryForeground});
+        textStyle.push({color: colors.accentForeground});
         break;
       case "secondary":
-        textStyle.push({color: colors.secondaryForeground});
+        textStyle.push({color: colors.primaryForeground});
         break;
       case "outline":
-        textStyle.push({color: colors.foreground});
+        textStyle.push({color: colors.primary});
         break;
     }
 
@@ -83,7 +83,7 @@ export const Button = ({
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: 8,
+    borderRadius: 999,
     justifyContent: "center",
     alignItems: "center",
   },

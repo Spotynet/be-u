@@ -32,7 +32,10 @@ else:
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-t+roqsej)7g3t9t#@t1s&)b%i-7euhxd7_do1wjtz#6hpv20uc'
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY",
+    "django-insecure-t+roqsej)7g3t9t#@t1s&)b%i-7euhxd7_do1wjtz#6hpv20uc",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Enable DEBUG for local development - set DEBUG=False via environment variable for production
@@ -64,6 +67,7 @@ INSTALLED_APPS = [
     'notifications',
     'favorites',
     'calendar_integration',
+    'ventas',
 ]
 
 MIDDLEWARE = [
@@ -100,14 +104,23 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+_db_options = {}
+_db_sslmode = os.environ.get("DB_SSLMODE", "").strip()
+if _db_sslmode:
+    # e.g. require (common for AWS RDS / Aurora). See PostgreSQL sslmode docs.
+    _db_options["sslmode"] = _db_sslmode
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'stg_beu',         # la DB que creaste
-        'USER': 'beu',                # usuario PostgreSQL
-        'PASSWORD': 'Juve$031021',         # contraseña del usuario
-        'HOST': '34.207.42.51',     # la EC2 donde corre PostgreSQL
-        'PORT': '5432',                      # puerto de PostgreSQL
+    "default": {
+        "ENGINE": os.environ.get(
+            "DB_ENGINE", "django.db.backends.postgresql"
+        ),
+        "NAME": os.environ.get("DB_NAME", "stg_beu"),
+        "USER": os.environ.get("DB_USER", "beu"),
+        "PASSWORD": os.environ.get("DB_PASSWORD", "Juve$031021"),
+        "HOST": os.environ.get("DB_HOST", "34.207.42.51"),
+        "PORT": os.environ.get("DB_PORT", "5432"),
+        **({"OPTIONS": _db_options} if _db_options else {}),
     }
 }
 
@@ -268,12 +281,21 @@ else:
     # For local development, set USE_S3=False in your environment or .env file
     USE_S3 = True
 
-# AWS credentials - always defined to avoid import errors, but only used when USE_S3=True
-AWS_ACCESS_KEY_ID = 'AKIAXBZV5BYXMHMUVG4S'
-AWS_SECRET_ACCESS_KEY = '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'
-AWS_STORAGE_BUCKET_NAME = 'nabbi'
-AWS_S3_REGION_NAME = 'us-east-1'
-AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
+# AWS credentials — set in backend/.env (or the process environment). Required when USE_S3=True.
+# Optional: AWS_S3_CUSTOM_DOMAIN for CloudFront or a custom hostname (otherwise virtual-hosted style is used).
+AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME", "")
+AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "us-east-1")
+_aws_s3_custom = os.environ.get("AWS_S3_CUSTOM_DOMAIN", "").strip()
+if _aws_s3_custom:
+    AWS_S3_CUSTOM_DOMAIN = _aws_s3_custom
+elif AWS_STORAGE_BUCKET_NAME:
+    AWS_S3_CUSTOM_DOMAIN = (
+        f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+    )
+else:
+    AWS_S3_CUSTOM_DOMAIN = ""
 
 # IMPORTANT: Set to None to avoid ACL errors when Block Public Access is enabled
 AWS_DEFAULT_ACL = None

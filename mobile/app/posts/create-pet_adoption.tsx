@@ -127,8 +127,6 @@ export default function CreatePetAdoptionScreen() {
         title="Adoptar Mascotas"
         showBackButton={true}
         onBackPress={() => router.back()}
-        backgroundColor={colors.background}
-        borderBottom={colors.border}
       />
       <ScrollView
         style={styles.scrollView}

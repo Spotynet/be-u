@@ -14,8 +14,6 @@ export default function GuardadosScreen() {
         title="Guardados"
         showBackButton
         onBackPress={() => router.back()}
-        backgroundColor={colors.background}
-        borderBottom={colors.border}
       />
       <View style={styles.content}>
         <FavoritesTab />

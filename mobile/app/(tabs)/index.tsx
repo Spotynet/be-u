@@ -34,6 +34,7 @@ import {useAuth} from "@/features/auth/hooks/useAuth";
 import {TourTarget} from "@/components/onboarding/TourTarget";
 import {AppLogo} from "@/components/AppLogo";
 import {APP_HEADER_BUTTON_HIT} from "@/components/ui/AppHeader";
+import {useAppTheme} from "@/constants/theme";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 // Mosaic grid: postsSection padding 20*2 + postCard padding 16*2 + grid padding 10*2 + gap 8
@@ -57,6 +58,8 @@ function formatCommentTime(createdAt: string | undefined): string {
 
 // Carousel Component with indicators
 const CarouselView = ({images, colors, screenWidth}: {images: string[]; colors: any; screenWidth: number}) => {
+  const theme = useAppTheme();
+  const styles = makeStyles(colors, theme);
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -115,7 +118,9 @@ const CarouselView = ({images, colors, screenWidth}: {images: string[]; colors: 
 
 export default function Home() {
   const colorScheme = useColorScheme();
-  const {colors, setVariant} = useThemeVariant();
+  const theme = useAppTheme();
+  const {colors} = useThemeVariant();
+  const styles = makeStyles(colors, theme);
   const insets = useSafeAreaInsets();
   const {user} = useAuth();
   const {
@@ -342,14 +347,12 @@ export default function Home() {
     ) {
       setSelectedMainCategory(selectedServiceCategory);
       setSelectedSubCategory("todos");
-      setVariant(selectedServiceCategory);
     }
   }, [
     selectedServiceCategory,
     selectedMainCategory,
     setSelectedMainCategory,
     setSelectedSubCategory,
-    setVariant,
   ]);
 
   const getCategoryIcon = (id: string, color: string, size: number = 24) => {
@@ -1063,7 +1066,7 @@ export default function Home() {
         <Image source={{uri: post.thumbnail}} style={styles.videoThumbnail} />
         <View style={styles.videoOverlay}>
           <View style={[styles.playButton, {backgroundColor: colors.primary}]}>
-            <Ionicons name="play" color="#ffffff" size={32} />
+            <Ionicons name="play" color={theme.white} size={32} />
           </View>
           <View style={styles.videoDuration}>
             <Text style={styles.videoDurationText}>{post.duration}</Text>
@@ -1246,16 +1249,16 @@ export default function Home() {
         <View style={styles.reelOverlay}>
           {/* Play button */}
           <View style={styles.reelPlayButton}>
-            <Ionicons name="play" color="#ffffff" size={40} />
+            <Ionicons name="play" color={theme.white} size={40} />
           </View>
           {/* Duration badge */}
           <View style={styles.reelDuration}>
-            <Ionicons name="videocam" color="#ffffff" size={12} />
+            <Ionicons name="videocam" color={theme.white} size={12} />
             <Text style={styles.reelDurationText}>{post.duration}</Text>
           </View>
           {/* Views badge */}
           <View style={styles.reelViews}>
-            <Ionicons name="eye" color="#ffffff" size={12} />
+            <Ionicons name="eye" color={theme.white} size={12} />
             <Text style={styles.reelViewsText}>{post.stats.views}</Text>
           </View>
         </View>
@@ -1385,14 +1388,14 @@ export default function Home() {
           <Text style={styles.tipTime}>{post.timeAgo}</Text>
         </View>
         <TouchableOpacity>
-          <Ionicons name="ellipsis-horizontal" color="#ffffff" size={20} />
+          <Ionicons name="ellipsis-horizontal" color={theme.white} size={20} />
         </TouchableOpacity>
       </View>
 
       {/* Tip Content */}
       <View style={styles.tipContent}>
         <View style={styles.tipIconContainer}>
-          <Ionicons name={post.icon as any} color="#ffffff" size={48} />
+          <Ionicons name={post.icon as any} color={theme.white} size={48} />
         </View>
         <Text style={styles.tipTitle}>{post.title}</Text>
         <Text style={styles.tipText}>{post.tip}</Text>
@@ -1406,7 +1409,7 @@ export default function Home() {
           activeOpacity={0.7}>
           <Ionicons
             name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-            color="#ffffff"
+            color={theme.white}
             size={22}
           />
           <Text style={styles.tipActionText}>
@@ -1414,7 +1417,7 @@ export default function Home() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tipAction} activeOpacity={0.7}>
-          <Ionicons name="bookmark" color="#ffffff" size={22} />
+          <Ionicons name="bookmark" color={theme.white} size={22} />
           <Text style={styles.tipActionText}>{post.stats.saves}</Text>
         </TouchableOpacity>
       </View>
@@ -1576,7 +1579,7 @@ export default function Home() {
   };
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.contentBackground}]}>
+    <View style={[styles.container, {backgroundColor: colors.bg}]}>
       <View
         style={[
           styles.header,
@@ -1607,7 +1610,6 @@ export default function Home() {
                   onPress={() => {
                     setSelectedMainCategory(category.id as any);
                     setSelectedServiceCategory(category.id as any);
-                    setVariant(category.id as any);
                   }}
                   delayPressIn={0}>
                   {getCategoryIcon(
@@ -1706,7 +1708,7 @@ export default function Home() {
                     {videoUrl ? (
                       <View style={[styles.storyPreview, {backgroundColor: colors.muted, justifyContent: 'center', alignItems: 'center', position: 'relative'}]}>
                         {/* Video play button overlay */}
-                        <Ionicons name="play-circle" size={48} color="#ffffff" style={{opacity: 0.9}} />
+                        <Ionicons name="play-circle" size={48} color={theme.white} style={{opacity: 0.9}} />
                       </View>
                     ) : (
                       <View style={[styles.storyPreview, {backgroundColor: colors.muted}]} />
@@ -1717,7 +1719,7 @@ export default function Home() {
                       </View>
                       <View style={styles.storyUser}>
                         <View style={[styles.storyAvatar, {backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center'}]}>
-                          <Text style={{color: '#ffffff', fontSize: 14, fontWeight: '700'}}>
+                          <Text style={{color: theme.white, fontSize: 14, fontWeight: '700'}}>
                             {authorName.charAt(0).toUpperCase()}
                           </Text>
                         </View>
@@ -1945,7 +1947,7 @@ export default function Home() {
                   key={format.id}
                   style={({pressed}) => [
                     styles.createPostOptionRow,
-                    {backgroundColor: "#f3f4f6"},
+                    {backgroundColor: colors.muted},
                     pressed && {opacity: 0.85},
                   ]}
                   onPress={() => {
@@ -2021,7 +2023,8 @@ export default function Home() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, theme: any) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     top: 0,
@@ -2209,11 +2212,11 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: "#ffffff",
+    borderColor: theme.white,
   },
   storyUserName: {
     flex: 1,
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 13,
     fontWeight: "700",
     textShadowColor: "rgba(0, 0, 0, 0.5)",
@@ -2283,7 +2286,7 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
   postAvatarText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 16,
     fontWeight: "700",
   },
@@ -2363,7 +2366,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   transformationLabelText: {
-    color: "#FFFFFF",
+    color: theme.white,
     fontSize: 10,
     fontWeight: "600",
     textTransform: "uppercase",
@@ -2429,7 +2432,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   videoDurationText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -2556,7 +2559,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   carouselCounterText: {
-    color: "#FFFFFF",
+    color: theme.white,
     fontSize: 13,
     fontWeight: "600",
   },
@@ -2610,7 +2613,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 3,
-    borderColor: "#ffffff",
+    borderColor: theme.white,
   },
   reelDuration: {
     position: "absolute",
@@ -2625,7 +2628,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   reelDurationText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -2642,7 +2645,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   reelViewsText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -2750,10 +2753,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     marginRight: 12,
     borderWidth: 2,
-    borderColor: "#ffffff",
+    borderColor: theme.white,
   },
   tipUserName: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 14,
     fontWeight: "700",
     marginBottom: 2,
@@ -2776,14 +2779,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   tipTitle: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 20,
     fontWeight: "900",
     marginBottom: 12,
     textAlign: "center",
   },
   tipText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 15,
     lineHeight: 24,
     textAlign: "center",
@@ -2803,7 +2806,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tipActionText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 14,
     fontWeight: "700",
   },
@@ -2834,7 +2837,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   gridOverlayText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 32,
     fontWeight: "900",
   },
@@ -2866,7 +2869,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   reserveButtonText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 13,
     fontWeight: "700",
   },
@@ -2880,7 +2883,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   postActionCtaText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 13,
     fontWeight: "700",
   },
@@ -2936,7 +2939,7 @@ const styles = StyleSheet.create({
   featuredInitials: {
     fontSize: 32,
     fontWeight: "900",
-    color: "#ffffff",
+    color: theme.white,
   },
   featuredName: {
     fontSize: 14,
@@ -3004,7 +3007,7 @@ const styles = StyleSheet.create({
   polaroidInitials: {
     fontSize: 72,
     fontWeight: "900",
-    color: "#ffffff",
+    color: theme.white,
     textShadowColor: "rgba(0, 0, 0, 0.2)",
     textShadowOffset: {width: 0, height: 2},
     textShadowRadius: 8,
@@ -3036,7 +3039,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   polaroidBadgeText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 11,
     fontWeight: "800",
   },
@@ -3151,7 +3154,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   editModalSaveText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -3163,7 +3166,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   commentsSheet: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: "90%",
@@ -3375,4 +3378,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
   },
-});
+  });
+}

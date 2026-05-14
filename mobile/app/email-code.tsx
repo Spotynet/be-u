@@ -1,28 +1,181 @@
+import {AppHeader} from "@/components/ui/AppHeader";
+import {AppLogo} from "@/components/AppLogo";
+import {useAppTheme} from "@/constants/theme";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   TextInput,
   ActivityIndicator,
   Animated,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useRouter, useLocalSearchParams} from "expo-router";
 import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
 import {useAuth} from "@/features/auth";
-import {AppHeader} from "@/components/ui/AppHeader";
-import {AppLogo} from "@/components/AppLogo";
 
 export default function EmailCode() {
   const {colors} = useThemeVariant();
+  const theme = useAppTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{email: string}>();
   const {loginWithEmailCode, requestEmailCode, isLoading} = useAuth();
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    content: {
+      flex: 1,
+    },
+    scrollContent: {
+      padding: 24,
+      paddingBottom: 40,
+    },
+    logoContainer: {
+      alignItems: "center",
+      marginTop: 32,
+      marginBottom: 20,
+    },
+    logoWrapper: {
+      position: "relative",
+      marginBottom: 16,
+    },
+    logoBox: {
+      width: 88,
+      height: 88,
+      borderRadius: 22,
+      justifyContent: "center",
+      alignItems: "center",
+      overflow: "hidden",
+      backgroundColor: colors.surface,
+    },
+    heroLogo: {
+      width: 52,
+      height: 52,
+    },
+    logoText: {
+      fontSize: 28,
+      fontWeight: "900",
+      letterSpacing: 1.5,
+      color: colors.textPrimary,
+    },
+    welcomeContainer: {
+      alignItems: "center",
+      marginTop: 12,
+      marginBottom: 40,
+    },
+    welcomeTitle: {
+      fontSize: 28,
+      fontWeight: "800",
+      textAlign: "center",
+      letterSpacing: 0.5,
+      marginBottom: 12,
+      color: colors.textPrimary,
+    },
+    welcomeSubtitle: {
+      fontSize: 16,
+      textAlign: "center",
+      lineHeight: 24,
+      color: colors.textSecondary,
+    },
+    emailHighlight: {
+      fontWeight: "600",
+      color: colors.textPrimary,
+    },
+    formContainer: {
+      marginBottom: 32,
+    },
+    codeBoxesRow: {
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: 10,
+      marginBottom: 8,
+    },
+    codeBox: {
+      width: 48,
+      height: 56,
+      borderRadius: 14,
+      fontSize: 22,
+      fontWeight: "700",
+      padding: 0,
+      textAlign: "center",
+      backgroundColor: colors.inputBg,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      color: colors.inputText,
+    },
+    loginButton: {
+      paddingVertical: 18,
+      borderRadius: 16,
+      alignItems: "center",
+      marginBottom: 24,
+      backgroundColor: colors.brandDark,
+    },
+    loginButtonText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.white,
+    },
+    resendContainer: {
+      alignItems: "center",
+      marginTop: 8,
+    },
+    resendText: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: colors.textSecondary,
+    },
+    resendLink: {
+      fontWeight: "700",
+      textDecorationLine: "underline",
+      color: colors.brandDark,
+    },
+    errorText: {
+      fontSize: 12,
+      marginTop: 4,
+      color: colors.error,
+    },
+    successContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 12,
+      marginBottom: 20,
+      gap: 8,
+      backgroundColor: colors.successBg,
+    },
+    successText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.success,
+    },
+    errorContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 12,
+      marginBottom: 20,
+      gap: 8,
+      backgroundColor: colors.errorBg,
+    },
+    generalErrorText: {
+      fontSize: 14,
+      fontWeight: "500",
+      flex: 1,
+      lineHeight: 20,
+      color: colors.error,
+    },
+  });
 
   const email = params.email || "";
   const [emailCode, setEmailCode] = useState("");
@@ -84,7 +237,6 @@ export default function EmailCode() {
   };
 
   const handleVerifyCode = async () => {
-    // Clear previous messages
     setSuccessMessage("");
     setGeneralError("");
     setErrors({code: ""});
@@ -106,7 +258,6 @@ export default function EmailCode() {
       setSuccessMessage("¡Inicio de sesión exitoso!");
       setTimeout(() => router.replace("/(tabs)"), 800);
     } catch (error: any) {
-      // Handle specific error types with beautiful inline messages
       if (
         error.message?.includes("Código inválido") ||
         error.message?.includes("Invalid code")
@@ -145,15 +296,13 @@ export default function EmailCode() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, {backgroundColor: colors.background}]}
+      style={[styles.container, {backgroundColor: colors.bg}]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
       <AppHeader
         title="Verificar código"
         showBackButton
         onBackPress={() => router.back()}
-        backgroundColor={colors.background}
-        borderBottom={colors.border}
       />
 
       <ScrollView
@@ -161,64 +310,42 @@ export default function EmailCode() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        {/* Animated Logo */}
         <View style={styles.logoContainer}>
           <Animated.View
             style={[styles.logoWrapper, {transform: [{scale: logoScale}]}]}>
-            <View
-              style={[
-                styles.logoBox,
-                {
-                  backgroundColor: "#FFFFFF",
-                  shadowColor: colors.primary,
-                  ...Platform.select({
-                    ios: {
-                      shadowOffset: {width: 0, height: 0},
-                      shadowOpacity: 0.35,
-                      shadowRadius: 18,
-                    },
-                    android: {elevation: 12},
-                  }),
-                },
-              ]}>
-              <AppLogo style={styles.heroLogo} resizeMode="contain" />
-            </View>
+              <AppLogo style={styles.heroLogo} resizeMode="contain" showBackground={true} />
           </Animated.View>
-          <Text style={[styles.logoText, {color: colors.foreground}]}>nabbi</Text>
+          <Text style={[styles.logoText, {color: colors.textPrimary}]}>Nabbi</Text>
         </View>
 
-        {/* Welcome Text */}
         <View style={styles.welcomeContainer}>
-          <Text style={[styles.welcomeTitle, {color: colors.foreground}]}>
+          <Text style={[styles.welcomeTitle, {color: colors.textPrimary}]}>
             Ingresa el código
           </Text>
-          <Text style={[styles.welcomeSubtitle, {color: colors.mutedForeground}]}>
+          <Text style={[styles.welcomeSubtitle, {color: colors.textSecondary}]}>
             Te enviamos un código de 6 dígitos a{"\n"}
-            <Text style={[styles.emailHighlight, {color: colors.foreground}]}>{email}</Text>
+            <Text style={[styles.emailHighlight, {color: colors.textPrimary}]}>{email}</Text>
           </Text>
         </View>
 
-        {/* Success Message */}
         {successMessage ? (
-          <View style={[styles.successContainer, {backgroundColor: colors.success}]}>
-            <Ionicons name="checkmark-circle" color={colors.successForeground} size={20} />
-            <Text style={[styles.successText, {color: colors.successForeground}]}>
+          <View style={styles.successContainer}>
+            <Ionicons name="checkmark-circle" color={colors.success} size={20} />
+            <Text style={styles.successText}>
               {successMessage}
             </Text>
           </View>
         ) : null}
 
-        {/* General Error Message */}
         {generalError ? (
-          <View style={[styles.errorContainer, {backgroundColor: colors.destructive}]}>
-            <Ionicons name="alert-circle" color={colors.destructiveForeground} size={20} />
-            <Text style={[styles.generalErrorText, {color: colors.destructiveForeground}]}>
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" color={colors.error} size={20} />
+            <Text style={styles.generalErrorText}>
               {generalError}
             </Text>
           </View>
         ) : null}
 
-        {/* Code Form */}
         <View style={styles.formContainer}>
           <View style={styles.codeBoxesRow}>
             {codeDigits.map((digit, index) => (
@@ -229,12 +356,9 @@ export default function EmailCode() {
                 }}
                 style={[
                   styles.codeBox,
-                  styles.codeBoxText,
                   {
-                    backgroundColor: "#FFFFFF",
-                    borderColor: focusedIndex === index ? colors.primary : colors.border,
+                    borderColor: focusedIndex === index ? colors.brandDark : colors.border,
                     borderWidth: focusedIndex === index ? 2.5 : 1.5,
-                    color: colors.foreground,
                   },
                 ]}
                 value={digit}
@@ -249,21 +373,22 @@ export default function EmailCode() {
                 selectTextOnFocus
                 textAlign="center"
                 placeholder=""
-                placeholderTextColor={colors.mutedForeground}
-                selectionColor={colors.primary}
+                placeholderTextColor={colors.placeholderText}
+                selectionColor={colors.brandDark}
               />
             ))}
           </View>
           {errors.code ? (
-            <Text style={[styles.errorText, {color: colors.destructive}]}>{errors.code}</Text>
+            <Text style={styles.errorText}>{errors.code}</Text>
           ) : null}
 
           {/* Verify button */}
-          <TouchableOpacity
-            style={[
+          <Pressable
+            style={({pressed}) => [
               styles.loginButton,
               {backgroundColor: colors.primary},
-              isLoading && styles.loginButtonDisabled,
+              isLoading && {opacity: 0.6},
+              pressed && !isLoading && {opacity: 0.9},
             ]}
             onPress={handleVerifyCode}
             disabled={isLoading}>
@@ -274,14 +399,13 @@ export default function EmailCode() {
                 Verificar código
               </Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
 
-          {/* Resend code */}
           <TouchableOpacity
             style={styles.resendContainer}
             onPress={handleResendCode}
             disabled={isLoading}>
-            <Text style={[styles.resendText, {color: colors.primary}]}>
+            <Text style={styles.resendText}>
               ¿No recibiste el código?{" "}
               <Text style={styles.resendLink}>Reenviar</Text>
             </Text>
@@ -291,147 +415,3 @@ export default function EmailCode() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 24,
-    paddingBottom: 40,
-  },
-  logoContainer: {
-    alignItems: "center",
-    marginTop: 32,
-    marginBottom: 20,
-  },
-  logoWrapper: {
-    position: "relative",
-    marginBottom: 16,
-  },
-  logoBox: {
-    width: 88,
-    height: 88,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-  },
-  heroLogo: {
-    width: 52,
-    height: 52,
-  },
-  logoText: {
-    fontSize: 28,
-    fontWeight: "900",
-    letterSpacing: 1.5,
-  },
-  welcomeContainer: {
-    alignItems: "center",
-    marginTop: 12,
-    marginBottom: 40,
-  },
-  welcomeTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    textAlign: "center",
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  welcomeSubtitle: {
-    fontSize: 16,
-    textAlign: "center",
-    lineHeight: 24,
-  },
-  emailHighlight: {
-    fontWeight: "600",
-  },
-  formContainer: {
-    marginBottom: 32,
-  },
-  codeBoxesRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 10,
-    marginBottom: 8,
-  },
-  codeBox: {
-    width: 48,
-    height: 56,
-    borderRadius: 14,
-    fontSize: 22,
-    fontWeight: "700",
-  },
-  codeBoxText: {
-    padding: 0,
-    textAlign: "center",
-  },
-  loginButton: {
-    paddingVertical: 18,
-    borderRadius: 16,
-    alignItems: "center",
-    marginBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  loginButtonDisabled: {
-    opacity: 0.6,
-  },
-  loginButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  resendContainer: {
-    alignItems: "center",
-    marginTop: 8,
-  },
-  resendText: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  resendLink: {
-    fontWeight: "700",
-    textDecorationLine: "underline",
-  },
-  errorText: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  successContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-    gap: 8,
-  },
-  successText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  errorContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-    gap: 8,
-  },
-  generalErrorText: {
-    fontSize: 14,
-    fontWeight: "500",
-    flex: 1,
-    lineHeight: 20,
-  },
-});

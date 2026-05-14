@@ -21,9 +21,11 @@ import {useGoogleAuth} from "@/hooks/useGoogleAuth";
 import {useNavigation} from "@/hooks/useNavigation";
 import {AppLogo} from "@/components/AppLogo";
 import {AppHeader} from "@/components/ui/AppHeader";
+import {useAppTheme} from "@/constants/theme";
 
 export default function Login() {
   const {colors} = useThemeVariant();
+  const theme = useAppTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const {goBack} = useNavigation();
@@ -35,9 +37,12 @@ export default function Login() {
   const [successMessage, setSuccessMessage] = useState("");
   const [generalError, setGeneralError] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
+  const styles = getStyles(colors, theme);
 
   const logoScale = useRef(new Animated.Value(0)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
+
+
 
   useEffect(() => {
     Animated.parallel([
@@ -130,8 +135,6 @@ export default function Login() {
         title="Iniciar sesión"
         showBackButton
         onBackPress={() => goBack("/(tabs)/")}
-        backgroundColor={colors.background}
-        borderBottom={colors.border}
       />
 
       <ScrollView
@@ -143,26 +146,9 @@ export default function Login() {
           {/* Logo + brand */}
           <View style={styles.hero}>
             <Animated.View style={[styles.logoWrap, {transform: [{scale: logoScale}]}]}>
-              <View
-                style={[
-                  styles.logoBox,
-                  {
-                    backgroundColor: colors.card,
-                    shadowColor: colors.primary,
-                    ...Platform.select({
-                      ios: {
-                        shadowOffset: {width: 0, height: 0},
-                        shadowOpacity: 0.35,
-                        shadowRadius: 18,
-                      },
-                      android: {elevation: 12},
-                    }),
-                  },
-                ]}>
-                <AppLogo style={styles.heroLogo} resizeMode="contain" />
-              </View>
+                <AppLogo style={styles.heroLogo} resizeMode="contain" showBackground={true} />
             </Animated.View>
-            <Text style={[styles.brandName, {color: colors.foreground}]}>nabbi</Text>
+            <Text style={[styles.brandName, {color: colors.foreground}]}>Nabbi</Text>
             <Text style={[styles.heroSubtitle, {color: colors.mutedForeground}]}>
               Ingresa tu correo y te enviamos un código para iniciar sesión
             </Text>
@@ -272,133 +258,34 @@ export default function Login() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 40,
-  },
-  hero: {
-    alignItems: "center",
-    marginBottom: 40,
-  },
-  logoWrap: {
-    marginBottom: 16,
-  },
-  logoBox: {
-    width: 88,
-    height: 88,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-  },
-  heroLogo: {
-    width: 52,
-    height: 52,
-  },
-  brandName: {
-    fontSize: 26,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  heroSubtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: "center",
-    paddingHorizontal: 16,
-    maxWidth: 320,
-  },
-  banner: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 10,
-    marginBottom: 20,
-  },
-  bannerSuccess: {},
-  bannerError: {},
-  bannerText: {
-    fontSize: 14,
-    fontWeight: "500",
-    flex: 1,
-  },
+
+const getStyles = (colors: any, theme: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bg },
+  content: { flex: 1 },
+  scrollContent: { paddingHorizontal: 24, paddingTop: 40 },
+  hero: { alignItems: "center", marginBottom: 40 },
+  logoWrap: { marginBottom: 16 },
+  logoBox: { width: 88, height: 88, borderRadius: 22, justifyContent: "center", alignItems: "center", overflow: "hidden", backgroundColor: colors.surface, shadowColor: colors.brandDark, ...Platform.select({ ios: { shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.35, shadowRadius: 18 }, android: { elevation: 12 } }) },
+  heroLogo: { width: 52, height: 52 },
+  brandName: { fontSize: 26, fontWeight: "700", letterSpacing: 0.5, marginBottom: 8, color: colors.textPrimary },
+  heroSubtitle: { fontSize: 15, lineHeight: 22, textAlign: "center", paddingHorizontal: 16, maxWidth: 320, color: colors.textSecondary },
+  banner: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, gap: 10, marginBottom: 20 },
+  bannerSuccess: { backgroundColor: colors.success },
+  bannerError: { backgroundColor: colors.error },
+  bannerText: { fontSize: 14, fontWeight: "500", flex: 1, color: theme.white },
   form: {},
-  label: {
-    fontSize: 15,
-    fontWeight: "500",
-    marginBottom: 8,
-  },
-  inputBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    paddingVertical: 0,
-  },
-  fieldError: {
-    fontSize: 13,
-    marginTop: 6,
-  },
-  primaryBtn: {
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 24,
-  },
-  primaryBtnDisabled: {
-    opacity: 0.6,
-  },
-  primaryBtnPressed: {
-    opacity: 0.9,
-  },
-  primaryBtnText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 24,
-    gap: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-  },
-  dividerLabel: {
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  secondaryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-  },
-  secondaryBtnPressed: {
-    opacity: 0.85,
-  },
-  secondaryBtnText: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
+  label: { fontSize: 15, fontWeight: "500", marginBottom: 8, color: colors.textPrimary },
+  inputBox: { flexDirection: "row", alignItems: "center", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, gap: 12, backgroundColor: colors.inputBg, borderWidth: 1.5, borderColor: colors.inputBorder },
+  input: { flex: 1, fontSize: 16, paddingVertical: 0, color: colors.inputText },
+  fieldError: { fontSize: 13, marginTop: 6, color: colors.error },
+  primaryBtn: { paddingVertical: 16, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 24, backgroundColor: colors.brandDark },
+  primaryBtnDisabled: { opacity: 0.6 },
+  primaryBtnPressed: { opacity: 0.9 },
+  primaryBtnText: { fontSize: 16, fontWeight: "600", color: theme.white },
+  divider: { flexDirection: "row", alignItems: "center", marginVertical: 24, gap: 16 },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  dividerLabel: { fontSize: 13, fontWeight: "500", color: colors.textSecondary },
+  secondaryBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, backgroundColor: colors.surface, borderColor: colors.border },
+  secondaryBtnPressed: { opacity: 0.85 },
+  secondaryBtnText: { fontSize: 15, fontWeight: "600", color: colors.textPrimary }
 });

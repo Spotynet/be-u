@@ -5,8 +5,8 @@ export default function LoginPage() {
     <AuthLayout>
       <LoginForm />
       <WelcomeSection
-        title="¡BIENVENIDO A nabbi!"
-        description="Tu plataforma personal de bienestar y belleza. Descubre servicios, reserva citas y conéctate con profesionales que te ayudan a ser tu mejor versión."
+        title="nabbi"
+        description="Tu cita en automático. Reserva con los mejores profesionales de belleza, bienestar y mascotas — sin llamadas, sin esperas."
       />
     </AuthLayout>
   );

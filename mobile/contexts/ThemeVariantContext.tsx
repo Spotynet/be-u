@@ -1,30 +1,38 @@
-import React, {createContext, useContext, useState, ReactNode} from "react";
-import {Colors, ThemeVariants, ThemeVariant} from "@/constants/theme";
+import React, {createContext, useContext, useState, ReactNode, useEffect} from "react";
+import {LightTheme, DarkTheme} from "@/constants/theme";
+import {useColorScheme} from "react-native";
 
 type ColorMode = "light" | "dark";
 
 interface ThemeVariantContextType {
-  variant: ThemeVariant;
-  setVariant: (variant: ThemeVariant) => void;
   colorMode: ColorMode;
   setColorMode: (mode: ColorMode) => void;
-  colors: typeof Colors.light & typeof ThemeVariants.belleza;
+  colors: typeof LightTheme;
 }
 
 const ThemeVariantContext = createContext<ThemeVariantContextType | undefined>(undefined);
 
 export const ThemeVariantProvider = ({children}: {children: ReactNode}) => {
-  const [variant, setVariant] = useState<ThemeVariant>("belleza");
-  const [colorMode, setColorMode] = useState<ColorMode>("light");
+  const systemColorScheme = useColorScheme();
+  const [colorMode, setColorMode] = useState<ColorMode>(systemColorScheme === "dark" ? "dark" : "light");
+  const [isManualOverride, setIsManualOverride] = useState(false);
 
-  const colors = {
-    ...Colors[colorMode],
-    ...ThemeVariants[variant],
-    ...ThemeVariants[variant][colorMode],
+  // Sync with system scheme only when it changes and user hasn't overridden it manually
+  useEffect(() => {
+    if (systemColorScheme && !isManualOverride) {
+      setColorMode(systemColorScheme);
+    }
+  }, [systemColorScheme]);
+
+  const handleSetColorMode = (mode: ColorMode) => {
+    setIsManualOverride(true);
+    setColorMode(mode);
   };
 
+  const colors = colorMode === "dark" ? DarkTheme : LightTheme;
+
   return (
-    <ThemeVariantContext.Provider value={{variant, setVariant, colorMode, setColorMode, colors}}>
+    <ThemeVariantContext.Provider value={{colorMode, setColorMode: handleSetColorMode, colors}}>
       {children}
     </ThemeVariantContext.Provider>
   );

@@ -179,14 +179,16 @@ export function ServiceForm({service, onSubmit, submitText}: ServiceFormProps) {
       {/* Images Preview */}
       {formData.images && formData.images.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Current Images</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Imágenes actuales</label>
           <div className="flex flex-wrap gap-2">
             {formData.images.map((image, index) => (
-              <div key={index} className="relative">
-                <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
-                  <span className="text-xs text-gray-500">Image {index + 1}</span>
-                </div>
-              </div>
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={index}
+                src={image}
+                alt={`Imagen ${index + 1}`}
+                className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+              />
             ))}
           </div>
         </div>

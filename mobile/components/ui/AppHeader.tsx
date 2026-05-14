@@ -57,6 +57,60 @@ export function AppHeader({
   const {colors} = useThemeVariant();
   const {goBack} = useNavigation();
 
+  const makeStyles = (colors: any) =>
+    StyleSheet.create({
+      header: {
+        paddingHorizontal: 16,
+      },
+      headerRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        minHeight: HEADER_ROW_MIN_HEIGHT,
+      },
+      left: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        justifyContent: "flex-start",
+        minHeight: HEADER_ROW_MIN_HEIGHT,
+      },
+      backButton: {
+        padding: 8,
+        width: APP_HEADER_BUTTON_HIT,
+        height: APP_HEADER_BUTTON_HIT,
+        justifyContent: "center",
+        alignItems: "center",
+      },
+      backButtonCircle: {
+        width: APP_HEADER_BUTTON_HIT,
+        height: APP_HEADER_BUTTON_HIT,
+        borderRadius: APP_HEADER_BUTTON_HIT / 2,
+        backgroundColor: colors.chipBg,
+        justifyContent: "center",
+        alignItems: "center",
+      },
+      title: {
+        position: "absolute",
+        left: 48,
+        right: 48,
+        fontSize: 17,
+        fontWeight: "700",
+        textAlign: "center",
+        color: colors.navBarText,
+      },
+      right: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "flex-end",
+        minHeight: HEADER_ROW_MIN_HEIGHT,
+      },
+    });
+
+  const styles = makeStyles(colors);
+
   const handleBack = () => {
     if (onBackPress) {
       onBackPress();
@@ -65,14 +119,10 @@ export function AppHeader({
     }
   };
 
-  const bg = backgroundColor ?? colors.background;
+  const bg = backgroundColor ?? colors.navBarBg;
   const borderColor =
     borderBottom === false ? undefined : typeof borderBottom === "string" ? borderBottom : colors.border;
-  const isLightBg = /^#([fF]{2}|[fF][eE]|white)/.test(bg) || bg === "#FFFFFF" || bg.toLowerCase() === "white";
-  const titleColor = isLightBg ? "#1f2937" : colors.foreground;
-  const backColor = backButtonCircle ? "#374151" : colors.foreground;
-  const backIcon = backButtonCircle ? "chevron-back" : "arrow-back";
-
+  
   return (
     <View
       style={[
@@ -95,12 +145,12 @@ export function AppHeader({
               onPress={handleBack}
               activeOpacity={0.7}
               hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
-              <Ionicons name={backIcon as any} size={APP_HEADER_ICON_SIZE} color={backColor} />
+              <Ionicons name={backButtonCircle ? "chevron-back" : "arrow-back"} size={APP_HEADER_ICON_SIZE} color={colors.navBarText} />
             </TouchableOpacity>
           )}
         </View>
         <Text
-          style={[styles.title, {color: titleColor}]}
+          style={styles.title}
           numberOfLines={1}
           pointerEvents="none">
           {title}
@@ -110,54 +160,3 @@ export function AppHeader({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    paddingHorizontal: 16,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    minHeight: HEADER_ROW_MIN_HEIGHT,
-  },
-  left: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    justifyContent: "flex-start",
-    minHeight: HEADER_ROW_MIN_HEIGHT,
-  },
-  backButton: {
-    padding: 8,
-    width: APP_HEADER_BUTTON_HIT,
-    height: APP_HEADER_BUTTON_HIT,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  backButtonCircle: {
-    width: APP_HEADER_BUTTON_HIT,
-    height: APP_HEADER_BUTTON_HIT,
-    borderRadius: APP_HEADER_BUTTON_HIT / 2,
-    backgroundColor: "#f3f4f6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    fontSize: 17,
-    fontWeight: "700",
-    textAlign: "center",
-    color: "#1f2937",
-  },
-  right: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    minHeight: HEADER_ROW_MIN_HEIGHT,
-  },
-});

@@ -2,7 +2,7 @@ import {ButtonHTMLAttributes, ReactNode} from "react";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
-  variant?: "primary" | "secondary" | "accent" | "success" | "warning" | "error" | "ghost";
+  variant?: "primary" | "secondary" | "accent" | "success" | "warning" | "error" | "ghost" | "outline";
   size?: "sm" | "md" | "lg";
   className?: string;
 }
@@ -26,6 +26,8 @@ export const Button = ({
     warning: "bg-warning text-warning-foreground hover:bg-warning-light focus:ring-warning",
     error: "bg-error text-error-foreground hover:bg-error-light focus:ring-error",
     ghost: "text-foreground hover:bg-background-secondary focus:ring-primary",
+    outline:
+      "border-2 border-border bg-transparent text-foreground hover:bg-background-secondary focus:ring-primary",
   };
 
   const sizeClasses = {

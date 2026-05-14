@@ -2,6 +2,7 @@ import React, {useState, useEffect} from "react";
 import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
+import {getApiBaseUrl} from "@/lib/apiConfig";
 
 export default function DebugScreen() {
   const router = useRouter();
@@ -10,8 +11,8 @@ export default function DebugScreen() {
   useEffect(() => {
     // Collect debug information
     const info = {
-      // Environment variables
-      EXPO_PUBLIC_API_URL: "https://stg.be-u.ai/api (HARDCODED)",
+      EXPO_PUBLIC_API_URL:
+        process.env.EXPO_PUBLIC_API_URL || getApiBaseUrl(),
       NODE_ENV: process.env.NODE_ENV,
       EXPO_PUBLIC_DEBUG: process.env.EXPO_PUBLIC_DEBUG,
       EXPO_PUBLIC_EAS_BUILD: process.env.EXPO_PUBLIC_EAS_BUILD,
@@ -32,9 +33,7 @@ export default function DebugScreen() {
 
   const testApiConnection = async () => {
     try {
-      const response = await fetch(
-        `https://stg.be-u.ai/api/health/`
-      );
+      const response = await fetch(`${getApiBaseUrl()}/test/`);
       setDebugInfo((prev) => ({
         ...prev,
         apiTest: response.ok ? "Connected ✅" : `Error: ${response.status}`,

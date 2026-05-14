@@ -1,164 +1,279 @@
 "use client";
 
 import {useState} from "react";
+import Link from "next/link";
 import {useRouter} from "next/navigation";
 import {useAuth} from "@/features/auth/hooks/useAuth";
-import {LoginCredentials} from "@/features/auth/types";
+
+const INK   = "#12211A";
+const DARK  = "#1F3328";
+const MAIN  = "#558367";
+const ACCENT= "#F6C531";
+/** Verde salvia claro — --color-primary-light (brandbook / landing) */
+const FORM_BG = `linear-gradient(165deg, #ecf6ef 0%, #d8eae0 45%, #e6f2eb 100%)`;
+const LABEL = "#3d6050";
+
+const inputBase: React.CSSProperties = {
+  width: "100%",
+  background: "white",
+  border: "1.5px solid rgba(85,131,103,0.22)",
+  borderRadius: 12,
+  color: DARK,
+  fontSize: 15,
+  fontWeight: 500,
+  padding: "13px 44px 13px 16px",
+  outline: "none",
+  transition: "border-color 0.15s, box-shadow 0.15s",
+  boxSizing: "border-box",
+};
 
 export const LoginForm = () => {
-  const [formData, setFormData] = useState<LoginCredentials>({
-    email: "",
-    password: "",
-  });
-  const {login, error, clearError, isLoading} = useAuth();
+  const [step, setStep] = useState<"email" | "code">("email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const {requestEmailCode, loginWithEmailCode, error, clearError, isLoading} = useAuth();
   const router = useRouter();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const {name, value} = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    // Clear error when user starts typing
+  const visibleError = localError || error;
+
+  const onFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.borderColor = MAIN;
+    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(85,131,103,0.15)";
+  };
+
+  const onBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.borderColor = "rgba(85,131,103,0.22)";
+    e.currentTarget.style.boxShadow = "none";
+  };
+
+  const resetMessages = () => {
+    setLocalError(null);
+    setSuccessMessage(null);
     if (error) clearError();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    resetMessages();
 
-    // Basic validation
-    if (!formData.email || !formData.password) {
-      console.log("Missing email or password");
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setLocalError("Ingresa tu correo electrónico.");
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(trimmedEmail)) {
+      setLocalError("Ingresa un correo electrónico válido.");
       return;
     }
 
     try {
-      await login(formData);
-      // Redirect to dashboard after successful login
+      await requestEmailCode(trimmedEmail);
+      setEmail(trimmedEmail);
+      setStep("code");
+      setSuccessMessage("Te enviamos un código de 6 dígitos a tu correo.");
+    } catch (err) {
+      console.error("Email code request failed:", err);
+    }
+  };
+
+  const handleCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetMessages();
+
+    const normalizedCode = code.replace(/\D/g, "").slice(0, 6);
+    setCode(normalizedCode);
+    if (!/^\d{6}$/.test(normalizedCode)) {
+      setLocalError("El código debe tener 6 dígitos.");
+      return;
+    }
+
+    try {
+      const result = await loginWithEmailCode({email, code: normalizedCode});
+      if (result === "requires_registration") {
+        router.push(`/register?email=${encodeURIComponent(email)}`);
+        return;
+      }
       router.push("/dashboard");
     } catch (err) {
-      // Error is handled by the auth hook
-      console.error("Login failed:", err);
+      console.error("Code verification failed:", err);
+    }
+  };
+
+  const handleResendCode = async () => {
+    resetMessages();
+    try {
+      await requestEmailCode(email);
+      setCode("");
+      setSuccessMessage("Te enviamos un nuevo código.");
+    } catch (err) {
+      console.error("Email code resend failed:", err);
     }
   };
 
   return (
-    <div className="bg-background/90 p-12 flex flex-col justify-center">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-foreground mb-2">Iniciar Sesión</h1>
+    <div
+      style={{
+        background: FORM_BG,
+        padding: "52px 44px",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+      }}>
+      <div style={{marginBottom: 36}}>
+        <p style={{color:LABEL, fontWeight:800, fontSize:12, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:8}}>
+          {step === "email" ? "Bienvenido de vuelta" : "Verifica tu acceso"}
+        </p>
+        <h1 style={{color: INK, fontWeight: 900, fontSize: 32, letterSpacing: "-0.03em", margin: 0}}>
+          {step === "email" ? "Iniciar Sesión" : "Ingresa el código"}
+        </h1>
+        <p style={{color:"#64748b", fontSize:14, lineHeight:1.6, margin:"12px 0 0"}}>
+          {step === "email"
+            ? "Escribe tu correo y te enviaremos un código para entrar."
+            : <>Te enviamos un código de 6 dígitos a <strong style={{color:DARK}}>{email}</strong>.</>}
+        </p>
       </div>
 
-      <form className="space-y-8" onSubmit={handleSubmit}>
-        <div className="space-y-6">
-          {/* Email Input */}
-          <div className="relative">
-            <label className="block text-foreground-secondary text-sm font-medium mb-2">
-              Usuario
+      <form style={{display: "flex", flexDirection: "column", gap: 22}} onSubmit={step === "email" ? handleEmailSubmit : handleCodeSubmit}>
+        {step === "email" ? (
+          <div>
+            <label style={{display:"block", color:DARK, fontSize:13, fontWeight:600, marginBottom:7}}>
+              Correo electrónico
             </label>
-            <div className="relative">
+            <div style={{position:"relative"}}>
               <input
                 name="email"
                 type="email"
                 autoComplete="email"
                 required
-                placeholder="Ingresa tu email"
-                value={formData.email}
-                onChange={handleInputChange}
+                placeholder="tu@email.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  resetMessages();
+                }}
                 disabled={isLoading}
-                className="w-full bg-transparent border-0 border-b-2 border-primary/50 text-foreground placeholder-foreground-muted focus:border-primary focus:outline-none py-3 px-0 transition-colors"
+                style={inputBase}
+                onFocus={onFocus}
+                onBlur={onBlur}
               />
-              <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
-                <svg className="w-5 h-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
+              <svg style={{position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",color:LABEL}} width="17" height="17" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+              </svg>
             </div>
           </div>
-
-          {/* Password Input */}
-          <div className="relative">
-            <label className="block text-foreground-secondary text-sm font-medium mb-2">
-              Contraseña
+        ) : (
+          <div>
+            <label style={{display:"block", color:DARK, fontSize:13, fontWeight:600, marginBottom:7}}>
+              Código de verificación
             </label>
-            <div className="relative">
+            <div style={{position:"relative"}}>
               <input
-                name="password"
-                type="password"
-                autoComplete="current-password"
+                name="code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
                 required
-                placeholder="Ingresa tu contraseña"
-                value={formData.password}
-                onChange={handleInputChange}
+                placeholder="123456"
+                maxLength={6}
+                value={code}
+                onChange={(e) => {
+                  setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  resetMessages();
+                }}
                 disabled={isLoading}
-                className="w-full bg-transparent border-0 border-b-2 border-primary/50 text-foreground placeholder-foreground-muted focus:border-primary focus:outline-none py-3 px-0 transition-colors"
+                style={{
+                  ...inputBase,
+                  paddingRight: 16,
+                  fontSize: 26,
+                  letterSpacing: "0.35em",
+                  textAlign: "center",
+                }}
+                onFocus={onFocus}
+                onBlur={onBlur}
               />
-              <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
-                <svg className="w-5 h-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
             </div>
-          </div>
-        </div>
-
-        {error && (
-          <div className="bg-error-light border border-error/50 rounded-lg p-4">
-            <div className="text-sm text-error">{error}</div>
+            <button
+              type="button"
+              onClick={handleResendCode}
+              disabled={isLoading}
+              style={{
+                marginTop: 12,
+                background: "none",
+                border: "none",
+                color: MAIN,
+                cursor: isLoading ? "not-allowed" : "pointer",
+                fontSize: 13,
+                fontWeight: 700,
+                padding: 0,
+              }}>
+              Reenviar código
+            </button>
           </div>
         )}
 
-        {/* Login Button */}
+        {successMessage && (
+          <div style={{background:"#ecfdf5", border:"1.5px solid #86efac", borderRadius:12, padding:"12px 16px"}}>
+            <p style={{color:"#166534", fontSize:13, fontWeight:600, margin:0}}>{successMessage}</p>
+          </div>
+        )}
+
+        {visibleError && (
+          <div style={{background:"#fef2f2", border:"1.5px solid #fca5a5", borderRadius:12, padding:"12px 16px"}}>
+            <p style={{color:"#dc2626", fontSize:13, fontWeight:600, margin:0}}>{visibleError}</p>
+          </div>
+        )}
+
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-gradient-to-r from-primary to-primary-dark hover:from-primary-hover hover:to-primary text-primary-foreground font-semibold py-4 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg shadow-primary/25 hover:shadow-primary/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+          style={{
+            width: "100%",
+            background: ACCENT,
+            color: INK,
+            borderRadius: 14,
+            padding: "15px 0",
+            fontWeight: 800,
+            fontSize: 15,
+            border: "none",
+            cursor: isLoading ? "not-allowed" : "pointer",
+            opacity: isLoading ? 0.65 : 1,
+            transition: "opacity 0.15s, transform 0.15s, box-shadow 0.15s",
+            boxShadow: "0 6px 20px rgba(246,197,49,0.35)",
+            marginTop: 4,
+          }}
+          onMouseEnter={e => {
+            if (!isLoading) {
+              e.currentTarget.style.transform = "scale(1.02)";
+              e.currentTarget.style.boxShadow = "0 10px 28px rgba(246,197,49,0.45)";
+            }
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.transform = "scale(1)";
+            e.currentTarget.style.boxShadow = "0 6px 20px rgba(246,197,49,0.35)";
+          }}>
           {isLoading ? (
-            <div className="flex items-center justify-center">
-              <svg
-                className="animate-spin -ml-1 mr-3 h-5 w-5"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+              <svg style={{animation:"spin 1s linear infinite"}} width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="rgba(18,33,26,0.25)" strokeWidth="4"/>
+                <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill={INK}/>
               </svg>
-              Iniciando sesión...
-            </div>
+              {step === "email" ? "Enviando código…" : "Verificando código…"}
+            </span>
           ) : (
-            "Iniciar Sesión"
+            step === "email" ? "Enviar código" : "Verificar código"
           )}
         </button>
 
-        {/* Sign Up Link */}
-        <div className="text-center">
-          <p className="text-foreground-muted text-sm">
-            ¿No tienes una cuenta?{" "}
-            <a
-              href="/register"
-              className="text-primary hover:text-primary-hover font-medium transition-colors">
-              Regístrate
-            </a>
-          </p>
-        </div>
+        <p style={{textAlign:"center", fontSize:13, color:"#64748b", margin:0}}>
+          ¿No tienes cuenta?{" "}
+          <Link href="/register" style={{color:MAIN, fontWeight:700, textDecoration:"none"}}>
+            Regístrate
+          </Link>
+        </p>
       </form>
     </div>
   );
 };
-

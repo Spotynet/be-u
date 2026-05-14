@@ -17,7 +17,11 @@ export default function Perfil() {
     return <Redirect href="/login" />;
   }
 
-  return isClient ? <ClientProfileTab /> : <ProfessionalProfileTab />;
+  return (
+    <View style={[styles.container, {backgroundColor: colors.background}]}>
+      {isClient ? <ClientProfileTab /> : <ProfessionalProfileTab />}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

@@ -7,8 +7,13 @@
 import axios, {AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError} from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {Platform} from "react-native";
+import {getApiBaseUrl} from "./apiConfig";
 
-// Types
+const API_BASE_URL = getApiBaseUrl();
+
+if (__DEV__) {
+  console.log("API_BASE_URL:", API_BASE_URL);
+}
 export interface ApiResponse<T = any> {
   data: T;
   message?: string;
@@ -21,11 +26,6 @@ export interface ApiError {
   errors?: Record<string, string[]>;
 }
 
-// API Configuration - HARDCODED for testing
-//const API_BASE_URL = "http://127.0.0.1:8000/api";
-const API_BASE_URL = "https://stg.be-u.ai/api";
-
-console.log("🔧 HARDCODED API URL:", API_BASE_URL);
 const AUTH_TOKEN_KEY = "@auth_token";
 const REFRESH_TOKEN_KEY = "@refresh_token";
 

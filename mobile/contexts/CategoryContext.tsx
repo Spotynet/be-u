@@ -7,7 +7,6 @@ export type SubCategory = {
   name: string;
   icon: string;
   emoji?: string; // For main categories
-  color?: string;
   iconFamily?: "Ionicons" | "MaterialCommunityIcons";
 };
 
@@ -60,36 +59,36 @@ export const CategoryProvider = ({children}: CategoryProviderProps) => {
   const subcategoriesByMainCategory = {
     belleza: [
       {id: "todos", name: "Todos", icon: "apps"},
-      {id: "cabello", name: "Cabello", icon: "cut", color: "#FF8C00"},
-      {id: "pestanas", name: "Pestañas", icon: "eye", color: "#9370DB"},
-      {id: "cejas", name: "Cejas", icon: "eye-outline", color: "#8B4513"},
-      {id: "maquillaje_peinado", name: "Maquillaje", icon: "brush", color: "#FFB6C1"},
-      {id: "manos_pies", name: "ManosPies", icon: "hand-left", color: "#32CD32"},
-      {id: "faciales", name: "Faciales", icon: "flower", color: "#DC143C"},
-      {id: "barberia", name: "Barbería", icon: "cut", color: "#1E90FF"},
+      {id: "cabello", name: "Cabello", icon: "cut"},
+      {id: "pestanas", name: "Pestañas", icon: "eye"},
+      {id: "cejas", name: "Cejas", icon: "eye-outline"},
+      {id: "maquillaje_peinado", name: "Maquillaje", icon: "brush"},
+      {id: "manos_pies", name: "ManosPies", icon: "hand-left"},
+      {id: "faciales", name: "Faciales", icon: "flower"},
+      {id: "barberia", name: "Barbería", icon: "cut"},
     ],
     bienestar: [
       {id: "todos", name: "Todos", icon: "apps"},
-      {id: "spa_relajacion", name: "Spa", icon: "water", color: "#87CEEB"},
-      {id: "yoga", name: "Yoga", icon: "body", color: "#E0B0FF"},
-      {id: "meditacion", name: "Meditación", icon: "leaf", color: "#B2E0B2"},
-      {id: "access_bar", name: "AccessBar", icon: "star", color: "#FEBAAD"},
-      {id: "pilates", name: "Pilates", icon: "fitness", color: "#FFB3B3"},
-      {id: "breathwork", name: "Breathwork", icon: "air", color: "#000080"},
-      {id: "acupuntura", name: "Acupuntura", icon: "medical", color: "#FFD700"},
-      {id: "fisioterapia", name: "Fisioterapia", icon: "body", color: "#4B5320"},
-      {id: "psicoterapia_coaching", name: "Psicoterapia", icon: "people", color: "#FFD1DC"},
-      {id: "terapia_holistica", name: "Holística", icon: "leaf", color: "#FFD700"},
-      {id: "nutricion_alimentacion", name: "Nutrición", icon: "nutrition", color: "#8F00FF"},
+      {id: "spa_relajacion", name: "Spa", icon: "water"},
+      {id: "yoga", name: "Yoga", icon: "body"},
+      {id: "meditacion", name: "Meditación", icon: "leaf"},
+      {id: "access_bar", name: "AccessBar", icon: "star"},
+      {id: "pilates", name: "Pilates", icon: "fitness"},
+      {id: "breathwork", name: "Breathwork", icon: "air"},
+      {id: "acupuntura", name: "Acupuntura", icon: "medical"},
+      {id: "fisioterapia", name: "Fisioterapia", icon: "body"},
+      {id: "psicoterapia_coaching", name: "Psicoterapia", icon: "people"},
+      {id: "terapia_holistica", name: "Holística", icon: "leaf"},
+      {id: "nutricion_alimentacion", name: "Nutrición", icon: "nutrition"},
     ],
     mascotas: [
       {id: "todos", name: "Todos", icon: "apps"},
-      {id: "estetica_mascotas", name: "Estética", icon: "cut", color: "#FF8C00"},
-      {id: "spa_mascotas", name: "Spa", icon: "water", color: "#9370DB"},
-      {id: "cuidadores", name: "Cuidadores", icon: "people", color: "#8B4513"},
-      {id: "paseadores", name: "Paseadores", icon: "walk", color: "#FFB6C1"},
-      {id: "guarderias", name: "Guarderías", icon: "home", color: "#32CD32"},
-      {id: "otros", name: "Otros", icon: "star", color: "#DC143C"},
+      {id: "estetica_mascotas", name: "Estética", icon: "cut"},
+      {id: "spa_mascotas", name: "Spa", icon: "water"},
+      {id: "cuidadores", name: "Cuidadores", icon: "people"},
+      {id: "paseadores", name: "Paseadores", icon: "walk"},
+      {id: "guarderias", name: "Guarderías", icon: "home"},
+      {id: "otros", name: "Otros", icon: "star"},
     ],
   };
 

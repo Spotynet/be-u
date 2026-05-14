@@ -1,6 +1,7 @@
 import React, {Component, ReactNode} from "react";
 import {View, Text, StyleSheet, TouchableOpacity, ScrollView} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
+import {getApiBaseUrl} from "@/lib/apiConfig";
 
 interface Props {
   children: ReactNode;
@@ -75,9 +76,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   </>
                 )}
                 <Text style={styles.errorTitle}>Environment Info:</Text>
-                <Text style={styles.errorText}>
-                  API URL: https://stg.be-u.ai/api (HARDCODED)
-                </Text>
+                <Text style={styles.errorText}>API URL: {getApiBaseUrl()}</Text>
                 <Text style={styles.errorText}>Node ENV: {process.env.NODE_ENV || "Not set"}</Text>
                 <Text style={styles.errorText}>
                   EAS Build: {process.env.EXPO_PUBLIC_EAS_BUILD || "Not set"}

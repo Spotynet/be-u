@@ -9,9 +9,10 @@ interface InputProps extends TextInputProps {
   error?: string;
 }
 
-export const Input = ({label, error, style, ...props}: InputProps) => {
+export const Input = ({label, error, style, onFocus, onBlur, ...props}: InputProps) => {
   const colorScheme = useColorScheme();
   const {colors} = useThemeVariant();
+  const [isFocused, setIsFocused] = React.useState(false);
 
   return (
     <View style={styles.container}>
@@ -20,13 +21,21 @@ export const Input = ({label, error, style, ...props}: InputProps) => {
         style={[
           styles.input,
           {
-            borderColor: colors.input,
+            borderColor: isFocused ? colors.secondary : colors.border,
             color: colors.foreground,
-            backgroundColor: colors.background,
+            backgroundColor: colors.card,
           },
           style,
         ]}
         placeholderTextColor={colors.mutedForeground}
+        onFocus={(e) => {
+          setIsFocused(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setIsFocused(false);
+          onBlur?.(e);
+        }}
         {...props}
       />
       {error && <Text style={[styles.error, {color: colors.destructive}]}>{error}</Text>}
@@ -45,9 +54,9 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     fontSize: 16,
   },
   error: {

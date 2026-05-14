@@ -7,6 +7,7 @@
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import { Platform } from 'react-native';
+import { getApiBaseUrl } from './apiConfig';
 
 // Complete the auth session for web browser
 WebBrowser.maybeCompleteAuthSession();
@@ -57,7 +58,7 @@ export const getRedirectUri = (): string => {
   } else {
     // Production: Use backend redirect URI (backend will handle callback and redirect back)
     // The backend redirect URI is already configured in Google Cloud Console
-    const backendUrl = apiUrl || 'https://stg.be-u.ai/api';
+    const backendUrl = apiUrl || getApiBaseUrl();
     const uri = `${backendUrl.replace('/api', '')}/api/calendar/callback/`;
     console.log('📱 Google Calendar Redirect URI (Prod):', uri);
     return uri;

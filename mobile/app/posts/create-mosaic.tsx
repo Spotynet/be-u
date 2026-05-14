@@ -123,8 +123,6 @@ export default function CreateMosaicPostScreen() {
         title="Mosaico"
         showBackButton={true}
         onBackPress={() => router.back()}
-        backgroundColor={colors.background}
-        borderBottom={colors.border}
       />
       <ScrollView
         style={styles.scrollView}

@@ -288,8 +288,6 @@ export default function GroupSessionDetailsScreen() {
         title="Detalle de sesión"
         showBackButton
         backFallbackRoute="/group-sessions"
-        backgroundColor={colors.background}
-        borderBottom={colors.border}
       />
 
       <KeyboardAvoidingView

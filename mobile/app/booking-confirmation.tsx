@@ -6,9 +6,12 @@ import {formatPrice} from "@/lib/priceUtils";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useRouter, useLocalSearchParams} from "expo-router";
 
+import {useAppTheme, useThemeVariant} from "@/constants/theme";
+
 export default function BookingConfirmationScreen() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const theme = useAppTheme();
+  const {colors} = useThemeVariant();
+  const styles = makeStyles(colors, theme);
   const router = useRouter();
   const params = useLocalSearchParams();
 
@@ -165,7 +168,7 @@ export default function BookingConfirmationScreen() {
             style={[styles.primaryButton, {backgroundColor: colors.primary}]}
             onPress={handleViewBooking}
             activeOpacity={0.8}>
-            <Ionicons name="calendar" color="#ffffff" size={20} />
+            <Ionicons name="calendar" color={theme.white} size={20} />
             <Text style={styles.primaryButtonText}>Ver Mis Reservas</Text>
           </TouchableOpacity>
 
@@ -184,7 +187,8 @@ export default function BookingConfirmationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: any, theme: any) {
+  return StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -306,7 +310,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   primaryButtonText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -323,4 +327,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-});
+  });
+}

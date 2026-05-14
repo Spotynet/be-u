@@ -8,16 +8,13 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://127.0.0.1:8000/api"
+        "EXPO_PUBLIC_API_URL": "http://127.0.0.1:3007/api"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://stg.be-u.ai/api"
-      }
-    },
-    "production": {
+        "EXPO_PUBLIC_API_URL": "https://nabbi-api-dev.spotynet.com/api"
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://stg.be-u.ai/api"

@@ -11,7 +11,6 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Reservation} from "@/types/global";
 import {Ionicons} from "@expo/vector-icons";
 import {parseISODateAsLocal} from "@/lib/dateUtils";
-import {getCategoryColor} from "@/constants/categories";
 
 interface ReservationCardProps {
   reservation: Reservation;
@@ -80,10 +79,6 @@ export const ReservationCard = ({
   };
 
   const statusColor = getStatusColor(reservation.status);
-  const categoryColor = getCategoryColor(
-    reservation.service_details?.category_name ??
-      reservation.service_details?.category
-  );
   const dateStr = parseISODateAsLocal(reservation.date).toLocaleDateString(
     "es-MX",
     {weekday: "short", month: "short", day: "numeric"}
@@ -103,7 +98,7 @@ export const ReservationCard = ({
         styles.card,
         {
           backgroundColor: colors.card,
-          borderLeftColor: categoryColor,
+          borderLeftColor: colors.border,
           ...Platform.select({
             ios: {
               shadowColor: "#000",
@@ -152,14 +147,14 @@ export const ReservationCard = ({
             <Ionicons
               name="calendar-outline"
               size={16}
-              color={colors.primary}
+              color={colors.secondary}
             />
             <Text style={[styles.infoText, {color: colors.foreground}]}>
               {dateStr}
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <Ionicons name="time-outline" size={16} color={colors.primary} />
+            <Ionicons name="time-outline" size={16} color={colors.secondary} />
             <Text style={[styles.infoText, {color: colors.foreground}]}>
               {timeStr}
             </Text>

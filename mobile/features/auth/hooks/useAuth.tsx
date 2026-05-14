@@ -10,6 +10,7 @@ import {
   EmailCodeLoginResult,
 } from "../types";
 import {User} from "@/types/global";
+import {getApiBaseUrl} from "@/lib/apiConfig";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -205,10 +206,7 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
   const logout = async () => {
     try {
       console.log("🔓 Auth logout: Calling API logout...");
-      console.log(
-        "🔓 Auth logout: API URL:",
-        "https://stg.be-u.ai/api"
-      );
+      console.log("🔓 Auth logout: API URL:", getApiBaseUrl());
 
       const response = await authApi.logout();
       console.log("🔓 Auth logout: API logout successful", response);

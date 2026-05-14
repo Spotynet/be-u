@@ -19,7 +19,7 @@ export interface SubCategory {
   name: string;
   icon: string;
   description?: string;
-  color?: string;
+  // color property removed to support static theme
 }
 
 /**
@@ -63,49 +63,42 @@ export const SUB_CATEGORIES: Record<string, SubCategory[]> = {
       name: "Cabello",
       icon: "cut",
       description: "Corte, color, peinado, alisado, extensiones",
-      color: "#FF8C00", // Naranja
     },
     {
       id: "pestanas",
       name: "Pestañas",
       icon: "eye",
       description: "Lash lifting, brown lamination, extensiones, maquillaje",
-      color: "#9370DB", // Morado
     },
     {
       id: "cejas",
       name: "Cejas",
       icon: "eye-outline",
       description: "Micropigmentación, microshading, diseño de cejas",
-      color: "#8B4513", // Café
     },
     {
       id: "maquillaje_peinado",
       name: "Maquillaje",
       icon: "brush",
       description: "Maquillaje profesional y peinados para eventos",
-      color: "#FFB6C1", // Rosado
     },
     {
       id: "manos_pies",
       name: "ManosPies",
       icon: "hand-left",
       description: "Manicure, pedicure, spa, esmaltado en gel, acrílicas",
-      color: "#32CD32", // Verde
     },
     {
       id: "faciales",
       name: "Faciales",
       icon: "flower",
       description: "Tratamientos faciales y cuidado de la piel",
-      color: "#DC143C", // Rojo
     },
     {
       id: "barberia",
       name: "Barbería",
       icon: "cut",
       description: "Corte de cabello masculino, afeitado, cuidado facial",
-      color: "#1E90FF", // Azul
     },
   ],
   bienestar: [
@@ -114,77 +107,66 @@ export const SUB_CATEGORIES: Record<string, SubCategory[]> = {
       name: "Spa",
       icon: "water",
       description: "Masajes, hidroterapia, tratamientos de relajación",
-      color: "#87CEEB", // Azul celeste
     },
     {
       id: "yoga",
       name: "Yoga",
       icon: "body",
       description: "Clases de yoga, meditación, mindfulness",
-      color: "#E0B0FF", // Morado pastel
     },
     {
       id: "meditacion",
       name: "Meditación",
       icon: "leaf",
       description: "Prácticas de meditación y mindfulness",
-      color: "#B2E0B2", // Verde pastel
     },
     {
       id: "access_bar",
       name: "AccessBar",
       icon: "star",
       description: "Técnicas de Access Consciousness",
-      color: "#FEBAAD", // Melón
     },
     {
       id: "pilates",
       name: "Pilates",
       icon: "fitness",
       description: "Clases de pilates y fortalecimiento",
-      color: "#FFB3B3", // Rojo pastel
     },
     {
       id: "breathwork",
       name: "Breathwork",
       icon: "air",
       description: "Técnicas de respiración y control del aire",
-      color: "#000080", // Azul navy
     },
     {
       id: "acupuntura",
       name: "Acupuntura",
       icon: "medical",
       description: "Tratamientos de acupuntura tradicional",
-      color: "#FFD700", // Dorado
     },
     {
       id: "fisioterapia",
       name: "Fisioterapia",
       icon: "body",
       description: "Rehabilitación y terapia física",
-      color: "#4B5320", // Verde militar
     },
     {
       id: "psicoterapia_coaching",
       name: "Psicoterapia",
       icon: "people",
       description: "Terapia psicológica y coaching personal",
-      color: "#FFD1DC", // Rosa pastel
     },
     {
       id: "terapia_holistica",
       name: "Holística",
       icon: "leaf",
       description: "Enfoques holísticos de sanación",
-      color: "#FFD700", // Amarillo
     },
     {
       id: "nutricion_alimentacion",
       name: "Nutrición",
       icon: "nutrition",
       description: "Asesoría nutricional y coaching alimentario",
-      color: "#8F00FF", // Violeta
     },
   ],
   mascotas: [
@@ -193,42 +175,36 @@ export const SUB_CATEGORIES: Record<string, SubCategory[]> = {
       name: "Estética",
       icon: "cut",
       description: "Peluquería, baños, corte de uñas para mascotas",
-      color: "#FF8C00", // Naranja
     },
     {
       id: "spa_mascotas",
       name: "Spa",
       icon: "water",
       description: "Tratamientos de spa y relajación para mascotas",
-      color: "#9370DB", // Morado
     },
     {
       id: "cuidadores",
       name: "Cuidadores",
       icon: "people",
       description: "Cuidado y atención personalizada para mascotas",
-      color: "#8B4513", // Café
     },
     {
       id: "paseadores",
       name: "Paseadores",
       icon: "walk",
       description: "Servicios de paseo y ejercicio para mascotas",
-      color: "#FFB6C1", // Rosado
     },
     {
       id: "guarderias",
       name: "Guarderías",
       icon: "home",
       description: "Alojamiento y cuidado diurno para mascotas",
-      color: "#32CD32", // Verde
     },
     {
       id: "otros",
       name: "Otros",
       icon: "star",
       description: "Servicios especializados para mascotas",
-      color: "#DC143C", // Rojo
     },
   ],
 };
@@ -327,75 +303,23 @@ export const getCategoryEmoji = (categoryId: string): string => {
 
 /**
  * Get avatar background color based on subcategory
- * Returns the subcategory color if available, otherwise defaults to a neutral color
- * Supports both single category (string) and multiple categories (array)
+ * For data-viz only — do not use for UI components
  */
 export const getAvatarColorFromSubcategory = (
   categoryId?: string | string[],
   subCategoryIds?: string[]
 ): string => {
-  // If no subcategories, return default color
-  if (!subCategoryIds || subCategoryIds.length === 0 || !categoryId) {
-    if (__DEV__) {
-      console.log('getAvatarColorFromSubcategory: No subcategories or category', {
-        categoryId,
-        subCategoryIds,
-      });
-    }
-    return "#8B5CF6"; // Default purple color
-  }
-
-  // Handle array of categories - use the first category
-  const normalizedCategoryId = Array.isArray(categoryId) 
-    ? categoryId[0]?.toLowerCase() 
-    : categoryId.toLowerCase();
-  
-  // Get the first subcategory (primary subcategory)
-  const firstSubCategoryId = subCategoryIds[0];
-  const subCategory = getSubCategoryById(normalizedCategoryId, firstSubCategoryId);
-
-  if (__DEV__) {
-    console.log('getAvatarColorFromSubcategory: Lookup result', {
-      categoryId,
-      normalizedCategoryId,
-      firstSubCategoryId,
-      found: !!subCategory,
-      color: subCategory?.color,
-    });
-  }
-
-  // Return the subcategory color if found, otherwise default
-  return subCategory?.color || "#8B5CF6";
-};
-
-/** Primary color per main category (matches ThemeVariants) */
-const MAIN_CATEGORY_PRIMARY_COLORS: Record<string, string> = {
-  belleza: "#EC4899",
-  bienestar: "#8B5CF6",
-  cuidado: "#8B5CF6",
-  mascotas: "#F97316",
-  todos: "#8B5CF6",
+  // Use static brand color for all UI elements
+  return "#558367"; // brandMuted
 };
 
 /**
  * Get a hex color for a category (main or sub) by id or name.
- * Used e.g. for reservation card border from professional/service category.
+ * For data-viz only — do not use for UI components
  */
 export const getCategoryColor = (
   categoryIdOrName?: string | number
 ): string => {
-  if (categoryIdOrName == null || categoryIdOrName === "") return "#8B5CF6";
-  const normalized = String(categoryIdOrName).toLowerCase().trim();
-  if (MAIN_CATEGORY_PRIMARY_COLORS[normalized])
-    return MAIN_CATEGORY_PRIMARY_COLORS[normalized];
-  for (const [, subCategories] of Object.entries(SUB_CATEGORIES)) {
-    const sub = subCategories.find(
-      (s) =>
-        s.id.toLowerCase() === normalized ||
-        s.name.toLowerCase() === normalized ||
-        s.name.toLowerCase().replace(/\s+/g, "") === normalized.replace(/\s+/g, "")
-    );
-    if (sub?.color) return sub.color;
-  }
-  return "#8B5CF6";
+  // Use static brand color for all UI elements
+  return "#1F3328"; // brandDark
 };

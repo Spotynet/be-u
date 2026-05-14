@@ -264,14 +264,12 @@ export default function ReservationDetailsScreen() {
   })();
 
   return (
-    <View style={[styles.container, {backgroundColor: "#F0F1F3"}]}>
+    <View style={[styles.container, {backgroundColor: colors.background}]}>
       <AppHeader
         title="Detalles de Reserva"
         showBackButton={true}
         backFallbackRoute="/(tabs)/perfil"
         backButtonCircle={true}
-        backgroundColor="#FFFFFF"
-        borderBottom="rgba(0,0,0,0.08)"
       />
 
       {isLoading ? (

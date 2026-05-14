@@ -18,6 +18,7 @@ import {useProfileCustomization} from "@/features/profile/hooks/useProfileCustom
 import * as ImagePicker from "expo-image-picker";
 import {compressImages} from "@/lib/imageUtils";
 import {errorUtils} from "@/lib/api";
+import {getApiOrigin} from "@/lib/apiConfig";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 const GALLERY_COLUMNS = 3;
@@ -25,19 +26,17 @@ const GALLERY_PADDING = 16;
 const GALLERY_GAP = 6;
 const GALLERY_ITEM_SIZE =
   (SCREEN_WIDTH - GALLERY_PADDING * 2 - GALLERY_GAP * (GALLERY_COLUMNS - 1)) / GALLERY_COLUMNS;
-const API_BASE_URL = "https://stg.be-u.ai/api";
-
 // Helper function to convert relative URLs to absolute URLs
 const getAbsoluteImageUrl = (url: string | null | undefined): string | null => {
   if (!url) return null;
   if (url.startsWith("http://") || url.startsWith("https://")) {
     return url;
   }
-  // If it's a relative URL, prepend the API base URL
+  const origin = getApiOrigin();
   if (url.startsWith("/")) {
-    return `${API_BASE_URL.replace("/api", "")}${url}`;
+    return `${origin}${url}`;
   }
-  return `${API_BASE_URL.replace("/api", "")}/${url}`;
+  return `${origin}/${url}`;
 };
 
 interface ImageGalleryProps {

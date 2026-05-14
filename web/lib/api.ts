@@ -1,5 +1,7 @@
 import axios, {AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError} from "axios";
 import {
+  AuthResponse,
+  EmailCodeCredentials,
   LoginCredentials,
   RegisterData,
   User,
@@ -23,7 +25,41 @@ export interface ApiError {
 }
 
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
+const DEFAULT_REMOTE_API_URL = "https://nabbi-api-dev.spotynet.com/api";
+
+const isLoopbackHost = (value: string) => {
+  try {
+    const parsed = new URL(value, "http://localhost");
+    return ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname);
+  } catch {
+    return false;
+  }
+};
+
+const resolveApiBaseUrl = () => {
+  const configuredUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+
+  if (typeof window !== "undefined") {
+    const currentHost = window.location.hostname;
+    const isLocalFrontend = ["localhost", "127.0.0.1", "::1"].includes(currentHost);
+
+    if (!configuredUrl) {
+      return isLocalFrontend ? "/api" : DEFAULT_REMOTE_API_URL;
+    }
+
+    if (!isLocalFrontend && isLoopbackHost(configuredUrl)) {
+      return "/api";
+    }
+
+    return configuredUrl;
+  }
+
+  return configuredUrl || "/api";
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
+const AUTH_TOKEN_KEY = "authToken";
+const REFRESH_TOKEN_KEY = "refreshToken";
 
 // Create axios instance with default config
 const apiClient: AxiosInstance = axios.create({
@@ -37,11 +73,14 @@ const apiClient: AxiosInstance = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    // Get token from localStorage or cookies
-    const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem(AUTH_TOKEN_KEY) : null;
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    if (config.data instanceof FormData && config.headers) {
+      delete config.headers["Content-Type"];
     }
 
     return config;
@@ -56,13 +95,53 @@ apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
     return response;
   },
-  (error: AxiosError) => {
-    // Handle common error cases
-    if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
-      // But only if we're not already on the login page
-      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
-        localStorage.removeItem("authToken");
+  async (error: AxiosError) => {
+    const originalRequest = (error.config || {}) as AxiosRequestConfig & {_retry?: boolean};
+    const requestUrl = originalRequest.url || "";
+    const isAuthBootstrapEndpoint =
+      requestUrl.includes("/auth/login/") ||
+      requestUrl.includes("/auth/register/") ||
+      requestUrl.includes("/auth/refresh/") ||
+      requestUrl.includes("/auth/email/request-code/") ||
+      requestUrl.includes("/auth/email/verify-code/");
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthBootstrapEndpoint) {
+      originalRequest._retry = true;
+      const refreshToken =
+        typeof window !== "undefined" ? localStorage.getItem(REFRESH_TOKEN_KEY) : null;
+
+      if (refreshToken) {
+        try {
+          const refreshResponse = await axios.post<{access: string}>(
+            `${API_BASE_URL}/auth/refresh/`,
+            {refresh: refreshToken},
+            {
+              headers: {"Content-Type": "application/json"},
+              timeout: 10000,
+            }
+          );
+
+          const newAccessToken = refreshResponse.data.access;
+          if (typeof window !== "undefined") {
+            localStorage.setItem(AUTH_TOKEN_KEY, newAccessToken);
+          }
+
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return apiClient(originalRequest);
+        } catch {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(AUTH_TOKEN_KEY);
+            localStorage.removeItem(REFRESH_TOKEN_KEY);
+          }
+        }
+      }
+
+      if (
+        typeof window !== "undefined" &&
+        !window.location.pathname.includes("/login") &&
+        !window.location.pathname.includes("/register")
+      ) {
         window.location.href = "/login";
       }
     }
@@ -94,10 +173,33 @@ export const apiCall = async <T = any>(
   } catch (error) {
     const axiosError = error as AxiosError;
     const errorData = axiosError.response?.data as any;
+    const status = axiosError.response?.status || 500;
+
+    let message = axiosError.message || "An error occurred";
+
+    if (typeof errorData === "string") {
+      message = errorData;
+    } else if (errorData && typeof errorData === "object") {
+      const fieldErrors = Object.entries(errorData)
+        .filter(([, value]) => Array.isArray(value) && value.length > 0)
+        .map(([, value]) => String((value as string[])[0]))
+        .filter(Boolean);
+
+      if (fieldErrors.length > 0) {
+        message = fieldErrors.join(". ");
+      } else {
+        message =
+          errorData.detail ||
+          errorData.error ||
+          errorData.message ||
+          axiosError.message ||
+          "An error occurred";
+      }
+    }
 
     throw {
-      message: errorData?.message || axiosError.message || "An error occurred",
-      status: axiosError.response?.status || 500,
+      message,
+      status,
       errors: errorData?.errors,
     } as ApiError;
   }
@@ -124,18 +226,24 @@ export const api = {
 // Auth-specific API functions
 export const authApi = {
   login: (credentials: LoginCredentials) =>
-    api.post<{token: string; user: User}>("/auth/login/", credentials),
+    api.post<AuthResponse>("/auth/login/", credentials),
+
+  requestEmailCode: (payload: {email: string}) =>
+    api.post<{message: string}>("/auth/email/request-code/", payload),
+
+  verifyEmailCode: (payload: EmailCodeCredentials) =>
+    api.post<AuthResponse>("/auth/email/verify-code/", payload),
 
   register: (userData: RegisterData) =>
-    api.post<{token: string; user: User}>("/auth/register/", userData),
+    api.post<AuthResponse>("/auth/register/", userData),
 
   logout: () => api.post("/auth/logout/"),
 
-  refreshToken: () => api.post<{token: string}>("/auth/refresh/"),
+  refreshToken: (refresh: string) => api.post<{access: string}>("/auth/refresh/", {refresh}),
 
-  getProfile: () => api.get<User>("/auth/profile/"),
+  getProfile: () => api.get<{user: User}>("/auth/profile/"),
 
-  updateProfile: (data: Partial<User>) => api.put<User>("/auth/profile/", data),
+  updateProfile: (data: Partial<User>) => api.put<{user: User}>("/auth/profile/", data),
 
   changePassword: (data: ChangePasswordData) => api.post("/auth/change-password/", data),
 
@@ -240,6 +348,33 @@ export const reservationApi = {
   cancelReservation: (id: number) => api.patch<any>(`/reservations/${id}/cancel/`),
 };
 
+// ── Ventas (Sales) ─────────────────────────────────────────────────────────
+export const ventasApi = {
+  getSales: (params?: {
+    status?: string;
+    currency?: string;
+    date_from?: string;
+    date_to?: string;
+    search?: string;
+    ordering?: string;
+  }) => api.get<any>("/ventas/", {params}),
+
+  getSale: (id: number) => api.get<any>(`/ventas/${id}/`),
+
+  createSale: (data: any) => api.post<any>("/ventas/", data),
+
+  updateSale: (id: number, data: any) => api.patch<any>(`/ventas/${id}/`, data),
+
+  deleteSale: (id: number) => api.delete(`/ventas/${id}/`),
+
+  markPaid: (id: number, data: {amount_paid?: number; payment_method?: string}) =>
+    api.post<any>(`/ventas/${id}/mark-paid/`, data),
+
+  cancel: (id: number) => api.post<any>(`/ventas/${id}/cancel/`, {}),
+
+  getStats: () => api.get<any>("/ventas/stats/"),
+};
+
 // Review management API functions
 export const reviewApi = {
   getReviews: (params?: {page?: number; service?: number; user?: number}) =>
@@ -257,21 +392,36 @@ export const reviewApi = {
 // Utility functions for token management
 export const tokenUtils = {
   setToken: (token: string) => {
+    tokenUtils.setTokens(token);
+  },
+
+  setTokens: (accessToken: string, refreshToken?: string) => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("authToken", token);
+      localStorage.setItem(AUTH_TOKEN_KEY, accessToken);
+      if (refreshToken) {
+        localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      }
     }
   },
 
   getToken: (): string | null => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("authToken");
+      return localStorage.getItem(AUTH_TOKEN_KEY);
+    }
+    return null;
+  },
+
+  getRefreshToken: (): string | null => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(REFRESH_TOKEN_KEY);
     }
     return null;
   },
 
   removeToken: () => {
     if (typeof window !== "undefined") {
-      localStorage.removeItem("authToken");
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
     }
   },
 
@@ -363,6 +513,21 @@ export const apiUtils = {
 export const errorUtils = {
   // Extract error message from API error
   getErrorMessage: (error: any): string => {
+    const data = error?.response?.data;
+
+    if (typeof data === "string") {
+      return data;
+    }
+    if (data && typeof data === "object") {
+      const fieldErrors = Object.entries(data)
+        .filter(([, value]) => Array.isArray(value) && value.length > 0)
+        .map(([, value]) => String((value as string[])[0]))
+        .filter(Boolean);
+
+      if (fieldErrors.length > 0) {
+        return fieldErrors.join(". ");
+      }
+    }
     if (error?.response?.data?.message) {
       return error.response.data.message;
     }

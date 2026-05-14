@@ -46,7 +46,7 @@ export const SubCategoryBar = ({
   const renderCategoryItem = useMemo(() => {
     return (category: SubCategory) => {
       const isSelected = selectedCategoryId === category.id;
-      const highlightColor = category.color || colors.primary;
+      const highlightColor = colors.primary;
       const {iconName, family} = (() => {
         if (!category.icon) {
           return {

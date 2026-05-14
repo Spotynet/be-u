@@ -131,8 +131,6 @@ export default function ServiceManagementScreen({embedded = false}: ServiceManag
             title="Mis Servicios"
             showBackButton
             backFallbackRoute="/(tabs)/perfil"
-            backgroundColor={colors.background}
-            borderBottom={colors.border}
           />
         )}
         <View style={styles.loadingContainer}>
@@ -149,8 +147,6 @@ export default function ServiceManagementScreen({embedded = false}: ServiceManag
           title="Mis Servicios"
           showBackButton
           backFallbackRoute="/(tabs)/perfil"
-          backgroundColor={colors.background}
-          borderBottom={colors.border}
         />
       )}
 

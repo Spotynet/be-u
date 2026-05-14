@@ -217,7 +217,7 @@ export function PublicProfileForm({profile, onSubmit, submitText}: PublicProfile
         <label className="block text-sm font-medium text-gray-700 mb-2">Sub Categories</label>
         <Input
           type="text"
-          value={formData.sub_categories.join(", ")}
+          value={(formData.sub_categories ?? []).join(", ")}
           onChange={(e) => handleSubCategoriesChange(e.target.value)}
           placeholder="e.g., Massage, Facial, Haircut (comma separated)"
         />

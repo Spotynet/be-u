@@ -9,6 +9,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import {getApiBaseUrl} from './apiConfig';
 
 // Complete the auth session for web browser
 WebBrowser.maybeCompleteAuthSession();
@@ -42,7 +43,7 @@ export const getGoogleAuthRedirectUri = (): string => {
 
   // Helper to build backend callback URI
   const buildBackendCallbackUri = (): string => {
-    const backendUrl = apiUrl || 'https://stg.be-u.ai/api';
+    const backendUrl = apiUrl || getApiBaseUrl();
     // Ensure we construct the URI correctly - remove trailing /api if present, then add the callback path
     const baseUrl = backendUrl.endsWith('/api') ? backendUrl.slice(0, -4) : backendUrl.replace('/api', '');
     return `${baseUrl}/api/auth/google/callback/`;

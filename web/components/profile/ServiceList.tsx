@@ -143,14 +143,16 @@ export function ServiceList({services, onUpdate, onDelete, onToggleActive}: Serv
 
                   {service.images && service.images.length > 0 && (
                     <div className="mt-3">
-                      <span className="text-sm font-medium text-gray-700">Images:</span>
+                      <span className="text-sm font-medium text-gray-700">Imágenes:</span>
                       <div className="flex flex-wrap gap-2 mt-1">
                         {service.images.map((image, index) => (
-                          <div
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
                             key={index}
-                            className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                            <span className="text-xs text-gray-500">Img {index + 1}</span>
-                          </div>
+                            src={image}
+                            alt={`${service.name} – imagen ${index + 1}`}
+                            className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                          />
                         ))}
                       </div>
                     </div>

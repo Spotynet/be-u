@@ -5,46 +5,39 @@ import {useCategory} from "@/contexts/CategoryContext";
 import type {ThemeVariant} from "@/constants/theme";
 import type {MainCategory} from "@/contexts/CategoryContext";
 
-const LOGOS = {
-  "nabbi-pink": require("@/assets/images/nabbi-pink.png"),
-  "nabbi-purple": require("@/assets/images/nabbi-purple.png"),
-  "nabbi-white-pink": require("@/assets/images/nabbi-white-pink.png"),
-  "nabbi-white-purple": require("@/assets/images/nabbi-white-purple.png"),
-} as const;
-
-type LogoKey = keyof typeof LOGOS;
-
-function isPinkVariant(variant: ThemeVariant, mainCategory: MainCategory): boolean {
-  if (variant === "belleza" || mainCategory === "belleza") return true;
-  return false;
-}
-
-function getLogoKey(colorMode: "light" | "dark", usePink: boolean): LogoKey {
-  if (colorMode === "dark") return usePink ? "nabbi-white-pink" : "nabbi-white-purple";
-  return usePink ? "nabbi-pink" : "nabbi-purple";
-}
+const LOGO_SOURCE = require("@/assets/images/nabbi_logo_t.png");
+import {View} from "react-native";
 
 interface AppLogoProps {
   style?: StyleProp<ImageStyle>;
   resizeMode?: "contain" | "cover" | "stretch" | "repeat" | "center";
+  tintColor?: string;
+  showBackground?: boolean;
 }
 
-/**
- * Logo de la app que cambia según tema activo (variant + colorMode) y categoría activa.
- * - Belleza → rosa; resto de categorías → púrpura.
- * - Tema oscuro → variantes blancas (white-pink / white-purple); claro → variantes de color.
- */
-export function AppLogo({style, resizeMode = "contain"}: AppLogoProps) {
-  const {variant, colorMode} = useThemeVariant();
-  const {selectedMainCategory} = useCategory();
-  const usePink = isPinkVariant(variant, selectedMainCategory);
-  const logoKey = getLogoKey(colorMode, usePink);
-  return (
+export function AppLogo({style, resizeMode = "contain", tintColor, showBackground = false}: AppLogoProps) {
+  const logo = (
     <Image
-      source={LOGOS[logoKey]}
-      style={style}
+      source={LOGO_SOURCE}
+      style={[style, tintColor ? {tintColor} : undefined]}
       resizeMode={resizeMode}
       accessibilityLabel="nabbi logo"
     />
   );
+
+  if (showBackground) {
+    return (
+      <View style={{
+        backgroundColor: "#1F3328",
+        padding: 8,
+        borderRadius: 12,
+        justifyContent: "center",
+        alignItems: "center"
+      }}>
+        {logo}
+      </View>
+    );
+  }
+
+  return logo;
 }

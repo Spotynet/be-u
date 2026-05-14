@@ -4,6 +4,8 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
+  username?: string;
+  role?: string;
   isActive: boolean;
   dateJoined: string;
   lastLogin?: string;
@@ -23,24 +25,41 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface EmailCodeCredentials {
+  email: string;
+  code: string;
+}
+
 export interface RegisterData {
   firstName: string;
   lastName: string;
   username: string;
   email: string;
-  password: string;
+  password?: string;
+  role?: "client" | "professional" | "place";
+  category?: string;
+  subcategory?: string;
+  phone?: string;
+  bio?: string;
   phoneNumber?: string;
   dateOfBirth?: string;
   address?: string;
   city?: string;
   country?: string;
+  latitude?: number;
+  longitude?: number;
+  placeName?: string;
 }
 
 export interface AuthResponse {
-  token: string;
+  message?: string;
+  access: string;
+  refresh: string;
   user: User;
-  refreshToken?: string;
+  requires_registration?: boolean;
 }
+
+export type EmailCodeLoginResult = true | "requires_registration";
 
 export interface ChangePasswordData {
   oldPassword: string;
@@ -62,6 +81,8 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
+  requestEmailCode: (email: string) => Promise<void>;
+  loginWithEmailCode: (credentials: EmailCodeCredentials) => Promise<EmailCodeLoginResult>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => Promise<void>;

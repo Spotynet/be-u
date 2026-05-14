@@ -1,4 +1,6 @@
 import {View, Text, StyleSheet, TouchableOpacity} from "react-native";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
+import {useNavigation} from "@react-navigation/native";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useAuth} from "@/features/auth";
 import {EnhancedReservationsTab} from "@/components/profile/EnhancedReservationsTab";
@@ -7,11 +9,35 @@ import React, {useState} from "react";
 import {AppHeader, APP_HEADER_ICON_SIZE, APP_HEADER_BUTTON_HIT} from "@/components/ui/AppHeader";
 import {Redirect} from "expo-router";
 
+import {useAppTheme} from "@/constants/theme";
+
 export default function Calendario() {
   const {colors} = useThemeVariant();
+  const theme = useAppTheme();
   const {user, isAuthenticated} = useAuth();
+  const insets = useSafeAreaInsets();
+  const {goBack} = useNavigation();
   const [selectedDate, setSelectedDate] = useState<string | undefined>();
   const [showMonthView, setShowMonthView] = useState(false);
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    headerIconButton: {
+      width: APP_HEADER_ICON_SIZE,
+      height: APP_HEADER_ICON_SIZE,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    tabsContainer: {
+      flex: 1,
+      backgroundColor: colors.surface,
+    },
+  });
+
+
 
   const toggleMonthView = () => {
     setShowMonthView((v) => !v);
@@ -26,15 +52,13 @@ export default function Calendario() {
       <AppHeader
         title="Calendario"
         showBackButton={false}
-        backgroundColor={colors.background}
-        borderBottom={colors.border}
         rightExtra={
           <TouchableOpacity
             onPress={toggleMonthView}
             activeOpacity={0.7}
             style={styles.headerIconButton}
             accessibilityLabel={showMonthView ? "Ver semana" : "Ver mes completo"}>
-            <Ionicons name="calendar-outline" size={APP_HEADER_ICON_SIZE} color={colors.primary} />
+            <Ionicons name="calendar-outline" size={APP_HEADER_ICON_SIZE} color={theme.white} />
           </TouchableOpacity>
         }
       />
@@ -51,35 +75,3 @@ export default function Calendario() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  headerIconButton: {
-    width: APP_HEADER_BUTTON_HIT,
-    height: APP_HEADER_BUTTON_HIT,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  tabsContainer: {
-    flex: 1,
-  },
-  centeredContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 24,
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  emptyDescription: {
-    fontSize: 15,
-    textAlign: "center",
-    marginBottom: 24,
-  },
-});

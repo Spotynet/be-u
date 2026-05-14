@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import {Colors} from "@/constants/theme";
+import {Colors, useAppTheme} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
@@ -26,8 +26,9 @@ import {SettingsMenu} from "@/components/profile";
 import {CalendarConnectionCard} from "@/features/calendar";
 
 export default function Settings({embedded = false}: {embedded?: boolean} = {}) {
-  const colorScheme = useColorScheme();
   const {colors, colorMode, setColorMode} = useThemeVariant();
+  const theme = useAppTheme();
+  const styles = makeStyles(colors, theme);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const {goBack} = useNavigation();
@@ -324,13 +325,14 @@ export default function Settings({embedded = false}: {embedded?: boolean} = {}) 
           disabled={updating || profileLoading}
           activeOpacity={0.8}>
           {updating ? (
-            <ActivityIndicator color="#ffffff" />
+            <ActivityIndicator color={theme.white} />
           ) : (
             <>
-              <Ionicons name="checkmark-circle" color="#ffffff" size={20} />
+              <Ionicons name="checkmark-circle" color={theme.white} size={20} />
               <Text style={styles.saveButtonText}>Guardar Cambios</Text>
             </>
           )}
+
         </TouchableOpacity>
       </View>
 
@@ -343,7 +345,7 @@ export default function Settings({embedded = false}: {embedded?: boolean} = {}) 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: any, theme: any) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -446,7 +448,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   saveButtonText: {
-    color: "#ffffff",
+    color: theme.white,
     fontSize: 16,
     fontWeight: "600",
   },

@@ -22,8 +22,6 @@ export default function ProfileConfigScreen() {
         title="Configuración"
         showBackButton
         onBackPress={() => router.back()}
-        backgroundColor={colors.background}
-        borderBottom={colors.border}
       />
       <View style={[styles.content, {backgroundColor: colors.contentBackground}]}>
         <ProfessionalSettingsContent />

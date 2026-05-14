@@ -2,6 +2,8 @@ export {useAuth, AuthProvider} from "./hooks/useAuth";
 export type {
   User,
   LoginCredentials,
+  EmailCodeCredentials,
+  EmailCodeLoginResult,
   RegisterData,
   AuthResponse,
   ChangePasswordData,
@@ -9,4 +11,3 @@ export type {
   ResetPasswordData,
   AuthContextType,
 } from "./types";
-

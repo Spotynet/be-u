@@ -574,11 +574,11 @@ export default function PlaceDetailScreen() {
                             style={[
                               styles.subcategoryBadge,
                               {
-                                backgroundColor: subCategory.color ? subCategory.color + "20" : colors.muted + "40",
-                                borderColor: subCategory.color || colors.border,
+                                backgroundColor: colors.secondary,
+                                borderColor: colors.secondary,
                               },
                             ]}>
-                            <Text style={[styles.subcategoryText, {color: subCategory.color || colors.foreground}]}>
+                            <Text style={[styles.subcategoryText, {color: colors.primaryForeground}]}>
                               {subCategory.name}
                             </Text>
                           </View>

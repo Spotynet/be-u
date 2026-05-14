@@ -1,285 +1,167 @@
 /**
- * Theme colors and typography for the nabbi mobile app
- * Following the Mobile Standards for consistent theming
+ * Centralized theme system for Nabbi mobile app
+ * Supports light/dark modes with semantic color tokens.
  */
 
-import {Platform} from "react-native";
+import { useColorScheme } from 'react-native';
 
-// Brand colors - Purple/Magenta theme
-const primaryColor = "#8b5cf6"; // Purple/Magenta
-const primaryForeground = "#ffffff";
+export const LightTheme = {
+  // Brand
+  primary: '#1F3328',         // brandDark
+  secondary: '#558367',       // brandMuted
+  accent: '#F6C531',          // ctaYellow
+  
+  // Backgrounds
+  bg: '#FAF8F3',              // Primary background
+  background: '#FAF8F3',      // Alias for compatibility
+  contentBackground: '#FAF8F3', // Alias for compatibility
+  surface: '#FFFFFF',         // Card/surface background
+  card: '#FFFFFF',            // Alias for compatibility
+  surfaceElevated: '#F0EDE6',
 
+  // Text
+  foreground: '#1F3328',      // textPrimary
+  textPrimary: '#1F3328',
+  textSecondary: '#558367',
+  textTertiary: '#8A9E90',
+  textOnDark: '#FFFFFF',
+  textOnYellow: '#12211A',
+  primaryForeground: '#FFFFFF',
+
+  // Brand specific
+  brandDark: '#1F3328',
+  brandMuted: '#558367',
+  ctaYellow: '#F6C531',
+  ctaText: '#12211A',
+
+  // Navigation
+  navBarBg: '#1F3328',
+  navBarText: '#FFFFFF',
+  navBarIcon: '#FFFFFF',
+  tabBarBg: '#FFFFFF',
+  tabBarActive: '#1F3328',
+  tabBarInactive: '#558367',
+
+  // Inputs
+  inputBg: '#FFFFFF',
+  input: '#FFFFFF',           // Alias
+  inputBorder: 'rgba(85,131,103,0.35)',
+  inputText: '#1F3328',
+  placeholderText: '#8A9E90',
+
+  // UI Elements
+  border: 'rgba(85,131,103,0.35)',
+  divider: 'rgba(85,131,103,0.2)',
+  chipBg: 'rgba(85,131,103,0.12)',
+  muted: 'rgba(85,131,103,0.12)', // Alias
+  chipText: '#1F3328',
+  mutedForeground: '#558367',    // Alias
+  chipActiveBg: '#1F3328',
+  chipActiveText: '#FFFFFF',
+  badgeBg: '#558367',
+  badgeText: '#FFFFFF',
+  cardBg: '#FFFFFF',
+  cardShadow: 'rgba(31,51,40,0.08)',
+
+  // Status
+  error: '#C0392B',
+  destructive: '#C0392B',     // Alias
+  errorBg: 'rgba(192,57,43,0.08)',
+  success: '#558367',
+  successBg: 'rgba(85,131,103,0.1)',
+  successForeground: '#FFFFFF',
+
+  // Icons
+  iconPrimary: '#1F3328',
+  iconSecondary: '#558367',
+  iconMuted: '#8A9E90',
+  white: '#FFFFFF',
+  black: '#12211A',
+};
+
+export const DarkTheme: typeof LightTheme = {
+  // Brand
+  primary: '#F6C531',         // In dark mode, yellow acts as primary brand highlight
+  secondary: '#88B89A',
+  accent: '#F6C531',
+
+  // Backgrounds
+  bg: '#0F1A14',
+  background: '#0F1A14',
+  contentBackground: '#0F1A14',
+  surface: '#1A2E22',
+  card: '#1A2E22',
+  surfaceElevated: '#22382A',
+
+  // Text
+  foreground: '#FAF8F3',
+  textPrimary: '#FAF8F3',
+  textSecondary: '#88B89A',
+  textTertiary: '#5A7A65',
+  textOnDark: '#FAF8F3',
+  textOnYellow: '#12211A',
+  primaryForeground: '#12211A', // Dark text on light brand background
+
+  // Brand specific
+  brandDark: '#FAF8F3',
+  brandMuted: '#88B89A',
+  ctaYellow: '#F6C531',
+  ctaText: '#12211A',
+
+  // Navigation
+  navBarBg: '#0A1210',
+  navBarText: '#FAF8F3',
+  navBarIcon: '#FAF8F3',
+  tabBarBg: '#1A2E22',
+  tabBarActive: '#F6C531',
+  tabBarInactive: '#88B89A',
+
+  // Inputs
+  inputBg: '#1A2E22',
+  input: '#1A2E22',
+  inputBorder: 'rgba(136,184,154,0.3)',
+  inputText: '#FAF8F3',
+  placeholderText: '#5A7A65',
+
+  // UI Elements
+  border: 'rgba(136,184,154,0.25)',
+  divider: 'rgba(136,184,154,0.15)',
+  chipBg: 'rgba(136,184,154,0.15)',
+  muted: 'rgba(136,184,154,0.15)',
+  chipText: '#FAF8F3',
+  mutedForeground: '#88B89A',
+  chipActiveBg: '#F6C531',
+  chipActiveText: '#12211A',
+  badgeBg: '#88B89A',
+  badgeText: '#0F1A14',
+  cardBg: '#1A2E22',
+  cardShadow: 'rgba(0,0,0,0.3)',
+
+  // Status
+  error: '#E57373',
+  destructive: '#E57373',
+  errorBg: 'rgba(229,115,115,0.1)',
+  success: '#88B89A',
+  successBg: 'rgba(136,184,154,0.1)',
+  successForeground: '#0F1A14',
+
+  // Icons
+  iconPrimary: '#FAF8F3',
+  iconSecondary: '#88B89A',
+  iconMuted: '#5A7A65',
+  white: '#FFFFFF',
+  black: '#12211A',
+};
+
+export type AppTheme = typeof LightTheme;
+
+/** Maps color scheme names to tokens — used across screens via `Colors[scheme]`. */
 export const Colors = {
-  light: {
-    // Core colors - Clean whites and light grays
-    background: "#ffffff",
-    foreground: "#1f2937",
-    card: "#ffffff",
-    cardForeground: "#1f2937",
+  light: LightTheme,
+  dark: DarkTheme,
+} as const;
 
-    // Brand colors - Purple/Magenta
-    primary: primaryColor,
-    primaryForeground: primaryForeground,
-
-    // Secondary colors - Light purple tints
-    secondary: "#f3f4f6",
-    secondaryForeground: "#1f2937",
-
-    // Muted colors - Very light grays
-    muted: "#f9fafb",
-    mutedForeground: "#6b7280",
-
-    // Accent colors - Light purple accent
-    accent: "#f3f4f6",
-    accentForeground: "#1f2937",
-
-    // Destructive colors
-    destructive: "#ef4444",
-    destructiveForeground: "#ffffff",
-
-    // Success colors
-    success: "#10b981",
-    successForeground: "#ffffff",
-
-    // Border and input - Light borders
-    border: "#e5e7eb",
-    input: "#f3f4f6",
-
-    // Content/screen secondary background (e.g. list areas)
-    contentBackground: "#F0F1F3",
-
-    // Ring (focus) - Purple focus ring
-    ring: primaryColor,
-
-    // Tab navigation
-    tint: primaryColor,
-    tabIconDefault: "#6b7280",
-    tabIconSelected: primaryColor,
-  },
-  dark: {
-    // Core colors - Dark theme (prepared for future use)
-    background: "#0f172a",
-    foreground: "#f8fafc",
-    card: "#1e293b",
-    cardForeground: "#f8fafc",
-
-    // Brand colors - Same purple for consistency
-    primary: primaryColor,
-    primaryForeground: primaryForeground,
-
-    // Secondary colors
-    secondary: "#1e293b",
-    secondaryForeground: "#f8fafc",
-
-    // Muted colors
-    muted: "#1e293b",
-    mutedForeground: "#94a3b8",
-
-    // Accent colors
-    accent: "#1e293b",
-    accentForeground: "#f8fafc",
-
-    // Destructive colors
-    destructive: "#ef4444",
-    destructiveForeground: "#ffffff",
-
-    // Success colors
-    success: "#10b981",
-    successForeground: "#ffffff",
-
-    // Border and input - input slightly lighter than background for visibility
-    border: "#334155",
-    input: "#1e293b",
-
-    // Content/screen secondary background
-    contentBackground: "#1e293b",
-
-    // Ring (focus)
-    ring: primaryColor,
-
-    // Tab navigation
-    tint: primaryColor,
-    tabIconDefault: "#94a3b8",
-    tabIconSelected: primaryColor,
-  },
-};
-
-export const ThemeVariants = {
-  todos: {
-    primary: "#8b5cf6", // Default purple for "All" category
-    primaryForeground: "#ffffff",
-    tint: "#8b5cf6",
-    // Light mode colors
-    light: {
-      background: "#ffffff",
-      foreground: "#1f2937",
-      card: "#ffffff",
-      cardForeground: "#1f2937",
-      border: "#e5e7eb",
-      muted: "#f9fafb",
-      mutedForeground: "#6b7280",
-    },
-    // Dark mode colors
-    dark: {
-      background: "#0f172a",
-      foreground: "#f8fafc",
-      card: "#1e293b",
-      cardForeground: "#f8fafc",
-      border: "#334155",
-      muted: "#1e293b",
-      mutedForeground: "#94a3b8",
-    },
-  },
-  belleza: {
-    primary: "#EC4899", // Pink for Beauty/Belleza
-    primaryForeground: "#ffffff",
-    tint: "#EC4899",
-    // Light mode colors
-    light: {
-      background: "#ffffff",
-      foreground: "#1f2937",
-      card: "#ffffff",
-      cardForeground: "#1f2937",
-      border: "#e5e7eb",
-      muted: "#f9fafb",
-      mutedForeground: "#6b7280",
-    },
-    // Dark mode colors
-    dark: {
-      background: "#0f172a",
-      foreground: "#f8fafc",
-      card: "#1e293b",
-      cardForeground: "#f8fafc",
-      border: "#334155",
-      muted: "#1e293b",
-      mutedForeground: "#94a3b8",
-    },
-  },
-  cuidado: {
-    primary: "#8B5CF6", // Purple for Care/Cuidado
-    primaryForeground: "#ffffff",
-    tint: "#8B5CF6",
-    // Light mode colors
-    light: {
-      background: "#ffffff",
-      foreground: "#1f2937",
-      card: "#ffffff",
-      cardForeground: "#1f2937",
-      border: "#e5e7eb",
-      muted: "#f9fafb",
-      mutedForeground: "#6b7280",
-    },
-    // Dark mode colors
-    dark: {
-      background: "#0f172a",
-      foreground: "#f8fafc",
-      card: "#1e293b",
-      cardForeground: "#f8fafc",
-      border: "#334155",
-      muted: "#1e293b",
-      mutedForeground: "#94a3b8",
-    },
-  },
-  bienestar: {
-    primary: "#8B5CF6", // Purple for Bienestar (alias of cuidado)
-    primaryForeground: "#ffffff",
-    tint: "#8B5CF6",
-    // Light mode colors
-    light: {
-      background: "#ffffff",
-      foreground: "#1f2937",
-      card: "#ffffff",
-      cardForeground: "#1f2937",
-      border: "#e5e7eb",
-      muted: "#f9fafb",
-      mutedForeground: "#6b7280",
-    },
-    // Dark mode colors
-    dark: {
-      background: "#0f172a",
-      foreground: "#f8fafc",
-      card: "#1e293b",
-      cardForeground: "#f8fafc",
-      border: "#334155",
-      muted: "#1e293b",
-      mutedForeground: "#94a3b8",
-    },
-  },
-  mascotas: {
-    primary: "#F97316", // Orange for Pets/Mascotas
-    primaryForeground: "#ffffff",
-    tint: "#F97316",
-    // Light mode colors
-    light: {
-      background: "#ffffff",
-      foreground: "#1f2937",
-      card: "#ffffff",
-      cardForeground: "#1f2937",
-      border: "#e5e7eb",
-      muted: "#f9fafb",
-      mutedForeground: "#6b7280",
-    },
-    // Dark mode colors
-    dark: {
-      background: "#0f172a",
-      foreground: "#f8fafc",
-      card: "#1e293b",
-      cardForeground: "#f8fafc",
-      border: "#334155",
-      muted: "#1e293b",
-      mutedForeground: "#94a3b8",
-    },
-  },
-  wellness: {
-    primary: "#8B5CF6", // Purple for Wellness (same as cuidado for consistency)
-    primaryForeground: "#ffffff",
-    tint: "#8B5CF6",
-    // Light mode colors
-    light: {
-      background: "#ffffff",
-      foreground: "#1f2937",
-      card: "#ffffff",
-      cardForeground: "#1f2937",
-      border: "#e5e7eb",
-      muted: "#f9fafb",
-      mutedForeground: "#6b7280",
-    },
-    // Dark mode colors
-    dark: {
-      background: "#0f172a",
-      foreground: "#f8fafc",
-      card: "#1e293b",
-      cardForeground: "#f8fafc",
-      border: "#334155",
-      muted: "#1e293b",
-      mutedForeground: "#94a3b8",
-    },
-  },
-};
-
-export type ThemeVariant = keyof typeof ThemeVariants;
-
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: "system-ui",
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: "ui-serif",
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: "ui-rounded",
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: "ui-monospace",
-  },
-  default: {
-    sans: "normal",
-    serif: "serif",
-    rounded: "normal",
-    mono: "monospace",
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+export function useAppTheme(): AppTheme {
+  const scheme = useColorScheme();
+  return scheme === 'dark' ? DarkTheme : LightTheme;
+}

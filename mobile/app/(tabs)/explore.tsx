@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import {SafeMapView, Region} from "@/components/map/SafeMapView";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
+import {useAppTheme} from "@/constants/theme";
 import {useCategory} from "@/contexts/CategoryContext";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -38,7 +39,8 @@ type MapItem = (ProfessionalProfile | PlaceProfile) & {
 };
 
 export default function Explore() {
-  const {colors, setVariant} = useThemeVariant();
+  const {colors} = useThemeVariant();
+  const theme = useAppTheme();
   const insets = useSafeAreaInsets();
   const {
     selectedMainCategory,
@@ -56,6 +58,7 @@ export default function Explore() {
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
   const [useLocationFilter, setUseLocationFilter] = useState(false);
   const [radiusKm] = useState(10);
+
 
   // Keep Mascotas logic in codebase, but hide it from the UI for now.
   const ALL_CATEGORIES = [
@@ -278,41 +281,39 @@ export default function Explore() {
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* Header */}
-      <View style={[styles.header, {paddingTop: insets.top + 30}]}>
+      <View style={[styles.header, {paddingTop: insets.top + 16, backgroundColor: colors.primary}]}>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, {color: colors.foreground}]}>Explorar</Text>
-          <Text style={[styles.headerSubtitle, {color: colors.mutedForeground}]}>
+          <Text style={[styles.headerTitle, {color: theme.white}]}>Explorar</Text>
+          <Text style={[styles.headerSubtitle, {color: "rgba(255, 255, 255, 0.7)"}]}>
             {filteredItems.length} lugares cerca
           </Text>
         </View>
         <View style={styles.headerActions}>
           <View style={styles.categorySelector}>
             {/* Always Expanded - Horizontal Options */}
-            <View style={[styles.expandedCategoryOptions, {backgroundColor: colors.card}]}>
+            <View style={[styles.expandedCategoryOptions, {backgroundColor: "rgba(255, 255, 255, 0.1)"}]}>
               {categories.map((category) => (
                 <TouchableOpacity
                   key={category.id}
                   style={[
                     styles.expandedCategoryOption,
-                    selectedMainCategory === category.id && styles.selectedCategoryOption,
+                    selectedMainCategory === category.id && {
+                      backgroundColor: "rgba(255, 255, 255, 0.2)",
+                    },
                   ]}
                   onPress={() => {
                     setSelectedMainCategory(category.id as "belleza" | "bienestar" | "mascotas");
-                    setVariant(category.id as any);
                   }}>
                   {getCategoryIcon(
                     category.id,
-                    selectedMainCategory === category.id ? colors.primary : colors.mutedForeground,
+                    theme.white,
                     24
                   )}
                   <Text
                     style={[
                       styles.expandedCategoryText,
                       {
-                        color:
-                          selectedMainCategory === category.id
-                            ? colors.primary
-                            : colors.mutedForeground,
+                        color: theme.white,
                       },
                     ]}>
                     {category.name}
@@ -324,37 +325,21 @@ export default function Explore() {
           <TouchableOpacity
             style={[
               styles.nearMeButton,
-              {backgroundColor: useLocationFilter ? colors.primary : colors.card},
+              {backgroundColor: useLocationFilter ? colors.accent : "rgba(255, 255, 255, 0.1)"},
             ]}
             onPress={toggleNearMe}>
             <Ionicons
               name="locate-outline"
-              color={useLocationFilter ? "#ffffff" : colors.mutedForeground}
+              color={useLocationFilter ? colors.accentForeground : theme.white}
               size={18}
             />
             <Text
               style={[
                 styles.nearMeText,
-                {color: useLocationFilter ? "#ffffff" : colors.mutedForeground},
+                {color: useLocationFilter ? colors.accentForeground : theme.white},
               ]}>
               Cerca de mí
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.locationButton, {backgroundColor: colors.primary}]}
-            onPress={() => {
-              if (userLocation) {
-                setMapRegion({
-                  latitude: userLocation.latitude,
-                  longitude: userLocation.longitude,
-                  latitudeDelta: 0.06,
-                  longitudeDelta: 0.06,
-                });
-              } else {
-                toggleNearMe();
-              }
-            }}>
-            <Ionicons name="navigate" color="#ffffff" size={20} />
           </TouchableOpacity>
         </View>
       </View>
@@ -676,7 +661,7 @@ export default function Explore() {
                   style={[styles.detailActionPrimary, {backgroundColor: colors.primary}]}
                   onPress={() => router.push(`/profile/${selectedItemData.id}`)}
                   activeOpacity={0.9}>
-                  <Ionicons name="eye" color="#ffffff" size={18} />
+                  <Ionicons name="eye" color={theme.white} size={18} />
                   <Text style={styles.detailActionPrimaryText}>Ver Detalles</Text>
                 </TouchableOpacity>
 
@@ -710,569 +695,3 @@ export default function Explore() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 30,
-    paddingBottom: 8,
-    gap: 12,
-  },
-  headerCenter: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    marginTop: 2,
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  categorySelector: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  categoryButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  categoryButtonText: {
-    fontSize: 18,
-  },
-  expandedCategoryOptions: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 18,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    gap: 4,
-  },
-  expandedCategoryOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 12,
-    minWidth: 36,
-    justifyContent: "center",
-  },
-  selectedCategoryOption: {
-    backgroundColor: "transparent",
-  },
-  expandedCategoryEmoji: {
-    fontSize: 16,
-  },
-  expandedCategoryText: {
-    fontSize: 12,
-    fontWeight: "600",
-    marginLeft: 4,
-  },
-  locationButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  nearMeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    height: 40,
-    borderRadius: 20,
-  },
-  nearMeText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  subCategoryContainer: {
-    marginBottom: 12,
-  },
-  searchContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 4,
-    gap: 4,
-  },
-  searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 8,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  mapContainer: {
-    flex: 1,
-    position: "relative",
-  },
-  map: {
-    flex: 1,
-  },
-  mapBackground: {
-    flex: 1,
-    position: "relative",
-  },
-  mapGrid: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  gridLineVertical: {
-    position: "absolute",
-    width: 1,
-    height: "100%",
-    backgroundColor: "rgba(0, 0, 0, 0.03)",
-  },
-  gridLineHorizontal: {
-    position: "absolute",
-    height: 1,
-    width: "100%",
-    backgroundColor: "rgba(0, 0, 0, 0.03)",
-  },
-  userLocation: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: [{translateX: -20}, {translateY: -20}],
-  },
-  userPulse: {
-    position: "absolute",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    opacity: 0.2,
-  },
-  userDot: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#ffffff",
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  userDotInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#ffffff",
-  },
-  pinsContainer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  pinWrapper: {
-    position: "absolute",
-    alignItems: "center",
-  },
-  pin: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 6,
-  },
-  pinSelected: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 4,
-  },
-  pinAvatar: {
-    fontSize: 28,
-  },
-  pinLabel: {
-    marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  pinLabelText: {
-    color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  legend: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 12,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  legendText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 16,
-  },
-  loadingText: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-    gap: 16,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  errorText: {
-    fontSize: 15,
-    textAlign: "center",
-  },
-  retryButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  retryButtonText: {
-    color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  bottomSheet: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: -4},
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 10,
-    maxHeight: 200,
-  },
-  bottomSheetExpanded: {
-    maxHeight: "80%",
-  },
-  sheetHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: "rgba(0, 0, 0, 0.1)",
-    borderRadius: 2,
-    alignSelf: "center",
-    marginBottom: 16,
-  },
-  sheetSubtitle: {
-    fontSize: 13,
-    fontWeight: "500",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    marginBottom: 16,
-  },
-  itemsListVertical: {
-    gap: 12,
-    paddingBottom: 20,
-  },
-  itemsListExpanded: {
-    maxHeight: 400,
-  },
-  itemCardVertical: {
-    flexDirection: "row",
-    padding: 16,
-    borderRadius: 16,
-    alignItems: "center",
-    gap: 12,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  itemAvatarVertical: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  itemAvatarTextVertical: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#ffffff",
-  },
-  itemAvatarImageVertical: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 25,
-    resizeMode: "cover",
-  },
-  itemInfoVertical: {
-    flex: 1,
-    gap: 4,
-  },
-  itemNameVertical: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 2,
-  },
-  itemMetaVertical: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  itemRatingVertical: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  itemRatingTextVertical: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  itemDistanceVertical: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  itemTypeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  itemTypeText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#ffffff",
-  },
-  itemBioVertical: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 4,
-  },
-  itemAddressVertical: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  detailSheet: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: -4},
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 10,
-    maxHeight: "70%",
-  },
-  detailCard: {
-    borderRadius: 20,
-    padding: 16,
-  },
-  detailHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 16,
-    gap: 12,
-  },
-  detailAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  detailAvatarText: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#ffffff",
-  },
-  detailInfo: {
-    flex: 1,
-  },
-  detailName: {
-    fontSize: 20,
-    fontWeight: "800",
-    marginBottom: 4,
-  },
-  detailMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 8,
-  },
-  detailRating: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  detailRatingText: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  detailDot: {
-    fontSize: 12,
-  },
-  detailDistance: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  detailTypeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  detailTypeText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#ffffff",
-  },
-  detailBio: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  detailAddress: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  detailQuickInfo: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 16,
-  },
-  quickInfoItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    gap: 6,
-  },
-  quickInfoText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  detailActions: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  detailActionPrimary: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 16,
-    gap: 8,
-  },
-  detailActionPrimaryText: {
-    color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  detailActionSecondary: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 16,
-    borderWidth: 2,
-    gap: 8,
-  },
-  detailActionSecondaryText: {
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  detailActionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    borderWidth: 2,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  closeButton: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(0, 0, 0, 0.05)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-});

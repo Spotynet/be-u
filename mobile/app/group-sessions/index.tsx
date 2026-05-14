@@ -297,8 +297,6 @@ export default function GroupSessionsScreen() {
         title="Sesiones grupales"
         showBackButton
         backFallbackRoute="/(tabs)/calendario"
-        backgroundColor={colors.background}
-        borderBottom={colors.border}
       />
 
       {loading ? (
