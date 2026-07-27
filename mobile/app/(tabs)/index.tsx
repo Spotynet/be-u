@@ -35,6 +35,7 @@ import {TourTarget} from "@/components/onboarding/TourTarget";
 import {AppLogo} from "@/components/AppLogo";
 import {APP_HEADER_BUTTON_HIT} from "@/components/ui/AppHeader";
 import {useAppTheme} from "@/constants/theme";
+import {HeaderCategoryDropdown} from "@/components/HeaderCategoryDropdown";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 // Mosaic grid: postsSection padding 20*2 + postCard padding 16*2 + grid padding 10*2 + gap 8
@@ -318,23 +319,11 @@ export default function Home() {
 
   // Mock categories and stories (keep UI)
 
-  // Keep Mascotas logic in codebase, but hide it from the UI for now.
-  const ALL_CATEGORIES = [
+  const categories = [
     {id: "belleza", name: "Belleza"},
     {id: "bienestar", name: "Bienestar"},
     {id: "mascotas", name: "Mascotas"},
   ] as const;
-  const categories = ALL_CATEGORIES.filter((c) => c.id !== "mascotas");
-
-  useEffect(() => {
-    // If user had Mascotas selected previously, force a visible category.
-    if (selectedMainCategory === "mascotas") {
-      setSelectedMainCategory("belleza");
-      setSelectedServiceCategory("belleza");
-      setSelectedSubCategory("todos");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const effectiveFeedCategory = selectedServiceCategory || selectedMainCategory;
 
@@ -342,8 +331,7 @@ export default function Home() {
   useEffect(() => {
     if (
       selectedServiceCategory &&
-      selectedServiceCategory !== selectedMainCategory &&
-      selectedServiceCategory !== "mascotas"
+      selectedServiceCategory !== selectedMainCategory
     ) {
       setSelectedMainCategory(selectedServiceCategory);
       setSelectedSubCategory("todos");
@@ -1591,77 +1579,63 @@ export default function Home() {
           },
         ]}>
         <View style={styles.indexHeaderRow}>
+          {/* Left — logo */}
           <View style={styles.headerLeft}>
             <AppLogo style={styles.headerLogo} resizeMode="contain" />
           </View>
 
+          {/* Center — anchored category dropdown */}
           <View style={styles.headerCenter}>
-            <View style={styles.categorySelector}>
-            <View style={[styles.expandedCategoryOptions, {backgroundColor: colors.input}]}>
-              {categories.map((category) => (
-                <Pressable
-                  key={category.id}
-                  style={[
-                    styles.expandedCategoryOption,
-                    selectedMainCategory === category.id && {
-                      backgroundColor: colors.background,
-                    },
-                  ]}
-                  onPress={() => {
-                    setSelectedMainCategory(category.id as any);
-                    setSelectedServiceCategory(category.id as any);
-                  }}
-                  delayPressIn={0}>
-                  {getCategoryIcon(
-                    category.id,
-                    selectedMainCategory === category.id ? colors.primary : colors.mutedForeground,
-                    24
-                  )}
-                  <Text
-                    style={[
-                      styles.expandedCategoryText,
-                      {
-                        color:
-                          selectedMainCategory === category.id
-                            ? colors.primary
-                            : colors.mutedForeground,
-                      },
-                    ]}>
-                    {category.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            <HeaderCategoryDropdown
+              categories={categories.map((c) => ({
+                id: c.id,
+                name: c.name,
+                icon:
+                  c.id === "belleza"
+                    ? "spa-outline"
+                    : c.id === "bienestar"
+                    ? "meditation"
+                    : c.id === "mascotas"
+                    ? "paw"
+                    : "apps",
+                iconFamily: "material-community" as const,
+              }))}
+              selectedCategory={selectedMainCategory}
+              onSelectCategory={(id) => {
+                setSelectedMainCategory(id as any);
+                setSelectedServiceCategory(id as any);
+              }}
+            />
           </View>
-        </View>
 
-        <View style={styles.headerRight} pointerEvents="box-none">
-          <Link href="/notificaciones" asChild>
-            <TouchableOpacity style={styles.headerButton} activeOpacity={0.7}>
-              <View style={styles.notificationIconWrap}>
-                <Ionicons name="notifications-outline" color={colors.foreground} size={24} />
-                {unreadNotificationsCount > 0 && (
-                  <View style={[styles.notificationBadge, {backgroundColor: colors.destructive}]} />
-                )}
-              </View>
-            </TouchableOpacity>
-          </Link>
-          {user && user.role !== "CLIENT" && (
-            <TourTarget targetId="posts_create">
-              <TouchableOpacity
-                style={styles.headerButton}
-                onPress={() => {
-                  if (!user) {
-                    router.push("/login");
-                  } else {
-                    setShowCreatePostModal(true);
-                  }
-                }}>
-                <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
+          {/* Right — notifications + create */}
+          <View style={styles.headerRight}>
+            <Link href="/notificaciones" asChild>
+              <TouchableOpacity style={styles.headerButton} activeOpacity={0.7}>
+                <View style={styles.notificationIconWrap}>
+                  <Ionicons name="notifications-outline" color={colors.foreground} size={24} />
+                  {unreadNotificationsCount > 0 && (
+                    <View style={[styles.notificationBadge, {backgroundColor: colors.destructive}]} />
+                  )}
+                </View>
               </TouchableOpacity>
-            </TourTarget>
-          )}
-        </View>
+            </Link>
+            {user && user.role !== "CLIENT" && (
+              <TourTarget targetId="posts_create">
+                <TouchableOpacity
+                  style={styles.headerButton}
+                  onPress={() => {
+                    if (!user) {
+                      router.push("/login");
+                    } else {
+                      setShowCreatePostModal(true);
+                    }
+                  }}>
+                  <Ionicons name="add-circle-outline" color={colors.foreground} size={26} />
+                </TouchableOpacity>
+              </TourTarget>
+            )}
+          </View>
         </View>
       </View>
 
@@ -1807,10 +1781,10 @@ export default function Home() {
         onRequestClose={() => setOpenCommentFor(null)}>
         <Pressable style={styles.commentsModalOverlay} onPress={() => setOpenCommentFor(null)}>
           <Pressable style={[styles.commentsSheet, {backgroundColor: colors.card}]} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.commentsHandleBar} />
+            <View style={[styles.commentsHandleBar, {backgroundColor: colors.border}]} />
             <View style={styles.commentsHeader}>
-              <Text style={styles.commentsTitle}>Comentarios</Text>
-              <Text style={styles.commentsCount}>
+              <Text style={[styles.commentsTitle, {color: colors.foreground}]}>Comentarios</Text>
+              <Text style={[styles.commentsCount, {color: colors.mutedForeground}]}>
                 {openCommentFor != null
                   ? (() => {
                       const p = posts.find((x: any) => x.id === openCommentFor);
@@ -1926,7 +1900,7 @@ export default function Home() {
           <Pressable
             style={[styles.commentsSheet, styles.createPostSheet, {backgroundColor: colors.card, paddingBottom: Math.max(insets.bottom, 24)}]}
             onPress={(e) => e.stopPropagation()}>
-            <View style={styles.commentsHandleBar} />
+            <View style={[styles.commentsHandleBar, {backgroundColor: colors.border}]} />
             <View style={styles.createPostHeader}>
               <Text style={[styles.createPostTitle, {color: colors.foreground}]}>Crear Publicación</Text>
               <TouchableOpacity
@@ -2057,6 +2031,7 @@ function makeStyles(colors: any, theme: any) {
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 12,
+    flexShrink: 0,
   },
   headerTitle: {
     fontSize: 32,

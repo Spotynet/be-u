@@ -60,22 +60,11 @@ export default function Explore() {
   const [radiusKm] = useState(10);
 
 
-  // Keep Mascotas logic in codebase, but hide it from the UI for now.
-  const ALL_CATEGORIES = [
+  const categories = [
     {id: "belleza", name: "Belleza"},
     {id: "bienestar", name: "Bienestar"},
     {id: "mascotas", name: "Mascotas"},
   ] as const;
-  const categories = ALL_CATEGORIES.filter((c) => c.id !== "mascotas");
-
-  useEffect(() => {
-    // If user had Mascotas selected previously, force a visible category.
-    if (selectedMainCategory === "mascotas") {
-      setSelectedMainCategory("belleza");
-      setSelectedSubCategory("todos");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const getCategoryIcon = (id: string, color: string, size: number = 24) => {
     switch (id) {

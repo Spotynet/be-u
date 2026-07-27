@@ -27,7 +27,7 @@ export default function Nabbi() {
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 48, paddingBottom: 16, backgroundColor: colors.primary },
+    header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 48, paddingBottom: 16, backgroundColor: colors.navBarBg },
     aiAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(255, 255, 255, 0.25)", justifyContent: "center", alignItems: "center", marginRight: 12 },
     aiAvatarIcon: { width: 24, height: 24 },
     headerText: { flex: 1 },
@@ -139,7 +139,7 @@ export default function Nabbi() {
   if (view === "chat") {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
-        <View style={[styles.header, {backgroundColor: colors.primary}]}>
+        <View style={[styles.header, {backgroundColor: colors.navBarBg}]}>
           <View style={styles.aiAvatar}>
             <Image source={require("@/assets/images/BE-U-white.png")} style={styles.aiAvatarIcon} resizeMode="contain" />
           </View>

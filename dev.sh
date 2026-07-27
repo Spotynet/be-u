@@ -1,56 +1,66 @@
 #!/bin/bash
-# Start nabbi dev servers via PM2
-# Ports: API=3007, Web=3008, Mobile=3009
 
-set -e
+echo "🚀 Starting NABBI DEV (api + web + mobile)"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/backend"
 WEB_DIR="$SCRIPT_DIR/web"
 MOBILE_DIR="$SCRIPT_DIR/mobile"
-VENV_PYTHON="$BACKEND_DIR/venv/bin/python"
 
-echo "Starting nabbi dev servers..."
+BACKEND_NAME="nabbi-api-dev"
+WEB_NAME="nabbi-dev"
+MOBILE_NAME="nabbi-mobile-dev"
 
-# --- API (Django) on port 3007 ---
-if pm2 describe nabbi-api-dev > /dev/null 2>&1; then
-  echo "Restarting nabbi-api-dev..."
-  pm2 restart nabbi-api-dev
-else
-  echo "Starting nabbi-api-dev on port 3007..."
-  pm2 start "$VENV_PYTHON" \
-    --name nabbi-api-dev \
-    --cwd "$BACKEND_DIR" \
-    -- manage.py runserver 0.0.0.0:3007
-fi
+BACKEND_PORT=3007
+WEB_PORT=3008
+MOBILE_PORT=3009
 
-# --- Web (Next.js) on port 3008 ---
-if pm2 describe nabbi-web-dev > /dev/null 2>&1; then
-  echo "Restarting nabbi-web-dev..."
-  pm2 restart nabbi-web-dev
-else
-  echo "Starting nabbi-web-dev on port 3008..."
-  pm2 start npm \
-    --name nabbi-web-dev \
-    --cwd "$WEB_DIR" \
-    -- run dev -- -p 3008
-fi
+# -------------------------
+# 🧹 Clean old processes
+# -------------------------
+echo "🧹 Cleaning old PM2 processes..."
+pm2 delete $BACKEND_NAME 2>/dev/null
+pm2 delete $WEB_NAME 2>/dev/null
+pm2 delete $MOBILE_NAME 2>/dev/null
 
-# --- Mobile (Expo web) on port 3009 ---
-if pm2 describe nabbi-mobile-dev > /dev/null 2>&1; then
-  echo "Restarting nabbi-mobile-dev..."
-  pm2 restart nabbi-mobile-dev
-else
-  echo "Starting nabbi-mobile-dev on port 3009..."
-  pm2 start bash \
-    --name nabbi-mobile-dev \
-    --cwd "$MOBILE_DIR" \
-    -- -c "npx expo start --web --port 3009 --host lan"
-fi
+# -------------------------
+# 🐍 Start API (Django)
+# -------------------------
+echo "🐍 Starting Django API ($BACKEND_NAME) on port $BACKEND_PORT..."
+pm2 start "$BACKEND_DIR/venv/bin/python" \
+  --name "$BACKEND_NAME" \
+  --cwd "$BACKEND_DIR" \
+  -- manage.py runserver 0.0.0.0:$BACKEND_PORT
 
-echo ""
+# -------------------------
+# 🌐 Start Web (Next.js)
+# -------------------------
+echo "🌐 Starting Next.js web ($WEB_NAME) on port $WEB_PORT..."
+pm2 start npm \
+  --name "$WEB_NAME" \
+  --cwd "$WEB_DIR" \
+  -- run dev -- -p $WEB_PORT
+
+# -------------------------
+# 📱 Start Mobile (Expo web)
+# -------------------------
+echo "📱 Starting Expo mobile ($MOBILE_NAME) on port $MOBILE_PORT..."
+pm2 start bash \
+  --name "$MOBILE_NAME" \
+  --cwd "$MOBILE_DIR" \
+  -- -c "npx expo start --web --port $MOBILE_PORT --host localhost"
+
+# -------------------------
+# 💾 Save PM2 state
+# -------------------------
+pm2 save
+
+# -------------------------
+# 📊 Status
+# -------------------------
+echo "✅ NABBI DEV running:"
 pm2 list
 echo ""
-echo "nabbi-api-dev    -> http://localhost:3007  (nabbi-api-dev.spotynet.com)"
-echo "nabbi-web-dev    -> http://localhost:3008  (nabbi-dev.spotynet.com)"
-echo "nabbi-mobile-dev -> http://localhost:3009  (nabbi-mobile-dev.spotynet.com)"
+echo "  nabbi-api-dev    -> https://nabbi-api-dev.spotynet.com    (localhost:$BACKEND_PORT)"
+echo "  nabbi-dev        -> https://nabbi-dev.spotynet.com        (localhost:$WEB_PORT)"
+echo "  nabbi-mobile-dev -> https://nabbi-mobile-dev.spotynet.com (localhost:$MOBILE_PORT)"

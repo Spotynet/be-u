@@ -22,8 +22,8 @@ export const LightTheme = {
   // Text
   foreground: '#1F3328',      // textPrimary
   textPrimary: '#1F3328',
-  textSecondary: '#558367',
-  textTertiary: '#8A9E90',
+  textSecondary: '#4A6B58',   // darkened for WCAG AA on cream bg (was #558367 @4.1)
+  textTertiary: '#5A7368',    // darkened for WCAG AA on cream bg (was #8A9E90 @2.68)
   textOnDark: '#FFFFFF',
   textOnYellow: '#12211A',
   primaryForeground: '#FFFFFF',
@@ -47,7 +47,7 @@ export const LightTheme = {
   input: '#FFFFFF',           // Alias
   inputBorder: 'rgba(85,131,103,0.35)',
   inputText: '#1F3328',
-  placeholderText: '#8A9E90',
+  placeholderText: '#5A7368',   // darkened for WCAG AA on white input (was #8A9E90)
 
   // UI Elements
   border: 'rgba(85,131,103,0.35)',
@@ -55,7 +55,7 @@ export const LightTheme = {
   chipBg: 'rgba(85,131,103,0.12)',
   muted: 'rgba(85,131,103,0.12)', // Alias
   chipText: '#1F3328',
-  mutedForeground: '#558367',    // Alias
+  mutedForeground: '#4A6B58',    // darkened for WCAG AA on cream bg (was #558367 @4.1)
   chipActiveBg: '#1F3328',
   chipActiveText: '#FFFFFF',
   badgeBg: '#558367',
@@ -73,8 +73,8 @@ export const LightTheme = {
 
   // Icons
   iconPrimary: '#1F3328',
-  iconSecondary: '#558367',
-  iconMuted: '#8A9E90',
+  iconSecondary: '#4A6B58',   // darkened for WCAG AA on cream bg (was #558367)
+  iconMuted: '#5A7368',       // darkened for WCAG AA on cream bg (was #8A9E90)
   white: '#FFFFFF',
   black: '#12211A',
 };

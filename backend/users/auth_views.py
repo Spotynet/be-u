@@ -326,13 +326,11 @@ def email_request_code_view(request):
         # In development, if console backend is used, email will be printed to console
         # In production, this should be configured with proper SMTP credentials
     
-    # For development: Log the code to console for easy testing
-    # IMPORTANT: Remove this in production or make it DEBUG-only
-    if settings.DEBUG or settings.EMAIL_BACKEND == 'django.core.mail.backends.console.EmailBackend':
-        logger.info(f"🔐 EMAIL CODE FOR {email}: {code} (This is only shown in development)")
-        print(f"\n{'='*60}")
-        print(f"🔐 EMAIL CODE FOR {email}: {code}")
-        print(f"{'='*60}\n")
+    # Always log the code so it can be retrieved from server logs if email delivery fails
+    logger.info(f"🔐 EMAIL LOGIN CODE for {email}: {code} | email_sent={email_sent}")
+    print(f"\n{'='*60}")
+    print(f"🔐 EMAIL LOGIN CODE for {email}: {code} | email_sent={email_sent}")
+    print(f"{'='*60}\n")
     
     return Response({
         "message": "Si el correo existe, te enviamos un código.",
