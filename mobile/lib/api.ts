@@ -117,8 +117,13 @@ apiClient.interceptors.response.use(
             }
           );
           const newAccess: string | undefined = (resp.data as any)?.access;
+          const newRefresh: string | undefined = (resp.data as any)?.refresh;
           if (newAccess) {
             await storage.setItem(AUTH_TOKEN_KEY, newAccess);
+            // ROTATE_REFRESH_TOKENS is enabled — save the new refresh token too
+            if (newRefresh) {
+              await storage.setItem(REFRESH_TOKEN_KEY, newRefresh);
+            }
             originalRequest.headers = originalRequest.headers || {};
             originalRequest.headers.Authorization = `Bearer ${newAccess}`;
             return apiClient(originalRequest);
@@ -1104,6 +1109,20 @@ export const notificationApi = {
   // Register push token
   registerPushToken: (data: {token: string; platform: "ios" | "android" | "web" | "unknown"}) =>
     api.post<any>("/notifications/push-tokens/", data),
+
+  // Active sessions (push tokens)
+  getActiveSessions: () =>
+    api.get<{id: number; platform: string; created_at: string; last_seen_at: string | null}[]>("/notifications/push-tokens/"),
+  revokeSession: (id: number) =>
+    api.delete(`/notifications/push-tokens/${id}/`),
+  revokeAllSessions: () =>
+    api.delete("/notifications/push-tokens/revoke-all/"),
+
+  // Notification preferences
+  getPreferences: () =>
+    api.get<{preferences: Record<string, boolean>; updated_at: string}>("/notifications/preferences/me/"),
+  savePreferences: (preferences: Record<string, boolean>) =>
+    api.put<{preferences: Record<string, boolean>; updated_at: string}>("/notifications/preferences/me/", {preferences}),
 };
 
 // Support / Feedback API
@@ -1369,6 +1388,24 @@ export const calendarApi = {
     }>('/calendar/events/', {
       params: {start, end, ...(maxResults ? {max_results: maxResults} : {})}
     }),
+};
+
+export const ventasApi = {
+  list: (params?: {page?: number; status?: string}) =>
+    api.get<{results: any[]; count: number}>("/ventas/", {params}),
+
+  get: (id: number) => api.get<any>(`/ventas/${id}/`),
+
+  summary: () =>
+    api.get<{
+      total_sales: number;
+      total_revenue: string;
+      paid_revenue: string;
+      pending_revenue: string;
+      today_revenue: string;
+      by_currency: Record<string, string>;
+      by_status: Record<string, number>;
+    }>("/ventas/summary/"),
 };
 
 // Token refresh scheduler

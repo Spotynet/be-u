@@ -92,7 +92,6 @@ export interface PublicProfile {
   last_name?: string;
   bio?: string;
   rating: number;
-  display_name: string;
   latitude?: number;
   longitude?: number;
   distance?: number;

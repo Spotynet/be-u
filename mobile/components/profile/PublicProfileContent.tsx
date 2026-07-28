@@ -380,15 +380,11 @@ export function PublicProfileContent({profileId}: PublicProfileContentProps) {
           0;
     const providerName =
       profile?.profile_type === "PLACE"
-        ? profile?.place_profile?.display_name ??
-          profile?.place_profile?.name ??
+        ? profile?.place_profile?.name ??
           profile?.place?.name ??
-          profile?.display_name ??
           profile?.name ??
           ""
-        : profile?.professional_profile?.display_name ??
-          profile?.display_name ??
-          (profile?.professional_profile
+        : (profile?.professional_profile
             ? `${profile?.professional_profile?.name || ""} ${profile?.professional_profile?.last_name || ""}`.trim()
             : profile?.name || "");
     if (!serviceInstanceId) return;

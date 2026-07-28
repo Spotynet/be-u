@@ -10,15 +10,16 @@ import {
   Image,
   Alert,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { useThemeVariant } from "@/contexts/ThemeVariantContext";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAuth } from "@/features/auth";
-import { useState, useEffect } from "react";
+import {useRouter} from "expo-router";
+import {Ionicons} from "@expo/vector-icons";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
+import {useAuth} from "@/features/auth";
+import {useState, useEffect} from "react";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
-import { supportApi, errorUtils } from "@/lib/api";
-import { FeedbackToast, FeedbackToastType } from "@/components/FeedbackToast";
+import {supportApi, errorUtils} from "@/lib/api";
+import {FeedbackToast, FeedbackToastType} from "@/components/FeedbackToast";
+import {AppHeader} from "@/components/ui/AppHeader";
 
 const MINT_GREEN = "#5eead4";
 const MAX_MESSAGE_LENGTH = 500;
@@ -44,10 +45,10 @@ const FEEDBACK_MESSAGES = {
 };
 
 export default function HelpSupportScreen() {
-  const { colors } = useThemeVariant();
+  const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user } = useAuth();
+  const {user} = useAuth();
 
   const [theme, setTheme] = useState<ThemeKey | null>(null);
   const [message, setMessage] = useState("");
@@ -203,84 +204,73 @@ export default function HelpSupportScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.background,
-            borderBottomColor: colors.border,
-            paddingTop: Math.max(insets.top + 8, 12),
-          },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-          Ayuda y Soporte
-        </Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <View style={[styles.container, {backgroundColor: colors.contentBackground}]}>
+      <AppHeader
+        title="Ayuda y Soporte"
+        showBackButton
+        onBackPress={() => router.back()}
+      />
 
       <ScrollView
         style={styles.content}
-        contentContainerStyle={[styles.contentInner, { paddingBottom: 40 }]}
+        contentContainerStyle={styles.contentInner}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-          ¿Cómo te ayudamos?
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-          Tu opinión hace que Nabbi sea más rápido e inteligente.
-        </Text>
+        {/* Intro */}
+        <View style={styles.introRow}>
+          <View style={[styles.introIcon, {backgroundColor: MINT_GREEN + "22"}]}>
+            <Ionicons name="headset" size={22} color={MINT_GREEN} />
+          </View>
+          <View style={styles.introText}>
+            <Text style={[styles.sectionTitle, {color: colors.foreground}]}>¿Cómo te ayudamos?</Text>
+            <Text style={[styles.subtitle, {color: colors.mutedForeground}]}>
+              Tu opinión hace que Nabbi sea más rápido e inteligente.
+            </Text>
+          </View>
+        </View>
 
-        {/* Theme chips */}
-        <Text style={[styles.label, { color: colors.foreground }]}>Tema</Text>
-        <View style={styles.chipRow}>
-          {THEME_OPTIONS.map((opt) => {
-            const selected = theme === opt.key;
-            return (
-              <TouchableOpacity
-                key={opt.key}
-                onPress={() => setTheme(opt.key)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: selected ? colors.primary : colors.input,
-                    borderColor: selected ? colors.primary : colors.border,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={opt.icon}
-                  size={18}
-                  color={selected ? colors.primaryForeground : colors.mutedForeground}
-                />
-                <Text
+        {/* Theme */}
+        <View style={styles.fieldGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Tema</Text>
+          <View style={styles.chipRow}>
+            {THEME_OPTIONS.map((opt) => {
+              const selected = theme === opt.key;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  onPress={() => setTheme(opt.key)}
                   style={[
-                    styles.chipText,
-                    { color: selected ? colors.primaryForeground : colors.foreground },
+                    styles.chip,
+                    {
+                      backgroundColor: selected ? colors.primary : colors.card,
+                      borderColor: selected ? colors.primary : colors.border,
+                    },
                   ]}
-                  numberOfLines={1}
                 >
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                  <Ionicons
+                    name={opt.icon}
+                    size={16}
+                    color={selected ? colors.primaryForeground : colors.mutedForeground}
+                  />
+                  <Text
+                    style={[styles.chipText, {color: selected ? colors.primaryForeground : colors.foreground}]}
+                    numberOfLines={1}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         {theme === "cita" && (
-          <View style={[styles.interceptBox, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-            <Text style={[styles.interceptText, { color: colors.foreground }]}>
+          <View style={[styles.interceptBox, {backgroundColor: colors.muted, borderColor: colors.border}]}>
+            <Ionicons name="information-circle" size={16} color={colors.primary} style={{marginTop: 1}} />
+            <Text style={[styles.interceptText, {color: colors.foreground}]}>
               ¿Sabías qué? La mayoría de los problemas de agenda se deben a fallas en el portal del proveedor, no en Nabbi.{" "}
-              <Text style={[styles.interceptLink, { color: colors.primary }]}>
+              <Text style={[styles.interceptLink, {color: colors.primary}]}>
                 Ver estatus de servicios externos
               </Text>
             </Text>
@@ -288,104 +278,110 @@ export default function HelpSupportScreen() {
         )}
 
         {/* Message */}
-        <Text style={[styles.label, { color: colors.foreground }]}>Cuéntanos más</Text>
-        <TextInput
-          style={[
-            styles.textArea,
-            {
-              backgroundColor: colors.input,
-              borderColor: colors.border,
-              color: colors.foreground,
-            },
-          ]}
-          placeholder="Escribe aquí los detalles. Si es un error, dinos qué estabas haciendo cuando ocurrió..."
-          placeholderTextColor={colors.mutedForeground}
-          value={message}
-          onChangeText={setMessage}
-          maxLength={MAX_MESSAGE_LENGTH}
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-        />
-        <Text style={[styles.charCount, { color: colors.mutedForeground }]}>
-          {message.length}/{MAX_MESSAGE_LENGTH} caracteres
-        </Text>
+        <View style={styles.fieldGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Cuéntanos más</Text>
+          <TextInput
+            style={[styles.textArea, {backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground}]}
+            placeholder="Escribe aquí los detalles. Si es un error, dinos qué estabas haciendo cuando ocurrió..."
+            placeholderTextColor={colors.mutedForeground}
+            value={message}
+            onChangeText={setMessage}
+            maxLength={MAX_MESSAGE_LENGTH}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
+          <Text style={[styles.charCount, {color: colors.mutedForeground}]}>
+            {message.length}/{MAX_MESSAGE_LENGTH} caracteres
+          </Text>
+        </View>
 
         {/* Attachment */}
-        <Text style={[styles.label, { color: colors.foreground }]}>Evidencia (opcional)</Text>
-        <TouchableOpacity
-          onPress={pickImage}
-          style={[styles.attachButton, { backgroundColor: colors.input, borderColor: colors.border }]}
-        >
-          <Ionicons name="image" size={22} color={colors.primary} />
-          <Text style={[styles.attachButtonText, { color: colors.foreground }]}>
-            Adjuntar Captura de Pantalla
-          </Text>
-        </TouchableOpacity>
-        {attachment && (
-          <View style={[styles.previewRow, { borderColor: colors.border }]}>
-            <Image source={{ uri: attachment.uri }} style={styles.previewImage} />
-            <TouchableOpacity onPress={removeAttachment} style={styles.removeAttachment}>
-              <Ionicons name="close-circle" size={24} color={colors.destructive} />
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={styles.fieldGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Evidencia (opcional)</Text>
+          <TouchableOpacity
+            onPress={pickImage}
+            style={[styles.attachButton, {backgroundColor: colors.card, borderColor: colors.border}]}
+          >
+            <Ionicons name="image" size={20} color={colors.primary} />
+            <Text style={[styles.attachButtonText, {color: colors.foreground}]}>
+              Adjuntar Captura de Pantalla
+            </Text>
+          </TouchableOpacity>
+          {attachment && (
+            <View style={[styles.previewRow, {borderColor: colors.border, backgroundColor: colors.card}]}>
+              <Image source={{uri: attachment.uri}} style={styles.previewImage} />
+              <TouchableOpacity onPress={removeAttachment} style={styles.removeAttachment}>
+                <Ionicons name="close-circle" size={24} color={colors.destructive} />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
 
         {/* Email */}
-        <Text style={[styles.label, { color: colors.foreground }]}>Correo</Text>
-        <TextInput
-          style={[
-            styles.input,
-            { backgroundColor: colors.input, borderColor: colors.border, color: colors.foreground },
-          ]}
-          placeholder="tu@correo.com"
-          placeholderTextColor={colors.mutedForeground}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          Te responderemos a este correo.
-        </Text>
+        <View style={styles.fieldGroup}>
+          <Text style={[styles.label, {color: colors.foreground}]}>Correo de contacto</Text>
+          <TextInput
+            style={[styles.input, {backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground}]}
+            placeholder="tu@correo.com"
+            placeholderTextColor={colors.mutedForeground}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Text style={[styles.hint, {color: colors.mutedForeground}]}>
+            Te responderemos a este correo.
+          </Text>
+        </View>
 
         {/* Legal */}
         <TouchableOpacity
           onPress={() => setAcceptTerms(!acceptTerms)}
-          style={styles.legalRow}
+          style={[styles.legalRow, {backgroundColor: colors.card, borderColor: colors.border}]}
           activeOpacity={0.7}
         >
           <View
             style={[
               styles.checkbox,
-              {
-                backgroundColor: acceptTerms ? colors.primary : "transparent",
-                borderColor: colors.border,
-              },
+              {backgroundColor: acceptTerms ? colors.primary : "transparent", borderColor: acceptTerms ? colors.primary : colors.border},
             ]}
           >
-            {acceptTerms && <Ionicons name="checkmark" size={16} color={colors.primaryForeground} />}
+            {acceptTerms && <Ionicons name="checkmark" size={14} color={colors.primaryForeground} />}
           </View>
-          <Text style={[styles.legalText, { color: colors.mutedForeground }]}>
+          <Text style={[styles.legalText, {color: colors.mutedForeground}]}>
             Al enviar, aceptas que el equipo de soporte revise los datos técnicos de tu sesión para solucionar el problema.
           </Text>
         </TouchableOpacity>
 
-        {/* CTA */}
+        <View style={styles.bottomPad} />
+      </ScrollView>
+
+      <View
+        style={[
+          styles.fixedFooter,
+          {
+            backgroundColor: colors.contentBackground,
+            borderTopColor: colors.border,
+            paddingBottom: Math.max(insets.bottom, 16),
+          },
+        ]}>
         <TouchableOpacity
           onPress={validateAndSubmit}
           disabled={sending}
-          style={[styles.submitButton, { backgroundColor: MINT_GREEN }]}
-          activeOpacity={0.85}
-        >
+          style={[styles.submitButton, {backgroundColor: sending ? colors.muted : MINT_GREEN}]}
+          activeOpacity={0.85}>
           {sending ? (
             <ActivityIndicator color="#065f46" size="small" />
           ) : (
-            <Text style={styles.submitButtonText}>Enviar Mensaje</Text>
+            <>
+              <Ionicons name="send" size={16} color="#065f46" />
+              <Text style={styles.submitButtonText}>Enviar Mensaje</Text>
+            </>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </View>
 
       <FeedbackToast
         visible={toast.visible}
@@ -400,107 +396,132 @@ export default function HelpSupportScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "flex-start",
-  },
-  headerTitle: { fontSize: 18, fontWeight: "700" },
-  headerSpacer: { width: 40 },
-  content: { flex: 1 },
-  contentInner: { padding: 20 },
-  sectionTitle: { fontSize: 22, fontWeight: "700", marginBottom: 6 },
-  subtitle: { fontSize: 15, marginBottom: 24 },
-  label: { fontSize: 15, fontWeight: "600", marginBottom: 8 },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 },
+  container: {flex: 1},
+  content: {flex: 1},
+  contentInner: {paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40},
+
+  introRow: {flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 24},
+  introIcon: {width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center", marginTop: 2},
+  introText: {flex: 1},
+  sectionTitle: {fontSize: 17, fontWeight: "700", marginBottom: 4},
+  subtitle: {fontSize: 13, lineHeight: 19},
+
+  fieldGroup: {marginBottom: 20},
+  label: {fontSize: 14, fontWeight: "600", marginBottom: 8},
+
+  chipRow: {flexDirection: "row", flexWrap: "wrap", gap: 8},
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 20,
     borderWidth: 1,
     gap: 6,
-    maxWidth: "100%",
   },
-  chipText: { fontSize: 14, fontWeight: "500", flexShrink: 1 },
+  chipText: {fontSize: 13, fontWeight: "500", flexShrink: 1},
+
   interceptBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  interceptText: { fontSize: 13, lineHeight: 20 },
-  interceptLink: { fontWeight: "600" },
+  interceptText: {fontSize: 13, lineHeight: 20, flex: 1},
+  interceptLink: {fontWeight: "600"},
+
   textArea: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
-    minHeight: 100,
-    fontSize: 15,
+    minHeight: 110,
+    fontSize: 14,
+    ...Platform.select({
+      ios: {shadowColor: "#000", shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.04, shadowRadius: 4},
+      android: {elevation: 1},
+    }),
   },
-  charCount: { fontSize: 12, marginTop: 4, marginBottom: 16 },
+  charCount: {fontSize: 12, marginTop: 5, textAlign: "right"},
+
   attachButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
+    paddingVertical: 13,
     borderRadius: 12,
     borderWidth: 1,
     gap: 8,
-    marginBottom: 8,
+    ...Platform.select({
+      ios: {shadowColor: "#000", shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.04, shadowRadius: 4},
+      android: {elevation: 1},
+    }),
   },
-  attachButtonText: { fontSize: 15, fontWeight: "600" },
+  attachButtonText: {fontSize: 14, fontWeight: "600"},
   previewRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginTop: 10,
     gap: 12,
     borderWidth: 1,
     borderRadius: 12,
     padding: 8,
   },
-  previewImage: { width: 64, height: 64, borderRadius: 8 },
-  removeAttachment: { padding: 4 },
+  previewImage: {width: 60, height: 60, borderRadius: 8},
+  removeAttachment: {padding: 4},
+
   input: {
     borderWidth: 1,
     borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
-    marginBottom: 4,
+    padding: 13,
+    fontSize: 14,
+    ...Platform.select({
+      ios: {shadowColor: "#000", shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.04, shadowRadius: 4},
+      android: {elevation: 1},
+    }),
   },
-  hint: { fontSize: 13, marginBottom: 16 },
+  hint: {fontSize: 12, marginTop: 5},
+
   legalRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
     marginBottom: 24,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
+    width: 20,
+    height: 20,
+    borderRadius: 5,
     borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 1,
   },
-  legalText: { fontSize: 13, lineHeight: 20, flex: 1 },
+  legalText: {fontSize: 13, lineHeight: 19, flex: 1},
+
+  fixedFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    ...Platform.select({
+      ios: {shadowColor: "#000", shadowOffset: {width: 0, height: -2}, shadowOpacity: 0.08, shadowRadius: 8},
+      android: {elevation: 5},
+    }),
+  },
   submitButton: {
-    paddingVertical: 16,
-    borderRadius: 14,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
+    paddingVertical: 15,
+    borderRadius: 14,
     minHeight: 52,
   },
-  submitButtonText: { fontSize: 16, fontWeight: "700", color: "#065f46" },
+  submitButtonText: {fontSize: 16, fontWeight: "700", color: "#065f46"},
+  bottomPad: {height: 16},
 });

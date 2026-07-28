@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Image,
   Switch,
-  Modal,
   Alert,
   ActivityIndicator,
 } from "react-native";
@@ -16,10 +15,11 @@ import {useAuth} from "@/features/auth";
 import {useUserProfile} from "@/features/users";
 import {useRouter} from "expo-router";
 import {useState} from "react";
-import {profileCustomizationApi, authApi, errorUtils} from "@/lib/api";
+import {profileCustomizationApi} from "@/lib/api";
 import * as ImagePicker from "expo-image-picker";
 import {Platform} from "react-native";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
+import Constants from "expo-constants";
 
 // Light-mode specific accents (peach/logout) - use primary tints in dark
 
@@ -29,8 +29,6 @@ export function ClientProfileContent() {
   const {user, logout, refreshToken} = useAuth();
   const {refreshProfile} = useUserProfile();
   const router = useRouter();
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const displayName =
@@ -60,30 +58,19 @@ export function ClientProfileContent() {
         router.push("/guardados");
         break;
       case "notifications":
-        router.push("/notificaciones");
+        router.push("/notification-preferences");
         break;
       case "privacy":
+        router.push("/privacy-security");
         break;
       case "help":
         router.push("/help-support");
         break;
+      case "calendar":
+        router.push("/google-calendar");
+        break;
       default:
         break;
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    try {
-      setIsDeleting(true);
-      setShowDeleteModal(false);
-      await authApi.deleteMyAccount();
-      await logout();
-      router.replace("/login");
-    } catch (error: any) {
-      const message = errorUtils.getErrorMessage(error);
-      Alert.alert("Error", message || "No se pudo eliminar la cuenta.");
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -189,18 +176,16 @@ export function ClientProfileContent() {
           onPress={() => handleOptionPress("favorites")}
           activeOpacity={0.7}>
           <Ionicons name="heart-outline" color={colors.foreground} size={22} />
-          <Text style={[styles.optionText, {color: colors.foreground}]}>Guardados</Text>
+          <Text style={[styles.optionText, {color: colors.foreground}]}>Favoritos</Text>
           <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
         </TouchableOpacity>
         <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />
         <TouchableOpacity
           style={styles.optionRow}
-          onPress={() => handleOptionPress("notifications")}
+          onPress={() => handleOptionPress("calendar")}
           activeOpacity={0.7}>
-          <Ionicons name="notifications-outline" color={colors.foreground} size={22} />
-          <Text style={[styles.optionText, {color: colors.foreground}]}>
-            Preferencias de Notificación
-          </Text>
+          <Ionicons name="logo-google" color={colors.foreground} size={22} />
+          <Text style={[styles.optionText, {color: colors.foreground}]}>Google Calendar</Text>
           <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
         </TouchableOpacity>
         <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />
@@ -216,6 +201,17 @@ export function ClientProfileContent() {
       {/* PREFERENCIAS */}
       <Text style={[styles.sectionLabel, {color: sectionLabelColor}]}>PREFERENCIAS</Text>
       <View style={[styles.optionsCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+        <TouchableOpacity
+          style={styles.optionRow}
+          onPress={() => handleOptionPress("notifications")}
+          activeOpacity={0.7}>
+          <Ionicons name="notifications-outline" color={colors.foreground} size={22} />
+          <Text style={[styles.optionText, {color: colors.foreground}]}>
+            Preferencias de Notificación
+          </Text>
+          <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+        </TouchableOpacity>
+        <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />
         <View style={styles.optionRow}>
           <Ionicons
             name={colorMode === "light" ? "moon-outline" : "sunny-outline"}
@@ -239,15 +235,6 @@ export function ClientProfileContent() {
           <Text style={[styles.optionText, {color: colors.foreground}]}>Soporte Técnico</Text>
           <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
         </TouchableOpacity>
-        <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />
-        <TouchableOpacity
-          style={styles.optionRow}
-          onPress={() => setShowDeleteModal(true)}
-          activeOpacity={0.7}>
-          <Ionicons name="trash-outline" color={logoutTextColor} size={22} style={{opacity: 0.7}} />
-          <Text style={[styles.optionText, {color: logoutTextColor, opacity: 0.7}]}>Eliminar cuenta</Text>
-          <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
       </View>
 
       {/* Cerrar Sesión */}
@@ -261,42 +248,9 @@ export function ClientProfileContent() {
 
       {/* Version */}
       <Text style={[styles.versionText, {color: versionTextColor}]}>
-        nabbi App v1.3.10
+        nabbi App v{Constants.expoConfig?.version ?? "1.0.0"}
       </Text>
 
-      {/* Delete modal */}
-      <Modal
-        visible={showDeleteModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => !isDeleting && setShowDeleteModal(false)}>
-        <View style={styles.deleteOverlay}>
-          <View style={[styles.deleteModal, {backgroundColor: colors.card}]}>
-            <Text style={[styles.deleteTitle, {color: colors.foreground}]}>
-              Eliminar cuenta
-            </Text>
-            <Text style={[styles.deleteWarning, {color: colors.foreground}]}>
-              Esta acción no se puede deshacer. Se eliminarán todos tus datos permanentemente.
-            </Text>
-            <TouchableOpacity
-              style={[styles.deleteCancelBtn, {backgroundColor: colors.primary}]}
-              onPress={() => setShowDeleteModal(false)}
-              disabled={isDeleting}>
-              <Text style={[styles.deleteCancelText, {color: colors.primaryForeground}]}>Cancelar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.deleteConfirmBtn}
-              onPress={handleConfirmDelete}
-              disabled={isDeleting}>
-              {isDeleting ? (
-                <ActivityIndicator size="small" color={colors.destructive} />
-              ) : (
-                <Text style={[styles.deleteConfirmText, {color: colors.destructive}]}>Eliminar</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </ScrollView>
   );
 }
@@ -392,46 +346,5 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     letterSpacing: 0.5,
     textAlign: "center",
-  },
-  deleteOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  deleteModal: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-  },
-  deleteTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  deleteWarning: {
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: "center",
-    marginBottom: 24,
-  },
-  deleteCancelBtn: {
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  deleteCancelText: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  deleteConfirmBtn: {
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  deleteConfirmText: {
-    fontSize: 16,
-    fontWeight: "700",
   },
 });

@@ -126,7 +126,7 @@ export default function GuardadosCategoryScreen() {
         </View>
         <View style={styles.centered}>
           <Text style={[styles.emptyText, {color: colors.mutedForeground}]}>
-            Inicia sesión para ver tus guardados
+            Inicia sesión para ver tus favoritos
           </Text>
         </View>
       </View>
@@ -151,7 +151,7 @@ export default function GuardadosCategoryScreen() {
         <View style={styles.centered}>
           <Ionicons name="heart-outline" size={64} color={colors.mutedForeground} />
           <Text style={[styles.emptyText, {color: colors.mutedForeground}]}>
-            No hay guardados en {categoryLabel}
+            No hay favoritos en {categoryLabel}
           </Text>
         </View>
       ) : (

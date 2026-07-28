@@ -569,17 +569,13 @@ export default function ProfileDetailScreen() {
 
     const providerName =
       profile?.profile_type === "PLACE"
-        ? (profile?.place_profile?.display_name ??
-          profile?.place_profile?.name ??
+        ? (profile?.place_profile?.name ??
           profile?.place?.name ??
-          profile?.display_name ??
           profile?.name ??
           "")
-        : (profile?.professional_profile?.display_name ??
-          profile?.display_name ??
-          (profile?.professional_profile
+        : (profile?.professional_profile
             ? `${profile?.professional_profile?.name || ""} ${profile?.professional_profile?.last_name || ""}`.trim()
-            : profile?.name || ""));
+            : profile?.name || "");
 
     if (!serviceInstanceId) return;
 
@@ -892,7 +888,7 @@ export default function ProfileDetailScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerName, {color: colors.foreground}]} numberOfLines={1}>
-            {profile?.display_name || profile?.name || "Perfil"}
+            {profile?.name || "Perfil"}
         </Text>
           {categoryNames.length > 0 && (
             <View style={[styles.headerCategoryTag, {backgroundColor: colors.primary + "15"}]}>

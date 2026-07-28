@@ -13,6 +13,38 @@ interface CalendarViewProps {
   showLegend?: boolean;
 }
 
+// Always use local calendar date — toISOString() returns UTC and breaks timezones
+const toLocalISO = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+const parseISO = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+
+const addDays = (d: Date, days: number) => {
+  const c = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  c.setDate(c.getDate() + days);
+  return c;
+};
+const addWeeks = (d: Date, w: number) => addDays(d, w * 7);
+
+const startOfWeekMon = (d: Date) => {
+  const c = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  c.setDate(c.getDate() - ((c.getDay() + 6) % 7));
+  return c;
+};
+
+const MONTH_NAMES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+const DAY_SHORT = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
+
 export const CalendarView = ({
   reservations,
   onDayPress,
@@ -24,441 +56,293 @@ export const CalendarView = ({
 }: CalendarViewProps) => {
   const {colors} = useThemeVariant();
 
-  const toISODate = (d: Date) => d.toISOString().split("T")[0];
-  const parseISO = (iso: string) => {
-    const [y, m, d] = iso.split("-").map(Number);
-    return new Date(y, m - 1, d);
-  };
-  const startOfWeekMon = (d: Date) => {
-    const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const day = copy.getDay(); // 0 Sun .. 6 Sat
-    const diff = (day + 6) % 7; // Mon=0
-    copy.setDate(copy.getDate() - diff);
-    return copy;
-  };
-  const addDays = (d: Date, days: number) => {
-    const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    copy.setDate(copy.getDate() + days);
-    return copy;
-  };
-  const addWeeks = (d: Date, weeks: number) => addDays(d, weeks * 7);
+  const todayISO = useMemo(() => toLocalISO(new Date()), []);
+  const [weekWidth, setWeekWidth] = useState(0);
+  const listRef = useRef<FlatList<Date> | null>(null);
+  const isFirstRender = useRef(true);
 
-  const todayString = useMemo(() => toISODate(new Date()), []);
-  const [currentDate, setCurrentDate] = useState<string>(selectedDate || todayString);
-  const [weekWidth, setWeekWidth] = useState<number>(0);
-  const weekListRef = useRef<FlatList<Date> | null>(null);
+  // Which date drives the visible month label & scrolling
+  const pivotISO = selectedDate ?? todayISO;
 
-  useEffect(() => {
-    if (selectedDate) {
-      setCurrentDate(selectedDate);
-      // Update visible week when selected date changes
-      const selectedDateObj = parseISO(selectedDate);
-      setVisibleWeekStart(startOfWeekMon(selectedDateObj));
-    }
-  }, [selectedDate]);
-  
-  // Initialize visible week on mount
-  useEffect(() => {
-    if (!visibleWeekStart) {
-      const initialDate = parseISO(currentDate);
-      setVisibleWeekStart(startOfWeekMon(initialDate));
-    }
-  }, []);
-
-  const monthNames = [
-    "Enero",
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre",
-  ];
-
-  const currentDateObj = useMemo(() => new Date(currentDate), [currentDate]);
-  
-  // Track the visible week to update month/year display
-  const [visibleWeekStart, setVisibleWeekStart] = useState<Date | null>(null);
-  
-  // Calculate month/year from visible week or current date
-  const displayDate = useMemo(() => {
-    if (visibleWeekStart) {
-      return visibleWeekStart;
-    }
-    return currentDateObj;
-  }, [visibleWeekStart, currentDateObj]);
-  
-  const currentMonthIndex = displayDate.getMonth();
-  const currentYear = displayDate.getFullYear();
-
-
-  const getStatusColor = (status: ReservationStatus) => {
-    switch (status) {
-      case "CONFIRMED":
-        return "#10b981"; // Green
-      case "PENDING":
-        return "#f59e0b"; // Orange
-      case "COMPLETED":
-        return "#6b7280"; // Gray
-      case "CANCELLED":
-        return "#ef4444"; // Red
-      case "REJECTED":
-        return "#dc2626"; // Dark red
-      default:
-        return colors.primary;
-    }
-  };
-
-  // Group reservations by date
-  const markedDates: any = {};
-
-  reservations.forEach((reservation) => {
-    const dateKey = reservation.date;
-
-    if (!markedDates[dateKey]) {
-      markedDates[dateKey] = {
-        marked: true,
-        dots: [],
-      };
-    }
-
-    // Add dot based on status
-    const dotColor = getStatusColor(reservation.status);
-    markedDates[dateKey].dots.push({
-      color: dotColor,
-      selectedDotColor: dotColor,
-    });
-  });
-
-  // Add selection to marked dates
-  if (selectedDate && markedDates[selectedDate]) {
-    markedDates[selectedDate].selected = true;
-    markedDates[selectedDate].selectedColor = colors.primary;
-  } else if (selectedDate) {
-    markedDates[selectedDate] = {
-      selected: true,
-      selectedColor: colors.primary,
-    };
-  }
-
-  const isBefore = (aISO?: string, bISO?: string) => {
-    if (!aISO || !bISO) return false;
-    return parseISO(aISO).getTime() < parseISO(bISO).getTime();
-  };
-  const isAfter = (aISO?: string, bISO?: string) => {
-    if (!aISO || !bISO) return false;
-    return parseISO(aISO).getTime() > parseISO(bISO).getTime();
-  };
-
-  // Stable list of weeks (±260 weeks ~= 5 years)
+  // Build ±260 weeks once
   const baseWeekStart = useMemo(() => startOfWeekMon(new Date()), []);
+  const BASE_IDX = 260;
   const weeks = useMemo(() => {
     const out: Date[] = [];
-    for (let i = -260; i <= 260; i += 1) out.push(addWeeks(baseWeekStart, i));
+    for (let i = -BASE_IDX; i <= BASE_IDX; i++) out.push(addWeeks(baseWeekStart, i));
     return out;
   }, [baseWeekStart]);
-  const baseIndex = 260;
 
-  const selectedWeekStartISO = useMemo(() => {
-    const d = parseISO(currentDate);
-    return toISODate(startOfWeekMon(d));
-  }, [currentDate]);
+  const pivotWeekIdx = useMemo(() => {
+    const pivotWeekStart = startOfWeekMon(parseISO(pivotISO));
+    const diffMs = pivotWeekStart.getTime() - baseWeekStart.getTime();
+    const diffWeeks = Math.round(diffMs / (7 * 86400 * 1000));
+    return Math.min(Math.max(BASE_IDX + diffWeeks, 0), weeks.length - 1);
+  }, [pivotISO, baseWeekStart, weeks.length]);
 
-  const selectedWeekIndex = useMemo(() => {
-    const selectedStart = startOfWeekMon(parseISO(currentDate));
-    const diffMs = selectedStart.getTime() - baseWeekStart.getTime();
-    const diffWeeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
-    return Math.min(Math.max(baseIndex + diffWeeks, 0), weeks.length - 1);
-  }, [baseIndex, baseWeekStart, currentDate, weeks.length]);
-
+  // On mount: position is set via contentOffset (no animation).
+  // After mount: scroll when selectedDate changes externally (e.g. month picker tap).
   useEffect(() => {
-    if (!weekWidth) return;
-    try {
-      weekListRef.current?.scrollToIndex({index: selectedWeekIndex, animated: false});
-    } catch {
-      // ignore
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
     }
-  }, [selectedWeekIndex, weekWidth]);
+    if (!weekWidth) return;
+    listRef.current?.scrollToOffset({offset: weekWidth * pivotWeekIdx, animated: true});
+  }, [pivotWeekIdx, weekWidth]);
 
-  const weekDayNamesShort = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
-  const getWeekDayLabel = (d: Date) => weekDayNamesShort[(d.getDay() + 6) % 7];
+  // Month/year label from the visible week (updated on scroll)
+  const [visibleWeekStart, setVisibleWeekStart] = useState<Date>(() => startOfWeekMon(parseISO(pivotISO)));
+  const displayMonth = visibleWeekStart.getMonth();
+  const displayYear  = visibleWeekStart.getFullYear();
+
+  // Reservation dots per date
+  const dotsByDate = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    reservations.forEach((r) => {
+      if (!map[r.date]) map[r.date] = [];
+      map[r.date].push(statusColor(r.status));
+    });
+    return map;
+  }, [reservations]);
+
+  const isBefore = (a: string, b?: string) => !!b && parseISO(a).getTime() < parseISO(b).getTime();
+  const isAfter  = (a: string, b?: string) => !!b && parseISO(a).getTime() > parseISO(b).getTime();
+
+  const renderWeek = ({item: weekStart}: {item: Date}) => {
+    const days = Array.from({length: 7}, (_, i) => addDays(weekStart, i));
+    return (
+      <View style={[styles.weekRow, {width: weekWidth}]}>
+        {days.map((d) => {
+          const iso = toLocalISO(d);
+          const dayLabel = DAY_SHORT[(d.getDay() + 6) % 7];
+          const isSelected = iso === (selectedDate ?? todayISO);
+          const isToday    = iso === todayISO;
+          const isDisabled =
+            (!!disabledDaysIndexes?.length && disabledDaysIndexes.includes(d.getDay())) ||
+            isBefore(iso, minDate) || isAfter(iso, maxDate);
+          const dots = (dotsByDate[iso] ?? []).slice(0, 3);
+
+          return (
+            <TouchableOpacity
+              key={iso}
+              style={styles.dayCol}
+              activeOpacity={0.7}
+              disabled={isDisabled}
+              onPress={() => onDayPress(iso)}>
+
+              {/* Day name */}
+              <Text style={[
+                styles.dayName,
+                {color: isSelected ? colors.primary : isToday ? colors.accent : colors.mutedForeground},
+                isDisabled && styles.disabledText,
+              ]}>
+                {dayLabel}
+              </Text>
+
+              {/* Day number circle */}
+              <View style={[
+                styles.circle,
+                isSelected && {backgroundColor: colors.primary, ...shadow},
+                isToday && !isSelected && {
+                  borderWidth: 1.5,
+                  borderColor: colors.accent,
+                },
+              ]}>
+                <Text style={[
+                  styles.dayNum,
+                  {color: isSelected
+                    ? "#fff"
+                    : isToday
+                    ? colors.accent
+                    : isDisabled
+                    ? colors.mutedForeground
+                    : colors.foreground},
+                  isSelected && {fontWeight: "800"},
+                ]}>
+                  {d.getDate()}
+                </Text>
+              </View>
+
+              {/* Reservation dots */}
+              <View style={styles.dotsRow}>
+                {dots.map((color, i) => (
+                  <View
+                    key={i}
+                    style={[styles.dot, {
+                      backgroundColor: isSelected ? "rgba(255,255,255,0.75)" : color,
+                    }]}
+                  />
+                ))}
+                {dots.length === 0 && <View style={styles.dotPlaceholder} />}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.dropdownRow}>
-        <Text style={[styles.monthYearText, {color: colors.mutedForeground}]}>
-          {`${monthNames[currentMonthIndex].toUpperCase()} ${currentYear}`}
+    <View>
+      {/* Month / Year header */}
+      <View style={styles.header}>
+        <Text style={[styles.monthLabel, {color: colors.foreground}]}>
+          {MONTH_NAMES[displayMonth]}
+        </Text>
+        <Text style={[styles.yearLabel, {color: colors.mutedForeground}]}>
+          {displayYear}
         </Text>
       </View>
 
+      {/* Week strip */}
       <View
-        style={[styles.weekStripContainer, {backgroundColor: colors.background}]}
         onLayout={(e) => {
-          // Subtract padding (16px on each side = 32px total) from total width
-          const containerWidth = Math.round(e.nativeEvent.layout.width);
-          const padding = 32; // 16px left + 16px right
-          const w = Math.max(0, containerWidth - padding);
+          const w = Math.round(e.nativeEvent.layout.width);
           if (w && w !== weekWidth) setWeekWidth(w);
         }}>
         {weekWidth > 0 && (
           <FlatList
-            ref={(r) => {
-              weekListRef.current = r;
-            }}
+            ref={(r) => { listRef.current = r; }}
             data={weeks}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            keyExtractor={(d) => toISODate(d)}
-            initialScrollIndex={selectedWeekIndex}
+            keyExtractor={(d) => toLocalISO(d)}
             getItemLayout={(_, index) => ({length: weekWidth, offset: weekWidth * index, index})}
+            contentOffset={{x: weekWidth * pivotWeekIdx, y: 0}}
             onMomentumScrollEnd={(e) => {
               const idx = Math.round(e.nativeEvent.contentOffset.x / weekWidth);
-              const wkStart = weeks[idx] || weeks[selectedWeekIndex];
-              if (wkStart) {
-                const iso = toISODate(wkStart);
-                // Update visible week for month/year display
-                setVisibleWeekStart(new Date(wkStart));
-                if (iso && iso !== selectedWeekStartISO) {
-                  setCurrentDate(iso);
-                }
-              }
+              const wk = weeks[idx];
+              if (wk) setVisibleWeekStart(wk);
             }}
-            onScrollBeginDrag={() => {
-              // Keep track when user starts scrolling
-            }}
-            onScrollEndDrag={(e) => {
-              // Update on scroll end as well for immediate feedback
-              const idx = Math.round(e.nativeEvent.contentOffset.x / weekWidth);
-              const wkStart = weeks[idx];
-              if (wkStart) {
-                setVisibleWeekStart(new Date(wkStart));
-              }
-            }}
-            renderItem={({item: weekStart}) => {
-              const days = Array.from({length: 7}).map((_, i) => addDays(weekStart, i));
-              const selectedISO = selectedDate || currentDate;
-
-              return (
-                <View style={[styles.weekPage, {width: weekWidth}]}>
-                  {days.map((d) => {
-                    const iso = toISODate(d);
-                    const weekdayLabel = getWeekDayLabel(d);
-                    const dayNum = String(d.getDate());
-                    const weekdayIndex = d.getDay();
-                    const isWeekdayDisabled =
-                      !!disabledDaysIndexes?.length && disabledDaysIndexes.includes(weekdayIndex);
-                    const outOfRange = isBefore(iso, minDate) || isAfter(iso, maxDate);
-                    const isDisabled = isWeekdayDisabled || outOfRange;
-                    const isSelected = iso === selectedISO;
-                    const dots = markedDates?.[iso]?.dots || [];
-
-                    return (
-                      <TouchableOpacity
-                        key={iso}
-                        style={[
-                          styles.dayTouch,
-                          isSelected && { transform: [{ translateY: -4 }] },
-                        ]}
-                        activeOpacity={0.85}
-                        disabled={isDisabled}
-                        onPress={() => {
-                          setCurrentDate(iso);
-                          onDayPress(iso);
-                        }}>
-                        <Text
-                          style={[
-                            styles.dayNameText,
-                            {
-                              color: isSelected ? colors.primary : colors.mutedForeground,
-                            },
-                            isDisabled && {color: colors.mutedForeground},
-                          ]}>
-                          {weekdayLabel}
-                        </Text>
-                        <View style={styles.dayNumberCell}>
-                          {isSelected ? (
-                            <View style={[styles.selectedDateWrap, {backgroundColor: colors.primary}]}>
-                              <Text style={styles.selectedDateText}>{dayNum}</Text>
-                            </View>
-                          ) : (
-                            <Text
-                              style={[
-                                styles.dayText,
-                                {color: colors.foreground},
-                                isDisabled && {color: colors.mutedForeground},
-                              ]}>
-                              {dayNum}
-                            </Text>
-                          )}
-                        </View>
-                        <View style={styles.dotsRow}>
-                          {dots.slice(0, 3).map((dot: any, idx: number) => (
-                            <View
-                              key={`${iso}-dot-${idx}`}
-                              style={[
-                                styles.dot,
-                                {backgroundColor: isSelected ? colors.primary : (dot.color || colors.primary)},
-                              ]}
-                            />
-                          ))}
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              );
-            }}
+            renderItem={renderWeek}
           />
         )}
       </View>
 
-
       {/* Legend */}
       {showLegend && (
-        <View style={[styles.legend, {backgroundColor: colors.card, borderTopColor: colors.border}]}>
-          <Text style={[styles.legendTitle, {color: colors.foreground}]}>Estado:</Text>
-          <View style={styles.legendItems}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, {backgroundColor: "#10b981"}]} />
-              <Text style={[styles.legendText, {color: colors.foreground}]}>Confirmada</Text>
+        <View style={[styles.legend, {borderTopColor: colors.border}]}>
+          {[
+            {color: "#10b981", label: "Confirmada"},
+            {color: "#f59e0b", label: "Pendiente"},
+            {color: "#6b7280", label: "Completada"},
+          ].map(({color, label}) => (
+            <View key={label} style={styles.legendItem}>
+              <View style={[styles.legendDot, {backgroundColor: color}]} />
+              <Text style={[styles.legendText, {color: colors.mutedForeground}]}>{label}</Text>
             </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, {backgroundColor: "#f59e0b"}]} />
-              <Text style={[styles.legendText, {color: colors.foreground}]}>Pendiente</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, {backgroundColor: "#6b7280"}]} />
-              <Text style={[styles.legendText, {color: colors.foreground}]}>Completada</Text>
-            </View>
-          </View>
+          ))}
         </View>
       )}
     </View>
   );
 };
 
+function statusColor(status: ReservationStatus): string {
+  switch (status) {
+    case "CONFIRMED":  return "#10b981";
+    case "PENDING":    return "#f59e0b";
+    case "COMPLETED":  return "#6b7280";
+    case "CANCELLED":
+    case "REJECTED":   return "#ef4444";
+    default:           return "#6b7280";
+  }
+}
+
+const shadow = Platform.select({
+  ios:     {shadowColor: "#000", shadowOffset: {width: 0, height: 3}, shadowOpacity: 0.18, shadowRadius: 8},
+  android: {elevation: 5},
+}) ?? {};
+
+const CIRCLE_SIZE = 40;
+
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: "transparent",
-  },
-  dropdownRow: {
+  header: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    marginBottom: 10,
-    paddingHorizontal: 0,
+    alignItems: "baseline",
+    gap: 6,
+    marginBottom: 14,
+    paddingHorizontal: 2,
   },
-  monthYearText: {
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+  monthLabel: {
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.3,
   },
-  weekStripContainer: {
-    borderWidth: 0,
-    borderRadius: 14,
-    overflow: "visible",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginBottom: 0,
+  yearLabel: {
+    fontSize: 14,
+    fontWeight: "500",
   },
-  weekPage: {
+  weekRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 6,
+    paddingVertical: 4,
   },
-  dayTouch: {
-    alignItems: "center",
-    justifyContent: "flex-start",
-    paddingTop: 4,
-    paddingBottom: 6,
+  dayCol: {
     flex: 1,
-  },
-  dayNameText: {
-    fontSize: 11,
-    fontWeight: "600",
-    marginBottom: 6,
-    textTransform: "uppercase",
-    textAlign: "center",
-  },
-  dayNumberCell: {
-    minHeight: 42,
-    justifyContent: "center",
     alignItems: "center",
+    gap: 6,
+    paddingVertical: 4,
   },
-  dayText: {
-    fontSize: 18,
+  dayName: {
+    fontSize: 10,
     fontWeight: "700",
-    textAlign: "center",
-    lineHeight: 22,
+    letterSpacing: 0.4,
   },
-  selectedDateWrap: {
-    minWidth: 40,
-    padding: 8,
-    borderRadius: 5,
+  disabledText: {
+    opacity: 0.35,
+  },
+  circle: {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    borderRadius: CIRCLE_SIZE / 2,
     alignItems: "center",
     justifyContent: "center",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: {width: 0, height: 4},
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
-      },
-      android: {elevation: 6},
-    }),
   },
-  selectedDateText: {
-    fontSize: 18,
+  dayNum: {
+    fontSize: 16,
     fontWeight: "700",
-    color: "#ffffff",
+    lineHeight: CIRCLE_SIZE,
     textAlign: "center",
   },
   dotsRow: {
     flexDirection: "row",
-    gap: 4,
-    marginTop: 8,
-    minHeight: 10,
+    gap: 3,
+    minHeight: 6,
     alignItems: "center",
     justifyContent: "center",
   },
   dot: {
-    width: 6,
-    height: 6,
+    width: 5,
+    height: 5,
     borderRadius: 3,
   },
+  dotPlaceholder: {
+    width: 5,
+    height: 5,
+  },
   legend: {
-    padding: 16,
-    borderTopWidth: 1,
-  },
-  legendTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 12,
-  },
-  legendItems: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 16,
+    gap: 14,
+    paddingTop: 12,
+    marginTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   legendItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
   },
   legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
   },
   legendText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "500",
   },
 });

@@ -324,7 +324,7 @@ export default function ProfessionalDetailScreen() {
             paddingTop: Math.max(insets.top + 16, 20),
           },
         ]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => goBack("/(tabs)/index")}>
           <View style={styles.backButtonBg}>
             <Ionicons name="arrow-back" color="#ffffff" size={24} />
           </View>

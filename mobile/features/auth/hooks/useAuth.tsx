@@ -59,10 +59,17 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
           } catch (_) {
             // ignore push registration errors
           }
-        } catch (error) {
-          // Token is invalid, clear it
-          await tokenUtils.removeToken();
-          setState((prev) => ({...prev, user: null, isLoading: false}));
+        } catch (error: any) {
+          // Only clear tokens when the server explicitly rejects them (401).
+          // Network errors, 5xx, or timeouts must NOT wipe a valid session.
+          const status = error?.response?.status;
+          if (status === 401) {
+            await tokenUtils.removeToken();
+            setState((prev) => ({...prev, user: null, isLoading: false}));
+          } else {
+            // Network/server error — keep tokens, mark loading done
+            setState((prev) => ({...prev, isLoading: false}));
+          }
         }
       } else {
         setState((prev) => ({...prev, isLoading: false}));

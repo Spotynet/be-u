@@ -11,10 +11,7 @@ import {
   Platform,
   Modal,
 } from "react-native";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
-import {useSafeAreaInsets} from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {useState, useEffect} from "react";
 import {useAuth} from "@/features/auth";
@@ -22,20 +19,17 @@ import {useReservationFlow} from "@/features/reservations";
 import {CalendarView} from "@/components/calendar";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {useRouter, useLocalSearchParams} from "expo-router";
-import {useNavigation} from "@/hooks/useNavigation";
 import {formatPrice} from "@/lib/priceUtils";
 import {useCategory} from "@/contexts/CategoryContext";
 import {useAppTheme} from "@/constants/theme";
+import {AppHeader} from "@/components/ui/AppHeader";
 
 export default function BookingScreen() {
-  const colorScheme = useColorScheme();
   const theme = useAppTheme();
   const {colors} = useThemeVariant();
   const styles = makeStyles(colors, theme);
-  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const {goBack} = useNavigation();
-  const {user, isAuthenticated} = useAuth();
+  const {user, isAuthenticated, isLoading: authLoading} = useAuth();
   const {setSelectedServiceCategory} = useCategory();
   const params = useLocalSearchParams<{
     serviceInstanceId?: string;
@@ -178,7 +172,7 @@ export default function BookingScreen() {
     return () => { cancelled = true; };
   }, [params.groupSessionId]);
 
-  const providerTypeForAvailability =
+  const providerTypeForAvailability: "professional" | "place" =
     serviceInfo?.serviceType === "professional_service" ? "professional" : "place";
   useEffect(() => {
     const incomingCategory = String(params.category || "").toLowerCase().trim();
@@ -189,13 +183,13 @@ export default function BookingScreen() {
 
   const providerIdForAvailability = resolvedProviderId ?? serviceInfo?.providerId ?? 0;
 
-  // Redirect guests to login — reservations require an account
+  // Redirect guests to login — wait for auth to finish loading first
   useEffect(() => {
+    if (authLoading) return;
     if (!isAuthenticated || !user) {
       router.replace("/login");
-      return;
     }
-  }, [isAuthenticated, user, router]);
+  }, [authLoading, isAuthenticated, user]);
 
   // Initialize the service in the hook when component mounts
   useEffect(() => {
@@ -857,6 +851,16 @@ export default function BookingScreen() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
+        <View style={styles.centeredContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </View>
+    );
+  }
+
   if (!isAuthenticated || !user) {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
@@ -904,25 +908,13 @@ export default function BookingScreen() {
       style={[styles.container, {backgroundColor: colors.background}]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
-      {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.primary,
-            paddingTop: Math.max(insets.top + 16, 20),
-          },
-        ]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => goBack("/(tabs)/explore")}
-          activeOpacity={0.7}
-          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
-          <Ionicons name="arrow-back" color="#ffffff" size={24} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Nueva Reserva</Text>
-        <View style={styles.placeholder} />
-      </View>
+      <AppHeader
+        title="Nueva Reserva"
+        showBackButton
+        backFallbackRoute="/(tabs)/explore"
+        backgroundColor={colors.background}
+        borderBottom={colors.border}
+      />
 
       {/* Service Info Card */}
       <View style={[styles.serviceCard, {backgroundColor: colors.card}]}>
@@ -1011,60 +1003,113 @@ export default function BookingScreen() {
         {/* Step 1: Date + Time */}
         {!selectedTime ? (
           <View style={styles.stepContent}>
+            <View style={[styles.stepIntroCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+              <View style={styles.stepIntroHeader}>
+                <View style={[styles.stepIntroIcon, {backgroundColor: colors.primary + "18"}]}>
+                  <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                </View>
+                <View style={styles.stepIntroTextWrap}>
+                  <Text style={[styles.stepKicker, {color: colors.mutedForeground}]}>Paso 1</Text>
+                  <Text style={[styles.stepIntroTitle, {color: colors.foreground}]}>Fecha y hora</Text>
+                </View>
+                <View style={[styles.stepStatusPill, {backgroundColor: colors.muted, borderColor: colors.border}]}>
+                  <Ionicons name="sparkles" size={14} color={colors.primary} />
+                  <Text style={[styles.stepStatusText, {color: colors.foreground}]}>Explora disponibilidad</Text>
+                </View>
+              </View>
+              <Text style={[styles.stepIntroCopy, {color: colors.mutedForeground}]}>Selecciona un día y una franja que se ajusten al ritmo de la cita.</Text>
+            </View>
+
             {dateAvailabilityError && (
-              <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "20", borderColor: "#ef4444"}]}>
-                <Ionicons name="alert-circle" size={20} color="#ef4444" />
-                <Text style={[styles.errorCardText, {color: "#ef4444"}]}>{dateAvailabilityError}</Text>
+              <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "12", borderColor: "#ef4444" + "40"}]}>
+                <View style={[styles.errorIconWrap, {backgroundColor: "#ef4444" + "18"}]}>
+                  <Ionicons name="alert-circle" size={18} color="#ef4444" />
+                </View>
+                <View style={styles.errorTextWrap}>
+                  <Text style={[styles.errorCardTitle, {color: "#ef4444"}]}>Disponibilidad limitada</Text>
+                  <Text style={[styles.errorCardText, {color: "#b91c1c"}]}>{dateAvailabilityError}</Text>
+                </View>
               </View>
             )}
 
-            <View style={styles.calendarContainer}>
-              <CalendarView
-                reservations={[]}
-                onDayPress={(date) => handleDateSelect(date)}
-                selectedDate={selectedDate ? formatLocalDate(selectedDate) : undefined}
-                minDate={formatLocalDate(new Date())}
-                disabledDaysIndexes={disabledDaysIndexes}
-                showLegend={false}
-              />
+            <View style={[styles.calendarShell, {backgroundColor: colors.card, borderColor: colors.border}]}>
+              <View style={styles.calendarShellHeader}>
+                <View style={[styles.calendarShellIcon, {backgroundColor: colors.primary + "16"}]}>
+                  <Ionicons name="calendar" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.calendarShellCopy}>
+                  <Text style={[styles.sectionEyebrow, {color: colors.mutedForeground}]}>Calendario</Text>
+                  <Text style={[styles.sectionHeaderText, {color: colors.foreground}]}>
+                    {selectedDate ? selectedDate.toLocaleDateString("es-MX", {weekday: "long", day: "numeric", month: "long"}) : "Elige tu fecha"}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.calendarContainer}>
+                <CalendarView
+                  reservations={[]}
+                  onDayPress={(date) => handleDateSelect(date)}
+                  selectedDate={selectedDate ? formatLocalDate(selectedDate) : undefined}
+                  minDate={formatLocalDate(new Date())}
+                  disabledDaysIndexes={disabledDaysIndexes}
+                  showLegend={false}
+                />
+              </View>
             </View>
 
             {selectedDate && (
-              <View style={styles.timePickerContainer}>
+              <View style={[styles.timePickerContainer, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                <View style={styles.timeSectionHeader}>
+                  <View>
+                    <Text style={[styles.sectionEyebrow, {color: colors.mutedForeground}]}>Horario</Text>
+                    <Text style={[styles.sectionHeaderText, {color: colors.foreground}]}>Bloques disponibles</Text>
+                  </View>
+                  <View style={[styles.timeCountPill, {backgroundColor: colors.primary + "12", borderColor: colors.primary + "30"}]}>
+                    <Text style={[styles.timeCountText, {color: colors.primary}]}>
+                      {availableTimes.length > 0 ? availableTimes.length + " opciones" : "Sin opciones"}
+                    </Text>
+                  </View>
+                </View>
+
                 {timeAvailabilityError && (
-                  <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "20", borderColor: "#ef4444"}]}>
-                    <Ionicons name="alert-circle" size={20} color="#ef4444" />
-                    <Text style={[styles.errorCardText, {color: "#ef4444"}]}>{timeAvailabilityError}</Text>
+                  <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "12", borderColor: "#ef4444" + "40"}]}>
+                    <View style={[styles.errorIconWrap, {backgroundColor: "#ef4444" + "18"}]}>
+                      <Ionicons name="alert-circle" size={18} color="#ef4444" />
+                    </View>
+                    <View style={styles.errorTextWrap}>
+                      <Text style={[styles.errorCardTitle, {color: "#ef4444"}]}>Hora no disponible</Text>
+                      <Text style={[styles.errorCardText, {color: "#b91c1c"}]}>{timeAvailabilityError}</Text>
+                    </View>
                   </View>
                 )}
 
                 {loadingSchedule ? (
-                  <View style={styles.loadingSchedule}>
+                  <View style={[styles.loadingSchedule, {backgroundColor: colors.contentBackground, borderColor: colors.border}]}>
                     <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={[styles.loadingScheduleText, {color: colors.mutedForeground}]}>
-                      Cargando horarios disponibles...
-                    </Text>
+                    <Text style={[styles.loadingScheduleText, {color: colors.mutedForeground}]}>Cargando horarios disponibles...</Text>
                   </View>
                 ) : scheduleData && scheduleData.working_hours ? (
-                  <View style={[styles.scheduleInfo, {backgroundColor: colors.card + "50"}]}>
+                  <View style={[styles.scheduleInfo, {backgroundColor: colors.contentBackground, borderColor: colors.border}]}>
                     <View style={styles.scheduleRow}>
-                      <Ionicons name="time-outline" size={16} color={colors.mutedForeground} />
-                      <Text style={[styles.scheduleText, {color: colors.mutedForeground}]}>
-                        Horario: {scheduleData.working_hours.start} - {scheduleData.working_hours.end}
-                      </Text>
+                      <View style={[styles.scheduleIconWrap, {backgroundColor: colors.primary + "14"}]}>
+                        <Ionicons name="time-outline" size={16} color={colors.primary} />
+                      </View>
+                      <View style={styles.scheduleCopy}>
+                        <Text style={[styles.scheduleLabel, {color: colors.mutedForeground}]}>Horario de atención</Text>
+                        <Text style={[styles.scheduleValue, {color: colors.foreground}]}> {scheduleData.working_hours.start} - {scheduleData.working_hours.end}</Text>
+                      </View>
                     </View>
                     {scheduleData.break_times.length > 0 && (
                       <View style={styles.breaksContainer}>
                         <View style={styles.scheduleRow}>
-                          <Ionicons name="cafe-outline" size={16} color={colors.mutedForeground} />
-                          <Text style={[styles.scheduleText, {color: colors.mutedForeground}]}>
-                            Descansos
-                          </Text>
+                          <View style={[styles.scheduleIconWrap, {backgroundColor: colors.muted}]}> 
+                            <Ionicons name="cafe-outline" size={16} color={colors.mutedForeground} />
+                          </View>
+                          <Text style={[styles.scheduleLabel, {color: colors.mutedForeground}]}>Descansos</Text>
                         </View>
                         <View style={styles.breakChips}>
                           {scheduleData.break_times.map((br, idx) => (
                             <View
-                              key={`${br.start}-${br.end}-${idx}`}
+                              key={br.start + "-" + br.end + "-" + idx}
                               style={[
                                 styles.breakChip,
                                 {
@@ -1072,7 +1117,7 @@ export default function BookingScreen() {
                                   borderColor: colors.border,
                                 },
                               ]}>
-                              <Text style={[styles.breakChipText, {color: colors.mutedForeground}]}>
+                              <Text style={[styles.breakChipText, {color: colors.mutedForeground}]}> 
                                 {br.start} - {br.end}
                               </Text>
                             </View>
@@ -1085,18 +1130,18 @@ export default function BookingScreen() {
 
                 {scheduleData?.working_hours && (
                   <View style={styles.availableTimesContainer}>
-                    <Text style={[styles.availableTimesTitle, {color: colors.foreground}]}>
-                      Horarios disponibles
-                    </Text>
+                    <View style={styles.availableTimesHeader}>
+                      <View>
+                        <Text style={[styles.availableTimesTitle, {color: colors.foreground}]}>Horarios disponibles</Text>
+                        <Text style={[styles.availableTimesMeta, {color: colors.mutedForeground}]}>Toca un bloque para fijar la hora</Text>
+                      </View>
+                    </View>
                     {availableTimes.length === 0 ? (
-                      <Text style={[styles.availableTimesEmpty, {color: colors.mutedForeground}]}>
-                        No hay horarios que cumplan con la duración y disponibilidad.
-                      </Text>
+                      <View style={[styles.availableTimesEmptyCard, {backgroundColor: colors.contentBackground, borderColor: colors.border}]}>
+                        <Text style={[styles.availableTimesEmpty, {color: colors.mutedForeground}]}>No hay horarios que cumplan con la duración y disponibilidad.</Text>
+                      </View>
                     ) : (
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.availableTimesRow}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.availableTimesRow}>
                         {availableTimes.map((t) => {
                           const isSelected = selectedTime && formatTime(selectedTime) === t;
                           return (
@@ -1121,11 +1166,7 @@ export default function BookingScreen() {
                                 }
                               }}
                               activeOpacity={0.8}>
-                              <Text
-                                style={[
-                                  styles.availableTimeText,
-                                  {color: isSelected ? "#ffffff" : colors.foreground},
-                                ]}>
+                              <Text style={[styles.availableTimeText, {color: isSelected ? "#ffffff" : colors.foreground}]}> 
                                 {t}
                               </Text>
                             </TouchableOpacity>
@@ -1137,10 +1178,13 @@ export default function BookingScreen() {
                 )}
 
                 {groupSessionsForDate.length > 0 && (
-                  <View style={styles.availableTimesContainer}>
-                    <Text style={[styles.availableTimesTitle, {color: colors.foreground}]}>
-                      Sesiones grupales con cupos
-                    </Text>
+                  <View style={[styles.groupSessionsCard, {backgroundColor: colors.contentBackground, borderColor: colors.border}]}>
+                    <View style={styles.availableTimesHeader}>
+                      <View>
+                        <Text style={[styles.availableTimesTitle, {color: colors.foreground}]}>Sesiones grupales con cupos</Text>
+                        <Text style={[styles.availableTimesMeta, {color: colors.mutedForeground}]}>Opciones compartidas disponibles hoy</Text>
+                      </View>
+                    </View>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.availableTimesRow}>
                       {groupSessionsForDate.map((session: any) => {
                         const selected = selectedGroupSessionId === session.id;
@@ -1161,11 +1205,7 @@ export default function BookingScreen() {
                               d.setHours(h, m, 0, 0);
                               setSelectedTime(d);
                             }}>
-                            <Text
-                              style={[
-                                styles.availableTimeText,
-                                {color: selected ? "#ffffff" : colors.foreground},
-                              ]}>
+                            <Text style={[styles.availableTimeText, {color: selected ? "#ffffff" : colors.foreground}]}> 
                               {String(session.time).slice(0, 5)} ({session.booked_slots ?? 0}/{session.capacity})
                             </Text>
                           </TouchableOpacity>
@@ -1328,24 +1368,6 @@ function makeStyles(colors: any, theme: any) {
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    color: "#ffffff",
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  placeholder: {
-    width: 40,
-  },
   serviceCard: {
     margin: 16,
     padding: 16,
@@ -1381,35 +1403,59 @@ function makeStyles(colors: any, theme: any) {
     fontWeight: "700",
   },
   stepsContainer: {
+    marginHorizontal: 16,
+    marginTop: 6,
+    marginBottom: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 24,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 20,
-    paddingHorizontal: 32,
+    justifyContent: "space-between",
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowOffset: {width: 0, height: 8},
+    shadowRadius: 18,
+    elevation: 2,
   },
   step: {
+    flex: 1,
     alignItems: "center",
     gap: 8,
   },
   stepNumber: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowOffset: {width: 0, height: 4},
+    shadowRadius: 10,
+    elevation: 1,
   },
   stepNumberText: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "800",
   },
   stepLabel: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    textAlign: "center",
+    lineHeight: 14,
   },
   stepDivider: {
+    flex: 1,
+    height: 1,
+    borderRadius: 999,
+    marginHorizontal: 12,
+  },
+  placeholder: {
     width: 40,
-    height: 2,
-    marginHorizontal: 8,
   },
   content: {
     flex: 1,
@@ -1419,6 +1465,7 @@ function makeStyles(colors: any, theme: any) {
   },
   stepContent: {
     padding: 16,
+    gap: 16,
   },
   stepHeader: {
     flexDirection: "row",
@@ -1426,9 +1473,65 @@ function makeStyles(colors: any, theme: any) {
     justifyContent: "space-between",
     marginBottom: 20,
   },
+  stepIntroCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 16,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowOffset: {width: 0, height: 10},
+    shadowRadius: 22,
+    elevation: 2,
+  },
+  stepIntroHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  stepIntroIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepIntroTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  stepKicker: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
   stepTitle: {
     fontSize: 22,
     fontWeight: "700",
+  },
+  stepIntroTitle: {
+    fontSize: 23,
+    fontWeight: "800",
+    letterSpacing: -0.4,
+  },
+  stepStatusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  stepStatusText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  stepIntroCopy: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
   },
   loadingContainer: {
     paddingVertical: 64,
@@ -1546,7 +1649,70 @@ function makeStyles(colors: any, theme: any) {
     textAlign: "center",
   },
   timePickerContainer: {
-    gap: 20,
+    gap: 16,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: {width: 0, height: 8},
+    shadowRadius: 18,
+    elevation: 1,
+  },
+  calendarShell: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 16,
+    gap: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowOffset: {width: 0, height: 10},
+    shadowRadius: 20,
+    elevation: 2,
+  },
+  calendarShellHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  calendarShellIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  calendarShellCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  sectionEyebrow: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  sectionHeaderText: {
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.2,
+  },
+  timeSectionHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  timeCountPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignSelf: "flex-start",
+  },
+  timeCountText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   timePickerLabel: {
     fontSize: 16,
@@ -1627,29 +1793,78 @@ function makeStyles(colors: any, theme: any) {
     alignItems: "center",
     justifyContent: "center",
     padding: 16,
-    gap: 8,
+    gap: 10,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   loadingScheduleText: {
     fontSize: 14,
+    fontWeight: "600",
   },
   scheduleInfo: {
-    padding: 12,
-    borderRadius: 12,
-    gap: 8,
+    padding: 14,
+    borderRadius: 20,
+    gap: 12,
     marginBottom: 12,
+    borderWidth: 1,
+  },
+  scheduleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  scheduleIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  scheduleCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  scheduleLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  scheduleValue: {
+    fontSize: 14,
+    fontWeight: "600",
   },
   availableTimesContainer: {
-    marginTop: 8,
-    marginBottom: 16,
-    gap: 8,
+    marginTop: 4,
+    marginBottom: 8,
+    gap: 10,
+  },
+  availableTimesHeader: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
   },
   availableTimesTitle: {
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: "800",
+    letterSpacing: -0.2,
+  },
+  availableTimesMeta: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 3,
+  },
+  availableTimesEmptyCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 14,
   },
   availableTimesEmpty: {
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: "600",
+    lineHeight: 19,
   },
   availableTimesList: {
     flexDirection: "row",
@@ -1658,27 +1873,32 @@ function makeStyles(colors: any, theme: any) {
   },
   availableTimesRow: {
     flexDirection: "row",
-    gap: 8,
-    paddingVertical: 4,
+    gap: 10,
+    paddingVertical: 6,
+    paddingRight: 2,
   },
   availableTimeChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 16,
     borderWidth: 1.5,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: {width: 0, height: 4},
+    shadowRadius: 10,
+    elevation: 1,
   },
   availableTimeText: {
     fontSize: 14,
-    fontWeight: "700",
-  },
-  scheduleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+    fontWeight: "800",
+    letterSpacing: 0.2,
   },
   breaksContainer: {
-    marginTop: 4,
-    gap: 6,
+    marginTop: 2,
+    gap: 8,
   },
   breakChips: {
     flexDirection: "row",
@@ -1686,36 +1906,61 @@ function makeStyles(colors: any, theme: any) {
     gap: 8,
   },
   breakChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
     borderWidth: 1,
   },
   breakChipText: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "700",
   },
   scheduleText: {
     fontSize: 13,
+    fontWeight: "600",
   },
   errorCard: {
     flexDirection: "row",
     alignItems: "flex-start",
-    padding: 12,
-    borderRadius: 12,
+    padding: 14,
+    borderRadius: 18,
     borderWidth: 1,
-    gap: 8,
+    gap: 12,
     marginBottom: 12,
+  },
+  errorIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  errorTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  errorCardTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
   },
   errorCardText: {
     flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: "500",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
   },
   calendarContainer: {
-    marginHorizontal: -4, // Slight negative margin to give more space
-    paddingRight: 4, // Ensure right padding for Sunday
+    marginHorizontal: -2,
+    paddingRight: 2,
+  },
+  groupSessionsCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 14,
+    gap: 10,
   },
   });
 }

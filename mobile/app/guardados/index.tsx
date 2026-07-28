@@ -11,7 +11,7 @@ export default function GuardadosScreen() {
   return (
     <View style={[styles.container, {backgroundColor: colors.contentBackground}]}>
       <AppHeader
-        title="Guardados"
+        title="Favoritos"
         showBackButton
         onBackPress={() => router.back()}
       />

@@ -147,7 +147,7 @@ export default function LinkScheduleScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, {color: colors.foreground}]}>Horario por profesional</Text>
         <TouchableOpacity style={[styles.saveBtn, {backgroundColor: colors.primary}]} onPress={save} disabled={saving}>
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Guardar</Text>}
+          {saving ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.saveText, {color: colors.primaryForeground}]}>Guardar</Text>}
         </TouchableOpacity>
       </View>
 

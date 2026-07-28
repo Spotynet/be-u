@@ -251,7 +251,7 @@ export function FavoritesTab() {
             {categoryFavorites.length > 0 && (
               <>
                 <Text style={[styles.sectionTitle, {color: colors.mutedForeground}]}>
-                  Perfiles Guardados
+                  Perfiles Favoritos
                 </Text>
                 <ScrollView
                   horizontal

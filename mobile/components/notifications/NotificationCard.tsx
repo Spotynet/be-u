@@ -17,6 +17,47 @@ interface NotificationCardProps {
   onRejectTracking?: (trackingRequestId: number) => void;
 }
 
+// ── Icon & color per notification type ───────────────────────────────────────
+function getTypeVisual(notification: Notification): {icon: keyof typeof Ionicons.glyphMap; color: string} {
+  const sub = notification.metadata?.sub_type;
+  switch (notification.type) {
+    case "reserva":
+      return {icon: "calendar", color: "#3b82f6"};
+    case "reseña":
+      return {icon: "star", color: "#f59e0b"};
+    case "mensaje":
+      return {icon: "chatbubble", color: "#8b5cf6"};
+    case "social":
+      if (sub === "like"    || sub === "saved")   return {icon: "heart",       color: "#ec4899"};
+      if (sub === "comment" || sub === "mention") return {icon: "chatbubble",  color: "#8b5cf6"};
+      if (sub === "follow")                       return {icon: "person-add",  color: "#10b981"};
+      return {icon: "people", color: "#ec4899"};
+    case "sistema":
+      // Tracking requests
+      if (notification.metadata?.tracking_request_id) return {icon: "navigate",         color: "#10b981"};
+      // Invite / link
+      if (notification.metadata?.link_id || notification.metadata?.linkId) return {icon: "link", color: "#3b82f6"};
+      return {icon: "information-circle", color: "#6b7280"};
+    default:
+      return {icon: "notifications", color: "#6b7280"};
+  }
+}
+
+function formatTimestamp(timestamp: string): string {
+  const d     = new Date(timestamp);
+  const now   = new Date();
+  const diffMs   = now.getTime() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60_000);
+  const diffHrs  = Math.floor(diffMs / 3_600_000);
+  const diffDays = Math.floor(diffMs / 86_400_000);
+
+  if (diffMins  < 1)  return "Ahora";
+  if (diffMins  < 60) return `${diffMins} min`;
+  if (diffHrs   < 24) return `${diffHrs} h`;
+  if (diffDays  === 1) return "Ayer";
+  return d.toLocaleDateString("es-ES", {day: "numeric", month: "short"});
+}
+
 export const NotificationCard = ({
   notification,
   onPress,
@@ -31,386 +72,221 @@ export const NotificationCard = ({
 }: NotificationCardProps) => {
   const {colors} = useThemeVariant();
 
-  const getIcon = (): keyof typeof Ionicons.glyphMap => {
-    switch (notification.type) {
-      case "reserva":
-        return "calendar";
-      case "reseña":
-        return "star-outline";
-      case "sistema":
-        return "sync";
-      case "mensaje":
-        return "chatbubble-outline";
-      default:
-        return "notifications-outline";
-    }
-  };
+  const {icon, color} = getTypeVisual(notification);
+  const isUnread      = notification.status === "unread";
 
-  const getIconColor = (): string => {
-    const isUnread = notification.status === "unread";
-    switch (notification.type) {
-      case "reserva":
-        return isUnread ? colors.primary : colors.mutedForeground;
-      case "reseña":
-      case "sistema":
-      case "mensaje":
-      default:
-        return colors.mutedForeground;
-    }
-  };
+  const linkId        = notification.metadata?.link_id ?? notification.metadata?.linkId ?? notification.metadata?.linkID;
+  const reservationId = notification.metadata?.reservation_id || notification.relatedId;
+  const trackingId    = notification.metadata?.tracking_request_id;
 
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMins < 1) return "Ahora";
-    if (diffMins < 60) return `Hace ${diffMins} min`;
-    if (diffHours < 24) return `Hace ${diffHours}h`;
-    if (diffDays === 1) return "Ayer, " + date.toLocaleTimeString("es-ES", {hour: "2-digit", minute: "2-digit"});
-    return date.toLocaleDateString("es-ES", {day: "numeric", month: "short"}) + ", " + date.toLocaleTimeString("es-ES", {hour: "2-digit", minute: "2-digit"});
-  };
+  const canInvite  = linkId && notification.metadata?.status === "INVITED" && (onAcceptInvite || onDeclineInvite);
+  const canReserve = reservationId && notification.metadata?.status === "PENDING" && notification.metadata?.action_required && (onConfirmReservation || onRejectReservation);
+  const canTrack   = trackingId && notification.metadata?.status === "PENDING" && notification.metadata?.action_required && (onAcceptTracking || onRejectTracking);
 
   const handlePress = () => {
-    if (notification.status === "unread" && onMarkAsRead) {
-      onMarkAsRead(notification.id);
-    }
+    if (isUnread) onMarkAsRead?.(notification.id);
     onPress?.(notification);
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      "Eliminar Notificación",
-      "¿Estás seguro de que quieres eliminar esta notificación?",
-      [
-        {text: "Cancelar", style: "cancel"},
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: () => onDelete?.(notification.id),
-        },
-      ]
-    );
+    Alert.alert("Eliminar notificación", "¿Eliminar esta notificación?", [
+      {text: "Cancelar", style: "cancel"},
+      {text: "Eliminar", style: "destructive", onPress: () => onDelete?.(notification.id)},
+    ]);
   };
 
-  const linkId =
-    notification.metadata?.link_id ??
-    notification.metadata?.linkId ??
-    notification.metadata?.linkID;
-  const inviteStatus = notification.metadata?.status;
-  const canRespondInvite =
-    notification.type === "sistema" &&
-    linkId &&
-    inviteStatus === "INVITED" &&
-    (typeof onAcceptInvite === "function" || typeof onDeclineInvite === "function");
-
-  // Check if this is a pending reservation notification that needs action
-  const reservationId = notification.metadata?.reservation_id || notification.relatedId;
-  const reservationStatus = notification.metadata?.status;
-  const actionRequired = notification.metadata?.action_required === true;
-  const canRespondReservation =
-    notification.type === "reserva" &&
-    reservationId &&
-    reservationStatus === "PENDING" &&
-    actionRequired &&
-    (typeof onConfirmReservation === "function" || typeof onRejectReservation === "function");
-
-  const trackingRequestId = notification.metadata?.tracking_request_id;
-  const trackingStatus = notification.metadata?.status;
-  const canRespondTracking =
-    notification.type === "sistema" &&
-    trackingRequestId &&
-    trackingStatus === "PENDING" &&
-    notification.metadata?.action_required === true &&
-    (typeof onAcceptTracking === "function" || typeof onRejectTracking === "function");
+  // Subtle background tint for unread
+  const cardBg = isUnread ? colors.primary + "07" : "transparent";
 
   return (
     <TouchableOpacity
-      style={[styles.container, {backgroundColor: "transparent"}]}
+      style={[c.container, {backgroundColor: cardBg}]}
       onPress={handlePress}
+      onLongPress={onDelete ? handleDelete : undefined}
       activeOpacity={0.7}>
-      <View style={styles.row}>
-        <View style={styles.iconBlock}>
-          <View style={[styles.iconWrapper, {backgroundColor: getIconColor() + "18"}]}>
-            <Ionicons name={getIcon()} color={getIconColor()} size={22} />
-          </View>
-          {notification.status === "unread" && (
-            <View style={[styles.unreadDot, {backgroundColor: colors.primary}]} />
-          )}
+
+      {/* Unread bar */}
+      {isUnread && <View style={[c.unreadBar, {backgroundColor: colors.primary}]} />}
+
+      <View style={c.inner}>
+        {/* Icon */}
+        <View style={[c.iconWrap, {backgroundColor: color + "16"}]}>
+          <Ionicons name={icon} size={20} color={color} />
         </View>
-        <View style={styles.body}>
-          <Text
-            style={[
-              styles.title,
-              {
-                color: colors.foreground,
-                fontWeight: notification.status === "unread" ? "700" : "600",
-              },
-            ]}
-            numberOfLines={2}>
-            {notification.title}
-          </Text>
-          <Text
-            style={[styles.message, {color: colors.mutedForeground}]}
-            numberOfLines={2}>
+
+        {/* Body */}
+        <View style={c.body}>
+          <View style={c.titleRow}>
+            <Text
+              style={[c.title, {color: colors.foreground, fontWeight: isUnread ? "700" : "500"}]}
+              numberOfLines={2}>
+              {notification.title}
+            </Text>
+            <Text style={[c.time, {color: colors.mutedForeground}]}>
+              {formatTimestamp(notification.timestamp)}
+            </Text>
+          </View>
+
+          <Text style={[c.message, {color: colors.mutedForeground}]} numberOfLines={3}>
             {notification.message}
           </Text>
-          <Text style={[styles.timestamp, {color: colors.mutedForeground}]}>
-            {formatTimestamp(notification.timestamp)}
-          </Text>
+
+          {/* Metadata chips */}
+          {(notification.metadata?.reservationCode || notification.metadata?.rating != null) && (
+            <View style={c.chips}>
+              {notification.metadata.reservationCode && (
+                <View style={[c.chip, {backgroundColor: colors.muted, borderColor: colors.border}]}>
+                  <Ionicons name="barcode-outline" size={11} color={colors.mutedForeground} />
+                  <Text style={[c.chipText, {color: colors.mutedForeground}]}>
+                    {notification.metadata.reservationCode}
+                  </Text>
+                </View>
+              )}
+              {notification.metadata.rating != null && (
+                <View style={[c.chip, {backgroundColor: "#f59e0b" + "14", borderColor: "#f59e0b" + "30"}]}>
+                  <Ionicons name="star" size={11} color="#f59e0b" />
+                  <Text style={[c.chipText, {color: "#f59e0b"}]}>
+                    {notification.metadata.rating}/5
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Action buttons — invite */}
+          {canInvite && (
+            <View style={c.actions}>
+              {onDeclineInvite && (
+                <TouchableOpacity
+                  style={[c.actionBtn, c.actionBtnOutline, {borderColor: colors.border}]}
+                  onPress={() => onDeclineInvite(notification, linkId)}
+                  activeOpacity={0.75}>
+                  <Text style={[c.actionBtnText, {color: colors.foreground}]}>Rechazar</Text>
+                </TouchableOpacity>
+              )}
+              {onAcceptInvite && (
+                <TouchableOpacity
+                  style={[c.actionBtn, {backgroundColor: colors.primary}]}
+                  onPress={() => onAcceptInvite(notification, linkId)}
+                  activeOpacity={0.75}>
+                  <Text style={[c.actionBtnText, {color: colors.primaryForeground}]}>Aceptar</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* Action buttons — reservation */}
+          {canReserve && (
+            <View style={c.actions}>
+              {onRejectReservation && (
+                <TouchableOpacity
+                  style={[c.actionBtn, c.actionBtnOutline, {borderColor: "#ef4444" + "50"}]}
+                  onPress={() => {
+                    if (Platform.OS === "web") { onRejectReservation(reservationId); return; }
+                    Alert.alert("Rechazar reserva", "¿Rechazar esta solicitud de reserva?", [
+                      {text: "Cancelar", style: "cancel"},
+                      {text: "Rechazar", style: "destructive", onPress: () => onRejectReservation(reservationId)},
+                    ]);
+                  }}
+                  activeOpacity={0.75}>
+                  <Ionicons name="close-circle-outline" size={14} color="#ef4444" />
+                  <Text style={[c.actionBtnText, {color: "#ef4444"}]}>Rechazar</Text>
+                </TouchableOpacity>
+              )}
+              {onConfirmReservation && (
+                <TouchableOpacity
+                  style={[c.actionBtn, {backgroundColor: "#10b981"}]}
+                  onPress={() => {
+                    if (Platform.OS === "web") { onConfirmReservation(reservationId); return; }
+                    Alert.alert("Confirmar reserva", "¿Confirmar esta solicitud?", [
+                      {text: "Cancelar", style: "cancel"},
+                      {text: "Confirmar", onPress: () => onConfirmReservation(reservationId)},
+                    ]);
+                  }}
+                  activeOpacity={0.75}>
+                  <Ionicons name="checkmark-circle-outline" size={14} color="#fff" />
+                  <Text style={[c.actionBtnText, {color: "#fff"}]}>Confirmar</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* Action buttons — tracking */}
+          {canTrack && (
+            <View style={c.actions}>
+              {onRejectTracking && (
+                <TouchableOpacity
+                  style={[c.actionBtn, c.actionBtnOutline, {borderColor: colors.border}]}
+                  onPress={() => onRejectTracking(trackingId)}
+                  activeOpacity={0.75}>
+                  <Text style={[c.actionBtnText, {color: colors.foreground}]}>Rechazar</Text>
+                </TouchableOpacity>
+              )}
+              {onAcceptTracking && (
+                <TouchableOpacity
+                  style={[c.actionBtn, {backgroundColor: "#10b981"}]}
+                  onPress={() => onAcceptTracking(trackingId)}
+                  activeOpacity={0.75}>
+                  <Ionicons name="navigate-outline" size={14} color="#fff" />
+                  <Text style={[c.actionBtnText, {color: "#fff"}]}>Compartir ubicación</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
       </View>
-
-      {/* Metadata & actions (if available) */}
-      {notification.metadata && (
-        <View style={[styles.metadata, {marginLeft: 58}]}>
-          {notification.metadata.reservationCode && (
-            <View style={[styles.metadataChip, {backgroundColor: colors.background}]}>
-              <Text style={[styles.metadataText, {color: colors.mutedForeground}]}>
-                {notification.metadata.reservationCode}
-              </Text>
-            </View>
-          )}
-          {notification.metadata.rating && (
-            <View style={styles.ratingContainer}>
-              <Ionicons name="star" color="#f59e0b" size={14} />
-              <Text style={[styles.ratingText, {color: colors.mutedForeground}]}>
-                {notification.metadata.rating}/5
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      {canRespondInvite && (
-        <View style={[styles.inviteActions, {marginLeft: 58}]}>
-          {typeof onDeclineInvite === "function" && (
-            <TouchableOpacity
-              style={[
-                styles.inviteButton,
-                {
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                },
-              ]}
-              onPress={() => onDeclineInvite(notification, linkId)}>
-              <Text style={[styles.inviteButtonText, {color: colors.mutedForeground}]}>
-                Rechazar
-              </Text>
-            </TouchableOpacity>
-          )}
-          {typeof onAcceptInvite === "function" && (
-            <TouchableOpacity
-              style={[
-                styles.inviteButton,
-                {
-                  backgroundColor: colors.primary,
-                },
-              ]}
-              onPress={() => onAcceptInvite(notification, linkId)}>
-              <Text style={[styles.inviteButtonText, {color: colors.primaryForeground}]}>
-                Aceptar
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-
-      {/* Reservation action buttons */}
-      {canRespondReservation && (
-        <View style={[styles.inviteActions, {marginLeft: 58}]}>
-          {typeof onRejectReservation === "function" && (
-            <TouchableOpacity
-              style={[
-                styles.inviteButton,
-                {
-                  borderWidth: 1,
-                  borderColor: colors.destructive,
-                },
-              ]}
-              onPress={() => {
-                // On web, Alert buttons can be blocked; call directly there
-                if (Platform.OS === "web") {
-                  onRejectReservation(reservationId);
-                  return;
-                }
-                Alert.alert(
-                  "Rechazar Reserva",
-                  "¿Estás seguro de que deseas rechazar esta solicitud de reserva?",
-                  [
-                    {text: "Cancelar", style: "cancel"},
-                    {
-                      text: "Rechazar",
-                      style: "destructive",
-                      onPress: () => onRejectReservation(reservationId),
-                    },
-                  ]
-                );
-              }}>
-              <Ionicons name="close-circle" size={16} color={colors.destructive} />
-              <Text style={[styles.inviteButtonText, {color: colors.destructive, marginLeft: 4}]}>
-                Rechazar
-              </Text>
-            </TouchableOpacity>
-          )}
-          {typeof onConfirmReservation === "function" && (
-            <TouchableOpacity
-              style={[
-                styles.inviteButton,
-                {
-                  backgroundColor: colors.success,
-                },
-              ]}
-              onPress={() => {
-                // On web, Alert buttons can be blocked; call directly there
-                if (Platform.OS === "web") {
-                  onConfirmReservation(reservationId);
-                  return;
-                }
-                Alert.alert(
-                  "Confirmar Reserva",
-                  "¿Confirmar esta solicitud de reserva?",
-                  [
-                    {text: "Cancelar", style: "cancel"},
-                    {
-                      text: "Confirmar",
-                      onPress: () => onConfirmReservation(reservationId),
-                    },
-                  ]
-                );
-              }}>
-              <Ionicons name="checkmark-circle" size={16} color={colors.primaryForeground} />
-              <Text style={[styles.inviteButtonText, {color: colors.primaryForeground, marginLeft: 4}]}>
-                Confirmar
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-
-      {canRespondTracking && (
-        <View style={[styles.inviteActions, {marginLeft: 58}]}>
-          {typeof onRejectTracking === "function" && (
-            <TouchableOpacity
-              style={[
-                styles.inviteButton,
-                {
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                },
-              ]}
-              onPress={() => onRejectTracking(trackingRequestId)}>
-              <Text style={[styles.inviteButtonText, {color: colors.mutedForeground}]}>
-                Rechazar
-              </Text>
-            </TouchableOpacity>
-          )}
-          {typeof onAcceptTracking === "function" && (
-            <TouchableOpacity
-              style={[
-                styles.inviteButton,
-                {
-                  backgroundColor: colors.primary,
-                },
-              ]}
-              onPress={() => onAcceptTracking(trackingRequestId)}>
-              <Text style={[styles.inviteButtonText, {color: colors.primaryForeground}]}>
-                Compartir ubicación
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
     </TouchableOpacity>
   );
 };
 
-const styles = StyleSheet.create({
+const c = StyleSheet.create({
   container: {
-    marginBottom: 20,
-    paddingVertical: 4,
+    position: "relative",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
-  row: {
+  unreadBar: {
+    position: "absolute",
+    left: 0, top: 14, bottom: 14,
+    width: 3, borderRadius: 2,
+  },
+  inner: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 14,
-  },
-  iconBlock: {
-    position: "relative",
-  },
-  iconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  unreadDot: {
-    position: "absolute",
-    top: -2,
-    right: -2,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  body: {
-    flex: 1,
-    minWidth: 0,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 22,
-    marginBottom: 4,
-  },
-  message: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  timestamp: {
-    fontSize: 12,
-  },
-  metadata: {
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "center",
-  },
-  metadataChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  metadataText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  inviteActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
     gap: 12,
-    marginTop: 8,
+    paddingLeft: 6,
   },
-  inviteButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    minWidth: 100,
-    alignItems: "center",
+  iconWrap: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
+    flexShrink: 0,
   },
-  inviteButtonText: {
-    fontWeight: "700",
+  body: {flex: 1, gap: 4},
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 8,
   },
+  title: {flex: 1, fontSize: 14, lineHeight: 20},
+  time:  {fontSize: 11, fontWeight: "500", flexShrink: 0, marginTop: 1},
+  message: {fontSize: 13, lineHeight: 18},
+
+  // Metadata chips
+  chips: {flexDirection: "row", gap: 6, flexWrap: "wrap", marginTop: 2},
+  chip:  {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1,
+  },
+  chipText: {fontSize: 11, fontWeight: "600"},
+
+  // Action buttons
+  actions:        {flexDirection: "row", gap: 8, marginTop: 8},
+  actionBtn:      {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, flex: 1,
+    justifyContent: "center",
+  },
+  actionBtnOutline: {borderWidth: 1},
+  actionBtnText:  {fontSize: 13, fontWeight: "700"},
 });

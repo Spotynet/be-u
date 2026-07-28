@@ -5,20 +5,23 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
+  ScrollView,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { useThemeVariant } from "@/contexts/ThemeVariantContext";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useState } from "react";
-import { authApi, errorUtils } from "@/lib/api";
-import { useAuth } from "@/features/auth/hooks/useAuth";
+import {useRouter} from "expo-router";
+import {Ionicons} from "@expo/vector-icons";
+import {useThemeVariant} from "@/contexts/ThemeVariantContext";
+import {useState} from "react";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
+import {authApi, errorUtils} from "@/lib/api";
+import {useAuth} from "@/features/auth/hooks/useAuth";
+import {AppHeader} from "@/components/ui/AppHeader";
 
 export default function DeleteAccountScreen() {
-  const { colors } = useThemeVariant();
+  const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { logout } = useAuth();
+  const {logout} = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteAccount = () => {
@@ -26,12 +29,8 @@ export default function DeleteAccountScreen() {
       "Eliminar cuenta",
       "¿Estás seguro de que deseas eliminar tu cuenta y todos los datos asociados? Esta acción no se puede deshacer.",
       [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: confirmDelete,
-        },
+        {text: "Cancelar", style: "cancel"},
+        {text: "Eliminar", style: "destructive", onPress: confirmDelete},
       ]
     );
   };
@@ -51,56 +50,87 @@ export default function DeleteAccountScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[s.root, {backgroundColor: colors.contentBackground}]}>
+      <AppHeader
+        title="Eliminar cuenta"
+        showBackButton
+        onBackPress={() => !isDeleting && router.back()}
+      />
+
+      <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+        {/* Icon + description card */}
+        <View style={s.section}>
+          <View style={[s.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+            <View style={s.iconRow}>
+              <View style={[s.iconWrap, {backgroundColor: "#ef4444" + "18"}]}>
+                <Ionicons name="trash-outline" size={32} color="#ef4444" />
+              </View>
+            </View>
+
+            <Text style={[s.title, {color: colors.foreground}]}>
+              ¿Eliminar tu cuenta?
+            </Text>
+            <Text style={[s.body, {color: colors.mutedForeground}]}>
+              Se eliminarán permanentemente tu perfil, reservas, publicaciones y todos los datos asociados. Esta acción{" "}
+              <Text style={s.bold}>no se puede deshacer.</Text>
+            </Text>
+          </View>
+        </View>
+
+        {/* What gets deleted */}
+        <View style={s.section}>
+          <View style={s.sectionHeader}>
+            <View style={[s.sectionIcon, {backgroundColor: "#ef4444" + "18"}]}>
+              <Ionicons name="alert-circle" size={16} color="#ef4444" />
+            </View>
+            <Text style={[s.sectionTitle, {color: colors.foreground}]}>Se eliminará</Text>
+          </View>
+
+          <View style={[s.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+            {[
+              {icon: "person-outline", text: "Tu perfil e información personal"},
+              {icon: "calendar-outline", text: "Historial de reservas"},
+              {icon: "images-outline", text: "Publicaciones y contenido"},
+              {icon: "star-outline", text: "Reseñas y valoraciones"},
+              {icon: "heart-outline", text: "Favoritos guardados"},
+            ].map((item, idx, arr) => (
+              <View key={item.text}>
+                <View style={s.listRow}>
+                  <Ionicons name={item.icon as any} size={18} color={colors.mutedForeground} />
+                  <Text style={[s.listText, {color: colors.foreground}]}>{item.text}</Text>
+                </View>
+                {idx < arr.length - 1 && (
+                  <View style={[s.divider, {backgroundColor: colors.border}]} />
+                )}
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={s.bottomPad} />
+      </ScrollView>
+
       <View
         style={[
-          styles.header,
+          s.fixedFooter,
           {
-            backgroundColor: colors.background,
-            borderBottomColor: colors.border,
-            paddingTop: Math.max(insets.top + 8, 12),
+            backgroundColor: colors.contentBackground,
+            borderTopColor: colors.border,
+            paddingBottom: Math.max(insets.bottom, 16),
           },
         ]}>
         <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          disabled={isDeleting}>
-          <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-          Eliminar cuenta
-        </Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <View style={styles.body}>
-        <View style={[styles.iconContainer, { backgroundColor: "#ef4444" + "20" }]}>
-          <Ionicons name="trash-outline" color="#ef4444" size={48} />
-        </View>
-        <Text style={[styles.warningTitle, { color: colors.foreground }]}>
-          Eliminar tu cuenta
-        </Text>
-        <Text
-          style={[styles.warningText, { color: colors.mutedForeground }]}>
-          Se eliminará tu cuenta y todos los datos asociados (perfil, reservas, publicaciones, etc.). Esta acción no se puede deshacer.
-        </Text>
-
-        <TouchableOpacity
-          style={[
-            styles.deleteButton,
-            { backgroundColor: isDeleting ? colors.muted : "#ef4444" },
-          ]}
+          style={[s.deleteBtn, {backgroundColor: isDeleting ? colors.muted : "#ef4444"}]}
           onPress={handleDeleteAccount}
           disabled={isDeleting}
-          activeOpacity={0.9}>
+          activeOpacity={0.85}>
           {isDeleting ? (
             <ActivityIndicator size="small" color="#ffffff" />
           ) : (
-            <Ionicons name="trash" color="#ffffff" size={20} />
+            <Ionicons name="trash" size={18} color="#ffffff" />
           )}
-          <Text style={styles.deleteButtonText}>
-            {isDeleting ? "Eliminando..." : "Confirmar eliminar cuenta"}
+          <Text style={s.deleteBtnText}>
+            {isDeleting ? "Eliminando..." : "Eliminar mi cuenta"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -108,71 +138,54 @@ export default function DeleteAccountScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+const s = StyleSheet.create({
+  root: {flex: 1},
+  scroll: {flex: 1},
+  content: {paddingHorizontal: 16, paddingTop: 12},
+
+  section: {marginBottom: 24},
+  sectionHeader: {flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8, paddingHorizontal: 2},
+  sectionIcon: {width: 28, height: 28, borderRadius: 8, justifyContent: "center", alignItems: "center"},
+  sectionTitle: {fontSize: 14, fontWeight: "700", letterSpacing: 0.1},
+
+  card: {
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {shadowColor: "#000", shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.05, shadowRadius: 6},
+      android: {elevation: 2},
+    }),
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  divider: {height: StyleSheet.hairlineWidth, marginHorizontal: 16},
+
+  iconRow: {alignItems: "center", paddingTop: 28, paddingBottom: 16},
+  iconWrap: {width: 72, height: 72, borderRadius: 36, justifyContent: "center", alignItems: "center"},
+  title: {fontSize: 18, fontWeight: "700", textAlign: "center", paddingHorizontal: 20, marginBottom: 10},
+  body: {fontSize: 14, lineHeight: 21, textAlign: "center", paddingHorizontal: 20, paddingBottom: 24},
+  bold: {fontWeight: "700"},
+
+  listRow: {flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 13},
+  listText: {fontSize: 14, flex: 1},
+
+  fixedFooter: {
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    ...Platform.select({
+      ios: {shadowColor: "#000", shadowOffset: {width: 0, height: -2}, shadowOpacity: 0.08, shadowRadius: 8},
+      android: {elevation: 5},
+    }),
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "flex-start",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  body: {
-    flex: 1,
-    padding: 24,
-    alignItems: "center",
-  },
-  iconContainer: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 24,
-    marginBottom: 20,
-  },
-  warningTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  warningText: {
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: "center",
-    marginBottom: 32,
-    paddingHorizontal: 8,
-  },
-  deleteButton: {
+  deleteBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
     gap: 10,
-    width: "100%",
+    paddingVertical: 15,
+    borderRadius: 14,
   },
-  deleteButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
+  deleteBtnText: {color: "#ffffff", fontSize: 16, fontWeight: "700"},
+
+  bottomPad: {height: 16},
 });

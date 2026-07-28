@@ -7,7 +7,6 @@ import {
   Pressable,
   Image,
   Dimensions,
-  Animated,
   ActivityIndicator,
   RefreshControl,
   TextInput,
@@ -17,16 +16,13 @@ import {
   Platform,
   FlatList,
 } from "react-native";
-import {Colors} from "@/constants/theme";
-import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useCategory} from "@/contexts/CategoryContext";
 import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
-import {useState, useRef, useEffect, useCallback} from "react";
-import {useRouter, Link} from "expo-router";
-import {useFocusEffect} from "@react-navigation/native";
+import {useState, useRef, useEffect} from "react";
+import {useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
-import {postApi, tokenUtils, notificationApi} from "@/lib/api";
+import {postApi, tokenUtils} from "@/lib/api";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 import {getAvatarColorFromSubcategory} from "@/constants/categories";
 import {postFormats} from "@/constants/postFormats";
@@ -118,7 +114,6 @@ const CarouselView = ({images, colors, screenWidth}: {images: string[]; colors: 
 };
 
 export default function Home() {
-  const colorScheme = useColorScheme();
   const theme = useAppTheme();
   const {colors} = useThemeVariant();
   const styles = makeStyles(colors, theme);
@@ -143,7 +138,6 @@ export default function Home() {
   const [commenting, setCommenting] = useState<Set<number>>(new Set());
   const [commentsByPost, setCommentsByPost] = useState<Record<number, any[]>>({});
   const [loadingComments, setLoadingComments] = useState<Set<number>>(new Set());
-  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [editPostId, setEditPostId] = useState<number | null>(null);
   const [editPostContent, setEditPostContent] = useState("");
   const [savingPost, setSavingPost] = useState(false);
@@ -159,32 +153,6 @@ export default function Home() {
     return format.roles.includes(user.role);
   });
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!user) {
-        setUnreadNotificationsCount(0);
-        return;
-      }
-      notificationApi
-        .getStats()
-        .then((res) => setUnreadNotificationsCount(res.data?.unread_count ?? 0))
-        .catch(() => setUnreadNotificationsCount(0));
-    }, [user])
-  );
-
-  // Helper function to get category color
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "belleza":
-        return "#8B5CF6";
-      case "bienestar":
-        return "#C4B5FD";
-      case "mascotas":
-        return "#B026FF";
-      default:
-        return colors.primary;
-    }
-  };
 
   const getCommentCount = (post: any) =>
     Number.isFinite(post?.comments_count)
@@ -194,19 +162,6 @@ export default function Home() {
         : Number.isFinite(post?.stats?.comments)
           ? post.stats.comments
           : 0;
-
-  // Toggle like function
-  const toggleLike = (postId: number) => {
-    setLikedPosts((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(postId)) {
-        newSet.delete(postId);
-      } else {
-        newSet.add(postId);
-      }
-      return newSet;
-    });
-  };
 
   const likeDbPost = async (postId: number) => {
     const token = await tokenUtils.getToken();
@@ -247,8 +202,7 @@ export default function Home() {
           return post;
         })
       );
-    } catch (e: any) {
-      console.error("like error", e?.message || e);
+    } catch {
       Alert.alert("Error", "No se pudo actualizar tu me gusta");
     } finally {
       const s = new Set(liking);
@@ -268,8 +222,7 @@ export default function Home() {
       );
       setEditPostId(null);
       setEditPostContent("");
-    } catch (e: any) {
-      console.error("edit post error", e?.message || e);
+    } catch {
       Alert.alert("Error", "No se pudo editar el post");
     } finally {
       setSavingPost(false);
@@ -292,8 +245,7 @@ export default function Home() {
       setCommentDrafts((d) => ({...d, [postId]: ""}));
       await loadComments(postId); // refresh comments for this post
       fetchPosts();
-    } catch (e: any) {
-      console.error("comment error", e?.message || e);
+    } catch {
       Alert.alert("Error", "No se pudo publicar tu comentario");
     } finally {
       const s = new Set(commenting);
@@ -388,19 +340,7 @@ export default function Home() {
     if (!categoryMatches) {
       return false;
     }
-    
-    // Debug log for first few posts
-    if (posts.indexOf(post) < 3) {
-      console.log(
-        `📱 Post ${post.id} category:`,
-        authorCategory,
-        "Selected:",
-        effectiveFeedCategory,
-        "Matches:",
-        categoryMatches
-      );
-    }
-    
+
     // If "todos" subcategory is selected, show all posts in the main category
     if (selectedSubCategory === 'todos') {
       return true;
@@ -455,16 +395,8 @@ export default function Home() {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      console.log("📱 Fetching posts from API...");
       const res = await postApi.getPosts({category: effectiveFeedCategory});
       const postsData = res.data.results || [];
-      console.log(`📱 Fetched ${postsData.length} posts from API`);
-      
-      // Log first post's category for debugging
-      if (postsData.length > 0) {
-        console.log("📱 First post category:", postsData[0].author_category, "Type:", typeof postsData[0].author_category);
-      }
-      
       setPosts(postsData);
       
       // Initialize likedPosts from user_has_liked field
@@ -475,8 +407,8 @@ export default function Home() {
         }
       });
       setLikedPosts(likedPostIds);
-    } catch (err) {
-      console.error("❌ Error fetching posts:", err);
+    } catch {
+      // silent fail — feed shows empty state
     } finally {
       setLoading(false);
     }
@@ -506,160 +438,22 @@ export default function Home() {
     }
   };
 
-  // Feed posts - Mix dinámico de formatos
-  const feedPosts = [
-    {
-      id: 1,
-      type: "reel",
-      user: {
-        name: "Ana López",
-        avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop",
-        verified: true,
-      },
-      thumbnail:
-        "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&h=700&fit=crop",
-      title: "Tutorial: Corte Bob Moderno ✂️",
-      duration: "0:45",
-      stats: {likes: 1234, comments: 234, shares: 89, views: "45.2K"},
-      timeAgo: "3h",
-      category: "belleza",
-      isPinned: false,
-    },
-    {
-      id: 2,
-      type: "snapshot",
-      user: {
-        name: "nabbi Spa",
-        avatar: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&h=100&fit=crop",
-        verified: true,
-      },
-      image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=500&fit=crop",
-      caption: "Momento de relajación 🌸✨ #SelfCare",
-      stats: {likes: 892, comments: 56},
-      timeAgo: "5h",
-      category: "belleza",
-    },
-    {
-      id: 3,
-      type: "transformation",
-      user: {
-        name: "nabbi Hair Studio",
-        avatar: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=100&h=100&fit=crop",
-        verified: true,
-      },
-      title: "Transformación Completa ✨",
-      description: "De cabello dañado a un look increíble 💖",
-      beforeImage:
-        "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=400&h=400&fit=crop",
-      afterImage:
-        "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&h=400&fit=crop",
-      stats: {likes: 234, comments: 45, shares: 12},
-      timeAgo: "2h",
-      category: "belleza",
-    },
-    {
-      id: 4,
-      type: "tip",
-      user: {
-        name: "nabbi Community",
-        avatar: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&h=100&fit=crop",
-        verified: true,
-      },
-      title: "Tip del Día 💡",
-      tip: "Aplica protector solar todos los días, incluso en interiores. La luz azul de pantallas también afecta tu piel.",
-      icon: "sunny",
-      color: "#FFB347",
-      stats: {likes: 456, saves: 234},
-      timeAgo: "1h",
-      category: "belleza",
-    },
-    {
-      id: 5,
-      type: "reel",
-      user: {
-        name: "Flow Yoga",
-        avatar: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=100&h=100&fit=crop",
-        verified: true,
-      },
-      thumbnail: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=700&fit=crop",
-      title: "Rutina de 5 min para despertar 🧘‍♀️",
-      duration: "5:12",
-      stats: {likes: 2341, comments: 167, shares: 234, views: "78.5K"},
-      timeAgo: "12h",
-      category: "bienestar",
-      isPinned: false,
-    },
-    {
-      id: 6,
-      type: "review",
-      user: {
-        name: "Sofía Martínez",
-        avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop",
-        verified: false,
-      },
-      rating: 5,
-      title: "¡La mejor experiencia! 💝",
-      text: "El facial LED cambió completamente mi piel. El equipo es súper profesional y el ambiente es relajante. 100% recomendado 🌟",
-      salon: "nabbi Spa Premium",
-      images: ["https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=400&fit=crop"],
-      stats: {likes: 124, comments: 28},
-      timeAgo: "1d",
-      category: "belleza",
-    },
-    {
-      id: 7,
-      type: "grid",
-      user: {
-        name: "Pet Spa",
-        avatar: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=100&h=100&fit=crop",
-        verified: true,
-      },
-      title: "Looks de la semana 🐾",
-      images: [
-        "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=300&h=300&fit=crop",
-        "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=300&h=300&fit=crop",
-        "https://images.unsplash.com/photo-1630438994394-3deff7a591bf?w=300&h=300&fit=crop",
-        "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=300&h=300&fit=crop",
-      ],
-      stats: {likes: 678, comments: 89},
-      timeAgo: "8h",
-      category: "mascotas",
-    },
-    {
-      id: 8,
-      type: "poll",
-      user: {
-        name: "nabbi Community",
-        avatar: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&h=100&fit=crop",
-        verified: true,
-      },
-      question: "¿Cuál es tu tratamiento favorito?",
-      options: [
-        {id: 1, text: "Facial 💆‍♀️", votes: 45, percentage: 35},
-        {id: 2, text: "Masaje 💆", votes: 52, percentage: 40},
-        {id: 3, text: "Manicure 💅", votes: 32, percentage: 25},
-      ],
-      totalVotes: 129,
-      stats: {votes: 129, comments: 15},
-      timeAgo: "3h",
-    },
-    {
-      id: 9,
-      type: "video",
-      user: {
-        name: "Zen Studio",
-        avatar: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=100&h=100&fit=crop",
-        verified: true,
-      },
-      title: "Meditación guiada para reducir estrés 🌙",
-      thumbnail:
-        "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=600&h=400&fit=crop",
-      duration: "15:24",
-      stats: {likes: 1456, comments: 234, views: "34.8K"},
-      timeAgo: "2d",
-      category: "bienestar",
-    },
-  ];
+  const POST_TYPE_LABELS: Record<string, string> = {
+    snapshot: "Foto",
+    carousel: "Carrusel",
+    mosaic: "Mosaico",
+    before_after: "Antes/Después",
+    video: "Video",
+  };
+
+  const deletePost = async (postId: number) => {
+    try {
+      await postApi.deletePost(postId);
+      setPosts(prev => prev.filter((p: any) => p.id !== postId));
+    } catch {
+      Alert.alert("Error", "No se pudo eliminar la publicación");
+    }
+  };
 
   const renderDbPost = (post: any) => {
     const firstMedia = (post.media || [])[0];
@@ -690,15 +484,6 @@ export default function Home() {
           .filter(Boolean)
       : [];
     
-    // Get border color from author's first subcategory
-    // Debug: Log the data to see what we're getting
-    if (__DEV__) {
-      console.log('Post border color debug:', {
-        postId: post.id,
-        author_category: post.author_category,
-        author_sub_categories: post.author_sub_categories,
-      });
-    }
     const borderColor = getAvatarColorFromSubcategory(
       post.author_category,
       post.author_sub_categories
@@ -723,8 +508,7 @@ export default function Home() {
 
       try {
         router.push(destination as any);
-      } catch (error) {
-        console.warn("Error navigating to provider profile", error);
+      } catch {
         Alert.alert(
           "Reservas",
           "No pudimos abrir el perfil del proveedor. Intenta de nuevo más tarde."
@@ -743,17 +527,9 @@ export default function Home() {
           <TouchableOpacity 
             style={styles.postUserInfoContainer}
             onPress={() => {
-              console.log('Post author data:', {
-                author_public_profile_id: post.author_public_profile_id,
-                author_profile_id: post.author_profile_id,
-                author: post.author,
-              });
               const profileId = post.author_public_profile_id || post.author_profile_id;
               if (profileId) {
-                console.log('Navigating to profile:', profileId);
                 router.push(`/profile/${profileId}` as any);
-              } else {
-                console.warn('No profile ID found for navigation');
               }
             }}
             activeOpacity={0.7}>
@@ -775,10 +551,19 @@ export default function Home() {
               </View>
             </View>
             <View style={styles.postUserInfo}>
-              <Text style={[styles.postUserNameText, {color: colors.foreground}]} numberOfLines={1}>
-                {authorName}
-              </Text>
-              <Text style={[styles.postTime, {color: colors.mutedForeground}]}>#{post.post_type}</Text>
+              <View style={{flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap"}}>
+                <Text style={[styles.postUserNameText, {color: colors.foreground}]} numberOfLines={1}>
+                  {authorName}
+                </Text>
+                {POST_TYPE_LABELS[post.post_type] && (
+                  <View style={{backgroundColor: colors.primary + "14", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6}}>
+                    <Text style={{color: colors.primary, fontSize: 10, fontWeight: "700", letterSpacing: 0.4}}>
+                      {POST_TYPE_LABELS[post.post_type]}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={[styles.postTime, {color: colors.mutedForeground}]}>{formatCommentTime(post.created_at)}</Text>
             </View>
           </TouchableOpacity>
           <View style={styles.postHeaderRight}>
@@ -843,26 +628,27 @@ export default function Home() {
         {/* Mosaic Grid */}
         {!isCarousel && !isBeforeAfter && isMosaic && mediaUrls.length > 0 && (
           <View style={[styles.gridContainer, {backgroundColor: colors.muted}]}>
-            {mediaUrls.slice(0, 4).map((url: string, index: number) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.gridItem,
-                  {
-                    width: GRID_ITEM_SIZE,
-                    height: GRID_ITEM_SIZE,
-                    marginRight: index % 2 === 0 ? 8 : 0,
-                    marginBottom: 8,
-                  },
-                ]}
-                activeOpacity={0.9}>
-                <Image source={{uri: url}} style={styles.gridImage} />
-                {index === 3 && mediaUrls.length > 4 && (
-                  <View style={styles.gridOverlay}>
-                    <Text style={styles.gridOverlayText}>+{mediaUrls.length - 4}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+            {[0, 1].map(row => (
+              <View key={row} style={styles.gridRow}>
+                {[0, 1].map(col => {
+                  const index = row * 2 + col;
+                  const url = mediaUrls[index];
+                  if (!url) return <View key={col} style={{width: GRID_ITEM_SIZE, height: GRID_ITEM_SIZE}} />;
+                  return (
+                    <TouchableOpacity
+                      key={col}
+                      style={[styles.gridItem, {width: GRID_ITEM_SIZE, height: GRID_ITEM_SIZE}]}
+                      activeOpacity={0.9}>
+                      <Image source={{uri: url}} style={styles.gridImage} />
+                      {index === 3 && mediaUrls.length > 4 && (
+                        <View style={styles.gridOverlay}>
+                          <Text style={styles.gridOverlayText}>+{mediaUrls.length - 4}</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             ))}
           </View>
         )}
@@ -875,7 +661,7 @@ export default function Home() {
         {post.content ? (
           <Text style={[styles.postDescription, {color: colors.foreground}]}>{post.content}</Text>
         ) : null}
-        <View style={styles.postActions}>
+        <View style={[styles.postActions, {borderTopColor: colors.border}]}>
           <TouchableOpacity
             style={styles.postAction}
             onPress={() => likeDbPost(post.id)}
@@ -943,8 +729,6 @@ export default function Home() {
                   } as any);
                 } else if (profileId) {
                   router.push(`/profile/${profileId}` as any);
-                } else {
-                  console.warn("No profile ID found for navigation");
                 }
               }}>
               <Text style={styles.reserveButtonText}>Reservar</Text>
@@ -953,617 +737,6 @@ export default function Home() {
         </View>
       </View>
     );
-  };
-
-  const renderTransformation = (post: any) => (
-    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
-      {/* User Header */}
-      <View style={styles.postHeader}>
-        <Image source={{uri: post.user.avatar}} style={styles.postAvatar} />
-        <View style={styles.postUserInfo}>
-          <View style={styles.postUserName}>
-            <Text style={[styles.postUserNameText, {color: colors.foreground}]}>
-              {post.user.name}
-            </Text>
-            {post.user.verified && (
-              <Ionicons name="checkmark-circle" color={getCategoryColor(post.category)} size={16} />
-            )}
-          </View>
-          <Text style={[styles.postTime, {color: colors.mutedForeground}]}>{post.timeAgo}</Text>
-        </View>
-        <TouchableOpacity style={styles.postMoreButton}>
-          <Ionicons name="ellipsis-horizontal" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Title */}
-      <Text style={[styles.postTitle, {color: colors.foreground}]}>{post.title}</Text>
-      <Text style={[styles.postDescription, {color: colors.mutedForeground}]}>
-        {post.description}
-      </Text>
-
-      {/* Before/After Images - estilo split con divisor central y diamante */}
-      <View style={styles.transformationContainer}>
-        <View style={styles.transformationHalf}>
-          <Image source={{uri: post.beforeImage}} style={styles.transformationImg} resizeMode="cover" />
-          <View style={[styles.transformationLabel, styles.transformationLabelLeft]}>
-            <Text style={styles.transformationLabelText}>ANTES</Text>
-          </View>
-        </View>
-        <View style={styles.transformationHalf}>
-          <Image source={{uri: post.afterImage}} style={styles.transformationImg} resizeMode="cover" />
-          <View style={[styles.transformationLabel, styles.transformationLabelRight]}>
-            <Text style={styles.transformationLabelText}>DESPUÉS</Text>
-          </View>
-        </View>
-        <View style={styles.transformationDividerLine} />
-        <View style={styles.transformationDividerDiamond} />
-      </View>
-
-      {/* Interactions */}
-      <View style={styles.postActions}>
-        <TouchableOpacity
-          style={styles.postAction}
-          onPress={() => toggleLike(post.id)}
-          activeOpacity={0.7}>
-          <Ionicons
-            name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-            color={likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
-            size={24}
-          />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.likes + (likedPosts.has(post.id) ? 1 : 0)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
-          <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={24} />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {getCommentCount(post)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postActionBookmark} activeOpacity={0.7}>
-          <Ionicons name="bookmark-outline" color={colors.mutedForeground} size={24} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderVideo = (post: any) => (
-    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
-      {/* User Header */}
-      <View style={styles.postHeader}>
-        <Image source={{uri: post.user.avatar}} style={styles.postAvatar} />
-        <View style={styles.postUserInfo}>
-          <View style={styles.postUserName}>
-            <Text style={[styles.postUserNameText, {color: colors.foreground}]}>
-              {post.user.name}
-            </Text>
-            {post.user.verified && (
-              <Ionicons name="checkmark-circle" color={getCategoryColor(post.category)} size={16} />
-            )}
-          </View>
-          <Text style={[styles.postTime, {color: colors.mutedForeground}]}>{post.timeAgo}</Text>
-        </View>
-        <TouchableOpacity style={styles.postMoreButton}>
-          <Ionicons name="ellipsis-horizontal" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Video Thumbnail */}
-      <View style={styles.videoContainer}>
-        <Image source={{uri: post.thumbnail}} style={styles.videoThumbnail} />
-        <View style={styles.videoOverlay}>
-          <View style={[styles.playButton, {backgroundColor: colors.primary}]}>
-            <Ionicons name="play" color={theme.white} size={32} />
-          </View>
-          <View style={styles.videoDuration}>
-            <Text style={styles.videoDurationText}>{post.duration}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Title */}
-      <View style={styles.videoInfo}>
-        <Text style={[styles.videoTitle, {color: colors.foreground}]}>{post.title}</Text>
-        <Text style={[styles.videoViews, {color: colors.mutedForeground}]}>
-          {post.stats.views} vistas
-        </Text>
-      </View>
-
-      {/* Interactions */}
-      <View style={styles.postActions}>
-        <TouchableOpacity
-          style={styles.postAction}
-          onPress={() => toggleLike(post.id)}
-          activeOpacity={0.7}>
-          <Ionicons
-            name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-            color={likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
-            size={24}
-          />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.likes + (likedPosts.has(post.id) ? 1 : 0)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
-          <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={24} />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {getCommentCount(post)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postActionBookmark} activeOpacity={0.7}>
-          <Ionicons name="bookmark-outline" color={colors.mutedForeground} size={24} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderReview = (post: any) => (
-    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
-      {/* User Header */}
-      <View style={styles.postHeader}>
-        <Image source={{uri: post.user.avatar}} style={styles.postAvatar} />
-        <View style={styles.postUserInfo}>
-          <View style={styles.postUserName}>
-            <Text style={[styles.postUserNameText, {color: colors.foreground}]}>
-              {post.user.name}
-            </Text>
-          </View>
-          <View style={styles.reviewRating}>
-            {[...Array(5)].map((_, i) => (
-              <Ionicons
-                key={i}
-                name="star"
-                color={i < post.rating ? "#FFD700" : colors.mutedForeground}
-                size={14}
-              />
-            ))}
-            <Text style={[styles.postTime, {color: colors.mutedForeground}]}>· {post.timeAgo}</Text>
-          </View>
-        </View>
-        <TouchableOpacity style={styles.postMoreButton}>
-          <Ionicons name="ellipsis-horizontal" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Review Content */}
-      <Text style={[styles.reviewTitle, {color: colors.foreground}]}>{post.title}</Text>
-      <Text style={[styles.reviewText, {color: colors.foreground}]}>{post.text}</Text>
-
-      {/* Salon Tag */}
-      <View style={[styles.reviewSalon, {backgroundColor: colors.muted}]}>
-        <Ionicons name="location" color={colors.primary} size={14} />
-        <Text style={[styles.reviewSalonText, {color: colors.foreground}]}>{post.salon}</Text>
-      </View>
-
-      {/* Images */}
-      {post.images && post.images.length > 0 && (
-        <Image source={{uri: post.images[0]}} style={styles.reviewImage} />
-      )}
-
-      {/* Interactions */}
-      <View style={styles.postActions}>
-        <TouchableOpacity
-          style={styles.postAction}
-          onPress={() => toggleLike(post.id)}
-          activeOpacity={0.7}>
-          <Ionicons
-            name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-            color={likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
-            size={24}
-          />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.likes + (likedPosts.has(post.id) ? 1 : 0)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
-          <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={24} />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {getCommentCount(post)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postActionBookmark} activeOpacity={0.7}>
-          <Ionicons name="bookmark-outline" color={colors.mutedForeground} size={24} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderPoll = (post: any) => (
-    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
-      {/* User Header */}
-      <View style={styles.postHeader}>
-        <Image source={{uri: post.user.avatar}} style={styles.postAvatar} />
-        <View style={styles.postUserInfo}>
-          <View style={styles.postUserName}>
-            <Text style={[styles.postUserNameText, {color: colors.foreground}]}>
-              {post.user.name}
-            </Text>
-            {post.user.verified && (
-              <Ionicons name="checkmark-circle" color={colors.primary} size={16} />
-            )}
-          </View>
-          <Text style={[styles.postTime, {color: colors.mutedForeground}]}>{post.timeAgo}</Text>
-        </View>
-        <TouchableOpacity style={styles.postMoreButton}>
-          <Ionicons name="ellipsis-horizontal" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Poll */}
-      <Text style={[styles.pollQuestion, {color: colors.foreground}]}>{post.question}</Text>
-      <View style={styles.pollOptions}>
-        {post.options.map((option: any) => (
-          <TouchableOpacity
-            key={option.id}
-            style={[styles.pollOption, {borderColor: colors.border}]}
-            activeOpacity={0.7}>
-            <View
-              style={[styles.pollBar, {width: `${option.percentage}%`, backgroundColor: "#FFB6C1"}]}
-            />
-            <View style={styles.pollOptionContent}>
-              <Text style={[styles.pollOptionText, {color: colors.foreground}]}>{option.text}</Text>
-              <Text style={[styles.pollPercentage, {color: colors.foreground}]}>
-                {option.percentage}%
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
-      <Text style={[styles.pollVotes, {color: colors.mutedForeground}]}>
-        {post.totalVotes} votos
-      </Text>
-
-      {/* Interactions */}
-      <View style={styles.postActions}>
-        <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
-          <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={24} />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {getCommentCount(post)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postActionBookmark} activeOpacity={0.7}>
-          <Ionicons name="bookmark-outline" color={colors.mutedForeground} size={24} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderReel = (post: any) => (
-    <View key={post.id} style={[styles.reelCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
-      {/* Reel Thumbnail */}
-      <TouchableOpacity style={styles.reelThumbnail} activeOpacity={0.95}>
-        <Image source={{uri: post.thumbnail}} style={styles.reelImage} />
-        <View style={styles.reelOverlay}>
-          {/* Play button */}
-          <View style={styles.reelPlayButton}>
-            <Ionicons name="play" color={theme.white} size={40} />
-          </View>
-          {/* Duration badge */}
-          <View style={styles.reelDuration}>
-            <Ionicons name="videocam" color={theme.white} size={12} />
-            <Text style={styles.reelDurationText}>{post.duration}</Text>
-          </View>
-          {/* Views badge */}
-          <View style={styles.reelViews}>
-            <Ionicons name="eye" color={theme.white} size={12} />
-            <Text style={styles.reelViewsText}>{post.stats.views}</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-
-      {/* Reel Info */}
-      <View style={styles.reelInfo}>
-        <View style={styles.reelHeader}>
-          <Image source={{uri: post.user.avatar}} style={styles.reelAvatar} />
-          <View style={styles.reelUserInfo}>
-            <View style={styles.reelUserName}>
-              <Text style={[styles.reelUserNameText, {color: colors.foreground}]}>
-                {post.user.name}
-              </Text>
-              {post.user.verified && (
-                <Ionicons
-                  name="checkmark-circle"
-                  color={getCategoryColor(post.category)}
-                  size={14}
-                />
-              )}
-            </View>
-            <Text style={[styles.reelTime, {color: colors.mutedForeground}]}>{post.timeAgo}</Text>
-          </View>
-        </View>
-        <Text style={[styles.reelTitle, {color: colors.foreground}]} numberOfLines={2}>
-          {post.title}
-        </Text>
-
-        {/* Quick Actions */}
-        <View style={styles.reelActions}>
-          <TouchableOpacity
-            style={styles.reelAction}
-            onPress={() => toggleLike(post.id)}
-            activeOpacity={0.7}>
-            <Ionicons
-              name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-              color={likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
-              size={20}
-            />
-            <Text style={[styles.reelActionText, {color: colors.foreground}]}>
-              {post.stats.likes + (likedPosts.has(post.id) ? 1 : 0)}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.reelAction} activeOpacity={0.7}>
-            <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={20} />
-            <Text style={[styles.reelActionText, {color: colors.foreground}]}>
-              {getCommentCount(post)}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.reelActionBookmark} activeOpacity={0.7}>
-            <Ionicons name="bookmark-outline" color={colors.mutedForeground} size={20} />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderSnapshot = (post: any) => (
-    <View key={post.id} style={[styles.snapshotCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
-      {/* User Header */}
-      <View style={styles.postHeader}>
-        <Image source={{uri: post.user.avatar}} style={styles.postAvatar} />
-        <View style={styles.postUserInfo}>
-          <View style={styles.postUserName}>
-            <Text style={[styles.postUserNameText, {color: colors.foreground}]}>
-              {post.user.name}
-            </Text>
-            {post.user.verified && (
-              <Ionicons name="checkmark-circle" color={getCategoryColor(post.category)} size={16} />
-            )}
-          </View>
-          <Text style={[styles.postTime, {color: colors.mutedForeground}]}>{post.timeAgo}</Text>
-        </View>
-        <TouchableOpacity style={styles.postMoreButton}>
-          <Ionicons name="ellipsis-horizontal" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Image */}
-      <TouchableOpacity activeOpacity={0.98}>
-        <Image source={{uri: post.image}} style={styles.snapshotImage} />
-      </TouchableOpacity>
-
-      {/* Caption */}
-      {post.caption && (
-        <Text style={[styles.snapshotCaption, {color: colors.foreground}]}>{post.caption}</Text>
-      )}
-
-      {/* Interactions */}
-      <View style={styles.postActions}>
-        <TouchableOpacity
-          style={styles.postAction}
-          onPress={() => toggleLike(post.id)}
-          activeOpacity={0.7}>
-          <Ionicons
-            name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-            color={likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
-            size={24}
-          />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.likes + (likedPosts.has(post.id) ? 1 : 0)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
-          <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={24} />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {getCommentCount(post)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postActionBookmark} activeOpacity={0.7}>
-          <Ionicons name="bookmark-outline" color={colors.mutedForeground} size={24} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderTip = (post: any) => (
-    <View
-      key={post.id}
-      style={[styles.tipCard, {backgroundColor: post.color || colors.primary, opacity: 0.95}]}>
-      {/* User Header */}
-      <View style={styles.tipHeader}>
-        <Image source={{uri: post.user.avatar}} style={styles.tipAvatar} />
-        <View style={{flex: 1}}>
-          <Text style={styles.tipUserName}>{post.user.name}</Text>
-          <Text style={styles.tipTime}>{post.timeAgo}</Text>
-        </View>
-        <TouchableOpacity>
-          <Ionicons name="ellipsis-horizontal" color={theme.white} size={20} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Tip Content */}
-      <View style={styles.tipContent}>
-        <View style={styles.tipIconContainer}>
-          <Ionicons name={post.icon as any} color={theme.white} size={48} />
-        </View>
-        <Text style={styles.tipTitle}>{post.title}</Text>
-        <Text style={styles.tipText}>{post.tip}</Text>
-      </View>
-
-      {/* Tip Actions */}
-      <View style={styles.tipActions}>
-        <TouchableOpacity
-          style={styles.tipAction}
-          onPress={() => toggleLike(post.id)}
-          activeOpacity={0.7}>
-          <Ionicons
-            name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-            color={theme.white}
-            size={22}
-          />
-          <Text style={styles.tipActionText}>
-            {post.stats.likes + (likedPosts.has(post.id) ? 1 : 0)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tipAction} activeOpacity={0.7}>
-          <Ionicons name="bookmark" color={theme.white} size={22} />
-          <Text style={styles.tipActionText}>{post.stats.saves}</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderGrid = (post: any) => (
-    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
-      {/* User Header */}
-      <View style={styles.postHeader}>
-        <Image source={{uri: post.user.avatar}} style={styles.postAvatar} />
-        <View style={styles.postUserInfo}>
-          <View style={styles.postUserName}>
-            <Text style={[styles.postUserNameText, {color: colors.foreground}]}>
-              {post.user.name}
-            </Text>
-            {post.user.verified && (
-              <Ionicons name="checkmark-circle" color={getCategoryColor(post.category)} size={16} />
-            )}
-          </View>
-          <Text style={[styles.postTime, {color: colors.mutedForeground}]}>{post.timeAgo}</Text>
-        </View>
-        <TouchableOpacity style={styles.postMoreButton}>
-          <Ionicons name="ellipsis-horizontal" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Title */}
-      <Text style={[styles.postTitle, {color: colors.foreground}]}>{post.title}</Text>
-
-      {/* Grid of Images */}
-      <View style={styles.gridContainer}>
-        {post.images.slice(0, 4).map((image: string, index: number) => (
-          <TouchableOpacity key={index} style={styles.gridItem} activeOpacity={0.9}>
-            <Image source={{uri: image}} style={styles.gridImage} />
-            {index === 3 && post.images.length > 4 && (
-              <View style={styles.gridOverlay}>
-                <Text style={styles.gridOverlayText}>+{post.images.length - 4}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Interactions */}
-      <View style={styles.postActions}>
-        <TouchableOpacity
-          style={styles.postAction}
-          onPress={() => toggleLike(post.id)}
-          activeOpacity={0.7}>
-          <Ionicons
-            name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-            color={likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
-            size={24}
-          />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.likes + (likedPosts.has(post.id) ? 1 : 0)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
-          <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={24} />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {getCommentCount(post)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postActionBookmark} activeOpacity={0.7}>
-          <Ionicons name="bookmark-outline" color={colors.mutedForeground} size={24} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderCarousel = (post: any) => (
-    <View key={post.id} style={[styles.postCard, {backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1}]}>
-      {/* User Header */}
-      <View style={styles.postHeader}>
-        <Image source={{uri: post.user.avatar}} style={styles.postAvatar} />
-        <View style={styles.postUserInfo}>
-          <View style={styles.postUserName}>
-            <Text style={[styles.postUserNameText, {color: colors.foreground}]}>
-              {post.user.name}
-            </Text>
-            {post.user.verified && (
-              <Ionicons name="checkmark-circle" color={getCategoryColor(post.category)} size={16} />
-            )}
-          </View>
-          <Text style={[styles.postTime, {color: colors.mutedForeground}]}>{post.timeAgo}</Text>
-        </View>
-        <TouchableOpacity style={styles.postMoreButton}>
-          <Ionicons name="ellipsis-horizontal" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Title */}
-      <Text style={[styles.postTitle, {color: colors.foreground}]}>{post.title}</Text>
-
-      {/* Carousel */}
-      <ScrollView
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        style={styles.carouselScrollView}>
-        {post.images.map((image: string, index: number) => (
-          <Image key={index} source={{uri: image}} style={styles.carouselImage} />
-        ))}
-      </ScrollView>
-
-      {/* Interactions */}
-      <View style={styles.postActions}>
-        <TouchableOpacity
-          style={styles.postAction}
-          onPress={() => toggleLike(post.id)}
-          activeOpacity={0.7}>
-          <Ionicons
-            name={likedPosts.has(post.id) ? "heart" : "heart-outline"}
-            color={likedPosts.has(post.id) ? colors.primary : colors.mutedForeground}
-            size={24}
-          />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {post.stats.likes + (likedPosts.has(post.id) ? 1 : 0)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postAction} activeOpacity={0.7}>
-          <Ionicons name="chatbubble-outline" color={colors.mutedForeground} size={24} />
-          <Text style={[styles.postActionText, {color: colors.foreground}]}>
-            {getCommentCount(post)}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.postActionBookmark} activeOpacity={0.7}>
-          <Ionicons name="bookmark-outline" color={colors.mutedForeground} size={24} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderPost = (post: any) => {
-    switch (post.type) {
-      case "reel":
-        return renderReel(post);
-      case "snapshot":
-        return renderSnapshot(post);
-      case "transformation":
-        return renderTransformation(post);
-      case "tip":
-        return renderTip(post);
-      case "video":
-        return renderVideo(post);
-      case "review":
-        return renderReview(post);
-      case "grid":
-        return renderGrid(post);
-      case "poll":
-        return renderPoll(post);
-      case "carousel":
-        return renderCarousel(post);
-      default:
-        return null;
-    }
   };
 
   return (
@@ -1608,18 +781,8 @@ export default function Home() {
             />
           </View>
 
-          {/* Right — notifications + create */}
+          {/* Right — create post */}
           <View style={styles.headerRight}>
-            <Link href="/notificaciones" asChild>
-              <TouchableOpacity style={styles.headerButton} activeOpacity={0.7}>
-                <View style={styles.notificationIconWrap}>
-                  <Ionicons name="notifications-outline" color={colors.foreground} size={24} />
-                  {unreadNotificationsCount > 0 && (
-                    <View style={[styles.notificationBadge, {backgroundColor: colors.destructive}]} />
-                  )}
-                </View>
-              </TouchableOpacity>
-            </Link>
             {user && user.role !== "CLIENT" && (
               <TourTarget targetId="posts_create">
                 <TouchableOpacity
@@ -1756,7 +919,7 @@ export default function Home() {
             ]}
             onPress={(e) => e.stopPropagation()}>
             <TouchableOpacity
-              style={[styles.postOptionsButton, {borderBottomWidth: 0}]}
+              style={[styles.postOptionsButton, {borderBottomColor: colors.border}]}
               onPress={() => {
                 const p = posts.find((x) => x.id === postOptionsPostId);
                 if (p) {
@@ -1768,6 +931,25 @@ export default function Home() {
               }}>
               <Ionicons name="create-outline" color={colors.foreground} size={18} />
               <Text style={[styles.postOptionsButtonText, {color: colors.foreground}]}>Editar texto</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.postOptionsButton, {borderBottomWidth: 0}]}
+              onPress={() => {
+                const postId = postOptionsPostId;
+                setPostOptionsPostId(null);
+                setPostOptionsPosition(null);
+                if (postId == null) return;
+                Alert.alert(
+                  "¿Eliminar publicación?",
+                  "Esta acción no se puede deshacer.",
+                  [
+                    {text: "Cancelar", style: "cancel"},
+                    {text: "Eliminar", style: "destructive", onPress: () => deletePost(postId)},
+                  ]
+                );
+              }}>
+              <Ionicons name="trash-outline" color="#ef4444" size={18} />
+              <Text style={[styles.postOptionsButtonText, {color: "#ef4444"}]}>Eliminar publicación</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
@@ -2052,71 +1234,10 @@ function makeStyles(colors: any, theme: any) {
     fontWeight: "700",
     letterSpacing: -0.5,
   },
-  categorySelector: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  categoryButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  categoryButtonText: {
-    fontSize: 18,
-  },
-  expandedCategoryOptions: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 22,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    backgroundColor: "#EEF1F3",
-    gap: 0,
-    flexShrink: 1,
-  },
-  expandedCategoryOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 18,
-    minWidth: 36,
-    justifyContent: "center",
-    height: 40,
-  },
-  selectedCategoryOption: {},
-  expandedCategoryEmoji: {
-    fontSize: 16,
-  },
-  expandedCategoryText: {
-    fontSize: 12,
-    fontWeight: "600",
-    marginLeft: 4,
-    lineHeight: 12,
-    includeFontPadding: false,
-    textAlignVertical: "center",
-  },
   headerButton: {
     position: "relative",
   },
-  notificationIconWrap: {
-    position: "relative",
-  },
-  notificationBadge: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
+
   subCategoryContainer: {
     marginBottom: 12,
   },
@@ -2125,16 +1246,6 @@ function makeStyles(colors: any, theme: any) {
   },
   feedContent: {
     paddingBottom: 100,
-  },
-
-  // Welcome Section
-  welcomeSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  welcomeText: {
-    fontSize: 18,
-    fontWeight: "700",
   },
 
   // Stories - Timeline horizontal novedoso
@@ -2373,137 +1484,6 @@ function makeStyles(colors: any, theme: any) {
     borderRadius: 16,
   },
 
-  // Video
-  videoContainer: {
-    position: "relative",
-    borderRadius: 16,
-    overflow: "hidden",
-    marginBottom: 12,
-  },
-  videoThumbnail: {
-    width: "100%",
-    height: 240,
-    resizeMode: "cover",
-  },
-  videoOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  playButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  videoDuration: {
-    position: "absolute",
-    bottom: 12,
-    right: 12,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  videoDurationText: {
-    color: theme.white,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  videoInfo: {
-    marginBottom: 12,
-  },
-  videoTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  videoViews: {
-    fontSize: 13,
-  },
-
-  // Review
-  reviewTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-  reviewText: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  reviewRating: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-  },
-  reviewSalon: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 6,
-    marginBottom: 12,
-  },
-  reviewSalonText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  reviewImage: {
-    width: "100%",
-    height: 200,
-    borderRadius: 16,
-    resizeMode: "cover",
-    marginBottom: 12,
-  },
-
-  // Poll
-  pollQuestion: {
-    fontSize: 17,
-    fontWeight: "700",
-    marginBottom: 16,
-  },
-  pollOptions: {
-    gap: 10,
-    marginBottom: 8,
-  },
-  pollOption: {
-    position: "relative",
-    borderWidth: 1.5,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  pollBar: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    opacity: 0.3,
-  },
-  pollOptionContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  pollOptionText: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  pollPercentage: {
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  pollVotes: {
-    fontSize: 12,
-    marginBottom: 12,
-  },
-
   // Carousel
   carouselContainer: {
     position: "relative",
@@ -2554,143 +1534,6 @@ function makeStyles(colors: any, theme: any) {
     borderRadius: 4,
   },
 
-  // Reel (Vertical Video)
-  reelCard: {
-    borderRadius: 20,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  reelThumbnail: {
-    position: "relative",
-  },
-  reelImage: {
-    width: "100%",
-    height: 480,
-    resizeMode: "cover",
-  },
-  reelOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  reelPlayButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: theme.white,
-  },
-  reelDuration: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
-  },
-  reelDurationText: {
-    color: theme.white,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  reelViews: {
-    position: "absolute",
-    top: 16,
-    left: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
-  },
-  reelViewsText: {
-    color: theme.white,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  reelInfo: {
-    padding: 16,
-  },
-  reelHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  reelAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 10,
-  },
-  reelUserInfo: {
-    flex: 1,
-  },
-  reelUserName: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    marginBottom: 2,
-  },
-  reelUserNameText: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  reelTime: {
-    fontSize: 11,
-  },
-  reelTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 10,
-    lineHeight: 20,
-  },
-  reelActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  reelAction: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  reelActionText: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  reelActionBookmark: {
-    marginLeft: "auto",
-  },
-
-  // Snapshot (Single Image Post)
-  snapshotCard: {
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
   snapshotImage: {
     width: "100%",
     height: 340,
@@ -2703,97 +1546,17 @@ function makeStyles(colors: any, theme: any) {
     lineHeight: 22,
     marginBottom: 12,
   },
-
-  // Tip Card
-  tipCard: {
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  tipHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  tipAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 12,
-    borderWidth: 2,
-    borderColor: theme.white,
-  },
-  tipUserName: {
-    color: theme.white,
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 2,
-  },
-  tipTime: {
-    color: "rgba(255, 255, 255, 0.8)",
-    fontSize: 11,
-  },
-  tipContent: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  tipIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  tipTitle: {
-    color: theme.white,
-    fontSize: 20,
-    fontWeight: "900",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  tipText: {
-    color: theme.white,
-    fontSize: 15,
-    lineHeight: 24,
-    textAlign: "center",
-    opacity: 0.95,
-  },
-  tipActions: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 24,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.2)",
-  },
-  tipAction: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  tipActionText: {
-    color: theme.white,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-
   // Grid (Mosaic) - contenedor redondeado, 2x2. backgroundColor y tamaños se aplican inline según tema
   gridContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    gap: 8,
     marginBottom: 12,
     padding: 10,
     borderRadius: 16,
     overflow: "hidden",
+  },
+  gridRow: {
+    flexDirection: "row",
+    gap: 8,
   },
   gridItem: {
     position: "relative",
@@ -2822,8 +1585,7 @@ function makeStyles(colors: any, theme: any) {
     flexDirection: "row",
     alignItems: "center",
     paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(0, 0, 0, 0.05)",
+    borderTopWidth: StyleSheet.hairlineWidth,
     gap: 20,
   },
   postAction: {
@@ -2866,196 +1628,6 @@ function makeStyles(colors: any, theme: any) {
     marginLeft: "auto",
   },
 
-  // Featured Section
-  featuredSection: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  featuredScroll: {
-    paddingHorizontal: 20,
-    gap: 16,
-  },
-  featuredCard: {
-    width: 140,
-    padding: 16,
-    borderRadius: 20,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  featuredAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  featuredInitials: {
-    fontSize: 32,
-    fontWeight: "900",
-    color: theme.white,
-  },
-  featuredName: {
-    fontSize: 14,
-    fontWeight: "700",
-    textAlign: "center",
-    marginBottom: 6,
-  },
-  featuredRating: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  featuredRatingText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  featuredLocation: {
-    fontSize: 12,
-    textAlign: "center",
-  },
-
-  // Feed Label
-  feedLabelSection: {
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  feedLabel: {
-    fontSize: 22,
-    fontWeight: "800",
-  },
-
-  // Polaroid Style Carousels
-  polaroidSection: {
-    marginBottom: 32,
-  },
-  polaroidScroll: {
-    paddingLeft: 20,
-    paddingRight: 20,
-    gap: 16,
-  },
-  polaroidCard: {
-    width: SCREEN_WIDTH * 0.7,
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  polaroidImageWrapper: {
-    position: "relative",
-    marginBottom: 16,
-  },
-  polaroidImagePlaceholder: {
-    width: "100%",
-    height: 280,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  polaroidInitials: {
-    fontSize: 72,
-    fontWeight: "900",
-    color: theme.white,
-    textShadowColor: "rgba(0, 0, 0, 0.2)",
-    textShadowOffset: {width: 0, height: 2},
-    textShadowRadius: 8,
-  },
-  polaroidLikeButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  polaroidBadge: {
-    position: "absolute",
-    top: 12,
-    left: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  polaroidBadgeText: {
-    color: theme.white,
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  polaroidInfo: {
-    gap: 6,
-  },
-  polaroidProvider: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  polaroidTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-  },
-  polaroidBio: {
-    fontSize: 13,
-    marginTop: 4,
-  },
-  polaroidAddress: {
-    fontSize: 13,
-    marginTop: 4,
-  },
-  polaroidFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  polaroidRating: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  polaroidRatingText: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  polaroidServicesCount: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
   editModalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -3141,7 +1713,6 @@ function makeStyles(colors: any, theme: any) {
     justifyContent: "flex-end",
   },
   commentsSheet: {
-    backgroundColor: theme.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: "90%",
@@ -3166,11 +1737,9 @@ function makeStyles(colors: any, theme: any) {
   commentsTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#111",
   },
   commentsCount: {
     fontSize: 14,
-    color: "#94A3B8",
   },
   commentsCloseBtn: {
     marginLeft: "auto",

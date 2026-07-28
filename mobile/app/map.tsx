@@ -128,7 +128,7 @@ export default function MapScreen() {
               <ProviderMarker
                 key={provider.id}
                 id={provider.id}
-                name={provider.display_name || provider.name}
+                name={provider.name}
                 profileType={provider.profile_type}
                 latitude={Number(provider.latitude)}
                 longitude={Number(provider.longitude)}
@@ -157,7 +157,7 @@ export default function MapScreen() {
           <View style={styles.sheetHandle} />
           <View style={[styles.providerCard, {backgroundColor: colors.card}]}>
             <Text style={[styles.providerName, {color: colors.foreground}]}>
-              {selectedProvider.display_name || selectedProvider.name}
+              {selectedProvider.name}
             </Text>
             <Text style={[styles.providerMeta, {color: colors.mutedForeground}]}>
               {selectedProvider.profile_type === "PROFESSIONAL" ? "Profesional" : "Lugar"}

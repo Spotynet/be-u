@@ -7,14 +7,11 @@ import {
   Modal,
   ScrollView,
   Switch,
-  ActivityIndicator,
-  Alert,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useRouter} from "expo-router";
-import {authApi, errorUtils} from "@/lib/api";
 
 interface SettingsMenuProps {
   visible: boolean;
@@ -25,8 +22,6 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
   const {colors, colorMode, setColorMode} = useThemeVariant();
   const {logout} = useAuth();
   const router = useRouter();
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -35,22 +30,6 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
       router.replace("/login");
     } catch (error) {
       console.error("Logout error:", error);
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    try {
-      setIsDeleting(true);
-      setShowDeleteModal(false);
-      await authApi.deleteMyAccount();
-      onClose();
-      await logout();
-      router.replace("/login");
-    } catch (error: any) {
-      const message = errorUtils.getErrorMessage(error);
-      Alert.alert("Error", message || "No se pudo eliminar la cuenta.");
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -64,11 +43,10 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
         router.push("/agenda");
         break;
       case "notifications":
-        router.push("/notificaciones");
+        router.push("/notification-preferences");
         break;
       case "privacy":
-        // router.push("/privacy-security");
-        console.log("Privacidad y Seguridad");
+        router.push("/privacy-security");
         break;
       case "help":
         router.push("/help-support");
@@ -149,7 +127,7 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
               />
             </TouchableOpacity>
 
-            {/* Guardados */}
+            {/* Favoritos */}
             <TouchableOpacity
               style={[
                 styles.optionButton,
@@ -162,7 +140,7 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
                   <Ionicons name="heart" color="#ec4899" size={20} />
                 </View>
                 <Text style={[styles.optionText, {color: colors.foreground}]}>
-                  Guardados
+                  Favoritos
                 </Text>
               </View>
               <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
@@ -244,25 +222,6 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
               <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
             </TouchableOpacity>
 
-            {/* Eliminar cuenta */}
-            <TouchableOpacity
-              style={[
-                styles.optionButton,
-                {backgroundColor: colors.background, borderColor: colors.border},
-              ]}
-              onPress={() => setShowDeleteModal(true)}
-              activeOpacity={0.7}>
-              <View style={styles.optionLeft}>
-                <View style={[styles.optionIcon, {backgroundColor: "#ef4444" + "15"}]}>
-                  <Ionicons name="trash-outline" color="#ef4444" size={20} />
-                </View>
-                <Text style={[styles.optionText, {color: "#ef4444"}]}>
-                  Eliminar cuenta
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-            </TouchableOpacity>
-
             {/* Divider before Logout */}
             <View style={[styles.divider, {backgroundColor: colors.border, marginVertical: 12}]} />
 
@@ -285,50 +244,6 @@ export default function SettingsMenu({visible, onClose}: SettingsMenuProps) {
         </TouchableOpacity>
       </View>
 
-      {/* Delete account confirmation modal */}
-      <Modal
-        visible={showDeleteModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => !isDeleting && setShowDeleteModal(false)}>
-        <View style={styles.deleteModalOverlay}>
-          <View style={[styles.deleteModalContent, {backgroundColor: colors.card}]}>
-            <TouchableOpacity
-              style={styles.deleteModalClose}
-              onPress={() => !isDeleting && setShowDeleteModal(false)}
-              hitSlop={{top: 12, bottom: 12, left: 12, right: 12}}>
-              <Ionicons name="close" color={colors.foreground} size={24} />
-            </TouchableOpacity>
-            <Text style={[styles.deleteModalTitle, {color: colors.foreground}]}>
-              Eliminar cuenta
-            </Text>
-            <View style={[styles.deleteModalIconWrap, {backgroundColor: "#ef4444" + "20"}]}>
-              <Ionicons name="trash-outline" color="#ef4444" size={48} />
-            </View>
-            <Text style={[styles.deleteModalWarning, {color: colors.foreground}]}>
-              Tenga en cuenta que eliminar su cuenta eliminará permanentemente todo su progreso y datos, y esta acción no se puede revertir.
-            </Text>
-            <TouchableOpacity
-              style={[styles.deleteModalCancelBtn, {backgroundColor: colors.primary}]}
-              onPress={() => setShowDeleteModal(false)}
-              disabled={isDeleting}
-              activeOpacity={0.8}>
-              <Text style={styles.deleteModalCancelText}>Sigue disfrutando</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.deleteModalConfirmWrap}
-              onPress={handleConfirmDelete}
-              disabled={isDeleting}
-              activeOpacity={0.7}>
-              {isDeleting ? (
-                <ActivityIndicator size="small" color="#ef4444" />
-              ) : (
-                <Text style={styles.deleteModalConfirmText}>Borrar</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </Modal>
   );
 }
@@ -439,64 +354,6 @@ const styles = StyleSheet.create({
   versionText: {
     fontSize: 13,
     fontWeight: "500",
-  },
-  deleteModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  deleteModalContent: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 32,
-  },
-  deleteModalClose: {
-    alignSelf: "flex-end",
-    padding: 8,
-  },
-  deleteModalTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  deleteModalIconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignSelf: "center",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  deleteModalWarning: {
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: "center",
-    marginBottom: 24,
-    paddingHorizontal: 8,
-  },
-  deleteModalCancelBtn: {
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  deleteModalCancelText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  deleteModalConfirmWrap: {
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  deleteModalConfirmText: {
-    color: "#ef4444",
-    fontSize: 16,
-    fontWeight: "700",
   },
 });
 

@@ -325,11 +325,10 @@ export default function Settings({embedded = false}: {embedded?: boolean} = {}) 
           disabled={updating || profileLoading}
           activeOpacity={0.8}>
           {updating ? (
-            <ActivityIndicator color={theme.white} />
+            <ActivityIndicator color={colors.primaryForeground} />
           ) : (
             <>
-              <Ionicons name="checkmark-circle" color={theme.white} size={20} />
-              <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+              <Text style={[styles.saveButtonText, {color: colors.primaryForeground}]}>Guardar Cambios</Text>
             </>
           )}
 

@@ -506,9 +506,9 @@ export default function PostDetailScreen() {
                 onPress={handleSavePostEdit}
                 disabled={isSavingEdit}>
                 {isSavingEdit ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={colors.primaryForeground} />
                 ) : (
-                  <Text style={styles.editModalSaveText}>Guardar</Text>
+                  <Text style={[styles.editModalSaveText, {color: colors.primaryForeground}]}>Guardar</Text>
                 )}
               </TouchableOpacity>
             </View>

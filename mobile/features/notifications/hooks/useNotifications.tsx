@@ -6,7 +6,7 @@ import {notificationApi} from "@/lib/api";
 // Map backend notification types to Spanish frontend types (now both use Spanish)
 const mapNotificationType = (backendType: string): NotificationType => {
   // Backend now uses Spanish types, so we can use them directly
-  if (["reserva", "reseña", "sistema", "mensaje"].includes(backendType)) {
+  if (["reserva", "reseña", "sistema", "mensaje", "social"].includes(backendType)) {
     return backendType as NotificationType;
   }
   return "sistema"; // Default fallback

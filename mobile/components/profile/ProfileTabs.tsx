@@ -23,7 +23,7 @@ export function ProfileTabs({userRole}: ProfileTabsProps) {
 
   const tabs: {key: Exclude<TabName, "reviews">; label: string; icon: string}[] = [
     {key: "reservations", label: "Reservas", icon: "calendar-outline"},
-    {key: "favorites", label: "Guardados", icon: "heart-outline"},
+    {key: "favorites", label: "Favoritos", icon: "heart-outline"},
   ];
 
   useEffect(() => {

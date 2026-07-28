@@ -1,4 +1,4 @@
-import {View, Text, TextInput, StyleSheet, TouchableOpacity, Platform, Image, Alert, ActivityIndicator} from "react-native";
+import {View, Text, TextInput, StyleSheet, TouchableOpacity, Platform, Alert} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {Colors} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
@@ -9,6 +9,7 @@ import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector"
 import {profileCustomizationApi} from "@/lib/api";
 import * as ImagePicker from "expo-image-picker";
 import {AddressSearch} from "@/components/location/AddressSearch";
+import {ProfilePhotoUpload, UploadStatus} from "./ProfilePhotoUpload";
 
 // Helper function to normalize category/subcategory data from API
 const normalizeCategoryData = (data: any): string[] => {
@@ -67,7 +68,6 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
   const [email, setEmail] = useState(user.email);
   const [phone, setPhone] = useState(user.phone || "");
   const [username, setUsername] = useState(user.username || "");
-  const [displayName, setDisplayName] = useState("");
   
   // Format username: remove spaces and ensure @ prefix
   const formatUsername = (text: string): string => {
@@ -88,8 +88,8 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLoadingPublicProfile, setIsLoadingPublicProfile] = useState(true);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [imageError, setImageError] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
+  const [uploadError, setUploadError] = useState<string | undefined>();
   const [location, setLocation] = useState<{latitude: number; longitude: number; address?: string} | null>(null);
 
   // Load public profile to get categories and subcategories
@@ -107,10 +107,6 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
           
           setSelectedCategories(categories);
           setSelectedSubcategories(subcategories);
-          // Load display_name from public profile
-          if (publicProfile.display_name) {
-            setDisplayName(publicProfile.display_name);
-          }
           // Load profile photo
           if (publicProfile.user_image) {
             setProfilePhoto(publicProfile.user_image);
@@ -164,93 +160,52 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
     });
 
     if (!result.canceled && result.assets[0]) {
-      setUploadingPhoto(true);
+      const localUri = result.assets[0].uri;
+      const previousPhoto = profilePhoto;
+
+      // Show local image immediately and enter uploading state
+      setProfilePhoto(localUri);
+      setUploadStatus("uploading");
+      setUploadError(undefined);
+
       try {
         const formData = new FormData();
 
         if (Platform.OS === "web") {
-          // On web, convert URI to Blob/File object
-          const res = await fetch(result.assets[0].uri);
+          const res = await fetch(localUri);
           const blob = await res.blob();
           const mimeType = blob.type || "image/jpeg";
           const ext = (mimeType.split("/")[1] || "jpg").replace("jpeg", "jpg");
           const file = new File([blob], `profile_photo_${Date.now()}.${ext}`, {type: mimeType});
           formData.append("photo", file);
         } else {
-          // On native, use the React Native file descriptor
-          const uriParts = result.assets[0].uri.split(".");
+          const uriParts = localUri.split(".");
           const fileType = uriParts[uriParts.length - 1] || "jpg";
-          const rnFile = {
-            uri: result.assets[0].uri,
+          formData.append("photo", {
+            uri: localUri,
             type: `image/${fileType === "jpg" ? "jpeg" : fileType}`,
             name: `profile_photo_${Date.now()}.${fileType}`,
-          } as any;
-          formData.append("photo", rnFile);
+          } as any);
         }
 
         const response = await profileCustomizationApi.uploadProfilePhoto(formData);
-        console.log("Profile photo upload response:", response.data);
-        
-        // After upload, reload the profile to get the updated image URL
-        try {
-          // Wait a bit for the backend to process the upload
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          const profileResponse = await profileCustomizationApi.getProfileImages();
-          console.log("Reloaded profile data:", profileResponse.data);
-          console.log("user_image from profile:", profileResponse.data?.user_image);
-          
-          if (profileResponse.data?.user_image) {
-            let url = profileResponse.data.user_image as string;
-            
-            // If URL is relative or has issues, try to fix it
-            if (!url.startsWith('http')) {
-              console.warn("Relative URL detected, attempting to fix:", url);
-              // If it's a relative path, make it absolute
-              if (url.startsWith('/')) {
-                url = `${window.location.origin}${url}`;
-              }
-            }
-            
-            // Bust cache so the new photo shows immediately
-            const cacheBustedUrl = url ? `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}` : url;
-            console.log("Setting profile photo URL:", cacheBustedUrl);
-            setProfilePhoto(cacheBustedUrl);
-            setImageError(false);
-            Alert.alert("Éxito", "Foto de perfil actualizada correctamente");
-          } else {
-            console.warn("No user_image in reloaded profile:", profileResponse.data);
-            Alert.alert("Advertencia", "La foto se subió pero no se pudo cargar. Intenta recargar la página.");
-          }
-        } catch (reloadError) {
-          console.error("Error reloading profile after upload:", reloadError);
-          // Try to use the response from upload if reload fails
-          if (response.data.user_image) {
-            let url = response.data.user_image as string;
-            
-            // Fix relative URLs
-            if (!url.startsWith('http') && url.startsWith('/')) {
-              url = `${window.location.origin}${url}`;
-            }
-            
-            setProfilePhoto(url ? `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}` : url);
-            setImageError(false);
-            Alert.alert("Éxito", "Foto de perfil actualizada correctamente");
-          } else {
-            Alert.alert("Advertencia", "La foto se subió pero no se pudo cargar. Intenta recargar la página.");
-          }
-        }
+        const serverUrl: string | undefined = response.data?.user_image;
+        if (serverUrl) setProfilePhoto(serverUrl);
+
+        setUploadStatus("success");
+        // Auto-reset to idle after showing success
+        setTimeout(() => setUploadStatus("idle"), 2500);
       } catch (error: any) {
-        console.error("Error uploading profile photo:", error);
-        console.error("Error response:", error?.response?.data);
-        console.error("Error status:", error?.response?.status);
-        const errorMessage = error?.response?.data?.photo?.[0] || 
-                           error?.response?.data?.detail || 
-                           error?.message || 
-                           "No se pudo subir la foto de perfil. Inténtalo de nuevo.";
-        Alert.alert("Error", errorMessage);
-      } finally {
-        setUploadingPhoto(false);
+        setProfilePhoto(previousPhoto);
+        const msg =
+          error?.response?.data?.detail ||
+          error?.response?.data?.photo?.[0] ||
+          error?.message ||
+          "No se pudo subir la foto. Inténtalo de nuevo.";
+        setUploadError(msg);
+        setUploadStatus("error");
+        // Auto-reset to idle after showing error
+        setTimeout(() => setUploadStatus("idle"), 3500);
       }
     }
   };
@@ -265,19 +220,16 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
           text: "Eliminar",
           style: "destructive",
           onPress: async () => {
-            setUploadingPhoto(true);
+            setUploadStatus("uploading");
             try {
-              // Use dedicated delete endpoint
               await profileCustomizationApi.deleteProfilePhoto();
-              
               setProfilePhoto(null);
-              setImageError(false);
-              Alert.alert("Éxito", "Foto de perfil eliminada correctamente");
+              setUploadStatus("idle");
             } catch (error) {
               console.error("Error deleting profile photo:", error);
-              Alert.alert("Error", "No se pudo eliminar la foto de perfil. Inténtalo de nuevo.");
-            } finally {
-              setUploadingPhoto(false);
+              setUploadError("No se pudo eliminar la foto. Inténtalo de nuevo.");
+              setUploadStatus("error");
+              setTimeout(() => setUploadStatus("idle"), 3500);
             }
           },
         },
@@ -354,15 +306,6 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
         publicProfileData.street = location.address;
       }
     }
-    if (displayName && displayName.trim()) {
-      const nameParts = displayName.trim().split(' ');
-      publicProfileData.name = nameParts[0] || displayName.trim();
-      if (nameParts.length > 1) {
-        publicProfileData.last_name = nameParts.slice(1).join(' ');
-      } else {
-        publicProfileData.last_name = '';
-      }
-    }
     try {
       await profileCustomizationApi.updatePublicProfile(publicProfileData);
       console.log("Public profile (categories) updated successfully");
@@ -376,22 +319,16 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
     try {
       await onSave(userData, profileData);
       
-      // After save, reload the profile photo from public profile to ensure it's preserved
+      // After save, reload the profile photo URL from the server
       try {
         const {profileCustomizationApi} = await import("@/lib/api");
         const profileResponse = await profileCustomizationApi.getProfileImages();
-        if (profileResponse.data?.user_image) {
-          let url = profileResponse.data.user_image as string;
-          if (!url.startsWith('http') && url.startsWith('/')) {
-            url = `${window.location.origin}${url}`;
-          }
-          const cacheBustedUrl = url ? `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}` : url;
-          setProfilePhoto(cacheBustedUrl);
-          setImageError(false);
+        const url: string | undefined = profileResponse.data?.user_image;
+        if (url) {
+          setProfilePhoto(url);
         }
       } catch (error) {
-        console.error("Error reloading profile photo after save:", error);
-        // Don't show error to user, profile photo should still be preserved in backend
+        // Non-fatal — current photo state is still valid
       }
     } catch (error) {
       console.error("Error saving profile:", error);
@@ -412,50 +349,13 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
           <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Foto de Perfil</Text>
         </View>
 
-        <View style={styles.photoContainer}>
-          <View style={styles.photoWrapper}>
-            <TouchableOpacity
-              style={[styles.photoButton, {backgroundColor: colors.card, borderColor: colors.border}]}
-              onPress={pickImage}
-              disabled={uploadingPhoto}>
-              {uploadingPhoto ? (
-                <ActivityIndicator color={colors.primary} size="large" />
-              ) : profilePhoto && !imageError ? (
-                <Image 
-                  key={profilePhoto}
-                  source={{uri: profilePhoto}} 
-                  style={styles.profilePhoto}
-                  onError={(e) => {
-                    console.error("Error loading profile photo:", profilePhoto);
-                    console.error("Image error event:", e.nativeEvent);
-                    setImageError(true);
-                  }}
-                  onLoad={() => {
-                    console.log("Profile photo loaded successfully:", profilePhoto);
-                    setImageError(false);
-                  }}
-                />
-              ) : (
-                <View style={styles.photoPlaceholder}>
-                  <Ionicons name="person" color={colors.mutedForeground} size={40} />
-                  <Text style={[styles.photoPlaceholderText, {color: colors.mutedForeground}]}>
-                    Agregar foto
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            {profilePhoto && !uploadingPhoto && (
-              <TouchableOpacity
-                style={[styles.deletePhotoButton, {backgroundColor: colors.background}]}
-                onPress={deletePhoto}>
-                <Ionicons name="trash-outline" color="#ef4444" size={20} />
-              </TouchableOpacity>
-            )}
-          </View>
-          <Text style={[styles.helperText, {color: colors.mutedForeground}]}>
-            {profilePhoto ? "Toca la imagen para cambiar tu foto de perfil" : "Toca para agregar una foto de perfil"}
-          </Text>
-        </View>
+        <ProfilePhotoUpload
+          photoUrl={profilePhoto}
+          status={uploadStatus}
+          errorMessage={uploadError}
+          onPress={pickImage}
+          onDelete={deletePhoto}
+        />
       </View>
 
       {/* Professional Information Section */}
@@ -487,33 +387,6 @@ const ProfessionalSettingsFormComponent = forwardRef<{save: () => Promise<void>}
           </View>
           <Text style={[styles.helperText, {color: colors.mutedForeground}]}>
             Sin espacios. Solo letras, números y guiones bajos
-          </Text>
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={[styles.label, {color: colors.foreground}]}>Nombre para mostrar</Text>
-          <View
-            style={[
-              styles.inputContainer,
-              {backgroundColor: colors.card, borderColor: colors.border},
-            ]}>
-            <Ionicons name="text-outline" color={colors.mutedForeground} size={18} />
-            <TextInput
-              style={[styles.input, {color: colors.foreground}]}
-              value={displayName}
-              onChangeText={(text) => {
-                // Limit to 50 characters
-                if (text.length <= 50) {
-                  setDisplayName(text);
-                }
-              }}
-              placeholder="Ej: Juan Pérez"
-              placeholderTextColor={colors.mutedForeground}
-              maxLength={50}
-            />
-          </View>
-          <Text style={[styles.helperText, {color: colors.mutedForeground}]}>
-            Este es el nombre que verán otros usuarios en tu perfil público (máximo 50 caracteres)
           </Text>
         </View>
 

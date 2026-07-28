@@ -1,4 +1,5 @@
 import {Platform} from "react-native";
+import Constants from "expo-constants";
 
 export const getExpoPushToken = async (): Promise<string | null> => {
   if (Platform.OS === "web") return null;
@@ -21,7 +22,16 @@ export const getExpoPushToken = async (): Promise<string | null> => {
       return null;
     }
 
-    const token = await Notifications.getExpoPushTokenAsync();
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ??
+      Constants.easConfig?.projectId;
+
+    if (!projectId) {
+      console.warn("No EAS projectId found — cannot get Expo push token");
+      return null;
+    }
+
+    const token = await Notifications.getExpoPushTokenAsync({projectId});
     return token.data;
   } catch (err) {
     console.warn("Failed to get Expo push token:", err);

@@ -305,11 +305,10 @@ export default function AvailabilityScreen({embedded = false}: AvailabilityScree
           disabled={isLoading || !hasChanges}
           activeOpacity={0.9}>
           {isLoading ? (
-            <ActivityIndicator color={theme.white} />
+            <ActivityIndicator color={colors.primaryForeground} />
           ) : (
             <>
-              <Ionicons name="checkmark-circle" size={22} color={theme.white} />
-              <Text style={styles.saveButtonText}>Guardar Horario</Text>
+              <Text style={[styles.saveButtonText, {color: colors.primaryForeground}]}>Guardar Horario</Text>
             </>
           )}
         </TouchableOpacity>

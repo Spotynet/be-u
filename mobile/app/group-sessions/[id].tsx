@@ -561,10 +561,7 @@ export default function GroupSessionDetailsScreen() {
                   {saving ? (
                     <ActivityIndicator size="small" color={colors.primaryForeground} />
                   ) : (
-                    <>
-                      <Ionicons name="checkmark" size={20} color={colors.primaryForeground} />
-                      <Text style={[styles.actionBtnText, {color: colors.primaryForeground}]}>Guardar</Text>
-                    </>
+                    <Text style={[styles.actionBtnText, {color: colors.primaryForeground}]}>Guardar</Text>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity

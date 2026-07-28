@@ -285,7 +285,7 @@ export const ScheduleEditor: React.FC<ScheduleEditorProps> = ({
           style={[styles.saveButton, {backgroundColor: colors.primary}]}
           onPress={handleSave}
           activeOpacity={0.9}>
-          <Text style={styles.saveButtonText}>Guardar Horarios</Text>
+          <Text style={[styles.saveButtonText, {color: colors.primaryForeground}]}>Guardar Horarios</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

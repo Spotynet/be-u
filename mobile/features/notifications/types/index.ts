@@ -1,4 +1,4 @@
-export type NotificationType = "reserva" | "reseña" | "sistema" | "mensaje";
+export type NotificationType = "reserva" | "reseña" | "sistema" | "mensaje" | "social";
 export type NotificationStatus = "read" | "unread";
 
 export interface Notification {
