@@ -2,9 +2,9 @@ import {View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityInd
 import {Ionicons} from "@expo/vector-icons";
 import {useLocalSearchParams, useRouter} from "expo-router";
 import {useEffect, useMemo, useState} from "react";
-import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {providerApi, postApi} from "@/lib/api";
+import {AppHeader} from "@/components/ui/AppHeader";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 const GUTTER = 0;
@@ -19,7 +19,6 @@ export default function ProfilePhotosScreen() {
   const {colors} = useThemeVariant();
   const {id} = useLocalSearchParams<{id: string}>();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"gallery" | "posts">("gallery");
@@ -121,22 +120,11 @@ export default function ProfilePhotosScreen() {
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: Math.max(insets.top + 12, 16),
-            borderBottomColor: colors.border,
-            backgroundColor: colors.background,
-          },
-        ]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} activeOpacity={0.8}>
-          <Ionicons name="arrow-back" size={22} color={colors.foreground} />
-          <Text style={[styles.backText, {color: colors.foreground}]}>Atrás</Text>
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Fotos</Text>
-        <View style={{width: 60}} />
-      </View>
+      <AppHeader
+        title="Fotos"
+        showBackButton
+        backFallbackRoute={`/profile/${id}`}
+      />
 
       {isLoading ? (
         <View style={styles.loading}>
@@ -267,30 +255,6 @@ export default function ProfilePhotosScreen() {
 
 const styles = StyleSheet.create({
   container: {flex: 1},
-  header: {
-    borderBottomWidth: 1,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    minHeight: 40,
-    minWidth: 60,
-  },
-  backText: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    letterSpacing: -0.2,
-  },
   loading: {
     flex: 1,
     alignItems: "center",

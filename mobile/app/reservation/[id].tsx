@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
-import {useLocalSearchParams} from "expo-router";
+import {useLocalSearchParams, useRouter} from "expo-router";
 import {useEffect, useMemo, useState} from "react";
 import {reservationApi, trackingApi, groupSessionApi, type GroupSessionParticipant} from "@/lib/api";
 import {Location, Reservation} from "@/types/global";
@@ -80,6 +80,8 @@ function InfoRow({
 export default function ReservationDetailsScreen() {
   const {colors} = useThemeVariant();
   const {user}   = useAuth();
+  const router   = useRouter();
+  const handleBack = () => router.replace("/(tabs)" as any);
 
   const params        = useLocalSearchParams<{id?: string}>();
   const reservationId = useMemo(() => Number(params.id), [params.id]);
@@ -244,7 +246,7 @@ export default function ReservationDetailsScreen() {
   // ── States ────────────────────────────────────────────────────────────────────
   if (isLoading) return (
     <View style={[s.flex, {backgroundColor: colors.background}]}>
-      <AppHeader title="Detalles de Reserva" showBackButton backFallbackRoute="/(tabs)/perfil" backButtonCircle />
+      <AppHeader title="Detalles de Reserva" showBackButton onBackPress={handleBack} backButtonCircle />
       <View style={s.center}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[s.hint, {color: colors.mutedForeground}]}>Cargando reserva…</Text>
@@ -254,7 +256,7 @@ export default function ReservationDetailsScreen() {
 
   if (error || !reservation) return (
     <View style={[s.flex, {backgroundColor: colors.background}]}>
-      <AppHeader title="Detalles de Reserva" showBackButton backFallbackRoute="/(tabs)/perfil" backButtonCircle />
+      <AppHeader title="Detalles de Reserva" showBackButton onBackPress={handleBack} backButtonCircle />
       <View style={s.center}>
         <View style={[s.errorIcon, {backgroundColor: "#ef4444" + "14"}]}>
           <Ionicons name="alert-circle-outline" size={32} color="#ef4444" />
@@ -278,7 +280,7 @@ export default function ReservationDetailsScreen() {
       <AppHeader
         title="Detalles de Reserva"
         showBackButton
-        backFallbackRoute="/(tabs)/perfil"
+        onBackPress={handleBack}
         backButtonCircle
       />
 

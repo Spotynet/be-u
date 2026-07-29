@@ -10,10 +10,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  Animated,
+  useWindowDimensions,
 } from "react-native";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import {useState, useEffect} from "react";
+import {useState, useEffect, useRef, useCallback} from "react";
 import {useAuth} from "@/features/auth";
 import {useReservationFlow} from "@/features/reservations";
 import {CalendarView} from "@/components/calendar";
@@ -23,12 +25,72 @@ import {formatPrice} from "@/lib/priceUtils";
 import {useCategory} from "@/contexts/CategoryContext";
 import {useAppTheme} from "@/constants/theme";
 import {AppHeader} from "@/components/ui/AppHeader";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
+
+function TimeChip({
+  label,
+  selected,
+  onPress,
+  chipWidth,
+  colors,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  chipWidth: number;
+  colors: any;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePress = useCallback(() => {
+    Animated.sequence([
+      Animated.spring(scale, {toValue: 0.88, useNativeDriver: true, speed: 50, bounciness: 0}),
+      Animated.spring(scale, {toValue: 1, useNativeDriver: true, speed: 20, bounciness: 12}),
+    ]).start();
+    onPress();
+  }, [onPress]);
+
+  return (
+    <Animated.View style={{transform: [{scale}], width: chipWidth}}>
+      <TouchableOpacity
+        onPress={handlePress}
+        activeOpacity={0.85}
+        style={[
+          chipStyles.chip,
+          selected
+            ? {backgroundColor: colors.primary, borderColor: colors.primary}
+            : {backgroundColor: colors.card, borderColor: colors.border},
+        ]}>
+        <Text style={[chipStyles.chipText, {color: selected ? "#fff" : colors.foreground}]}>{label}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+const chipStyles = StyleSheet.create({
+  chip: {
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chipText: {
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+});
 
 export default function BookingScreen() {
   const theme = useAppTheme();
   const {colors} = useThemeVariant();
   const styles = makeStyles(colors, theme);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const {width: screenW} = useWindowDimensions();
+  // 3-col grid: screen - horizontal padding (16*2) - gaps between 3 cols (8*2), divided by 3
+  const chipWidth = Math.floor((screenW - 32 - 16) / 3);
   const {user, isAuthenticated, isLoading: authLoading} = useAuth();
   const {setSelectedServiceCategory} = useCategory();
   const params = useLocalSearchParams<{
@@ -48,6 +110,7 @@ export default function BookingScreen() {
     useReservationFlow();
 
   const [localNotes, setLocalNotes] = useState("");
+  const [notesFocused, setNotesFocused] = useState(false);
   const UNAVAILABLE_MSG =
     "El/La profesional no esta disponible en la fecha seleccionada. Seleccione otro día.";
 
@@ -302,28 +365,16 @@ export default function BookingScreen() {
   // Derive current step for the visual indicator
   const currentStep = !selectedTime ? 1 : 2;
 
-  // Color helpers for step indicator
-  const getStepColors = (step: number) => {
-    if (step === currentStep) {
-      return {
-        bg: colors.primary,
-        text: "#ffffff",
-        label: colors.primary,
-      };
-    }
-    if (step < currentStep) {
-      return {
-        bg: colors.primary + "33", // low opacity for completed
-        text: colors.primary,
-        label: colors.primary,
-      };
-    }
-    return {
-      bg: colors.muted,
-      text: colors.mutedForeground,
-      label: colors.mutedForeground,
-    };
-  };
+  // Animated progress bar
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.spring(progressAnim, {
+      toValue: currentStep === 1 ? 0.5 : 1,
+      useNativeDriver: false,
+      friction: 10,
+      tension: 60,
+    }).start();
+  }, [currentStep]);
 
   // Compute available time slots (15m increments) that fit duration and avoid conflicts
   const computeAvailableTimes = (
@@ -398,11 +449,15 @@ export default function BookingScreen() {
 
   const filterPastTimesForToday = (times: string[], dateStr: string): string[] => {
     if (!isSelectedDateToday(dateStr)) return times;
-    const nowMinutes = getCurrentTimeMinutes();
+    // Use UTC minutes to match the server's timezone (Django USE_TZ=True, TIME_ZONE='UTC').
+    // Add a 5-minute buffer so a slot that is borderline doesn't pass client validation
+    // but then fail the server's check due to network latency.
+    const now = new Date();
+    const nowUtcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes() + 5;
     return times.filter((t) => {
       const [h, m] = t.split(":").map(Number);
       const slotMinutes = h * 60 + m;
-      return slotMinutes > nowMinutes;
+      return slotMinutes > nowUtcMinutes;
     });
   };
 
@@ -903,11 +958,16 @@ export default function BookingScreen() {
     );
   }
 
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0%", "100%"],
+  });
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, {backgroundColor: colors.background}]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 20}>
       <AppHeader
         title="Nueva Reserva"
         showBackButton
@@ -916,80 +976,35 @@ export default function BookingScreen() {
         borderBottom={colors.border}
       />
 
-      {/* Service Info Card */}
-      <View style={[styles.serviceCard, {backgroundColor: colors.card}]}>
-        <View style={styles.serviceInfo}>
-          <Text style={[styles.serviceName, {color: colors.foreground}]}>
+      {/* Context strip — always visible, never scrolls away */}
+      <View style={[styles.contextStrip, {borderBottomColor: colors.border}]}>
+        <View style={styles.contextLeft}>
+          <Text style={[styles.contextServiceName, {color: colors.foreground}]} numberOfLines={1}>
             {serviceInfo.serviceName}
           </Text>
-          <Text style={[styles.providerName, {color: colors.mutedForeground}]}>
+          <Text style={[styles.contextProvider, {color: colors.mutedForeground}]} numberOfLines={1}>
             {serviceInfo.providerName}
           </Text>
         </View>
-        <View style={styles.serviceDetails}>
-          <View style={styles.detailItem}>
-            <Ionicons name="time-outline" size={16} color={colors.mutedForeground} />
-            <Text style={[styles.detailText, {color: colors.foreground}]}>
-              {serviceInfo.duration} min
-            </Text>
+        <View style={styles.contextRight}>
+          <View style={[styles.durationPill, {backgroundColor: colors.muted}]}>
+            <Ionicons name="time-outline" size={13} color={colors.mutedForeground} />
+            <Text style={[styles.durationText, {color: colors.mutedForeground}]}>{serviceInfo.duration} min</Text>
           </View>
-          <View style={styles.detailItem}>
-            <Ionicons name="cash-outline" size={16} color={colors.primary} />
-            <Text style={[styles.priceText, {color: colors.primary}]}>{formatPrice(serviceInfo.price)}</Text>
-          </View>
+          <Text style={[styles.priceText, {color: colors.primary}]}>{formatPrice(serviceInfo.price)}</Text>
         </View>
       </View>
 
-      {/* Steps */}
-      <View style={[styles.stepsContainer, {backgroundColor: colors.background}]}>
-        <View style={styles.step}>
-          <View
-            style={[
-              styles.stepNumber,
-              {
-                backgroundColor: getStepColors(1).bg,
-              },
-            ]}>
-            <Text
-              style={[
-                styles.stepNumberText,
-                {color: getStepColors(1).text},
-              ]}>
-              1
-            </Text>
-          </View>
-          <Text
-            style={[
-              styles.stepLabel,
-              {color: getStepColors(1).label},
-            ]}>
-            Fecha y hora
-          </Text>
+      {/* Step progress */}
+      <View style={styles.progressWrap}>
+        <View style={[styles.progressTrack, {backgroundColor: colors.border}]}>
+          <Animated.View style={[styles.progressFill, {backgroundColor: colors.primary, width: progressWidth}]} />
         </View>
-
-        <View style={[styles.stepDivider, {backgroundColor: colors.border}]} />
-
-        <View style={styles.step}>
-          <View
-            style={[
-              styles.stepNumber,
-              {
-                backgroundColor: getStepColors(2).bg,
-              },
-            ]}>
-            <Text
-              style={[
-                styles.stepNumberText,
-                {color: getStepColors(2).text},
-              ]}>
-              2
-            </Text>
-          </View>
-          <Text
-            style={[
-              styles.stepLabel,
-              {color: getStepColors(2).label},
-            ]}>
+        <View style={styles.progressLabels}>
+          <Text style={[styles.progressLabel, {color: currentStep === 1 ? colors.primary : colors.mutedForeground}]}>
+            {currentStep > 1 ? "✓ " : ""}Fecha y hora
+          </Text>
+          <Text style={[styles.progressLabel, {color: currentStep === 2 ? colors.primary : colors.mutedForeground}]}>
             Confirmar
           </Text>
         </View>
@@ -1000,163 +1015,88 @@ export default function BookingScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        {/* Step 1: Date + Time */}
+
+        {/* ── Step 1: Date + Time ── */}
         {!selectedTime ? (
           <View style={styles.stepContent}>
-            <View style={[styles.stepIntroCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-              <View style={styles.stepIntroHeader}>
-                <View style={[styles.stepIntroIcon, {backgroundColor: colors.primary + "18"}]}>
-                  <Ionicons name="calendar-outline" size={20} color={colors.primary} />
-                </View>
-                <View style={styles.stepIntroTextWrap}>
-                  <Text style={[styles.stepKicker, {color: colors.mutedForeground}]}>Paso 1</Text>
-                  <Text style={[styles.stepIntroTitle, {color: colors.foreground}]}>Fecha y hora</Text>
-                </View>
-                <View style={[styles.stepStatusPill, {backgroundColor: colors.muted, borderColor: colors.border}]}>
-                  <Ionicons name="sparkles" size={14} color={colors.primary} />
-                  <Text style={[styles.stepStatusText, {color: colors.foreground}]}>Explora disponibilidad</Text>
-                </View>
-              </View>
-              <Text style={[styles.stepIntroCopy, {color: colors.mutedForeground}]}>Selecciona un día y una franja que se ajusten al ritmo de la cita.</Text>
-            </View>
 
+            {/* Date availability error */}
             {dateAvailabilityError && (
-              <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "12", borderColor: "#ef4444" + "40"}]}>
-                <View style={[styles.errorIconWrap, {backgroundColor: "#ef4444" + "18"}]}>
-                  <Ionicons name="alert-circle" size={18} color="#ef4444" />
-                </View>
-                <View style={styles.errorTextWrap}>
-                  <Text style={[styles.errorCardTitle, {color: "#ef4444"}]}>Disponibilidad limitada</Text>
-                  <Text style={[styles.errorCardText, {color: "#b91c1c"}]}>{dateAvailabilityError}</Text>
-                </View>
+              <View style={[styles.inlineBanner, {backgroundColor: "#ef444414"}]}>
+                <Ionicons name="alert-circle" size={15} color="#ef4444" />
+                <Text style={[styles.inlineBannerText, {color: "#ef4444"}]}>{dateAvailabilityError}</Text>
               </View>
             )}
 
-            <View style={[styles.calendarShell, {backgroundColor: colors.card, borderColor: colors.border}]}>
-              <View style={styles.calendarShellHeader}>
-                <View style={[styles.calendarShellIcon, {backgroundColor: colors.primary + "16"}]}>
-                  <Ionicons name="calendar" size={18} color={colors.primary} />
-                </View>
-                <View style={styles.calendarShellCopy}>
-                  <Text style={[styles.sectionEyebrow, {color: colors.mutedForeground}]}>Calendario</Text>
-                  <Text style={[styles.sectionHeaderText, {color: colors.foreground}]}>
-                    {selectedDate ? selectedDate.toLocaleDateString("es-MX", {weekday: "long", day: "numeric", month: "long"}) : "Elige tu fecha"}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.calendarContainer}>
-                <CalendarView
-                  reservations={[]}
-                  onDayPress={(date) => handleDateSelect(date)}
-                  selectedDate={selectedDate ? formatLocalDate(selectedDate) : undefined}
-                  minDate={formatLocalDate(new Date())}
-                  disabledDaysIndexes={disabledDaysIndexes}
-                  showLegend={false}
-                />
-              </View>
-            </View>
+            {/* Calendar — no wrapper, full bleed */}
+            <CalendarView
+              reservations={[]}
+              onDayPress={(date) => handleDateSelect(date)}
+              selectedDate={selectedDate ? formatLocalDate(selectedDate) : undefined}
+              minDate={formatLocalDate(new Date())}
+              disabledDaysIndexes={disabledDaysIndexes}
+              showLegend={false}
+            />
 
+            {/* Date anchor + time grid — appears after a date is tapped */}
             {selectedDate && (
-              <View style={[styles.timePickerContainer, {backgroundColor: colors.card, borderColor: colors.border}]}>
-                <View style={styles.timeSectionHeader}>
+              <View style={styles.timeSection}>
+
+                {/* Large date headline */}
+                <View style={styles.dateHeadlineRow}>
                   <View>
-                    <Text style={[styles.sectionEyebrow, {color: colors.mutedForeground}]}>Horario</Text>
-                    <Text style={[styles.sectionHeaderText, {color: colors.foreground}]}>Bloques disponibles</Text>
-                  </View>
-                  <View style={[styles.timeCountPill, {backgroundColor: colors.primary + "12", borderColor: colors.primary + "30"}]}>
-                    <Text style={[styles.timeCountText, {color: colors.primary}]}>
-                      {availableTimes.length > 0 ? availableTimes.length + " opciones" : "Sin opciones"}
+                    <Text style={[styles.dateHeadline, {color: colors.foreground}]}>
+                      {selectedDate.toLocaleDateString("es-MX", {weekday: "long", day: "numeric", month: "long"})}
                     </Text>
+                    {scheduleData?.working_hours && (
+                      <Text style={[styles.dateSubline, {color: colors.mutedForeground}]}>
+                        Horario {scheduleData.working_hours.start} – {scheduleData.working_hours.end}
+                      </Text>
+                    )}
                   </View>
+                  {availableTimes.length > 0 && (
+                    <View style={[styles.slotCountBadge, {backgroundColor: colors.primary + "18"}]}>
+                      <Text style={[styles.slotCountText, {color: colors.primary}]}>{availableTimes.length}</Text>
+                    </View>
+                  )}
                 </View>
 
+                {/* Time availability error */}
                 {timeAvailabilityError && (
-                  <View style={[styles.errorCard, {backgroundColor: "#ef4444" + "12", borderColor: "#ef4444" + "40"}]}>
-                    <View style={[styles.errorIconWrap, {backgroundColor: "#ef4444" + "18"}]}>
-                      <Ionicons name="alert-circle" size={18} color="#ef4444" />
-                    </View>
-                    <View style={styles.errorTextWrap}>
-                      <Text style={[styles.errorCardTitle, {color: "#ef4444"}]}>Hora no disponible</Text>
-                      <Text style={[styles.errorCardText, {color: "#b91c1c"}]}>{timeAvailabilityError}</Text>
-                    </View>
+                  <View style={[styles.inlineBanner, {backgroundColor: "#ef444414"}]}>
+                    <Ionicons name="alert-circle" size={15} color="#ef4444" />
+                    <Text style={[styles.inlineBannerText, {color: "#ef4444"}]}>{timeAvailabilityError}</Text>
                   </View>
                 )}
 
                 {loadingSchedule ? (
-                  <View style={[styles.loadingSchedule, {backgroundColor: colors.contentBackground, borderColor: colors.border}]}>
+                  <View style={styles.loadingRow}>
                     <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={[styles.loadingScheduleText, {color: colors.mutedForeground}]}>Cargando horarios disponibles...</Text>
+                    <Text style={[styles.loadingScheduleText, {color: colors.mutedForeground}]}>Buscando disponibilidad...</Text>
                   </View>
-                ) : scheduleData && scheduleData.working_hours ? (
-                  <View style={[styles.scheduleInfo, {backgroundColor: colors.contentBackground, borderColor: colors.border}]}>
-                    <View style={styles.scheduleRow}>
-                      <View style={[styles.scheduleIconWrap, {backgroundColor: colors.primary + "14"}]}>
-                        <Ionicons name="time-outline" size={16} color={colors.primary} />
-                      </View>
-                      <View style={styles.scheduleCopy}>
-                        <Text style={[styles.scheduleLabel, {color: colors.mutedForeground}]}>Horario de atención</Text>
-                        <Text style={[styles.scheduleValue, {color: colors.foreground}]}> {scheduleData.working_hours.start} - {scheduleData.working_hours.end}</Text>
-                      </View>
-                    </View>
-                    {scheduleData.break_times.length > 0 && (
-                      <View style={styles.breaksContainer}>
-                        <View style={styles.scheduleRow}>
-                          <View style={[styles.scheduleIconWrap, {backgroundColor: colors.muted}]}> 
-                            <Ionicons name="cafe-outline" size={16} color={colors.mutedForeground} />
-                          </View>
-                          <Text style={[styles.scheduleLabel, {color: colors.mutedForeground}]}>Descansos</Text>
-                        </View>
-                        <View style={styles.breakChips}>
-                          {scheduleData.break_times.map((br, idx) => (
-                            <View
-                              key={br.start + "-" + br.end + "-" + idx}
-                              style={[
-                                styles.breakChip,
-                                {
-                                  backgroundColor: colors.card,
-                                  borderColor: colors.border,
-                                },
-                              ]}>
-                              <Text style={[styles.breakChipText, {color: colors.mutedForeground}]}> 
-                                {br.start} - {br.end}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                ) : null}
-
-                {scheduleData?.working_hours && (
-                  <View style={styles.availableTimesContainer}>
-                    <View style={styles.availableTimesHeader}>
-                      <View>
-                        <Text style={[styles.availableTimesTitle, {color: colors.foreground}]}>Horarios disponibles</Text>
-                        <Text style={[styles.availableTimesMeta, {color: colors.mutedForeground}]}>Toca un bloque para fijar la hora</Text>
-                      </View>
-                    </View>
+                ) : scheduleData?.working_hours ? (
+                  <>
                     {availableTimes.length === 0 ? (
-                      <View style={[styles.availableTimesEmptyCard, {backgroundColor: colors.contentBackground, borderColor: colors.border}]}>
-                        <Text style={[styles.availableTimesEmpty, {color: colors.mutedForeground}]}>No hay horarios que cumplan con la duración y disponibilidad.</Text>
+                      <View style={[styles.emptyTimesBox, {backgroundColor: colors.muted, borderColor: colors.border}]}>
+                        <Ionicons name="calendar-outline" size={22} color={colors.mutedForeground} />
+                        <Text style={[styles.emptyTimesText, {color: colors.mutedForeground}]}>
+                          Sin disponibilidad para este día
+                        </Text>
                       </View>
                     ) : (
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.availableTimesRow}>
+                      <View style={styles.timeGrid}>
                         {availableTimes.map((t) => {
-                          const isSelected = selectedTime && formatTime(selectedTime) === t;
+                          const isSelected = !!(selectedTime && formatTime(selectedTime) === t);
                           return (
-                            <TouchableOpacity
+                            <TimeChip
                               key={t}
-                              style={[
-                                styles.availableTimeChip,
-                                {
-                                  backgroundColor: isSelected ? colors.primary : colors.card,
-                                  borderColor: isSelected ? colors.primary : colors.border,
-                                },
-                              ]}
+                              label={t}
+                              selected={isSelected}
+                              chipWidth={chipWidth}
+                              colors={colors}
                               onPress={() => {
                                 const [h, m] = t.split(":").map(Number);
-                                const d = new Date(selectedDate || new Date());
+                                const d = new Date(selectedDate);
                                 d.setHours(h, m, 0, 0);
                                 if (isTimeSlotAvailable(d)) {
                                   setSelectedTime(d);
@@ -1165,200 +1105,165 @@ export default function BookingScreen() {
                                   setTimeAvailabilityError(UNAVAILABLE_MSG);
                                 }
                               }}
-                              activeOpacity={0.8}>
-                              <Text style={[styles.availableTimeText, {color: isSelected ? "#ffffff" : colors.foreground}]}> 
-                                {t}
-                              </Text>
-                            </TouchableOpacity>
+                            />
                           );
                         })}
-                      </ScrollView>
-                    )}
-                  </View>
-                )}
-
-                {groupSessionsForDate.length > 0 && (
-                  <View style={[styles.groupSessionsCard, {backgroundColor: colors.contentBackground, borderColor: colors.border}]}>
-                    <View style={styles.availableTimesHeader}>
-                      <View>
-                        <Text style={[styles.availableTimesTitle, {color: colors.foreground}]}>Sesiones grupales con cupos</Text>
-                        <Text style={[styles.availableTimesMeta, {color: colors.mutedForeground}]}>Opciones compartidas disponibles hoy</Text>
                       </View>
-                    </View>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.availableTimesRow}>
+                    )}
+
+                    {scheduleData.break_times.length > 0 && (
+                      <View style={styles.breakRow}>
+                        <Ionicons name="cafe-outline" size={12} color={colors.mutedForeground} />
+                        <Text style={[styles.breakLabel, {color: colors.mutedForeground}]}>
+                          Pausas: {scheduleData.break_times.map(b => `${b.start}–${b.end}`).join(" · ")}
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                ) : null}
+
+                {/* Group sessions */}
+                {groupSessionsForDate.length > 0 && (
+                  <View style={styles.groupSection}>
+                    <View style={[styles.divider, {backgroundColor: colors.border}]} />
+                    <Text style={[styles.groupLabel, {color: colors.mutedForeground}]}>Sesiones grupales disponibles</Text>
+                    <View style={styles.timeGrid}>
                       {groupSessionsForDate.map((session: any) => {
-                        const selected = selectedGroupSessionId === session.id;
+                        const sel = selectedGroupSessionId === session.id;
                         return (
-                          <TouchableOpacity
+                          <TimeChip
                             key={session.id}
-                            style={[
-                              styles.availableTimeChip,
-                              {
-                                backgroundColor: selected ? colors.primary : colors.card,
-                                borderColor: selected ? colors.primary : colors.border,
-                              },
-                            ]}
+                            label={`${String(session.time).slice(0, 5)}  ·  ${session.booked_slots ?? 0}/${session.capacity}`}
+                            selected={sel}
+                            chipWidth={chipWidth}
+                            colors={colors}
                             onPress={() => {
                               setSelectedGroupSessionId(session.id);
                               const [h, m] = String(session.time).slice(0, 5).split(":").map(Number);
-                              const d = new Date(selectedDate || new Date());
+                              const d = new Date(selectedDate);
                               d.setHours(h, m, 0, 0);
                               setSelectedTime(d);
-                            }}>
-                            <Text style={[styles.availableTimeText, {color: selected ? "#ffffff" : colors.foreground}]}> 
-                              {String(session.time).slice(0, 5)} ({session.booked_slots ?? 0}/{session.capacity})
-                            </Text>
-                          </TouchableOpacity>
+                            }}
+                          />
                         );
                       })}
-                    </ScrollView>
+                    </View>
                   </View>
                 )}
               </View>
             )}
           </View>
+
         ) : (
-          // Step 2: Confirmation
+          /* ── Step 2: Confirmation ── */
           <View style={styles.stepContent}>
-            <View style={styles.stepHeader}>
-              <TouchableOpacity
-                onPress={() => setSelectedTime(null)}
-                activeOpacity={0.7}>
-                <Ionicons name="chevron-back" size={24} color={colors.primary} />
-              </TouchableOpacity>
-              <Text style={[styles.stepTitle, {color: colors.foreground}]}>
-                Confirma tu reserva
-              </Text>
-              <View style={styles.placeholder} />
-            </View>
 
-            {/* Summary Card */}
-            <View style={[styles.summaryCard, {backgroundColor: colors.card}]}>
-              <Text style={[styles.summaryTitle, {color: colors.foreground}]}>
-                Resumen de Reserva
-              </Text>
+            {/* Back link */}
+            <TouchableOpacity style={styles.backLink} onPress={() => setSelectedTime(null)} activeOpacity={0.7}>
+              <Ionicons name="chevron-back" size={18} color={colors.primary} />
+              <Text style={[styles.backLinkText, {color: colors.primary}]}>Cambiar fecha u hora</Text>
+            </TouchableOpacity>
 
-              <View style={styles.summaryItem}>
-                <Ionicons name="cut" size={20} color={colors.primary} />
-                <View style={styles.summaryText}>
-                  <Text style={[styles.summaryLabel, {color: colors.mutedForeground}]}>
-                    Servicio
-                  </Text>
-                  <Text style={[styles.summaryValue, {color: colors.foreground}]}>
-                    {serviceInfo.serviceName}
-                  </Text>
+            {/* Booking summary rows */}
+            <Text style={[styles.confirmTitle, {color: colors.foreground}]}>Tu reserva</Text>
+
+            <View style={[styles.summaryRows, {borderColor: colors.border}]}>
+              {[
+                {icon: "cut-outline" as const,      label: "Servicio", value: serviceInfo.serviceName,  accent: false},
+                {icon: "person-outline" as const,   label: "Con",      value: serviceInfo.providerName, accent: false},
+                {icon: "calendar-outline" as const, label: "Fecha",    value: selectedDate?.toLocaleDateString("es-MX", {weekday: "long", day: "numeric", month: "long", year: "numeric"}) ?? "", accent: false},
+                {icon: "time-outline" as const,     label: "Hora",     value: selectedTime ? `${formatTime(selectedTime)} – ${formatTime(getEndTime(selectedTime, serviceInfo.duration))}` : "", accent: false},
+                {icon: "cash-outline" as const,     label: "Total",    value: formatPrice(serviceInfo.price), accent: true},
+              ].map((row, i, arr) => (
+                <View
+                  key={row.label}
+                  style={[
+                    styles.summaryRow,
+                    i < arr.length - 1 && {borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border},
+                  ]}>
+                  <View style={[styles.summaryIcon, {backgroundColor: row.accent ? colors.primary + "22" : colors.primary + "16"}]}>
+                    <Ionicons name={row.icon} size={16} color={colors.primary} />
+                  </View>
+                  <View style={styles.summaryRowText}>
+                    <Text style={[styles.summaryRowLabel, {color: colors.mutedForeground}]}>{row.label}</Text>
+                    <Text style={[styles.summaryRowValue, {color: row.accent ? colors.primary : colors.foreground, fontSize: row.accent ? 17 : 15}]}>{row.value}</Text>
+                  </View>
                 </View>
-              </View>
-
-              <View style={styles.summaryItem}>
-                <Ionicons name="calendar" size={20} color={colors.primary} />
-                <View style={styles.summaryText}>
-                  <Text style={[styles.summaryLabel, {color: colors.mutedForeground}]}>Fecha</Text>
-                  <Text style={[styles.summaryValue, {color: colors.foreground}]}>
-                    {selectedDate && selectedDate.toLocaleDateString("es-MX", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.summaryItem}>
-                <Ionicons name="time" size={20} color={colors.primary} />
-                <View style={styles.summaryText}>
-                  <Text style={[styles.summaryLabel, {color: colors.mutedForeground}]}>Hora</Text>
-                  <Text style={[styles.summaryValue, {color: colors.foreground}]}>
-                    {selectedTime && formatTime(selectedTime)} - {selectedTime && formatTime(getEndTime(selectedTime, serviceInfo.duration))}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.summaryItem}>
-                <Ionicons name="cash" size={20} color={colors.primary} />
-                <View style={styles.summaryText}>
-                  <Text style={[styles.summaryLabel, {color: colors.mutedForeground}]}>Precio</Text>
-                  <Text style={[styles.summaryValue, {color: colors.foreground}]}>
-                    {formatPrice(serviceInfo.price)}
-                  </Text>
-                </View>
-              </View>
+              ))}
             </View>
 
             {/* Notes */}
             <View style={styles.notesSection}>
-              <Text style={[styles.label, {color: colors.foreground}]}>
-                Notas para el proveedor (Opcional)
-              </Text>
+              <Text style={[styles.notesLabel, {color: colors.mutedForeground}]}>Nota para el proveedor</Text>
               <TextInput
                 style={[
                   styles.notesInput,
                   {
                     backgroundColor: colors.card,
                     color: colors.foreground,
-                    borderColor: colors.border,
+                    borderColor: notesFocused ? colors.primary : colors.border,
                   },
                 ]}
                 value={localNotes}
                 onChangeText={setLocalNotes}
-                placeholder="Ej: Alergia a ciertos productos, preferencias específicas..."
+                onFocus={() => setNotesFocused(true)}
+                onBlur={() => setNotesFocused(false)}
+                placeholder="Opcional: alergias, preferencias, indicaciones..."
                 placeholderTextColor={colors.mutedForeground}
                 multiline
-                numberOfLines={4}
+                numberOfLines={3}
                 textAlignVertical="top"
               />
             </View>
 
-            {/* Success Message */}
+            {/* Success banner */}
             {reservationSuccess && (
-              <View style={[styles.successCard, {backgroundColor: "#10b981" + "20", borderColor: "#10b981"}]}>
-                <Ionicons name="checkmark-circle" size={24} color="#10b981" />
-                <View style={styles.successTextContainer}>
-                  <Text style={[styles.successTitle, {color: "#10b981"}]}>
-                    ¡Reserva Confirmada!
-                  </Text>
-                  <Text style={[styles.successText, {color: colors.foreground}]}>
-                    Tu reserva ha sido confirmada exitosamente. Recibirás un recordatorio antes de tu cita.
+              <View style={[styles.successBanner, {backgroundColor: "#10b98118", borderColor: "#10b981"}]}>
+                <Ionicons name="checkmark-circle" size={22} color="#10b981" />
+                <View style={{flex: 1}}>
+                  <Text style={[styles.successTitle, {color: "#10b981"}]}>¡Reserva confirmada!</Text>
+                  <Text style={[styles.successText, {color: colors.mutedForeground}]}>
+                    Recibirás un recordatorio antes de tu cita.
                   </Text>
                 </View>
               </View>
             )}
-
-            {/* Info */}
-            {!reservationSuccess && (
-              null
-            )}
-
-            {/* Confirm Button */}
-            <TouchableOpacity
-              style={[
-                styles.confirmButton,
-                {
-                  backgroundColor: (isSubmitting || reservationSuccess) ? colors.muted : colors.primary,
-                  opacity: (isSubmitting || reservationSuccess) ? 0.6 : 1,
-                },
-              ]}
-              onPress={handleConfirmBooking}
-              disabled={isSubmitting || reservationSuccess}
-              activeOpacity={0.9}>
-              {isSubmitting ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : reservationSuccess ? (
-                <>
-                  <Ionicons name="checkmark-circle" size={22} color="#ffffff" />
-                  <Text style={styles.confirmButtonText}>Reserva Confirmada</Text>
-                </>
-              ) : (
-                <>
-                  <Ionicons name="checkmark-circle" size={22} color="#ffffff" />
-                  <Text style={styles.confirmButtonText}>Confirmar Reserva</Text>
-                </>
-              )}
-            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
+
+      {/* Sticky confirm CTA — only shown on Step 2, always visible above keyboard / home indicator */}
+      {!!selectedTime && (
+        <View
+          style={[
+            styles.stickyFooter,
+            {
+              backgroundColor: colors.background,
+              borderTopColor: colors.border,
+              paddingBottom: Math.max(insets.bottom, 16),
+            },
+          ]}>
+          <TouchableOpacity
+            style={[
+              styles.confirmButton,
+              {backgroundColor: (isSubmitting || reservationSuccess) ? colors.primary + "70" : colors.primary},
+            ]}
+            onPress={handleConfirmBooking}
+            disabled={isSubmitting || reservationSuccess}
+            activeOpacity={0.88}>
+            {isSubmitting ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : reservationSuccess ? (
+              <>
+                <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
+                <Text style={styles.confirmButtonText}>Reserva confirmada</Text>
+              </>
+            ) : (
+              <Text style={styles.confirmButtonText}>Confirmar reserva</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -1368,271 +1273,299 @@ function makeStyles(colors: any, theme: any) {
   container: {
     flex: 1,
   },
-  serviceCard: {
-    margin: 16,
-    padding: 16,
-    borderRadius: 16,
-  },
-  serviceInfo: {
-    marginBottom: 12,
-  },
-  serviceName: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  providerName: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  serviceDetails: {
-    flexDirection: "row",
-    gap: 20,
-  },
-  detailItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  detailText: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  priceText: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  stepsContainer: {
-    marginHorizontal: 16,
-    marginTop: 6,
-    marginBottom: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderRadius: 24,
+
+  /* Context strip */
+  contextStrip: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderWidth: 1,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowOffset: {width: 0, height: 8},
-    shadowRadius: 18,
-    elevation: 2,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 12,
   },
-  step: {
+  contextLeft: {
     flex: 1,
-    alignItems: "center",
-    gap: 8,
+    gap: 2,
   },
-  stepNumber: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: {width: 0, height: 4},
-    shadowRadius: 10,
-    elevation: 1,
+  contextServiceName: {
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: -0.2,
   },
-  stepNumberText: {
-    fontSize: 15,
+  contextProvider: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  contextRight: {
+    alignItems: "flex-end",
+    gap: 5,
+  },
+  durationPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 99,
+  },
+  durationText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  priceText: {
+    fontSize: 20,
     fontWeight: "800",
+    letterSpacing: -0.4,
   },
-  stepLabel: {
+
+  /* Progress */
+  progressWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 6,
+    gap: 6,
+  },
+  progressTrack: {
+    height: 3,
+    borderRadius: 99,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 99,
+  },
+  progressLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  progressLabel: {
     fontSize: 11,
     fontWeight: "700",
-    letterSpacing: 0.6,
-    textAlign: "center",
-    lineHeight: 14,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
   },
-  stepDivider: {
-    flex: 1,
-    height: 1,
-    borderRadius: 999,
-    marginHorizontal: 12,
-  },
-  placeholder: {
-    width: 40,
-  },
+
   content: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 24,
   },
   stepContent: {
-    padding: 16,
-    gap: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    gap: 0,
   },
-  stepHeader: {
+  /* Step 1 — calendar + time */
+  inlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  inlineBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
+  timeSection: {
+    marginTop: 20,
+    gap: 14,
+  },
+  dateHeadlineRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  stepIntroCard: {
-    borderRadius: 24,
-    borderWidth: 1,
-    padding: 16,
-    gap: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowOffset: {width: 0, height: 10},
-    shadowRadius: 22,
-    elevation: 2,
-  },
-  stepIntroHeader: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: 12,
   },
-  stepIntroIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  dateHeadline: {
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    textTransform: "capitalize",
+  },
+  dateSubline: {
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  slotCountBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
-  stepIntroTextWrap: {
+  slotCountText: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+  },
+  loadingScheduleText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  emptyTimesBox: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 28,
+    alignItems: "center",
+    gap: 8,
+  },
+  emptyTimesText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  timeGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  breakRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  breakLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  groupSection: {
+    gap: 12,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+  },
+  groupLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+
+  /* Step 2 — confirmation */
+  backLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 20,
+    alignSelf: "flex-start",
+    minHeight: 44,
+    paddingVertical: 8,
+    paddingRight: 12,
+  },
+  backLinkText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  confirmTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    letterSpacing: -0.6,
+    marginBottom: 16,
+  },
+  summaryRows: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    overflow: "hidden",
+    marginBottom: 24,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  summaryIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  summaryRowText: {
     flex: 1,
     gap: 2,
   },
-  stepKicker: {
+  summaryRowLabel: {
     fontSize: 11,
     fontWeight: "700",
-    letterSpacing: 1,
+    letterSpacing: 0.5,
     textTransform: "uppercase",
   },
-  stepTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-  },
-  stepIntroTitle: {
-    fontSize: 23,
-    fontWeight: "800",
-    letterSpacing: -0.4,
-  },
-  stepStatusPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  stepStatusText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  stepIntroCopy: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: "500",
-  },
-  loadingContainer: {
-    paddingVertical: 64,
-    alignItems: "center",
-    gap: 16,
-  },
-  loadingText: {
-    fontSize: 15,
-  },
-  summaryCard: {
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 20,
-    gap: 16,
-  },
-  summaryTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-  summaryItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  summaryText: {
-    flex: 1,
-  },
-  summaryLabel: {
-    fontSize: 13,
-    fontWeight: "500",
-    marginBottom: 4,
-  },
-  summaryValue: {
+  summaryRowValue: {
     fontSize: 15,
     fontWeight: "600",
   },
   notesSection: {
-    marginBottom: 20,
+    gap: 8,
+    marginBottom: 24,
   },
-  label: {
-    fontSize: 15,
-    fontWeight: "600",
-    marginBottom: 10,
+  notesLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
   },
   notesInput: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
     fontSize: 15,
-    minHeight: 100,
+    minHeight: 90,
   },
-  infoCard: {
+  successBanner: {
     flexDirection: "row",
     alignItems: "flex-start",
-    padding: 14,
-    borderRadius: 12,
-    gap: 10,
-    marginBottom: 20,
+    gap: 12,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    marginBottom: 16,
   },
-  infoText: {
-    flex: 1,
+  successTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  successText: {
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "500",
   },
-  successCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    gap: 12,
-    marginBottom: 20,
-  },
-  successTextContainer: {
-    flex: 1,
-  },
-  successTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  successText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: "500",
+  stickyFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   confirmButton: {
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 17,
+    borderRadius: 16,
+    flexDirection: "row",
     gap: 8,
   },
   confirmButtonText: {
     color: "#ffffff",
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "700",
+    letterSpacing: -0.2,
   },
+
+  /* Shared / misc */
   centeredContainer: {
     flex: 1,
     justifyContent: "center",
@@ -1648,72 +1581,13 @@ function makeStyles(colors: any, theme: any) {
     fontSize: 15,
     textAlign: "center",
   },
-  timePickerContainer: {
-    gap: 16,
-    borderRadius: 24,
-    borderWidth: 1,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: {width: 0, height: 8},
-    shadowRadius: 18,
-    elevation: 1,
-  },
-  calendarShell: {
-    borderRadius: 24,
-    borderWidth: 1,
-    padding: 16,
-    gap: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowOffset: {width: 0, height: 10},
-    shadowRadius: 20,
-    elevation: 2,
-  },
-  calendarShellHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  calendarShellIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  calendarShellCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  sectionEyebrow: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
-  sectionHeaderText: {
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: -0.2,
-  },
-  timeSectionHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  timeCountPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    alignSelf: "flex-start",
-  },
-  timeCountText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
+
+  /* Kept for legacy refs that might exist elsewhere */
+  section: {gap: 12, paddingVertical: 20},
+  sectionLabelRow: {flexDirection: "row", alignItems: "baseline", justifyContent: "space-between"},
+  sectionLabel: {fontSize: 11, fontWeight: "700", letterSpacing: 0.9, textTransform: "uppercase"},
+  sectionValue: {fontSize: 13, fontWeight: "600"},
+  sectionMeta: {fontSize: 12, fontWeight: "500"},
   timePickerLabel: {
     fontSize: 16,
     fontWeight: "600",
@@ -1788,179 +1662,9 @@ function makeStyles(colors: any, theme: any) {
     width: "100%",
     height: 200,
   },
-  loadingSchedule: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-    gap: 10,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  loadingScheduleText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  scheduleInfo: {
-    padding: 14,
-    borderRadius: 20,
-    gap: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-  },
-  scheduleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  scheduleIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  scheduleCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  scheduleLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-  },
-  scheduleValue: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  availableTimesContainer: {
-    marginTop: 4,
-    marginBottom: 8,
-    gap: 10,
-  },
-  availableTimesHeader: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  availableTimesTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    letterSpacing: -0.2,
-  },
-  availableTimesMeta: {
-    fontSize: 12,
-    fontWeight: "500",
-    marginTop: 3,
-  },
-  availableTimesEmptyCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 14,
-  },
-  availableTimesEmpty: {
-    fontSize: 13,
-    fontWeight: "600",
-    lineHeight: 19,
-  },
-  availableTimesList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  availableTimesRow: {
-    flexDirection: "row",
-    gap: 10,
-    paddingVertical: 6,
-    paddingRight: 2,
-  },
-  availableTimeChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    minHeight: 44,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: {width: 0, height: 4},
-    shadowRadius: 10,
-    elevation: 1,
-  },
-  availableTimeText: {
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 0.2,
-  },
-  breaksContainer: {
-    marginTop: 2,
-    gap: 8,
-  },
-  breakChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  breakChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  breakChipText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  scheduleText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  errorCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    padding: 14,
-    borderRadius: 18,
-    borderWidth: 1,
-    gap: 12,
-    marginBottom: 12,
-  },
-  errorIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  errorTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  errorCardTitle: {
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-  },
-  errorCardText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "600",
-  },
   calendarContainer: {
     marginHorizontal: -2,
     paddingRight: 2,
-  },
-  groupSessionsCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 14,
-    gap: 10,
   },
   });
 }
