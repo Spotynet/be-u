@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Soporte nabbi — Ticket #{{ ticket_id }}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F3F4F6;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#F3F4F6;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;background-color:#FFFFFF;border-radius:16px;overflow:hidden;">
+          <tr>
+            <td style="background-color:#1C3829;padding:28px 32px;text-align:center;">
+              <p style="margin:0;font-size:18px;font-weight:700;color:#FFFFFF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+                Nuevo mensaje de ayuda
+              </p>
+              <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.7);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+                Ticket #{{ ticket_id }}
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:20px;">
+                <tr style="background-color:#F9FAFB;">
+                  <td style="padding:12px 16px;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;width:36%;border-bottom:1px solid #E5E7EB;">Tema</td>
+                  <td style="padding:12px 16px;font-size:14px;font-weight:600;color:#111827;border-bottom:1px solid #E5E7EB;">{{ theme_label }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 16px;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;width:36%;border-bottom:1px solid #E5E7EB;">Contacto</td>
+                  <td style="padding:12px 16px;font-size:14px;font-weight:600;color:#111827;border-bottom:1px solid #E5E7EB;">{{ reply_email }}</td>
+                </tr>
+                <tr style="background-color:#F9FAFB;">
+                  <td style="padding:12px 16px;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;width:36%;border-bottom:1px solid #E5E7EB;">Usuario</td>
+                  <td style="padding:12px 16px;font-size:14px;font-weight:600;color:#111827;border-bottom:1px solid #E5E7EB;">
+                    {% if user_id %}ID {{ user_id }}{% if user_email %} ({{ user_email }}){% endif %}{% else %}N/A{% endif %}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 16px;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;width:36%;">Fecha</td>
+                  <td style="padding:12px 16px;font-size:14px;font-weight:600;color:#111827;">{{ submitted_at }}</td>
+                </tr>
+              </table>
+              <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;">Mensaje</p>
+              <p style="margin:0;font-size:15px;color:#111827;line-height:1.6;white-space:pre-wrap;">{{ message }}</p>
+              <p style="margin:24px 0 0;font-size:12px;color:#9CA3AF;">Responde a este correo para contactar al usuario (Reply-To).</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#1C3829;padding:20px 32px;text-align:center;">
+              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.55);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+                nabbi soporte &middot; &copy; {{ year }}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

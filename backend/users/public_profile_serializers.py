@@ -15,7 +15,6 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     user_country = serializers.CharField(source='user.country', read_only=True)
     user_address = serializers.CharField(source='user.address', read_only=True)
     user_image = serializers.SerializerMethodField()
-    display_name = serializers.CharField(read_only=True)
     availability = serializers.SerializerMethodField()
     professional_profile_id = serializers.SerializerMethodField()
     place_profile_id = serializers.SerializerMethodField()
@@ -53,7 +52,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
             'profile_type', 'name', 'description', 'category', 'sub_categories',
             'images', 'linked_pros_place', 'has_calendar',
             'street', 'number_ext', 'number_int', 'postal_code', 'city', 'country',
-            'last_name', 'bio', 'rating', 'display_name', 'availability',
+            'last_name', 'bio', 'rating', 'availability',
             'professional_profile_id', 'place_profile_id',
             'latitude', 'longitude',
             'distance',
@@ -252,7 +251,6 @@ class PublicProfileListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for listing public profiles"""
     
     user_email = serializers.EmailField(source='user.email', read_only=True)
-    display_name = serializers.CharField(read_only=True)
     distance = serializers.SerializerMethodField()
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
@@ -260,7 +258,7 @@ class PublicProfileListSerializer(serializers.ModelSerializer):
     class Meta:
         model = PublicProfile
         fields = [
-            'id', 'user_email', 'profile_type', 'name', 'display_name',
+            'id', 'user_email', 'profile_type', 'name',
             'category', 'city', 'rating', 'has_calendar', 'created_at',
             'latitude', 'longitude', 'distance'
         ]

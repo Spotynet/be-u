@@ -6,17 +6,39 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from django.contrib.contenttypes.models import ContentType
 
-from .models import Notification, NotificationTemplate, PushDeviceToken, ReservationReminder
+from rest_framework.views import APIView
+from .models import Notification, NotificationTemplate, PushDeviceToken, ReservationReminder, NotificationPreferences
 from .serializers import (
-    NotificationSerializer, 
+    NotificationSerializer,
     NotificationCreateSerializer,
     NotificationUpdateSerializer,
     NotificationBulkUpdateSerializer,
     NotificationStatsSerializer,
     NotificationTemplateSerializer,
     PushDeviceTokenSerializer,
-    ReservationReminderSerializer
+    ReservationReminderSerializer,
+    NotificationPreferencesSerializer,
 )
+
+
+class NotificationPreferencesView(APIView):
+    """GET/PUT the authenticated user's notification preferences."""
+    permission_classes = [IsAuthenticated]
+
+    def _get_or_create(self, user):
+        obj, _ = NotificationPreferences.objects.get_or_create(user=user)
+        return obj
+
+    def get(self, request):
+        prefs = self._get_or_create(request.user)
+        return Response(NotificationPreferencesSerializer(prefs).data)
+
+    def put(self, request):
+        prefs = self._get_or_create(request.user)
+        serializer = NotificationPreferencesSerializer(prefs, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class NotificationViewSet(viewsets.ModelViewSet):
@@ -211,9 +233,10 @@ class PushDeviceTokenViewSet(viewsets.ModelViewSet):
 
     serializer_class = PushDeviceTokenSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None
 
     def get_queryset(self):
-        return PushDeviceToken.objects.filter(user=self.request.user)
+        return PushDeviceToken.objects.filter(user=self.request.user, is_active=True)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -233,6 +256,12 @@ class PushDeviceTokenViewSet(viewsets.ModelViewSet):
         )
         out = self.get_serializer(token_obj)
         return Response(out.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['delete'], url_path='revoke-all')
+    def revoke_all(self, request):
+        """Deactivate all push tokens for the current user (sign out all devices)."""
+        updated = PushDeviceToken.objects.filter(user=request.user, is_active=True).update(is_active=False)
+        return Response({'revoked': updated})
 
 
 class ReservationReminderViewSet(viewsets.ReadOnlyModelViewSet):

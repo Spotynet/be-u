@@ -19,14 +19,43 @@ import {profileCustomizationApi} from "@/lib/api";
 import * as ImagePicker from "expo-image-picker";
 import {Platform} from "react-native";
 import {useProviderTour} from "@/features/onboarding/ProviderTourProvider";
+import {TourTarget} from "@/components/onboarding/TourTarget";
+import {useRef, useCallback, useEffect} from "react";
 
 export function ProfessionalSettingsContent() {
   const {colors, colorMode, setColorMode} = useThemeVariant();
   const {user, logout, refreshToken} = useAuth();
   const {refreshProfile} = useUserProfile();
-  const {startTour} = useProviderTour();
+  const {startTour, isActive: tourActive, currentStep} = useProviderTour();
   const router = useRouter();
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const scrollRef = useRef<any>(null);
+  const sectionLayouts = useRef<Record<string, number>>({});
+
+  const onSectionLayout = useCallback((key: string) => (e: any) => {
+    sectionLayouts.current[key] = e?.nativeEvent?.layout?.y ?? 0;
+  }, []);
+
+  // Auto-scroll to the section containing the current tour target
+  const tourActiveRef = useRef(tourActive);
+  const currentStepRef = useRef(currentStep);
+  tourActiveRef.current = tourActive;
+  currentStepRef.current = currentStep;
+
+  // Scroll to the section containing the current tour step target
+  useEffect(() => {
+    if (!tourActive || !currentStep) return;
+    // Only scroll for steps in the PREFERENCIAS section (below the fold)
+    if (currentStep === "settings_notifications") {
+      const y = sectionLayouts.current["preferencias"];
+      if (typeof y === "number") {
+        setTimeout(() => scrollRef.current?.scrollTo({y: Math.max(0, y - 20), animated: true}), 100);
+      }
+    } else {
+      // For MI PÁGINA steps, scroll to top
+      scrollRef.current?.scrollTo({y: 0, animated: true});
+    }
+  }, [tourActive, currentStep]);
 
   const isPlace = user?.role === "PLACE";
   const displayName =
@@ -149,6 +178,7 @@ export function ProfessionalSettingsContent() {
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={[styles.scroll, {backgroundColor: colors.contentBackground}]}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}>
@@ -180,51 +210,61 @@ export function ProfessionalSettingsContent() {
 
       {/* MI PÁGINA - Imágenes, Servicios, Horarios */}
       <Text style={[styles.sectionLabel, {color: sectionLabelColor}]}>MI PÁGINA</Text>
-      <View style={[styles.optionsCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-        <TouchableOpacity
-          style={styles.optionRow}
-          onPress={() => handleOptionPress("images")}
-          activeOpacity={0.7}>
-          <Ionicons name="images-outline" color={colors.foreground} size={22} />
-          <Text style={[styles.optionText, {color: colors.foreground}]}>Imágenes</Text>
-          <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
+      <View style={[styles.optionsCard, {backgroundColor: colors.card, borderColor: colors.border}]} onLayout={onSectionLayout("mipagina")}>
+        <TourTarget targetId="settings_images">
+          <TouchableOpacity
+            style={styles.optionRow}
+            onPress={() => handleOptionPress("images")}
+            activeOpacity={0.7}>
+            <Ionicons name="images-outline" color={colors.foreground} size={22} />
+            <Text style={[styles.optionText, {color: colors.foreground}]}>Imágenes</Text>
+            <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+          </TouchableOpacity>
+        </TourTarget>
         <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />
-        <TouchableOpacity
-          style={styles.optionRow}
-          onPress={() => handleOptionPress("services")}
-          activeOpacity={0.7}>
-          <Ionicons name="briefcase-outline" color={colors.foreground} size={22} />
-          <Text style={[styles.optionText, {color: colors.foreground}]}>Servicios</Text>
-          <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
+        <TourTarget targetId="settings_services">
+          <TouchableOpacity
+            style={styles.optionRow}
+            onPress={() => handleOptionPress("services")}
+            activeOpacity={0.7}>
+            <Ionicons name="briefcase-outline" color={colors.foreground} size={22} />
+            <Text style={[styles.optionText, {color: colors.foreground}]}>Servicios</Text>
+            <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+          </TouchableOpacity>
+        </TourTarget>
         <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />
-        <TouchableOpacity
-          style={styles.optionRow}
-          onPress={() => handleOptionPress("schedule")}
-          activeOpacity={0.7}>
-          <Ionicons name="calendar-outline" color={colors.foreground} size={22} />
-          <Text style={[styles.optionText, {color: colors.foreground}]}>Horarios</Text>
-          <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
+        <TourTarget targetId="settings_schedule">
+          <TouchableOpacity
+            style={styles.optionRow}
+            onPress={() => handleOptionPress("schedule")}
+            activeOpacity={0.7}>
+            <Ionicons name="calendar-outline" color={colors.foreground} size={22} />
+            <Text style={[styles.optionText, {color: colors.foreground}]}>Horarios</Text>
+            <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+          </TouchableOpacity>
+        </TourTarget>
         <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />
-        <TouchableOpacity
-          style={styles.optionRow}
-          onPress={() => handleOptionPress("group_sessions")}
-          activeOpacity={0.7}>
-          <Ionicons name="people-circle-outline" color={colors.foreground} size={22} />
-          <Text style={[styles.optionText, {color: colors.foreground}]}>Sesiones grupales</Text>
-          <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
+        <TourTarget targetId="settings_group_sessions">
+          <TouchableOpacity
+            style={styles.optionRow}
+            onPress={() => handleOptionPress("group_sessions")}
+            activeOpacity={0.7}>
+            <Ionicons name="people-circle-outline" color={colors.foreground} size={22} />
+            <Text style={[styles.optionText, {color: colors.foreground}]}>Sesiones grupales</Text>
+            <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+          </TouchableOpacity>
+        </TourTarget>
         <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />
-        <TouchableOpacity
-          style={styles.optionRow}
-          onPress={() => handleOptionPress("reviews")}
-          activeOpacity={0.7}>
-          <Ionicons name="star-outline" color={colors.foreground} size={22} />
-          <Text style={[styles.optionText, {color: colors.foreground}]}>Mis Reseñas</Text>
-          <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
+        <TourTarget targetId="settings_reviews">
+          <TouchableOpacity
+            style={styles.optionRow}
+            onPress={() => handleOptionPress("reviews")}
+            activeOpacity={0.7}>
+            <Ionicons name="star-outline" color={colors.foreground} size={22} />
+            <Text style={[styles.optionText, {color: colors.foreground}]}>Mis Reseñas</Text>
+            <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+          </TouchableOpacity>
+        </TourTarget>
         <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />
         <TouchableOpacity
           style={styles.optionRow}
@@ -237,14 +277,16 @@ export function ProfessionalSettingsContent() {
         {isPlace && (
           <>
             <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />
-            <TouchableOpacity
-              style={styles.optionRow}
-              onPress={() => handleOptionPress("team")}
-              activeOpacity={0.7}>
-              <Ionicons name="people-outline" color={colors.foreground} size={22} />
-              <Text style={[styles.optionText, {color: colors.foreground}]}>Equipo</Text>
-              <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-            </TouchableOpacity>
+            <TourTarget targetId="settings_team">
+              <TouchableOpacity
+                style={styles.optionRow}
+                onPress={() => handleOptionPress("team")}
+                activeOpacity={0.7}>
+                <Ionicons name="people-outline" color={colors.foreground} size={22} />
+                <Text style={[styles.optionText, {color: colors.foreground}]}>Equipo</Text>
+                <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+              </TouchableOpacity>
+            </TourTarget>
           </>
         )}
       </View>
@@ -290,17 +332,19 @@ export function ProfessionalSettingsContent() {
 
       {/* PREFERENCIAS */}
       <Text style={[styles.sectionLabel, {color: sectionLabelColor}]}>PREFERENCIAS</Text>
-      <View style={[styles.optionsCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-        <TouchableOpacity
-          style={styles.optionRow}
-          onPress={() => handleOptionPress("notifications")}
-          activeOpacity={0.7}>
-          <Ionicons name="notifications-outline" color={colors.foreground} size={22} />
-          <Text style={[styles.optionText, {color: colors.foreground}]}>
-            Preferencias de Notificación
-          </Text>
-          <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
-        </TouchableOpacity>
+      <View style={[styles.optionsCard, {backgroundColor: colors.card, borderColor: colors.border}]} onLayout={onSectionLayout("preferencias")}>
+        <TourTarget targetId="settings_notifications">
+          <TouchableOpacity
+            style={styles.optionRow}
+            onPress={() => handleOptionPress("notifications")}
+            activeOpacity={0.7}>
+            <Ionicons name="notifications-outline" color={colors.foreground} size={22} />
+            <Text style={[styles.optionText, {color: colors.foreground}]}>
+              Preferencias de Notificación
+            </Text>
+            <Ionicons name="chevron-forward" color={colors.mutedForeground} size={20} />
+          </TouchableOpacity>
+        </TourTarget>
         <View style={[styles.optionDivider, {backgroundColor: colors.border}]} />
         <View style={styles.optionRow}>
           <Ionicons

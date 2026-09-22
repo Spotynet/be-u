@@ -9,6 +9,24 @@ from django.utils.html import strip_tags
 
 logger = logging.getLogger(__name__)
 
+# Absolute URL of the nabbi logo served from backend static files.
+_BACKEND_ORIGIN = getattr(settings, "BACKEND_URL", "https://nabbi-api-dev.spotynet.com").rstrip("/")
+NABBI_LOGO_URL = f"{_BACKEND_ORIGIN}/static/notifications/nabbi-logo.png"
+
+# Brand accent — fresh mid-green, readable on white and dark backgrounds
+EMAIL_ACCENT = "#2A9D5C"
+
+
+def _make_qr_url(reservation_id, size: int = 200) -> str:
+    """
+    Return a QR code image URL using the qrserver.com public API.
+    This avoids file-serving issues and data: URI blocks in Gmail/Outlook.
+    """
+    import urllib.parse
+    qr_data = f"{_BACKEND_ORIGIN}/reservation/{reservation_id}"
+    encoded = urllib.parse.quote(qr_data, safe="")
+    return f"https://api.qrserver.com/v1/create-qr-code/?size={size}x{size}&data={encoded}&color=1C3829&bgcolor=FFFFFF&margin=4"
+
 
 def send_reservation_confirmation_to_client(reservation):
     """
@@ -57,6 +75,9 @@ def send_reservation_confirmation_to_client(reservation):
             'time': reservation.time.strftime('%H:%M'),
             'end_time': end_time,
             'reservation_code': reservation.code,
+            'logo_url': NABBI_LOGO_URL,
+            'accent': EMAIL_ACCENT,
+            'qr_code_url': _make_qr_url(reservation.id),
             'notes': reservation.notes or '',
         }
         
@@ -147,6 +168,9 @@ def send_reservation_notification_to_provider(reservation):
             'time': reservation.time.strftime('%H:%M'),
             'end_time': end_time,
             'reservation_code': reservation.code,
+            'logo_url': NABBI_LOGO_URL,
+            'accent': EMAIL_ACCENT,
+            'qr_code_url': _make_qr_url(reservation.id),
             'notes': reservation.notes or '',
         }
         
@@ -237,6 +261,9 @@ def send_reservation_change_email(
             "reservation_code": reservation.code,
             "notes": reservation.notes or "",
             "cancellation_reason": reservation.cancellation_reason or "",
+            "logo_url": NABBI_LOGO_URL,
+            "accent": EMAIL_ACCENT,
+            "qr_code_url": _make_qr_url(reservation.id),
         }
 
         html_message = render_to_string(template_name, context)

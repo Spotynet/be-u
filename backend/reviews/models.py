@@ -45,7 +45,7 @@ class Review(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"Review by {self.from_user.email} for {self.to_public_profile.display_name}"
+        return f"Review by {self.from_user.email} for {self.to_public_profile.name}"
     
     @property
     def reviewer_name(self):
@@ -55,7 +55,10 @@ class Review(models.Model):
     @property
     def reviewed_name(self):
         """Get reviewed profile's display name"""
-        return self.to_public_profile.display_name
+        profile = self.to_public_profile
+        if profile.profile_type == 'PROFESSIONAL' and profile.last_name:
+            return f"{profile.name} {profile.last_name}"
+        return profile.name
 
 
 class ReviewImage(models.Model):

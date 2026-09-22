@@ -10,5 +10,6 @@ router.register(r'reminders', views.ReservationReminderViewSet, basename='reserv
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('preferences/me/', views.NotificationPreferencesView.as_view(), name='notification-preferences-me'),
 ]
 

@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     'favorites',
     'calendar_integration',
     'ventas',
+    'support',
 ]
 
 MIDDLEWARE = [
@@ -356,3 +357,5 @@ EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@be-u.ai')
+# Inbox that receives Help & Support messages from the mobile app (separate from login From)
+SUPPORT_INBOX_EMAIL = os.environ.get('SUPPORT_INBOX_EMAIL', 'nabbi@spotynet.com')

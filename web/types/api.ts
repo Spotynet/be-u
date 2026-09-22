@@ -41,7 +41,6 @@ export interface PublicProfile {
   last_name?: string;
   bio?: string;
   rating: number;
-  display_name: string;
   created_at: string;
   updated_at: string;
 }

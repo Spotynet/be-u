@@ -8,13 +8,14 @@ const TOUR_COMPLETED_KEY = "@provider_tour_completed_v1";
 const TOUR_PROGRESS_KEY = "@provider_tour_progress_v1";
 
 export type TourStep =
-  | "mipagina_tab"
-  | "mipagina_viewPublicProfile"
-  | "mipagina_images"
-  | "mipagina_services"
-  | "mipagina_calendar"
-  | "mipagina_team" // PLACE only
-  | "posts_create";
+  | "settings_images"
+  | "settings_services"
+  | "settings_schedule"
+  | "settings_group_sessions"
+  | "settings_reviews"
+  | "settings_team" // PLACE only
+  | "settings_notifications"
+  | "create_post";
 
 interface TargetRect {
   x: number;
@@ -48,37 +49,16 @@ interface ProviderTourProviderProps {
   children: React.ReactNode;
 }
 
-// Step definitions with messages
-const TOUR_STEPS: Array<{id: TourStep; message: string; requiresPlace?: boolean}> = [
-  {
-    id: "mipagina_tab",
-    message: "Este es tu panel principal para completar perfil, servicios y horarios.",
-  },
-  {
-    id: "mipagina_viewPublicProfile",
-    message: "Ver perfil público te muestra cómo te ven los clientes. Úsalo para revisar tu perfil antes de publicarlo.",
-  },
-  {
-    id: "mipagina_images",
-    message: "Agrega imágenes de tu trabajo para atraer más clientes. Puedes subir hasta 10 fotos.",
-  },
-  {
-    id: "mipagina_services",
-    message: "Empieza por crear servicios claros (nombre, precio, duración y categoría).",
-  },
-  {
-    id: "mipagina_calendar",
-    message: "Configura horarios y disponibilidad para que los clientes puedan reservar.",
-  },
-  {
-    id: "mipagina_team",
-    message: "Gestiona tu equipo de profesionales. Invita y vincula profesionales a tu lugar.",
-    requiresPlace: true,
-  },
-  {
-    id: "posts_create",
-    message: "Publica en el feed para mostrar resultados y atraer nuevas reservas.",
-  },
+// Step definitions matching the current settings menu
+const TOUR_STEPS: Array<{id: TourStep; requiresPlace?: boolean}> = [
+  {id: "settings_images"},
+  {id: "settings_services"},
+  {id: "settings_schedule"},
+  {id: "settings_group_sessions"},
+  {id: "settings_reviews"},
+  {id: "settings_team", requiresPlace: true},
+  {id: "settings_notifications"},
+  {id: "create_post"},
 ];
 
 export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
@@ -99,7 +79,7 @@ export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
   );
   const totalSteps = useMemo(() => availableSteps.length, [availableSteps]);
 
-  // Check if tour should start on mount
+  // Check if tour should start on mount (first-time after registration)
   useEffect(() => {
     const checkTourStatus = async () => {
       if (!isAuthenticated || !isProvider) return;
@@ -108,17 +88,15 @@ export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
       try {
         const pending = await AsyncStorage.getItem(TOUR_PENDING_KEY);
         const completed = await AsyncStorage.getItem(TOUR_COMPLETED_KEY);
-        const savedStep = await AsyncStorage.getItem(TOUR_PROGRESS_KEY);
 
         if (pending === "1" && !completed) {
-          // Small delay to ensure UI is rendered
+          // Always start from step 1 on perfil tab to ensure TourTargets are available
           setTimeout(() => {
             if (availableSteps.length > 0) {
-              // Prevent re-initialization while the tour is running
               hasInitializedRef.current = true;
               setIsActive(true);
-              const validSavedStep = availableSteps.some((step) => step.id === savedStep);
-              setCurrentStep(validSavedStep ? (savedStep as TourStep) : availableSteps[0].id);
+              setCurrentStep(availableSteps[0].id);
+              AsyncStorage.setItem(TOUR_PROGRESS_KEY, availableSteps[0].id).catch(() => {});
               router.push("/(tabs)/perfil");
             }
           }, 500);
@@ -153,15 +131,11 @@ export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
   }, [currentStep, availableSteps]);
 
   const completeTour = useCallback(async () => {
-    console.log("🎯 completeTour called - navigating to perfil");
-    
-    // Clear state immediately to close the modal
     hasInitializedRef.current = true;
     setIsActive(false);
     setCurrentStep(null);
     setTargetRects(new Map());
     
-    // Save completion status
     try {
       await AsyncStorage.setItem(TOUR_COMPLETED_KEY, "1");
       await AsyncStorage.removeItem(TOUR_PENDING_KEY);
@@ -170,17 +144,9 @@ export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
       console.error("Error completing tour:", error);
     }
     
-    // Navigate to perfil after a small delay to ensure modal is closed
     setTimeout(() => {
-      console.log("🎯 Navigating to /(tabs)/perfil");
-      try {
-        router.replace("/(tabs)/perfil");
-      } catch (error) {
-        console.error("Error navigating to perfil:", error);
-        // Fallback
-        router.push("/(tabs)/perfil");
-      }
-    }, 300);
+      router.push("/(tabs)/perfil");
+    }, 400);
   }, [router]);
 
   const nextStep = useCallback(() => {
@@ -191,13 +157,13 @@ export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
       AsyncStorage.setItem(TOUR_PROGRESS_KEY, nextStepId).catch(() => {});
 
       // Navigate to appropriate screen for the step
-      if (nextStepId === "posts_create") {
-        router.push("/(tabs)/index");
-      } else if (nextStepId.startsWith("mipagina_")) {
+      if (nextStepId === "create_post") {
+        router.push("/(tabs)");
+      } else {
+        // Settings steps stay on perfil (settings content is shown during tour)
         router.push("/(tabs)/perfil");
       }
     }
-    // Note: Don't call completeTour here - let the button handle it
   }, [getCurrentStepIndex, availableSteps, router]);
 
   const previousStep = useCallback(() => {
@@ -208,22 +174,20 @@ export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
       AsyncStorage.setItem(TOUR_PROGRESS_KEY, previousStepId).catch(() => {});
 
       // Navigate to appropriate screen
-      if (previousStepId === "posts_create") {
-        router.push("/(tabs)/index");
-      } else if (previousStepId.startsWith("mipagina_")) {
+      if (previousStepId === "create_post") {
+        router.push("/(tabs)");
+      } else {
         router.push("/(tabs)/perfil");
       }
     }
   }, [getCurrentStepIndex, availableSteps, router]);
 
   const skipTour = useCallback(async () => {
-    // Clear state immediately to close the modal
     hasInitializedRef.current = true;
     setIsActive(false);
     setCurrentStep(null);
     setTargetRects(new Map());
     
-    // Save skip status
     try {
       await AsyncStorage.setItem(TOUR_COMPLETED_KEY, "1");
       await AsyncStorage.removeItem(TOUR_PENDING_KEY);
@@ -232,16 +196,9 @@ export const ProviderTourProvider = ({children}: ProviderTourProviderProps) => {
       console.error("Error skipping tour:", error);
     }
     
-    // Navigate to perfil after a small delay to ensure modal is closed
     setTimeout(() => {
-      console.log("🎯 Skipping tour - navigating to /(tabs)/perfil");
-      try {
-        router.replace("/(tabs)/perfil");
-      } catch (error) {
-        console.error("Error navigating to perfil:", error);
-        router.push("/(tabs)/perfil");
-      }
-    }, 300);
+      router.push("/(tabs)/perfil");
+    }, 400);
   }, [router]);
 
   const registerTarget = useCallback((targetId: string, rect: TargetRect) => {

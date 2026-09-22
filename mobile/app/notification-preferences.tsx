@@ -64,38 +64,6 @@ const CLIENT_SECTIONS: PrefSection[] = [
     ],
   },
   {
-    title: "Actividad Social",
-    icon: "heart",
-    iconColor: "#ec4899",
-    items: [
-      {
-        key: "social_like",
-        label: "Me gusta en tu publicación",
-        description: "Alguien marcó tu post como favorito",
-        defaultOn: false,
-      },
-      {
-        key: "social_comment",
-        label: "Comentario en tu publicación",
-        description: "Alguien comentó en tu contenido",
-        defaultOn: true,
-      },
-      {
-        key: "social_follow",
-        label: "Nuevo seguidor",
-        description: "Alguien comenzó a seguirte",
-        defaultOn: true,
-        soon: true,
-      },
-      {
-        key: "social_mention",
-        label: "Mención",
-        description: "Te mencionaron en un comentario o publicación",
-        defaultOn: true,
-      },
-    ],
-  },
-  {
     title: "Mis Reseñas",
     icon: "star",
     iconColor: "#f59e0b",
@@ -105,48 +73,6 @@ const CLIENT_SECTIONS: PrefSection[] = [
         label: "Respuesta a tu reseña",
         description: "El profesional respondió la reseña que dejaste",
         defaultOn: true,
-      },
-    ],
-  },
-  {
-    title: "Descubrimiento",
-    icon: "sparkles",
-    iconColor: "#10b981",
-    items: [
-      {
-        key: "discover_nearby",
-        label: "Nuevos profesionales cerca de ti",
-        description: "Profesionales o lugares destacados en tu zona",
-        defaultOn: true,
-        soon: true,
-      },
-      {
-        key: "discover_offers",
-        label: "Ofertas y descuentos",
-        description: "Promociones especiales de profesionales que sigues",
-        defaultOn: false,
-        soon: true,
-      },
-    ],
-  },
-  {
-    title: "Promociones y Novedades",
-    icon: "megaphone",
-    iconColor: "#f97316",
-    items: [
-      {
-        key: "promo_news",
-        label: "Novedades de la app",
-        description: "Nuevas funciones y actualizaciones importantes",
-        defaultOn: true,
-        soon: true,
-      },
-      {
-        key: "promo_tips",
-        label: "Consejos personalizados",
-        description: "Tips para sacar el máximo provecho de la app",
-        defaultOn: false,
-        soon: true,
       },
     ],
   },
@@ -341,9 +267,17 @@ const PLACE_SECTIONS: PrefSection[] = PROFESSIONAL_SECTIONS.map(section => {
 });
 
 function getSections(role: UserRole | undefined): PrefSection[] {
-  if (role === "PROFESSIONAL") return PROFESSIONAL_SECTIONS;
-  if (role === "PLACE") return PLACE_SECTIONS;
-  return CLIENT_SECTIONS;
+  let raw: PrefSection[];
+  if (role === "PROFESSIONAL") raw = PROFESSIONAL_SECTIONS;
+  else if (role === "PLACE") raw = PLACE_SECTIONS;
+  else raw = CLIENT_SECTIONS;
+
+  return raw
+    .map(section => ({
+      ...section,
+      items: section.items.filter(item => !item.soon),
+    }))
+    .filter(section => section.items.length > 0);
 }
 
 function buildDefaults(sections: PrefSection[]): Record<string, boolean> {

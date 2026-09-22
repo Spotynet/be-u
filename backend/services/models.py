@@ -64,7 +64,10 @@ class Service(models.Model):
     def pro_name(self):
         """Get the professional/place name"""
         if hasattr(self.pro_user, 'public_profile'):
-            return self.pro_user.public_profile.display_name
+            pub = self.pro_user.public_profile
+            if pub.profile_type == 'PROFESSIONAL' and pub.last_name:
+                return f"{pub.name} {pub.last_name}"
+            return pub.name
         return self.pro_user.email
 
 

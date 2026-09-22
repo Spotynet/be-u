@@ -1,5 +1,12 @@
 from rest_framework import serializers
-from .models import Notification, NotificationTemplate, PushDeviceToken, ReservationReminder
+from .models import Notification, NotificationTemplate, PushDeviceToken, ReservationReminder, NotificationPreferences
+
+
+class NotificationPreferencesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NotificationPreferences
+        fields = ["preferences", "updated_at"]
+        read_only_fields = ["updated_at"]
 
 
 class NotificationSerializer(serializers.ModelSerializer):

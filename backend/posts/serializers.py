@@ -171,10 +171,9 @@ class PostSerializer(serializers.ModelSerializer):
     def get_author_display_name(self, obj):
         profile = self._get_public_profile(obj)
         if profile:
-            try:
-                return profile.display_name
-            except Exception:
-                return profile.name
+            if profile.profile_type == 'PROFESSIONAL' and profile.last_name:
+                return f"{profile.name} {profile.last_name}"
+            return profile.name
         return obj.author.username or obj.author.get_full_name() or obj.author.email
 
     def get_author_rating(self, obj):

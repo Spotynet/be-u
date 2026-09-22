@@ -331,9 +331,3 @@ class PublicProfile(models.Model):
     def __str__(self):
         return f"{self.profile_type}: {self.name}"
     
-    @property
-    def display_name(self):
-        """Get display name based on profile type"""
-        if self.profile_type == 'PROFESSIONAL' and self.last_name:
-            return f"{self.name} {self.last_name}"
-        return self.name

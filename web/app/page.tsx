@@ -1115,12 +1115,17 @@ export default function Home() {
             <div>
               <h4 style={{color:"rgba(255,255,255,0.4)",fontWeight:700,fontSize:11,marginBottom:16,textTransform:"uppercase",letterSpacing:"0.08em"}}>Empresa</h4>
               <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:10}}>
-                {["About","Blog","Privacidad","Términos"].map(link=>(
-                  <li key={link}>
-                    <a href="#"
+                {[
+                  {label:"About", href:"#"},
+                  {label:"Blog", href:"#"},
+                  {label:"Privacidad", href:"/aviso-de-privacidad"},
+                  {label:"Términos", href:"/terminos-y-condiciones"},
+                ].map(link=>(
+                  <li key={link.label}>
+                    <a href={link.href}
                       style={{color:"rgba(255,255,255,0.65)",fontSize:14,fontWeight:500,textDecoration:"none",transition:"color 0.15s"}}
                       onMouseEnter={e=>(e.currentTarget.style.color=ACCENT)}
-                      onMouseLeave={e=>(e.currentTarget.style.color="rgba(255,255,255,0.65)")}>{link}</a>
+                      onMouseLeave={e=>(e.currentTarget.style.color="rgba(255,255,255,0.65)")}>{link.label}</a>
                   </li>
                 ))}
               </ul>
@@ -1150,10 +1155,13 @@ export default function Home() {
               <span>para tu tiempo libre</span>
             </p>
             <div style={{display:"flex",gap:16,alignItems:"center"}}>
-              {["Privacidad","Términos"].map(l=>(
-                <a key={l} href="#" style={{color:"rgba(255,255,255,0.4)",fontSize:12,textDecoration:"none",transition:"color 0.15s"}}
+              {[
+                {label:"Privacidad", href:"/aviso-de-privacidad"},
+                {label:"Términos", href:"/terminos-y-condiciones"},
+              ].map(l=>(
+                <a key={l.label} href={l.href} style={{color:"rgba(255,255,255,0.4)",fontSize:12,textDecoration:"none",transition:"color 0.15s"}}
                   onMouseEnter={e=>(e.currentTarget.style.color="rgba(255,255,255,0.7)")}
-                  onMouseLeave={e=>(e.currentTarget.style.color="rgba(255,255,255,0.4)")}>{l}</a>
+                  onMouseLeave={e=>(e.currentTarget.style.color="rgba(255,255,255,0.4)")}>{l.label}</a>
               ))}
             </div>
           </div>

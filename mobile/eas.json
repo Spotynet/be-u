@@ -13,11 +13,15 @@
     },
     "preview": {
       "distribution": "internal",
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://nabbi-api-dev.spotynet.com/api"
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://stg.be-u.ai/api"
+        "EXPO_PUBLIC_API_URL": "https://nabbi-api-dev.spotynet.com/api"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://nabbi-api-dev.spotynet.com/api"
       }
     }
   },

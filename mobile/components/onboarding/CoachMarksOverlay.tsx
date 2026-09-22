@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useState, useRef} from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
+  Platform,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Svg, {Rect, Defs, Mask} from "react-native-svg";
@@ -15,20 +16,47 @@ import {useProviderTour} from "@/features/onboarding/ProviderTourProvider";
 
 const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get("window");
 
-const TOUR_STEPS: Record<string, string> = {
-  mipagina_tab: "Este es tu panel principal para completar perfil, servicios y horarios.",
-  mipagina_viewPublicProfile:
-    "Ver perfil público te muestra cómo te ven los clientes. Úsalo para revisar tu perfil antes de publicarlo.",
-  mipagina_images:
-    "Agrega imágenes de tu trabajo para atraer más clientes. Puedes subir hasta 10 fotos.",
-  mipagina_services:
-    "Empieza por crear servicios claros (nombre, precio, duración y categoría).",
-  mipagina_calendar:
-    "Configura horarios y disponibilidad para que los clientes puedan reservar.",
-  mipagina_team:
-    "Gestiona tu equipo de profesionales. Invita y vincula profesionales a tu lugar.",
-  posts_create:
-    "Publica en el feed para mostrar resultados y atraer nuevas reservas.",
+const TOUR_STEPS: Record<string, {title: string; message: string; icon: string}> = {
+  settings_images: {
+    title: "Galería de imágenes",
+    message: "Sube fotos de tu trabajo para atraer más clientes. Puedes agregar hasta 10 imágenes a tu perfil.",
+    icon: "images-outline",
+  },
+  settings_services: {
+    title: "Tus servicios",
+    message: "Crea servicios claros con nombre, precio, duración y categoría. Los clientes los verán al reservar.",
+    icon: "briefcase-outline",
+  },
+  settings_schedule: {
+    title: "Horarios y disponibilidad",
+    message: "Configura tu agenda semanal para que los clientes puedan reservar en tus horarios libres.",
+    icon: "calendar-outline",
+  },
+  settings_group_sessions: {
+    title: "Sesiones grupales",
+    message: "Crea sesiones grupales con cupos limitados. Ideal para talleres, clases y eventos.",
+    icon: "people-circle-outline",
+  },
+  settings_reviews: {
+    title: "Reseñas de clientes",
+    message: "Revisa las opiniones de tus clientes. Las buenas reseñas atraen más reservas.",
+    icon: "star-outline",
+  },
+  settings_team: {
+    title: "Gestiona tu equipo",
+    message: "Invita y vincula profesionales a tu lugar. Configura sus horarios de atención.",
+    icon: "people-outline",
+  },
+  settings_notifications: {
+    title: "Notificaciones",
+    message: "Personaliza qué alertas recibir. Mantente al día con reservas, reseñas y actividad.",
+    icon: "notifications-outline",
+  },
+  create_post: {
+    title: "Publica contenido",
+    message: "Comparte fotos y resultados en el feed para mostrar tu trabajo y atraer nuevas reservas.",
+    icon: "megaphone-outline",
+  },
 };
 
 export const CoachMarksOverlay = () => {
@@ -43,6 +71,7 @@ export const CoachMarksOverlay = () => {
     skipTour,
     completeTour,
     getCurrentTargetRect,
+    targetRects,
   } = useProviderTour();
 
   const [targetRect, setTargetRect] = useState<{
@@ -52,67 +81,119 @@ export const CoachMarksOverlay = () => {
     height: number;
   } | null>(null);
   const [targetRetries, setTargetRetries] = useState(0);
-  const [fadeAnim] = useState(new Animated.Value(0));
-  const MAX_TARGET_RETRIES = 6;
-  const TARGET_RETRY_DELAY_MS = 350;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const cardSlideAnim = useRef(new Animated.Value(30)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const MAX_TARGET_RETRIES = 8;
+  const TARGET_RETRY_DELAY_MS = 400;
 
-  // Update target rect when step changes
+  // Pulse animation for spotlight border
+  useEffect(() => {
+    if (isActive && targetRect) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.08,
+            duration: 1200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1200,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    }
+  }, [isActive, !!targetRect]);
+
+  // Update target rect when step changes — always clear first, wait for fresh measurement
   useEffect(() => {
     if (isActive && currentStep) {
-      const rect = getCurrentTargetRect();
-      if (rect) {
-        setTargetRect(rect);
-        setTargetRetries(0);
-        // Fade in
+      // Fade in overlay + slide up card immediately
+      Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
-        }).start();
-        return;
-      }
+        }),
+        Animated.timing(cardSlideAnim, {
+          toValue: 0,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+      ]).start();
 
+      // Always clear stale target and wait for fresh measurement
       setTargetRect(null);
-      if (targetRetries >= MAX_TARGET_RETRIES) {
-        // Safe fallback: avoid blocking UI if a target never renders.
-        skipTour();
-        return;
-      }
-
-      const timeoutId = setTimeout(() => {
-        setTargetRetries((prev) => prev + 1);
-      }, TARGET_RETRY_DELAY_MS);
-      return () => clearTimeout(timeoutId);
+      setTargetRetries(0);
     } else {
       setTargetRect(null);
       setTargetRetries(0);
       fadeAnim.setValue(0);
+      cardSlideAnim.setValue(30);
     }
-  }, [isActive, currentStep, targetRetries, getCurrentTargetRect, skipTour, fadeAnim]);
+  }, [isActive, currentStep]);
+
+  // Watch for target rect updates (from TourTarget re-measurements)
+  useEffect(() => {
+    if (!isActive || !currentStep) return;
+
+    const rect = getCurrentTargetRect();
+    if (rect && (rect.width > 0 && rect.height > 0)) {
+      setTargetRect(rect);
+      setTargetRetries(0);
+      return;
+    }
+
+    // No valid rect yet — retry
+    if (targetRetries >= MAX_TARGET_RETRIES) {
+      skipTour();
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setTargetRetries((prev) => prev + 1);
+    }, TARGET_RETRY_DELAY_MS);
+    return () => clearTimeout(timeoutId);
+  }, [isActive, currentStep, targetRetries, targetRects]);
 
   if (!isActive || !currentStep) {
     return null;
   }
 
-  const message = TOUR_STEPS[currentStep] || "";
+  const stepData = TOUR_STEPS[currentStep] || {title: "", message: "", icon: "help-outline"};
   const hasTarget = targetRect !== null;
   const canGoBack = stepIndex > 1;
   const canGoNext = stepIndex < totalSteps;
+  const isLastStep = stepIndex === totalSteps;
 
-  // Calculate spotlight position and size
-  const spotlightPadding = 8;
+  // Spotlight
+  const spotlightPadding = 10;
   const spotlightX = targetRect ? targetRect.x - spotlightPadding : SCREEN_WIDTH / 2;
   const spotlightY = targetRect ? targetRect.y - spotlightPadding : SCREEN_HEIGHT / 2;
   const spotlightWidth = targetRect ? targetRect.width + spotlightPadding * 2 : 0;
   const spotlightHeight = targetRect ? targetRect.height + spotlightPadding * 2 : 0;
   const spotlightRadius = hasTarget
-    ? Math.max(12, Math.min(24, Math.min(spotlightWidth, spotlightHeight) / 2))
-    : 16;
+    ? Math.max(14, Math.min(28, Math.min(spotlightWidth, spotlightHeight) / 2))
+    : 20;
 
-  // Calculate card position (below or above spotlight, centered if no target)
+  // Card position — place below target, or above if not enough space below
+  const cardHeight = 200;
+  const spaceBelow = SCREEN_HEIGHT - (spotlightY + spotlightHeight);
+  const cardBelowY = spotlightY + spotlightHeight + 24;
+  const cardAboveY = spotlightY - cardHeight - 24;
+
   const cardY = hasTarget
-    ? Math.min(spotlightY + spotlightHeight + 20, SCREEN_HEIGHT - 200)
-    : SCREEN_HEIGHT / 2 - 100;
+    ? spaceBelow > cardHeight + 40
+      ? cardBelowY
+      : Math.max(16, cardAboveY)
+    : SCREEN_HEIGHT / 2 - 120;
+
+  // Progress
+  const progress = stepIndex / totalSteps;
 
   return (
     <Modal visible={isActive} transparent animationType="none">
@@ -122,9 +203,7 @@ export const CoachMarksOverlay = () => {
           <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={StyleSheet.absoluteFill}>
             <Defs>
               <Mask id="spotlightMask">
-                {/* Full screen visible */}
                 <Rect width={SCREEN_WIDTH} height={SCREEN_HEIGHT} fill="white" />
-                {/* Cutout (transparent) */}
                 <Rect
                   x={spotlightX}
                   y={spotlightY}
@@ -135,15 +214,14 @@ export const CoachMarksOverlay = () => {
                 />
               </Mask>
             </Defs>
-            {/* Dark overlay with mask */}
+            {/* Dark overlay */}
             <Rect
               width={SCREEN_WIDTH}
               height={SCREEN_HEIGHT}
-              fill="rgba(0, 0, 0, 0.62)"
+              fill="rgba(0, 0, 0, 0.65)"
               mask="url(#spotlightMask)"
             />
-
-            {/* Glow + border around highlighted target */}
+            {/* Glow around highlighted target */}
             <Rect
               x={spotlightX}
               y={spotlightY}
@@ -152,42 +230,67 @@ export const CoachMarksOverlay = () => {
               rx={spotlightRadius}
               fill="transparent"
               stroke={colors.primary}
-              strokeWidth={2}
-              opacity={0.95}
+              strokeWidth={2.5}
+              opacity={0.9}
             />
             <Rect
-              x={spotlightX}
-              y={spotlightY}
-              width={spotlightWidth}
-              height={spotlightHeight}
-              rx={spotlightRadius}
+              x={spotlightX - 4}
+              y={spotlightY - 4}
+              width={spotlightWidth + 8}
+              height={spotlightHeight + 8}
+              rx={spotlightRadius + 4}
               fill="transparent"
               stroke={colors.primary}
-              strokeWidth={10}
-              opacity={0.12}
+              strokeWidth={6}
+              opacity={0.1}
             />
           </Svg>
         )}
 
         {/* Fallback dark overlay if no target */}
         {!hasTarget && (
-          <View style={[StyleSheet.absoluteFill, {backgroundColor: "rgba(0, 0, 0, 0.75)"}]} />
+          <View style={[StyleSheet.absoluteFill, {backgroundColor: "rgba(0, 0, 0, 0.78)"}]} />
         )}
 
         {/* Explanation Card */}
-        <View
+        <Animated.View
           style={[
             styles.card,
             {
               backgroundColor: colors.card,
               borderColor: colors.border,
               top: cardY,
+              transform: [{translateY: cardSlideAnim}],
             },
           ]}>
-          <Text style={[styles.stepIndicator, {color: colors.mutedForeground}]}>
-            {stepIndex} de {totalSteps}
-          </Text>
-          <Text style={[styles.message, {color: colors.foreground}]}>{message}</Text>
+          {/* Progress bar */}
+          <View style={[styles.progressTrack, {backgroundColor: colors.muted}]}>
+            <Animated.View
+              style={[
+                styles.progressFill,
+                {
+                  backgroundColor: colors.primary,
+                  width: `${progress * 100}%`,
+                },
+              ]}
+            />
+          </View>
+
+          {/* Header with icon + step counter */}
+          <View style={styles.cardHeader}>
+            <View style={[styles.stepIconWrap, {backgroundColor: colors.primary + "15"}]}>
+              <Ionicons name={stepData.icon as any} size={18} color={colors.primary} />
+            </View>
+            <View style={styles.stepHeaderRight}>
+              <Text style={[styles.cardTitle, {color: colors.foreground}]}>{stepData.title}</Text>
+              <Text style={[styles.stepCounter, {color: colors.mutedForeground}]}>
+                {stepIndex} / {totalSteps}
+              </Text>
+            </View>
+          </View>
+
+          {/* Message */}
+          <Text style={[styles.message, {color: colors.mutedForeground}]}>{stepData.message}</Text>
 
           {/* Controls */}
           <View style={styles.controls}>
@@ -195,31 +298,40 @@ export const CoachMarksOverlay = () => {
               style={[styles.button, styles.skipButton, {borderColor: colors.border}]}
               onPress={skipTour}
               activeOpacity={0.7}>
-              <Text style={[styles.buttonText, {color: colors.foreground}]}>Omitir</Text>
+              <Text style={[styles.skipButtonText, {color: colors.mutedForeground}]}>Omitir</Text>
             </TouchableOpacity>
 
             <View style={styles.navigationButtons}>
               {canGoBack && (
                 <TouchableOpacity
-                  style={[styles.button, styles.navButton, {borderColor: colors.border}]}
+                  style={[styles.button, styles.backButton, {borderColor: colors.border}]}
                   onPress={previousStep}
                   activeOpacity={0.7}>
-                  <Ionicons name="chevron-back" size={20} color={colors.foreground} />
+                  <Ionicons name="chevron-back" size={18} color={colors.foreground} />
                 </TouchableOpacity>
               )}
 
               <TouchableOpacity
-                style={[styles.button, styles.nextButton, {backgroundColor: colors.primary}]}
+                style={[
+                  styles.button,
+                  styles.nextButton,
+                  {backgroundColor: isLastStep ? colors.accent : colors.primary},
+                ]}
                 onPress={canGoNext ? nextStep : completeTour}
                 activeOpacity={0.8}>
-                <Text style={[styles.buttonText, styles.nextButtonText, {color: "#ffffff"}]}>
+                <Text style={[styles.nextButtonText, {color: isLastStep ? "#12211A" : "#ffffff"}]}>
                   {canGoNext ? "Siguiente" : "Finalizar"}
                 </Text>
-                {canGoNext && <Ionicons name="chevron-forward" size={20} color="#ffffff" />}
+                {canGoNext && (
+                  <Ionicons name="chevron-forward" size={18} color="#ffffff" />
+                )}
+                {isLastStep && (
+                  <Ionicons name="checkmark-circle" size={18} color="#12211A" />
+                )}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </Animated.View>
       </Animated.View>
     </Modal>
   );
@@ -233,36 +345,73 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     right: 16,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 20,
+    paddingTop: 0,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: {width: 0, height: 8},
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+      },
+      android: {elevation: 12},
+    }),
+    overflow: "hidden",
   },
-  stepIndicator: {
+  progressTrack: {
+    height: 3,
+    borderRadius: 2,
+    marginBottom: 16,
+    marginTop: 0,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 2,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 10,
+  },
+  stepIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  stepHeaderRight: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  stepCounter: {
     fontSize: 12,
     fontWeight: "600",
-    marginBottom: 8,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   message: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 14,
+    lineHeight: 21,
     marginBottom: 20,
-    fontWeight: "500",
+    fontWeight: "400",
   },
   controls: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 10,
   },
   navigationButtons: {
     flexDirection: "row",
@@ -272,7 +421,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   button: {
-    paddingVertical: 12,
+    paddingVertical: 11,
     paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: "center",
@@ -283,7 +432,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: "transparent",
   },
-  navButton: {
+  skipButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  backButton: {
     borderWidth: 1,
     backgroundColor: "transparent",
     width: 44,
@@ -294,13 +447,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     flex: 1,
-    maxWidth: 150,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: "600",
+    maxWidth: 160,
   },
   nextButtonText: {
-    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700",
   },
 });

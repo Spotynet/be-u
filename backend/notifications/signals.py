@@ -2,13 +2,49 @@ from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
+import re
 import logging
 
-from .models import Notification, NotificationTemplate, ReservationReminder
+from .models import Notification, NotificationTemplate, ReservationReminder, NotificationPreferences
 from reservations.models import Reservation
 from reviews.models import Review
 
 logger = logging.getLogger(__name__)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PREFERENCE-AWARE NOTIFICATION CREATION
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Maps each preference key to the notification type it produces
+PREF_KEY_TO_TYPE = {
+    # Reservations
+    "booking_new":       Notification.NotificationType.RESERVATION,
+    "booking_confirmed": Notification.NotificationType.RESERVATION,
+    "booking_cancelled": Notification.NotificationType.RESERVATION,
+    "booking_reminder":  Notification.NotificationType.RESERVATION,
+    # Reviews
+    "review_new":        Notification.NotificationType.REVIEW,
+    "review_reply":      Notification.NotificationType.REVIEW,
+    # Social
+    "social_like":       Notification.NotificationType.SOCIAL,
+    "social_comment":    Notification.NotificationType.SOCIAL,
+    "social_mention":    Notification.NotificationType.SOCIAL,
+    "social_follow":     Notification.NotificationType.SOCIAL,
+    "social_saved":      Notification.NotificationType.SOCIAL,
+}
+
+
+def _is_pref_allowed(user, pref_key: str) -> bool:
+    """Return True if the user has this preference enabled (defaults True if not set)."""
+    try:
+        prefs_obj = NotificationPreferences.objects.filter(user=user).first()
+        if prefs_obj is None:
+            return True  # No saved prefs → all enabled by default
+        return prefs_obj.preferences.get(pref_key, True)
+    except Exception as e:
+        logger.warning(f"Could not read notification preferences for user {user.id}: {e}")
+        return True  # Fail open
 
 # Store previous reservation fields to detect changes
 _previous_reservation_cache = {}
@@ -169,6 +205,7 @@ def create_provider_notification_for_new_reservation(instance, provider_user, pr
                 else f"{client_name} solicita una reserva para {service_name} el {instance.date.strftime('%d/%m/%Y')} a las {instance.time.strftime('%H:%M')}"
             ),
             content_object=instance,
+            pref_key="booking_new",
             metadata={
                 'reservation_code': instance.code,
                 'reservation_id': instance.id,
@@ -214,6 +251,7 @@ def create_client_notification_for_new_reservation(instance, provider_name):
                 else f"Tu solicitud de reserva para {service_name} ha sido enviada. El proveedor te notificará cuando la confirme o rechace."
             ),
             content_object=instance,
+            pref_key="booking_confirmed" if is_confirmed else "booking_new",
             metadata={
                 'reservation_id': instance.id,
                 'reservation_code': instance.code,
@@ -341,13 +379,14 @@ def create_reservation_notification(sender, instance, created, **kwargs):
         if instance.status == Reservation.Status.CONFIRMED and previous_status != Reservation.Status.CONFIRMED:
             # Notify client that reservation was confirmed
             provider_user, provider_name = get_provider_user_from_reservation(instance)
-            
+
             _create_notification(
                 user=instance.client.user,
                 type=Notification.NotificationType.RESERVATION,
                 title="Reserva confirmada",
                 message=f"Tu reserva {instance.code} ha sido confirmada por el proveedor",
                 content_object=instance,
+                pref_key="booking_confirmed",
                 metadata={
                     'reservation_id': instance.id,
                     'reservation_code': instance.code,
@@ -356,7 +395,37 @@ def create_reservation_notification(sender, instance, created, **kwargs):
                     'status': instance.status,
                 }
             )
-            
+
+            # Notify provider that the reservation was confirmed
+            if provider_user:
+                _create_notification(
+                    user=provider_user,
+                    type=Notification.NotificationType.RESERVATION,
+                    title="Reserva confirmada",
+                    message=f"La reserva {instance.code} de {get_client_name_from_reservation(instance)} ha sido confirmada",
+                    content_object=instance,
+                    pref_key="booking_confirmed",
+                    metadata={
+                        'reservation_id': instance.id,
+                        'reservation_code': instance.code,
+                        'service_name': instance.service.name,
+                        'client_name': get_client_name_from_reservation(instance),
+                        'status': instance.status,
+                        'action_required': False,
+                    }
+                )
+
+            # Send confirmation email to client
+            try:
+                from .emails import send_reservation_confirmation_to_client
+                email_sent = send_reservation_confirmation_to_client(instance)
+                if email_sent:
+                    logger.info(f"✅ Confirmation email sent to client for reservation {instance.code}")
+                else:
+                    logger.warning(f"⚠️ Failed to send confirmation email to client for reservation {instance.code}")
+            except Exception as e:
+                logger.error(f"❌ Error sending confirmation email to client for reservation {instance.code}: {e}", exc_info=True)
+
             # Create Google Calendar event if provider has calendar connected
             try:
                 from calendar_integration.event_helpers import create_reservation_event
@@ -394,6 +463,7 @@ def create_reservation_notification(sender, instance, created, **kwargs):
                 title="Reserva cancelada",
                 message=f"Tu reserva {instance.code} ha sido cancelada",
                 content_object=instance,
+                pref_key="booking_cancelled",
                 metadata={
                     'reservation_id': instance.id,
                     'reservation_code': instance.code,
@@ -411,6 +481,7 @@ def create_reservation_notification(sender, instance, created, **kwargs):
                 title="Reserva rechazada",
                 message=f"Tu reserva {instance.code} ha sido rechazada por el proveedor",
                 content_object=instance,
+                pref_key="booking_cancelled",
                 metadata={
                     'reservation_id': instance.id,
                     'reservation_code': instance.code,
@@ -448,56 +519,223 @@ def create_reservation_notification(sender, instance, created, **kwargs):
 def create_review_notification(sender, instance, created, **kwargs):
     """Create notification when review is created (unified Review model)"""
     if created:
-        # Notify the profile owner
         profile_user = instance.to_public_profile.user
         reviewer_name = instance.reviewer_name
-        
+
         _create_notification(
             user=profile_user,
             type=Notification.NotificationType.REVIEW,
             title="Nueva reseña recibida",
             message=f"Has recibido una nueva reseña de {reviewer_name}",
             content_object=instance,
+            pref_key="review_new",
             metadata={
                 'reviewer_name': reviewer_name,
                 'rating': instance.rating,
                 'profile_name': instance.reviewed_name,
                 'profile_type': instance.to_public_profile.profile_type,
-                'service_name': instance.service.name if instance.service else 'N/A'
+                'service_name': instance.service.name if instance.service else 'N/A',
             }
         )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SOCIAL SIGNALS
+# ──────────────────────────────────────────────────────────────────────────────
+
+@receiver(post_save, sender='posts.PostLike')
+def create_like_notification(sender, instance, created, **kwargs):
+    """Notify post author when their post receives a like."""
+    if not created:
+        return
+    post = instance.post
+    liker = instance.user
+    author = post.author
+    # Don't notify yourself
+    if liker == author:
+        return
+    liker_name = liker.get_full_name().strip() or liker.username or liker.email
+    _create_notification(
+        user=author,
+        type=Notification.NotificationType.SOCIAL,
+        title="Le gustó tu publicación",
+        message=f"{liker_name} marcó tu publicación como favorita",
+        content_object=instance,
+        pref_key="social_like",
+        metadata={
+            'post_id': post.id,
+            'post_type': post.post_type,
+            'liker_name': liker_name,
+            'liker_id': liker.id,
+            'sub_type': 'like',
+        },
+    )
+
+
+@receiver(post_save, sender='posts.PostComment')
+def create_comment_notification(sender, instance, created, **kwargs):
+    """Notify post author on new comment, and mentioned users."""
+    if not created:
+        return
+    post = instance.post
+    commenter = instance.author
+    author = post.author
+    commenter_name = commenter.get_full_name().strip() or commenter.username or commenter.email
+
+    # Notify post author (unless they're commenting on their own post)
+    if commenter != author:
+        _create_notification(
+            user=author,
+            type=Notification.NotificationType.SOCIAL,
+            title="Nuevo comentario en tu publicación",
+            message=f"{commenter_name}: {instance.content[:80]}",
+            content_object=instance,
+            pref_key="social_comment",
+            metadata={
+                'post_id': post.id,
+                'post_type': post.post_type,
+                'commenter_name': commenter_name,
+                'commenter_id': commenter.id,
+                'comment_id': instance.id,
+                'sub_type': 'comment',
+            },
+        )
+
+    # Detect @username mentions and notify each mentioned user
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    mentioned_usernames = set(re.findall(r'@(\w+)', instance.content))
+    for uname in mentioned_usernames:
+        try:
+            mentioned_user = User.objects.get(username__iexact=uname)
+            if mentioned_user == commenter:
+                continue
+            _create_notification(
+                user=mentioned_user,
+                type=Notification.NotificationType.SOCIAL,
+                title="Te mencionaron en un comentario",
+                message=f"{commenter_name} te mencionó: {instance.content[:80]}",
+                content_object=instance,
+                pref_key="social_mention",
+                metadata={
+                    'post_id': post.id,
+                    'commenter_name': commenter_name,
+                    'commenter_id': commenter.id,
+                    'comment_id': instance.id,
+                    'sub_type': 'mention',
+                },
+            )
+        except User.DoesNotExist:
+            pass
+
+
+@receiver(post_save, sender='favorites.Favorite')
+def create_favorite_notification(sender, instance, created, **kwargs):
+    """Notify a professional/place when someone saves their profile."""
+    if not created:
+        return
+    try:
+        content_obj = instance.content_object
+        if content_obj is None:
+            return
+        # Resolve the owner of the favorited profile
+        owner_user = None
+        if hasattr(content_obj, 'user'):
+            owner_user = content_obj.user
+        if owner_user is None or owner_user == instance.user:
+            return
+        saver_name = instance.user.get_full_name().strip() or instance.user.username or instance.user.email
+        profile_name = getattr(content_obj, 'name', None) or str(content_obj)
+        _create_notification(
+            user=owner_user,
+            type=Notification.NotificationType.SOCIAL,
+            title="Guardaron tu perfil en favoritos",
+            message=f"{saver_name} guardó tu perfil en sus favoritos",
+            content_object=instance,
+            pref_key="social_saved",
+            metadata={
+                'saver_name': saver_name,
+                'saver_id': instance.user.id,
+                'profile_name': profile_name,
+                'sub_type': 'saved',
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error creating favorite notification: {e}", exc_info=True)
 
 
 # ======================
 # NOTIFICATION CREATION
 # ======================
 
-def _create_notification(user, type, title, message, content_object=None, metadata=None):
-    """Helper function to create notifications"""
+def _create_notification(user, type, title, message, content_object=None, metadata=None, pref_key=None):
+    """Create an in-app notification and fire a push notification to all active device tokens."""
     try:
         if not user:
             logger.error(f"Cannot create notification: user is None (title: {title})")
             return None
-        
+
         if not hasattr(user, 'id') or not user.id:
-            logger.error(f"Cannot create notification: user is invalid (title: {title}, user: {user})")
+            logger.error(f"Cannot create notification: user is invalid (title: {title})")
             return None
-        
-        logger.debug(f"Creating notification for user {user.id} ({user.email}): {title}")
-        
-        notification = Notification.objects.create(
-            user=user,
-            type=type,
-            title=title,
-            message=message,
-            content_object=content_object,
-            metadata=metadata or {}
-        )
-        
-        logger.info(f"Notification created successfully: ID {notification.id} for user {user.id} - {title}")
+
+        # Check user preference if a key is provided
+        if pref_key and not _is_pref_allowed(user, pref_key):
+            logger.warning(f"Notification suppressed by preference '{pref_key}' for user {user.id} (title: {title})")
+            return None
+
+        logger.warning(f"Creating notification for user {user.id} ({user.email}): {title}")
+
+        # Try creating with content_object first; fall back to content_type/object_id if that fails
+        try:
+            notification = Notification.objects.create(
+                user=user,
+                type=type,
+                title=title,
+                message=message,
+                content_object=content_object,
+                metadata=metadata or {},
+            )
+        except Exception as content_err:
+            logger.warning(f"Failed to create notification with content_object for user {user.id}: {content_err}. Retrying without content_object.")
+            try:
+                from django.contrib.contenttypes.models import ContentType
+                ct = ContentType.objects.get_for_model(content_object) if content_object else None
+                notification = Notification.objects.create(
+                    user=user,
+                    type=type,
+                    title=title,
+                    message=message,
+                    content_type=ct,
+                    object_id=content_object.pk if content_object else None,
+                    metadata=metadata or {},
+                )
+            except Exception as fallback_err:
+                logger.error(f"Fallback notification creation also failed for user {user.id}: {fallback_err}", exc_info=True)
+                return None
+
+        logger.warning(f"Notification created: ID {notification.id} for user {user.id} - {title}")
+
+        # Fire push notification to all active device tokens for this user
+        try:
+            from .push import send_push_notifications
+            from .models import PushDeviceToken
+            tokens = list(PushDeviceToken.objects.filter(user=user, is_active=True))
+            if tokens:
+                push_data = {"notification_id": notification.id, "type": type, **(metadata or {})}
+                push_ok = send_push_notifications(tokens, title, message, data=push_data)
+                if push_ok:
+                    logger.info(f"Push sent to {len(tokens)} device(s) for user {user.id}")
+                else:
+                    logger.warning(f"Push delivery failed for user {user.id} (notification {notification.id})")
+            else:
+                logger.debug(f"No active push tokens for user {user.id} — skipping push")
+        except Exception as push_err:
+            logger.error(f"Push notification error for user {user.id} (notification {notification.id}): {push_err}", exc_info=True)
+
         return notification
     except Exception as e:
-        logger.error(f"Failed to create notification for user {user.id if user else 'None'} (title: {title}): {e}", exc_info=True)
+        logger.error(f"Failed to create notification for user {getattr(user, 'id', None)} (title: {title}): {e}", exc_info=True)
         return None
 
 

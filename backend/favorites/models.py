@@ -36,7 +36,7 @@ class Favorite(models.Model):
         if isinstance(self.content_object, PlaceProfile):
             return self.content_object.name
         if isinstance(self.content_object, PublicProfile):
-            return self.content_object.display_name or self.content_object.name
+            return self.content_object.name
         if hasattr(self.content_object, 'name'):
             return self.content_object.name
         return "Unknown"

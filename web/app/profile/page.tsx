@@ -240,12 +240,12 @@ export default function ProfilePage() {
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
                                   src={publicProfile.user_image}
-                                  alt={publicProfile.display_name}
+                                  alt={publicProfile.name}
                                   className="relative h-20 w-20 rounded-full object-cover shadow-lg shadow-pink-500/30 ring-4 ring-white"
                                 />
                               ) : (
                                 <div className="relative h-20 w-20 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 text-white flex items-center justify-center font-bold text-2xl shadow-lg shadow-pink-500/30 ring-4 ring-white">
-                                  {(publicProfile.display_name || "U").charAt(0).toUpperCase()}
+                                  {(publicProfile.name || "U").charAt(0).toUpperCase()}
                                 </div>
                               )}
                               {/* Status Indicator */}
@@ -256,7 +256,7 @@ export default function ProfilePage() {
                           {/* Name and Role Section */}
                           <div className="flex-1 min-w-0 pt-1">
                             <h3 className="text-2xl font-bold text-gray-900 mb-1 truncate">
-                              {publicProfile.display_name}
+                              {publicProfile.name}
                             </h3>
                             <div className="flex items-center gap-2 mb-2">
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-pink-100 text-pink-700 border border-pink-200">

@@ -824,3 +824,137 @@ class CombinedServicesViewSet(viewsets.ViewSet):
 
 # Add the get_available_slots action to CombinedServicesViewSet
 CombinedServicesViewSet.get_available_slots = get_available_slots
+
+
+# Standalone API view so the URL /api/services/available-slots/ is registered correctly.
+# The @action decorator on a free function isn't picked up by the DRF router, so we expose
+# the same logic via a plain api_view instead.
+from rest_framework.decorators import api_view as _api_view, permission_classes as _permission_classes
+from rest_framework.permissions import AllowAny as _AllowAny
+
+@_api_view(['GET'])
+@_permission_classes([_AllowAny])
+def available_slots_api_view(request):
+    """GET /api/services/available-slots/ — returns time slots for a service on a given date, excluding past slots."""
+    from users.profile_models import AvailabilitySchedule, TimeSlot as ProfileTimeSlot
+    from django.utils import timezone as dj_tz
+    from datetime import datetime as _dt, timedelta as _td
+
+    service_id = request.query_params.get('service_id')
+    date_str = request.query_params.get('date')
+    service_type = request.query_params.get('service_type', 'place')
+
+    if not service_id or not date_str:
+        return Response({"error": "service_id and date are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        target_date = _dt.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if service_type == 'place':
+        try:
+            service_instance = ServiceInPlace.objects.get(id=service_id)
+            provider = service_instance.place
+            ct = ContentType.objects.get_for_model(PlaceProfile)
+            duration = service_instance.time
+        except ServiceInPlace.DoesNotExist:
+            return Response({"error": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
+    else:
+        try:
+            service_instance = ProfessionalService.objects.get(id=service_id)
+            provider = service_instance.professional
+            ct = ContentType.objects.get_for_model(ProfessionalProfile)
+            duration = service_instance.time
+        except ProfessionalService.DoesNotExist:
+            return Response({"error": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    day_of_week = target_date.weekday()
+    availability_schedule = AvailabilitySchedule.objects.filter(
+        content_type=ct, object_id=provider.id, day_of_week=day_of_week, is_available=True
+    ).first()
+    if not availability_schedule:
+        return Response({"error": "Provider not available on this day", "slots": []})
+
+    time_slots = ProfileTimeSlot.objects.filter(schedule=availability_schedule, is_active=True).order_by('start_time')
+    if not time_slots.exists():
+        return Response({"error": "No time slots configured", "slots": []})
+
+    # Cutoff: now in UTC. Any slot whose start datetime is <= now is excluded.
+    now_utc = dj_tz.now()
+
+    google_busy_times = []
+    try:
+        from calendar_integration.services import google_calendar_service
+        provider_user = provider.user
+        if google_calendar_service.has_calendar_connected(provider_user):
+            tz = dj_tz.get_default_timezone()
+            day_start = dj_tz.make_aware(_dt.combine(target_date, __import__('datetime').time(0, 0)), tz)
+            day_end = dj_tz.make_aware(_dt.combine(target_date, __import__('datetime').time(23, 59, 59)), tz)
+            try:
+                cal_id = provider_user.google_calendar_credentials.calendar_id or 'primary'
+            except Exception:
+                cal_id = 'primary'
+            google_busy_times = google_calendar_service.get_busy_times(provider_user, day_start, day_end, calendar_id=cal_id)
+    except Exception:
+        pass
+
+    slot_interval = _td(minutes=30)
+    tz = dj_tz.get_default_timezone()
+    slots = []
+
+    for time_slot in time_slots:
+        current_time = time_slot.start_time
+        slot_end_limit = time_slot.end_time
+
+        while True:
+            current_dt_naive = _dt.combine(target_date, current_time)
+            slot_end_dt_naive = current_dt_naive + duration
+
+            if slot_end_dt_naive.time() > slot_end_limit:
+                break
+
+            current_dt = dj_tz.make_aware(current_dt_naive, tz)
+            slot_end_dt = dj_tz.make_aware(slot_end_dt_naive, tz)
+
+            # Skip slots that start in the past (server-side UTC comparison)
+            if current_dt <= now_utc:
+                next_dt = current_dt + slot_interval
+                current_time = next_dt.time()
+                if current_time >= slot_end_limit:
+                    break
+                continue
+
+            is_blocked = TimeSlotBlock.objects.filter(
+                content_type=ct, object_id=provider.id, date=target_date,
+                start_time__lt=slot_end_dt.time(), end_time__gt=current_time
+            ).exists()
+
+            is_booked = Reservation.objects.filter(
+                provider_content_type=ct, provider_object_id=provider.id, date=target_date,
+                time__lt=slot_end_dt.time(), time__gte=current_time,
+                status__in=['PENDING', 'CONFIRMED']
+            ).exists()
+
+            is_google_busy = any(
+                current_dt < b.end and slot_end_dt > b.start
+                for b in google_busy_times
+            )
+
+            slots.append({
+                'time': current_time.strftime('%H:%M'),
+                'end_time': slot_end_dt.time().strftime('%H:%M'),
+                'available': not (is_blocked or is_booked or is_google_busy),
+            })
+
+            next_dt = current_dt + slot_interval
+            current_time = next_dt.time()
+            if current_time >= slot_end_limit:
+                break
+
+    return Response({
+        'date': date_str,
+        'provider_type': service_type,
+        'provider_id': provider.id,
+        'slots': slots,
+    })

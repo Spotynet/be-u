@@ -2684,7 +2684,7 @@ function SectionPerfil({
             {/* Name + type */}
             <div style={{textAlign: "center"}}>
               <p style={{color: DARK, fontWeight: 900, fontSize: 18, margin: "0 0 6px", lineHeight: 1.2}}>
-                {profile?.display_name ?? profile?.name ?? `${user?.firstName} ${user?.lastName}`}
+                {profile?.name ?? `${user?.firstName} ${user?.lastName}`}
               </p>
               {profile?.profile_type && (
                 <span

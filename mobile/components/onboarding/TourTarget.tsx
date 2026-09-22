@@ -1,5 +1,5 @@
-import React, {useEffect, useRef} from "react";
-import {View, ViewProps} from "react-native";
+import React, {useEffect, useRef, useCallback} from "react";
+import {View, ViewProps, InteractionManager} from "react-native";
 import {useProviderTour} from "@/features/onboarding/ProviderTourProvider";
 
 interface TourTargetProps extends ViewProps {
@@ -9,32 +9,60 @@ interface TourTargetProps extends ViewProps {
 
 /**
  * TourTarget wraps a UI element and registers its position for the tour overlay.
- * When the tour step matches this targetId, the overlay will highlight this element.
+ * Re-measures periodically while the tour is active to handle layout shifts.
  */
 export const TourTarget = ({targetId, children, ...viewProps}: TourTargetProps) => {
   const viewRef = useRef<View>(null);
-  const {registerTarget, unregisterTarget} = useProviderTour();
+  const {registerTarget, unregisterTarget, isActive} = useProviderTour();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const measureAndRegister = useCallback(() => {
+    if (viewRef.current) {
+      viewRef.current.measureInWindow((x, y, width, height) => {
+        if (width > 0 && height > 0) {
+          registerTarget(targetId, {x, y, width, height});
+        }
+      });
+    }
+  }, [targetId, registerTarget]);
 
   useEffect(() => {
-    const measureAndRegister = () => {
-      if (viewRef.current) {
-        viewRef.current.measureInWindow((x, y, width, height) => {
-          registerTarget(targetId, {x, y, width, height});
-        });
-      }
-    };
-
     // Register immediately
     measureAndRegister();
 
-    // Re-measure on layout changes (in case the UI shifts)
-    const timeoutId = setTimeout(measureAndRegister, 100);
+    // Re-measure after interactions settle
+    const task = InteractionManager.runAfterInteractions(() => {
+      measureAndRegister();
+    });
+
+    // Also re-measure after a longer delay for slow renders
+    const timeoutId = setTimeout(measureAndRegister, 200);
 
     return () => {
+      task.cancel();
       clearTimeout(timeoutId);
       unregisterTarget(targetId);
     };
-  }, [targetId, registerTarget, unregisterTarget]);
+  }, [targetId, measureAndRegister, unregisterTarget]);
+
+  // While tour is active, re-measure periodically to catch layout changes
+  useEffect(() => {
+    if (isActive) {
+      measureAndRegister();
+      intervalRef.current = setInterval(measureAndRegister, 600);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isActive, measureAndRegister]);
 
   return (
     <View ref={viewRef} {...viewProps} collapsable={false}>

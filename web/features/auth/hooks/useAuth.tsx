@@ -43,9 +43,12 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
         try {
           const response = await authApi.getProfile();
           setUser(response.data.user);
-        } catch {
-          // Token is invalid, remove it
-          tokenUtils.removeToken();
+        } catch (err: any) {
+          // Only clear tokens when the server explicitly rejects them (401).
+          // Network errors, 5xx, or timeouts must NOT wipe a valid session.
+          if (err?.response?.status === 401) {
+            tokenUtils.removeToken();
+          }
         }
       }
       setIsLoading(false);

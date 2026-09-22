@@ -7,14 +7,35 @@ from django.utils import timezone
 User = get_user_model()
 
 
+class NotificationPreferences(models.Model):
+    """Per-user notification preference toggles stored as a JSON blob."""
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="notification_preferences",
+    )
+    # JSON dict of {pref_key: bool}.  Unknown keys are ignored on read.
+    preferences = models.JSONField(default=dict)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Notification Preferences"
+        verbose_name_plural = "Notification Preferences"
+
+    def __str__(self):
+        return f"{self.user.email} – notification prefs"
+
+
 class Notification(models.Model):
     """Notification model for user notifications"""
-    
+
     class NotificationType(models.TextChoices):
         RESERVATION = "reserva", "Reserva"
         REVIEW = "reseña", "Reseña"
         SYSTEM = "sistema", "Sistema"
         MESSAGE = "mensaje", "Mensaje"
+        SOCIAL = "social", "Social"
     
     class NotificationStatus(models.TextChoices):
         READ = "read", "Read"

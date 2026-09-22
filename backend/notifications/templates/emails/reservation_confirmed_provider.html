@@ -1,194 +1,244 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nueva Reserva Confirmada</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333333;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            padding: 0;
-        }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #ffffff;
-            padding: 40px 30px;
-            text-align: center;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 700;
-        }
-        .content {
-            padding: 40px 30px;
-        }
-        .notification-icon {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .notification-icon span {
-            font-size: 64px;
-        }
-        .greeting {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #333333;
-        }
-        .message {
-            font-size: 16px;
-            color: #666666;
-            margin-bottom: 30px;
-            line-height: 1.8;
-        }
-        .reservation-details {
-            background-color: #f8f9fa;
-            border-radius: 12px;
-            padding: 25px;
-            margin: 30px 0;
-        }
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-        .detail-row:last-child {
-            border-bottom: none;
-        }
-        .detail-label {
-            font-weight: 600;
-            color: #495057;
-            font-size: 14px;
-        }
-        .detail-value {
-            color: #212529;
-            font-size: 14px;
-            text-align: right;
-        }
-        .reservation-code {
-            background-color: #667eea;
-            color: #ffffff;
-            padding: 15px 20px;
-            border-radius: 8px;
-            text-align: center;
-            margin: 25px 0;
-            font-weight: 600;
-            font-size: 16px;
-            letter-spacing: 1px;
-        }
-        .client-info {
-            background-color: #e7f3ff;
-            border-left: 4px solid #2196F3;
-            padding: 20px;
-            margin: 25px 0;
-            border-radius: 4px;
-        }
-        .client-info h3 {
-            margin-top: 0;
-            color: #1976D2;
-            font-size: 16px;
-        }
-        .client-info p {
-            margin: 8px 0;
-            color: #424242;
-            font-size: 14px;
-        }
-        .notes-section {
-            background-color: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 15px 20px;
-            margin: 25px 0;
-            border-radius: 4px;
-        }
-        .notes-section strong {
-            color: #856404;
-        }
-        .footer {
-            background-color: #f8f9fa;
-            padding: 30px;
-            text-align: center;
-            color: #6c757d;
-            font-size: 14px;
-        }
-        .footer a {
-            color: #667eea;
-            text-decoration: none;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Nueva reserva — nabbi</title>
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
+  <style>
+    body { margin: 0; padding: 0; background-color: #F3F4F6; }
+    table { border-collapse: collapse; }
+    img { border: 0; display: block; }
+    a { color: #1C3829; text-decoration: none; }
+    @media (prefers-color-scheme: dark) {
+      .email-card { background-color: #FFFFFF !important; color-scheme: light !important; }
+      .body-heading { color: #111827 !important; }
+      .body-sub { color: #6B7280 !important; }
+    }
+    @media only screen and (max-width: 620px) {
+      .email-wrapper { width: 100% !important; }
+      .email-body { padding: 24px 16px !important; }
+      .detail-label, .detail-value { display: block !important; width: 100% !important; }
+      .detail-value { padding-top: 2px !important; padding-bottom: 10px !important; }
+    }
+  </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>Nueva Reserva Confirmada</h1>
-        </div>
-        
-        <div class="content">
-            <div class="notification-icon">
-                <span>📅</span>
-            </div>
-            
-            <div class="greeting">
+<body style="margin:0;padding:0;background-color:#F3F4F6;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background-color:#F3F4F6;padding:40px 16px;">
+    <tr>
+      <td align="center">
+
+        <!-- Card -->
+        <table class="email-wrapper" width="600" cellpadding="0" cellspacing="0" role="presentation"
+               style="max-width:600px;width:100%;background-color:#FFFFFF;border-radius:16px;overflow:hidden;
+                      box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#1C3829;padding:40px 32px 32px;text-align:center;">
+              <img src="{{ logo_url }}" alt="nabbi" width="110" height="auto"
+                   style="display:block;margin:0 auto 20px;max-width:110px;height:auto;" />
+              <p style="margin:0 0 8px;font-size:22px;font-weight:700;color:#FFFFFF;
+                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+                Nueva reserva
+              </p>
+              <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.65);
+                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+                Tienes una cita confirmada
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td class="email-body" style="padding:40px 40px 32px;
+                font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+
+              <!-- Greeting -->
+              <p style="margin:0 0 8px;font-size:18px;font-weight:700;color:#111827;">
                 Hola {{ provider_name }},
-            </div>
-            
-            <div class="message">
-                Tienes una nueva reserva confirmada. A continuación encontrarás todos los detalles.
-            </div>
-            
-            <div class="reservation-details">
-                <div class="detail-row">
-                    <span class="detail-label">Servicio:</span>
-                    <span class="detail-value">{{ service_name }}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Fecha:</span>
-                    <span class="detail-value">{{ date }}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Hora:</span>
-                    <span class="detail-value">{{ time }} - {{ end_time }}</span>
-                </div>
-            </div>
-            
-            <div class="reservation-code">
-                Código de Reserva: {{ reservation_code }}
-            </div>
-            
-            <div class="client-info">
-                <h3>Información del Cliente</h3>
-                <p><strong>Nombre:</strong> {{ client_name }}</p>
-                <p><strong>Email:</strong> {{ client_email }}</p>
-                <p><strong>Teléfono:</strong> {{ client_phone }}</p>
-            </div>
-            
-            {% if notes %}
-            <div class="notes-section">
-                <strong>Notas del Cliente:</strong><br>
-                {{ notes }}
-            </div>
-            {% endif %}
-            
-            <div class="message" style="margin-top: 30px;">
-                Esta reserva ya está confirmada y aparecerá en tu calendario. Si necesitas modificar o cancelar, puedes hacerlo desde la aplicación.
-            </div>
-        </div>
-        
-        <div class="footer">
-            <p>Este es un email automático de notificación. Por favor no respondas a este mensaje.</p>
-            <p>© 2024 nabbi. Todos los derechos reservados.</p>
-        </div>
-    </div>
+              </p>
+              <p style="margin:0 0 32px;font-size:15px;color:#6B7280;line-height:1.7;">
+                Un cliente acaba de confirmar una reserva contigo. Aquí están los detalles.
+              </p>
+
+              <!-- Details table -->
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+                     style="border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
+                <tr style="background-color:#F9FAFB;">
+                  <td class="detail-label"
+                      style="padding:14px 20px;font-size:12px;font-weight:700;
+                             color:#6B7280;text-transform:uppercase;letter-spacing:0.6px;
+                             width:38%;border-bottom:1px solid #E5E7EB;">
+                    Servicio
+                  </td>
+                  <td class="detail-value"
+                      style="padding:14px 20px;font-size:14px;font-weight:600;
+                             color:#111827;border-bottom:1px solid #E5E7EB;">
+                    {{ service_name }}
+                  </td>
+                </tr>
+                <tr>
+                  <td class="detail-label"
+                      style="padding:14px 20px;font-size:12px;font-weight:700;
+                             color:#6B7280;text-transform:uppercase;letter-spacing:0.6px;
+                             width:38%;border-bottom:1px solid #E5E7EB;">
+                    Cliente
+                  </td>
+                  <td class="detail-value"
+                      style="padding:14px 20px;font-size:14px;font-weight:600;
+                             color:#111827;border-bottom:1px solid #E5E7EB;">
+                    {{ client_name }}
+                  </td>
+                </tr>
+                <tr style="background-color:#F9FAFB;">
+                  <td class="detail-label"
+                      style="padding:14px 20px;font-size:12px;font-weight:700;
+                             color:#6B7280;text-transform:uppercase;letter-spacing:0.6px;
+                             width:38%;border-bottom:1px solid #E5E7EB;">
+                    Fecha
+                  </td>
+                  <td class="detail-value"
+                      style="padding:14px 20px;font-size:14px;font-weight:600;
+                             color:#111827;border-bottom:1px solid #E5E7EB;">
+                    {{ date }}
+                  </td>
+                </tr>
+                <tr>
+                  <td class="detail-label"
+                      style="padding:14px 20px;font-size:12px;font-weight:700;
+                             color:#6B7280;text-transform:uppercase;letter-spacing:0.6px;
+                             width:38%;">
+                    Hora
+                  </td>
+                  <td class="detail-value"
+                      style="padding:14px 20px;font-size:14px;font-weight:600;
+                             color:#111827;">
+                    {{ time }} &ndash; {{ end_time }}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Client contact block -->
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+                     style="margin:0 0 24px;background-color:#F0FDF4;border-radius:10px;
+                            border:1px solid #BBF7D0;">
+                <tr>
+                  <td style="padding:20px;">
+                    <p style="margin:0 0 12px;font-size:11px;font-weight:700;color:#166534;
+                               text-transform:uppercase;letter-spacing:0.7px;">
+                      Contacto del cliente
+                    </p>
+                    <table cellpadding="0" cellspacing="0" role="presentation">
+                      <tr>
+                        <td style="padding:3px 12px 3px 0;font-size:12px;font-weight:700;
+                                   color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;
+                                   white-space:nowrap;">
+                          Email
+                        </td>
+                        <td style="padding:3px 0;font-size:14px;color:#111827;font-weight:500;">
+                          {{ client_email }}
+                        </td>
+                      </tr>
+                      {% if client_phone %}
+                      <tr>
+                        <td style="padding:3px 12px 3px 0;font-size:12px;font-weight:700;
+                                   color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;
+                                   white-space:nowrap;">
+                          Tel&eacute;fono
+                        </td>
+                        <td style="padding:3px 0;font-size:14px;color:#111827;font-weight:500;">
+                          {{ client_phone }}
+                        </td>
+                      </tr>
+                      {% endif %}
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              {% if notes %}
+              <!-- Notes -->
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+                     style="margin:0 0 24px;background-color:#F9FAFB;border-radius:10px;
+                            border:1px solid #E5E7EB;">
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#6B7280;
+                               text-transform:uppercase;letter-spacing:0.6px;">
+                      Notas del cliente
+                    </p>
+                    <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">
+                      {{ notes }}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              {% endif %}
+
+              {% if qr_code_url %}
+              <!-- QR Code -->
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+                     style="margin:32px 0 0;">
+                <tr>
+                  <td align="center">
+                    <p style="margin:0 0 12px;font-size:12px;font-weight:700;color:#6B7280;
+                               text-transform:uppercase;letter-spacing:0.6px;">
+                      Escanea para ver la reserva
+                    </p>
+                    <img src="{{ qr_code_url }}"
+                         alt="QR reserva" width="160" height="160"
+                         style="display:block;margin:0 auto;border:6px solid #F3F4F6;border-radius:12px;" />
+                  </td>
+                </tr>
+              </table>
+              {% endif %}
+
+              <!-- CTA -->
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+                     style="margin:24px 0 8px;">
+                <tr>
+                  <td align="center">
+                    <a href="#"
+                       style="display:inline-block;background-color:#1C3829;color:#FFFFFF;
+                              padding:14px 36px;border-radius:8px;font-size:15px;font-weight:700;
+                              text-decoration:none;letter-spacing:-0.1px;">
+                      Ver en mi agenda
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:28px 0 0;font-size:13px;color:#9CA3AF;line-height:1.6;">
+                Esta reserva ya está confirmada y aparecerá en tu agenda. Si necesitas modificar
+                o cancelar, puedes hacerlo desde la aplicación.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#1C3829;padding:24px 40px;text-align:center;">
+              <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#FFFFFF;
+                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+                nabbi
+              </p>
+              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.45);
+                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+                Este es un correo automático. Por favor no respondas a este mensaje.
+                &nbsp;&middot;&nbsp; &copy; 2026 nabbi. Todos los derechos reservados.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
 </body>
 </html>

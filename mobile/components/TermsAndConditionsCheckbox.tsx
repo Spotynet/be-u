@@ -4,7 +4,7 @@ import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 
 /** URL de términos y condiciones - cambiar cuando tengas el link definitivo */
-const TERMS_URL = "https://example.com/terminos-y-condiciones";
+const TERMS_URL = "https://nabbi-mobile-dev.spotynet.com/terminos-y-condiciones";
 
 type Props = {
   checked: boolean;

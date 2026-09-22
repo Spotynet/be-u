@@ -18,8 +18,8 @@ import {useAuth} from "@/features/auth/hooks/useAuth";
 import {notificationApi} from "@/lib/api";
 
 // TODO: replace with live URLs before shipping
-const PRIVACY_POLICY_URL = "https://be-u.app/privacidad";
-const TERMS_URL = "https://be-u.app/terminos";
+const PRIVACY_POLICY_URL = "https://nabbi-mobile-dev.spotynet.com/aviso-de-privacidad";
+const TERMS_URL = "https://nabbi-mobile-dev.spotynet.com/terminos-y-condiciones";
 
 interface Session {
   id: number;

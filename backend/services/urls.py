@@ -14,6 +14,7 @@ router.register(r'time-blocks', views.TimeSlotBlockViewSet, basename='time-block
 router.register(r'', views.CombinedServicesViewSet, basename='combined-services')
 
 urlpatterns = [
+    path('available-slots/', views.available_slots_api_view, name='available-slots'),
     path('', include(router.urls)),
 ]
 

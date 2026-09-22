@@ -23,6 +23,7 @@ import {
   useCalendarIntegration,
   useCalendarEvents,
 } from "@/features/calendar";
+import {AppHeader} from "@/components/ui/AppHeader";
 
 interface AvailabilityScreenProps {
   embedded?: boolean;
@@ -221,23 +222,14 @@ export default function AvailabilityScreen({embedded = false}: AvailabilityScree
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
         {!embedded && (
-          <View
-            style={[
-              styles.header,
-              {
-                backgroundColor: colors.background,
-                borderBottomColor: colors.border,
-                paddingTop: Math.max(insets.top + 16, 20),
-              },
-            ]}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => goBack("/(tabs)/perfil")}>
-              <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Disponibilidad</Text>
-            <View style={styles.placeholder} />
-          </View>
+          <AppHeader
+            title="Horarios"
+            showBackButton
+            backFallbackRoute="/(tabs)/perfil"
+            onBackPress={() => goBack("/(tabs)/perfil")}
+            backgroundColor={colors.background}
+            borderBottom={colors.border}
+          />
         )}
         <View style={styles.centeredContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -251,23 +243,14 @@ export default function AvailabilityScreen({embedded = false}: AvailabilityScree
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
         {!embedded && (
-          <View
-            style={[
-              styles.header,
-              {
-                backgroundColor: colors.background,
-                borderBottomColor: colors.border,
-                paddingTop: Math.max(insets.top + 16, 20),
-              },
-            ]}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => goBack("/(tabs)/perfil")}>
-              <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, {color: colors.foreground}]}>Disponibilidad</Text>
-            <View style={styles.placeholder} />
-          </View>
+          <AppHeader
+            title="Horarios"
+            showBackButton
+            backFallbackRoute="/(tabs)/perfil"
+            onBackPress={() => goBack("/(tabs)/perfil")}
+            backgroundColor={colors.background}
+            borderBottom={colors.border}
+          />
         )}
         <View style={styles.centeredContainer}>
           <Ionicons name="lock-closed" size={80} color={colors.mutedForeground} />
@@ -315,26 +298,14 @@ export default function AvailabilityScreen({embedded = false}: AvailabilityScree
       </View>
       {/* Header - hidden when embedded in tab */}
       {!embedded && (
-        <View
-          style={[
-            styles.header,
-            {
-              backgroundColor: colors.background,
-              borderBottomColor: colors.border,
-              paddingTop: insets.top + 16,
-            },
-          ]}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => goBack("/(tabs)/perfil")}
-            activeOpacity={0.7}>
-            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, {color: colors.foreground}]}>
-            Gestionar Disponibilidad
-          </Text>
-          <View style={styles.placeholder} />
-        </View>
+        <AppHeader
+          title="Horarios"
+          showBackButton
+          backFallbackRoute="/(tabs)/perfil"
+          onBackPress={() => goBack("/(tabs)/perfil")}
+          backgroundColor={colors.background}
+          borderBottom={colors.border}
+        />
       )}
 
       {/* Content */}

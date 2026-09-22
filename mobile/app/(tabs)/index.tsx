@@ -784,7 +784,7 @@ export default function Home() {
           {/* Right — create post */}
           <View style={styles.headerRight}>
             {user && user.role !== "CLIENT" && (
-              <TourTarget targetId="posts_create">
+              <TourTarget targetId="create_post">
                 <TouchableOpacity
                   style={styles.headerButton}
                   onPress={() => {

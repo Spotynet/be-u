@@ -11,6 +11,7 @@ import {Colors, useAppTheme} from "@/constants/theme";
 import {useColorScheme} from "@/hooks/use-color-scheme";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
+import {AppHeader} from "@/components/ui/AppHeader";
 import {Ionicons} from "@expo/vector-icons";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useUserProfile, useProfileUpdate} from "@/features/users";
@@ -21,6 +22,7 @@ import {
   ClientSettingsForm,
   ProfessionalSettingsForm,
   PlaceSettingsForm,
+  ProfileSettingsForm,
 } from "@/components/settings";
 import {SettingsMenu} from "@/components/profile";
 import {CalendarConnectionCard} from "@/features/calendar";
@@ -35,7 +37,7 @@ export default function Settings({embedded = false}: {embedded?: boolean} = {}) 
   const {user, isAuthenticated, logout, refreshToken} = useAuth();
   const {profile, isLoading: profileLoading, refreshProfile} = useUserProfile();
   const {updateProfile, isLoading: updating} = useProfileUpdate(user?.id || 0, user?.role || "");
-  const formRef = useRef<{save: () => Promise<void>} | null>(null);
+  const formRef = useRef<any>(null);
   const [isSettingsMenuVisible, setIsSettingsMenuVisible] = useState(false);
 
   // Redirect to /perfil if accessed directly (not embedded)
@@ -197,10 +199,11 @@ export default function Settings({embedded = false}: {embedded?: boolean} = {}) 
       case "PROFESSIONAL":
         return (
           <>
-            <ProfessionalSettingsForm
+            <ProfileSettingsForm
               ref={formRef}
               user={user}
               profile={profile as any}
+              role="PROFESSIONAL"
               onSave={handleSave}
               isLoading={updating}
             />
@@ -251,42 +254,20 @@ export default function Settings({embedded = false}: {embedded?: boolean} = {}) 
     }
   };
 
+  const screenTitle = user?.role === "PROFESSIONAL" || user?.role === "PLACE"
+    ? "Mi Información"
+    : "Configuración";
+
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: colors.background,
-            borderBottomColor: colors.border,
-            paddingTop: Math.max(insets.top + 16, 20),
-          },
-        ]}>
-        {embedded ? (
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => goBack("/(tabs)/perfil")}
-            activeOpacity={0.7}>
-            <Ionicons name="arrow-back" color={colors.foreground} size={24} />
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.headerSpacer} />
-        )}
-        <Text style={[styles.headerTitle, {color: colors.foreground}]}>Configuración</Text>
-        {embedded ? (
-          <View style={styles.placeholder} />
-        ) : (
-          <TouchableOpacity
-            style={styles.settingsIconButton}
-            onPress={() => setIsSettingsMenuVisible(true)}
-            activeOpacity={0.7}>
-            <View style={[styles.settingsIconContainer, {backgroundColor: colors.card}]}>
-              <Ionicons name="settings" color={colors.primary} size={22} />
-            </View>
-          </TouchableOpacity>
-        )}
-      </View>
+      <AppHeader
+        title={screenTitle}
+        showBackButton={embedded}
+        backFallbackRoute="/(tabs)/perfil"
+        onBackPress={() => goBack("/(tabs)/perfil")}
+        backgroundColor={colors.background}
+        borderBottom={colors.border}
+      />
 
       {/* Content */}
       <ScrollView 

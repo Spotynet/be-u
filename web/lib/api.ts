@@ -112,7 +112,7 @@ apiClient.interceptors.response.use(
 
       if (refreshToken) {
         try {
-          const refreshResponse = await axios.post<{access: string}>(
+          const refreshResponse = await axios.post<{access: string; refresh?: string}>(
             `${API_BASE_URL}/auth/refresh/`,
             {refresh: refreshToken},
             {
@@ -122,8 +122,13 @@ apiClient.interceptors.response.use(
           );
 
           const newAccessToken = refreshResponse.data.access;
+          const newRefreshToken = refreshResponse.data.refresh;
           if (typeof window !== "undefined") {
             localStorage.setItem(AUTH_TOKEN_KEY, newAccessToken);
+            // ROTATE_REFRESH_TOKENS is enabled — save the new refresh token too
+            if (newRefreshToken) {
+              localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
+            }
           }
 
           originalRequest.headers = originalRequest.headers || {};
