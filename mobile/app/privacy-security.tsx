@@ -16,10 +16,7 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {AppHeader} from "@/components/ui/AppHeader";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {notificationApi} from "@/lib/api";
-
-// TODO: replace with live URLs before shipping
-const PRIVACY_POLICY_URL = "https://nabbi-mobile-dev.spotynet.com/aviso-de-privacidad";
-const TERMS_URL = "https://nabbi-mobile-dev.spotynet.com/terminos-y-condiciones";
+import {PRIVACY_POLICY_URL, TERMS_URL} from "@/constants/legal";
 
 interface Session {
   id: number;

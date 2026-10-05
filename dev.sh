@@ -1,66 +1,65 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Nabbi / be-u DEVELOPMENT — shared EC2 (project nginx on 127.0.0.1:3020).
+#
+# After initial host setup: sudo ./deploy/bootstrap-shared.sh (once)
+# Day-to-day: ./dev.sh
+#
+# Domains are defined below. Secrets stay in backend/.env.
+# For production on a dedicated machine, use ./deploy.sh.
+set -euo pipefail
 
-echo "🚀 Starting NABBI DEV (api + web + mobile)"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BACKEND_DIR="$SCRIPT_DIR/backend"
-WEB_DIR="$SCRIPT_DIR/web"
-MOBILE_DIR="$SCRIPT_DIR/mobile"
+# === Dev domains (committed; shared EC2) ===
+NABBI_WEB_HOST="nabbi-dev.spotynet.com"
+NABBI_API_HOST="nabbi-api-dev.spotynet.com"
+NABBI_MOBILE_HOST="nabbi-mobile-dev.spotynet.com"
 
-BACKEND_NAME="nabbi-api-dev"
-WEB_NAME="nabbi-dev"
-MOBILE_NAME="nabbi-mobile-dev"
+export NABBI_WEB_HOST NABBI_API_HOST NABBI_MOBILE_HOST
+export BACKEND_ORIGIN="http://api:3007"
+export NEXT_PUBLIC_BACKEND_ORIGIN="http://api:3007"
+export NEXT_PUBLIC_API_URL="https://${NABBI_API_HOST}/api"
+export EXPO_PUBLIC_API_URL="https://${NABBI_API_HOST}"
 
-BACKEND_PORT=3007
-WEB_PORT=3008
-MOBILE_PORT=3009
+compose() {
+  if docker info >/dev/null 2>&1; then
+    docker compose "$@"
+  elif sudo -n docker info >/dev/null 2>&1; then
+    sudo docker compose "$@"
+  else
+    echo "Docker needs privileges. Prefer: sudo usermod -aG docker \$USER && newgrp docker" >&2
+    echo "First-time shared host: sudo ./deploy/bootstrap-shared.sh" >&2
+    sudo docker compose "$@"
+  fi
+}
 
-# -------------------------
-# 🧹 Clean old processes
-# -------------------------
-echo "🧹 Cleaning old PM2 processes..."
-pm2 delete $BACKEND_NAME 2>/dev/null
-pm2 delete $WEB_NAME 2>/dev/null
-pm2 delete $MOBILE_NAME 2>/dev/null
+if [[ ! -f backend/.env ]]; then
+  echo "Missing backend/.env (DB, SECRET_KEY, …)." >&2
+  exit 1
+fi
 
-# -------------------------
-# 🐍 Start API (Django)
-# -------------------------
-echo "🐍 Starting Django API ($BACKEND_NAME) on port $BACKEND_PORT..."
-pm2 start "$BACKEND_DIR/venv/bin/python" \
-  --name "$BACKEND_NAME" \
-  --cwd "$BACKEND_DIR" \
-  -- manage.py runserver 0.0.0.0:$BACKEND_PORT
+echo "Cleaning old Nabbi PM2 processes (if any)..."
+pm2 delete nabbi-api-dev 2>/dev/null || true
+pm2 delete nabbi-dev 2>/dev/null || true
+pm2 delete nabbi-mobile-dev 2>/dev/null || true
+pm2 save 2>/dev/null || true
 
-# -------------------------
-# 🌐 Start Web (Next.js)
-# -------------------------
-echo "🌐 Starting Next.js web ($WEB_NAME) on port $WEB_PORT..."
-pm2 start npm \
-  --name "$WEB_NAME" \
-  --cwd "$WEB_DIR" \
-  -- run dev -- -p $WEB_PORT
-
-# -------------------------
-# 📱 Start Mobile (Expo web)
-# -------------------------
-echo "📱 Starting Expo mobile ($MOBILE_NAME) on port $MOBILE_PORT..."
-pm2 start bash \
-  --name "$MOBILE_NAME" \
-  --cwd "$MOBILE_DIR" \
-  -- -c "npx expo start --web --port $MOBILE_PORT --host localhost"
-
-# -------------------------
-# 💾 Save PM2 state
-# -------------------------
-pm2 save
-
-# -------------------------
-# 📊 Status
-# -------------------------
-echo "✅ NABBI DEV running:"
-pm2 list
-echo ""
-echo "  nabbi-api-dev    -> https://nabbi-api-dev.spotynet.com    (localhost:$BACKEND_PORT)"
-echo "  nabbi-dev        -> https://nabbi-dev.spotynet.com        (localhost:$WEB_PORT)"
-echo "  nabbi-mobile-dev -> https://nabbi-mobile-dev.spotynet.com (localhost:$MOBILE_PORT)"
+echo "Starting Nabbi DEV (compose.yaml → 127.0.0.1:3020)..."
+echo "  web:    ${NABBI_WEB_HOST}"
+echo "  api:    ${NABBI_API_HOST}"
+echo "  mobile: ${NABBI_MOBILE_HOST}"
+compose -f compose.yaml up -d --build
+echo
+compose -f compose.yaml ps
+echo
+echo "DEV URLs (via host nginx TLS):"
+echo "  https://${NABBI_WEB_HOST}/"
+echo "  https://${NABBI_API_HOST}/"
+echo "  https://${NABBI_MOBILE_HOST}/"
+echo
+echo "Logs: docker compose -f compose.yaml logs -f"
+echo "Stop: docker compose -f compose.yaml down"
+echo
+echo "If host nginx still points at 3007/3008/3009, run once:"
+echo "  sudo ./deploy/apply-nginx.sh"

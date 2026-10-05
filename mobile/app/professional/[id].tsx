@@ -28,6 +28,7 @@ import {BookingFlow} from "@/components/booking/BookingFlow";
 import {errorUtils} from "@/lib/api";
 import {getSubCategoryById, MAIN_CATEGORIES} from "@/constants/categories";
 import {useAuth} from "@/features/auth";
+import {ContentActionsButton} from "@/components/moderation/ContentActionsButton";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -330,6 +331,15 @@ export default function ProfessionalDetailScreen() {
           </View>
         </TouchableOpacity>
         <View style={styles.headerActions}>
+          {professional ? (
+            <ContentActionsButton
+              targetType="profile"
+              targetId={professional.id}
+              authorUserId={(professional as any).user || (professional as any).user_id}
+              color="#ffffff"
+              onBlocked={() => goBack("/(tabs)/index")}
+            />
+          ) : null}
           <TouchableOpacity style={styles.headerButton}>
             <View style={styles.headerButtonBg}>
               <Ionicons name="heart-outline" color="#ffffff" size={24} />

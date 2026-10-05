@@ -63,10 +63,12 @@
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.CAMERA",
+        "android.permission.CAMERA"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -91,7 +93,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow nabbi to use your location to find nearby services."
+          "locationWhenInUsePermission": "Allow nabbi to use your location to find nearby services."
         }
       ],
       [
@@ -102,7 +104,8 @@
         }
       ],
       "expo-notifications",
-      "expo-font"
+      "expo-font",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true
@@ -118,7 +121,7 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/473f38d1-c27b-463d-9726-fee639218368"
+      "url": "https://u.expo.dev/1e30ea9b-cf36-4754-bc44-b5acbd3b5c0b"
     }
   }
 }

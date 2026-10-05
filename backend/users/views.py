@@ -16,6 +16,7 @@ from .serializers import (
     ClientProfileSerializer, ProfessionalProfileSerializer, PlaceProfileSerializer,
     ProfessionalProfileDetailSerializer, PlaceProfileDetailSerializer
 )
+from moderation.utils import blocked_user_ids
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -401,6 +402,9 @@ class ProfessionalProfileViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        hidden = blocked_user_ids(self.request.user)
+        if hidden:
+            queryset = queryset.exclude(user_id__in=hidden)
         viewer_city = self._viewer_city()
         if viewer_city:
             queryset = queryset.filter(Q(city__iexact=viewer_city) | Q(user__city__iexact=viewer_city))
@@ -451,6 +455,9 @@ class PlaceProfileViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        hidden = blocked_user_ids(self.request.user)
+        if hidden:
+            queryset = queryset.exclude(user_id__in=hidden)
         viewer_city = self._viewer_city()
         if viewer_city:
             queryset = queryset.filter(Q(city__iexact=viewer_city) | Q(user__city__iexact=viewer_city) | Q(owner__city__iexact=viewer_city))

@@ -41,6 +41,7 @@ urlpatterns = [
     path('api/calendar/', include('calendar_integration.urls')),
     path('api/', include('ventas.urls')),
     path('api/support/', include('support.urls')),
+    path('api/moderation/', include('moderation.urls')),
     # Add a simple test endpoint
     path('api/test/', lambda request: HttpResponse('API is working!')),
     # Root endpoint

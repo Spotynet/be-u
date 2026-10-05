@@ -4,6 +4,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from .models import Review
 from .serializers import ReviewCreateSerializer, ReviewSerializer
+from moderation.utils import blocked_user_ids
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
@@ -38,6 +39,10 @@ class ReviewViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(
                 to_public_profile__profile_type=profile_type.upper()
             )
+
+        hidden = blocked_user_ids(self.request.user)
+        if hidden:
+            queryset = queryset.exclude(from_user_id__in=hidden)
 
         return queryset
 

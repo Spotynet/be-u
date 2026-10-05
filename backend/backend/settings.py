@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'calendar_integration',
     'ventas',
     'support',
+    'moderation',
 ]
 
 MIDDLEWARE = [
@@ -111,6 +112,42 @@ if _db_sslmode:
     # e.g. require (common for AWS RDS / Aurora). See PostgreSQL sslmode docs.
     _db_options["sslmode"] = _db_sslmode
 
+
+def _resolve_db_host(host: str) -> str:
+    """Resolve DB hostname once at startup.
+
+    This VPC's resolver intermittently fails with EAI_AGAIN / "Temporary failure
+    in name resolution" when psycopg2 re-resolves on each new connection, which
+    causes sporadic 500s on login and other DB-backed endpoints. Pinning the
+    resolved IP avoids per-request DNS lookups.
+    """
+    import socket
+    import time
+
+    if not host:
+        return host
+
+    try:
+        socket.inet_aton(host)
+        return host
+    except OSError:
+        pass
+
+    last_error: Exception | None = None
+    for attempt in range(8):
+        try:
+            infos = socket.getaddrinfo(host, None, socket.AF_INET, socket.SOCK_STREAM)
+            ip = infos[0][4][0]
+            print(f"DB host resolved: {host} -> {ip} (attempt {attempt + 1})")
+            return ip
+        except OSError as exc:
+            last_error = exc
+            time.sleep(0.5 * (attempt + 1))
+
+    print(f"DB host resolve failed for {host}: {last_error}; falling back to hostname")
+    return host
+
+
 DATABASES = {
     "default": {
         "ENGINE": os.environ.get(
@@ -119,8 +156,12 @@ DATABASES = {
         "NAME": os.environ.get("DB_NAME", "stg_beu"),
         "USER": os.environ.get("DB_USER", "beu"),
         "PASSWORD": os.environ.get("DB_PASSWORD", "Juve$031021"),
-        "HOST": os.environ.get("DB_HOST", "34.207.42.51"),
+        "HOST": _resolve_db_host(os.environ.get("DB_HOST", "34.207.42.51")),
         "PORT": os.environ.get("DB_PORT", "5432"),
+        # Reuse connections so we don't open new TCP+TLS sessions (and re-do
+        # anything host-related) on every request during resolver blips.
+        "CONN_MAX_AGE": 60,
+        "CONN_HEALTH_CHECKS": True,
         **({"OPTIONS": _db_options} if _db_options else {}),
     }
 }

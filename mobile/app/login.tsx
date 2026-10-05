@@ -18,6 +18,7 @@ import {Ionicons} from "@expo/vector-icons";
 import {useState, useEffect, useRef} from "react";
 import {useAuth} from "@/features/auth";
 import {useGoogleAuth} from "@/hooks/useGoogleAuth";
+import {useAppleAuth} from "@/hooks/useAppleAuth";
 import {useNavigation} from "@/hooks/useNavigation";
 import {AppLogo} from "@/components/AppLogo";
 import {AppHeader} from "@/components/ui/AppHeader";
@@ -31,6 +32,7 @@ export default function Login() {
   const {goBack} = useNavigation();
   const {requestEmailCode, isLoading} = useAuth();
   const {connectWithGoogle, isConnecting, error: googleAuthError} = useGoogleAuth();
+  const {connectWithApple, isConnecting: isAppleConnecting} = useAppleAuth();
 
   const [email, setEmail] = useState("");
   const [errors, setErrors] = useState({email: ""});
@@ -123,6 +125,19 @@ export default function Login() {
       setGeneralError(googleAuthError);
     } else {
       setGeneralError("No se pudo completar el inicio de sesión con Google.");
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    setSuccessMessage("");
+    setGeneralError("");
+    try {
+      const result = await connectWithApple();
+      if (result === true) {
+        setSuccessMessage("¡Inicio de sesión con Apple exitoso!");
+      }
+    } catch (error: any) {
+      setGeneralError(error?.message || "No se pudo completar el inicio de sesión con Apple.");
     }
   };
 
@@ -251,6 +266,29 @@ export default function Login() {
                 </>
               )}
             </Pressable>
+
+            {Platform.OS === "ios" ? (
+              <Pressable
+                style={({pressed}) => [
+                  styles.secondaryBtn,
+                  {backgroundColor: colors.card, borderColor: colors.border, marginTop: 12},
+                  isAppleConnecting && styles.primaryBtnDisabled,
+                  pressed && !isAppleConnecting && styles.secondaryBtnPressed,
+                ]}
+                onPress={handleAppleLogin}
+                disabled={isAppleConnecting}>
+                {isAppleConnecting ? (
+                  <ActivityIndicator color={colors.foreground} />
+                ) : (
+                  <>
+                    <Ionicons name="logo-apple" size={20} color={colors.foreground} />
+                    <Text style={[styles.secondaryBtnText, {color: colors.foreground}]}>
+                      Continuar con Apple
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            ) : null}
           </View>
         </Animated.View>
       </ScrollView>

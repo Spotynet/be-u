@@ -30,6 +30,7 @@ export default function RegisterPro() {
     googleEmail?: string;
     googleFirstName?: string;
     googleLastName?: string;
+    appleSub?: string;
   }>();
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
@@ -99,6 +100,7 @@ export default function RegisterPro() {
         country: values.country || undefined,
         latitude: values.latitude,
         longitude: values.longitude,
+        appleSub: params.appleSub || undefined,
       };
       await register(registerData);
 

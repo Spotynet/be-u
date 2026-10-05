@@ -30,6 +30,7 @@ import {errorUtils} from "@/lib/api";
 import {getSubCategoryById, MAIN_CATEGORIES} from "@/constants/categories";
 import {useAuth} from "@/features/auth";
 import {MediaUploader} from "@/components/posts/MediaUploader";
+import {ContentActionsButton} from "@/components/moderation/ContentActionsButton";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 
@@ -483,6 +484,13 @@ export default function PlaceDetailScreen() {
           </View>
         </TouchableOpacity>
         <View style={styles.headerActions}>
+          <ContentActionsButton
+            targetType="profile"
+            targetId={place.id}
+            authorUserId={(place as any).user || (place as any).user_id}
+            color="#ffffff"
+            onBlocked={() => goBack("/(tabs)/index")}
+          />
           <TouchableOpacity style={styles.headerButton}>
             <View style={styles.headerButtonBg}>
               <Ionicons name="heart-outline" color="#ffffff" size={24} />
@@ -967,6 +975,17 @@ export default function PlaceDetailScreen() {
                             {createdAt.toLocaleDateString("es-MX")}
                           </Text>
                         )}
+                        <ContentActionsButton
+                          targetType="review"
+                          targetId={review.id}
+                          authorUserId={review.from_user}
+                          color={colors.mutedForeground}
+                          size={18}
+                          onBlocked={(userId) => {
+                            setReviews((prev) => prev.filter((item) => item.from_user !== userId));
+                            setReviewsCount((count) => Math.max(0, count - 1));
+                          }}
+                        />
                       </View>
 
                       {review.message ? (

@@ -12,6 +12,7 @@ import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Ionicons} from "@expo/vector-icons";
 import {useAuth} from "@/features/auth";
 import {useReviews} from "@/features/reviews";
+import {ContentActionsButton} from "@/components/moderation/ContentActionsButton";
 
 interface ReviewsTabProps {
   userRole: "CLIENT" | "PROFESSIONAL" | "PLACE";
@@ -99,6 +100,14 @@ export function ReviewsTab({userRole}: ReviewsTabProps) {
                   month: "short",
                 })}
               </Text>
+              <ContentActionsButton
+                targetType="review"
+                targetId={review.id}
+                authorUserId={review.from_user}
+                color={colors.mutedForeground}
+                size={18}
+                onBlocked={() => refreshReviews()}
+              />
             </View>
             <View style={styles.ratingContainer}>
               {[1, 2, 3, 4, 5].map((star) => (

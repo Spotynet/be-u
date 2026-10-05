@@ -32,6 +32,7 @@ import {AppLogo} from "@/components/AppLogo";
 import {APP_HEADER_BUTTON_HIT} from "@/components/ui/AppHeader";
 import {useAppTheme} from "@/constants/theme";
 import {HeaderCategoryDropdown} from "@/components/HeaderCategoryDropdown";
+import {ContentActionsButton} from "@/components/moderation/ContentActionsButton";
 
 const {width: SCREEN_WIDTH} = Dimensions.get("window");
 // Mosaic grid: postsSection padding 20*2 + postCard padding 16*2 + grid padding 10*2 + gap 8
@@ -567,6 +568,17 @@ export default function Home() {
             </View>
           </TouchableOpacity>
           <View style={styles.postHeaderRight}>
+            {(!user || post.author?.id !== user.id) && (
+              <ContentActionsButton
+                targetType="post"
+                targetId={post.id}
+                authorUserId={post.author?.id}
+                color={colors.mutedForeground}
+                onBlocked={(userId) => {
+                  setPosts((prev) => prev.filter((item) => item.author?.id !== userId));
+                }}
+              />
+            )}
             {/* Solo el dueño del post ve los 3 puntos verticales */}
             {user && post.author?.id === user.id && (
               <View
@@ -1030,6 +1042,23 @@ export default function Home() {
                         </Text>
                       </View>
                     </View>
+                    <ContentActionsButton
+                      targetType="comment"
+                      targetId={c.id}
+                      authorUserId={c.author?.id}
+                      color={colors.mutedForeground}
+                      size={18}
+                      onBlocked={(userId) => {
+                        setCommentsByPost((prev) => {
+                          const next: Record<number, any[]> = {};
+                          Object.entries(prev).forEach(([postId, list]) => {
+                            next[Number(postId)] = list.filter((item) => item.author?.id !== userId);
+                          });
+                          return next;
+                        });
+                        setPosts((prev) => prev.filter((item) => item.author?.id !== userId));
+                      }}
+                    />
                   </View>
                 )}
               />

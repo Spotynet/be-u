@@ -1,0 +1,8 @@
+BE-U / NABBI (Docker Compose — per-project nginx)
+- Start: cd /home/spotynet/projects/apps/be-u && ./dev.sh
+- Project nginx gateway: 127.0.0.1:3020
+- API (internal): 3007 — nabbi-api-dev.spotynet.com
+- Next.js web (internal): 3008 — nabbi-dev.spotynet.com
+- Expo mobile web (internal): 3009 — nabbi-mobile-dev.spotynet.com
+- Host nginx proxies ALL three Nabbi domains to http://127.0.0.1:3020
+- Apply host nginx: sudo ./deploy/apply-nginx.sh

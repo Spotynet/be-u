@@ -1,0 +1,9 @@
+# Dedicated / production override: project nginx owns host port 80.
+# Usage: docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+#
+# !override replaces the shared-host bind (127.0.0.1:3020:80) from compose.yaml.
+
+services:
+  nginx:
+    ports: !override
+      - "80:80"

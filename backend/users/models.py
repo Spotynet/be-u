@@ -34,6 +34,9 @@ class User(AbstractUser):
 
     # Use email as the unique identifier
     email = models.EmailField(unique=True)
+
+    # Stable Apple user id from Sign in with Apple (identity token "sub")
+    apple_sub = models.CharField(max_length=255, unique=True, null=True, blank=True)
     
     # Make username optional since we're using email
     username = models.CharField(max_length=150, unique=True, blank=True, null=True)

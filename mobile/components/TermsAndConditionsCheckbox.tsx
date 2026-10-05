@@ -2,9 +2,7 @@ import React from "react";
 import {View, Text, StyleSheet, Pressable, Linking} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
-
-/** URL de términos y condiciones - cambiar cuando tengas el link definitivo */
-const TERMS_URL = "https://nabbi-mobile-dev.spotynet.com/terminos-y-condiciones";
+import {TERMS_URL} from "@/constants/legal";
 
 type Props = {
   checked: boolean;

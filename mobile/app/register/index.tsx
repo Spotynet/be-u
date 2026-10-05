@@ -14,20 +14,26 @@ export default function RegisterSelector() {
     googlePicture?: string;
     googleId?: string;
     googleAccessToken?: string;
-    googleRefreshToken?: string;
-  }>();
+  googleRefreshToken?: string;
+  appleEmail?: string;
+  appleFirstName?: string;
+  appleLastName?: string;
+  appleSub?: string;
+}>();
   const insets = useSafeAreaInsets();
   const {colors} = useThemeVariant();
 
-  const googleParams = params.googleEmail
+  const prefillEmail = params.googleEmail || params.appleEmail;
+  const socialParams = prefillEmail || params.appleSub
     ? {
-        googleEmail: params.googleEmail,
-        googleFirstName: params.googleFirstName || "",
-        googleLastName: params.googleLastName || "",
+        googleEmail: params.googleEmail || params.appleEmail || "",
+        googleFirstName: params.googleFirstName || params.appleFirstName || "",
+        googleLastName: params.googleLastName || params.appleLastName || "",
         googlePicture: params.googlePicture || "",
         googleId: params.googleId || "",
         googleAccessToken: params.googleAccessToken || "",
         googleRefreshToken: params.googleRefreshToken || "",
+        appleSub: params.appleSub || "",
       }
     : {};
 
@@ -99,7 +105,7 @@ export default function RegisterSelector() {
                 opacity: pressed ? 0.92 : 1,
               },
             ]}
-            onPress={() => router.push({pathname: option.route, params: googleParams})}>
+            onPress={() => router.push({pathname: option.route, params: socialParams})}>
             <View style={[styles.cardIconWrap, {backgroundColor: colors.muted}]}>
               <Ionicons name={option.icon} size={24} color={colors.primary} />
             </View>

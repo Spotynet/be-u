@@ -1,0 +1,17 @@
+diff --git a/node_modules/@expo/metro-runtime/src/error-overlay/Data/LogContext.tsx b/node_modules/@expo/metro-runtime/src/error-overlay/Data/LogContext.tsx
+index 4d75821..f85dcc5 100644
+--- a/node_modules/@expo/metro-runtime/src/error-overlay/Data/LogContext.tsx
++++ b/node_modules/@expo/metro-runtime/src/error-overlay/Data/LogContext.tsx
+@@ -24,7 +24,11 @@ export function useLogs(): {
+         const raw = JSON.parse(expoCliStaticErrorElement.textContent);
+         return {
+           ...raw,
+-          logs: raw.logs.map((raw: any) => new LogBoxLog(raw)),
++          selectedLogIndex: raw.selectedLogIndex ?? 0,
++          isDisabled: raw.isDisabled ?? false,
++          logs: Array.isArray(raw.logs)
++            ? raw.logs.map((raw: any) => new LogBoxLog(raw))
++            : [],
+         };
+       }
+     }

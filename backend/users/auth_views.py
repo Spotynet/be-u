@@ -22,6 +22,7 @@ import logging
 import secrets
 import hashlib
 import hmac
+import jwt
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
@@ -265,6 +266,109 @@ def google_callback_view(request):
     except Exception as e:
         logger.error(f"Google auth failed: {e}")
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+APPLE_ISSUER = "https://appleid.apple.com"
+APPLE_AUDIENCE = "com.beu.nabbi"
+_apple_jwk_client = None
+
+
+def _get_apple_jwk_client():
+    global _apple_jwk_client
+    if _apple_jwk_client is None:
+        _apple_jwk_client = jwt.PyJWKClient("https://appleid.apple.com/auth/keys")
+    return _apple_jwk_client
+
+
+def _verify_apple_identity_token(identity_token: str, raw_nonce: str) -> dict:
+    signing_key = _get_apple_jwk_client().get_signing_key_from_jwt(identity_token)
+    payload = jwt.decode(
+        identity_token,
+        signing_key.key,
+        algorithms=["RS256"],
+        audience=APPLE_AUDIENCE,
+        issuer=APPLE_ISSUER,
+    )
+    expected_nonce = hashlib.sha256(raw_nonce.encode("utf-8")).hexdigest()
+    token_nonce = payload.get("nonce") or ""
+    if not token_nonce or not hmac.compare_digest(str(token_nonce), expected_nonce):
+        raise jwt.InvalidTokenError("nonce mismatch")
+    return payload
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@csrf_exempt
+def apple_login_view(request):
+    """
+    POST /api/auth/apple/
+    Body: { identity_token, nonce, given_name?, family_name? }
+    """
+    identity_token = (request.data.get("identity_token") or "").strip()
+    raw_nonce = (request.data.get("nonce") or "").strip()
+    given_name = (request.data.get("given_name") or "").strip()
+    family_name = (request.data.get("family_name") or "").strip()
+
+    if not identity_token or not raw_nonce:
+        return Response(
+            {"error": "identity_token y nonce son requeridos"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        payload = _verify_apple_identity_token(identity_token, raw_nonce)
+    except Exception as e:
+        logger.warning(f"Apple identity token rejected: {e}")
+        return Response(
+            {"error": "No se pudo verificar el inicio de sesión con Apple"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    apple_sub = (payload.get("sub") or "").strip()
+    email = (payload.get("email") or "").strip().lower()
+    if not apple_sub:
+        return Response({"error": "Token de Apple incompleto"}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = User.objects.filter(apple_sub=apple_sub).first()
+    if not user and email:
+        user = User.objects.filter(email=email).first()
+        if user and user.apple_sub and user.apple_sub != apple_sub:
+            return Response(
+                {"error": "Esta cuenta de Apple ya está vinculada a otro usuario"},
+                status=status.HTTP_409_CONFLICT,
+            )
+        if user and not user.apple_sub:
+            user.apple_sub = apple_sub
+            user.save(update_fields=["apple_sub"])
+
+    if not user:
+        if not email:
+            return Response(
+                {"error": "Apple no compartió un correo. Vuelve a intentar y permite compartir tu email."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {
+                "requires_registration": True,
+                "apple_user_data": {
+                    "email": email,
+                    "first_name": given_name,
+                    "last_name": family_name,
+                },
+                "apple_sub": apple_sub,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    refresh = RefreshToken.for_user(user)
+    return Response(
+        {
+            "message": "Apple login successful",
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": UserSerializer(user).data,
+        }
+    )
 
 
 def _hash_email_code(email: str, code: str) -> str:
@@ -574,6 +678,16 @@ def register_view(request):
         if not password:
             user.set_unusable_password()
             user.save(update_fields=["password"])
+        apple_sub = (data.get("appleSub") or data.get("apple_sub") or "").strip()
+        if apple_sub:
+            if User.objects.filter(apple_sub=apple_sub).exclude(pk=user.pk).exists():
+                user.delete()
+                return Response(
+                    {"error": "Esta cuenta de Apple ya está vinculada a otro usuario"},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            user.apple_sub = apple_sub
+            user.save(update_fields=["apple_sub"])
         # Assign role if provided and valid
         # Accept both lowercase and uppercase, convert to uppercase for database
         try:

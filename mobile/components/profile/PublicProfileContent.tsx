@@ -32,6 +32,7 @@ import {
 } from "@/lib/api";
 import {formatPrice} from "@/lib/priceUtils";
 import {errorUtils} from "@/lib/api";
+import {ContentActionsButton} from "@/components/moderation/ContentActionsButton";
 import {
   getSubCategoryById,
   MAIN_CATEGORIES,
@@ -914,6 +915,16 @@ export const PublicProfileContent = forwardRef<PublicProfileContentRef, PublicPr
                       ))}
                     </View>
                   </View>
+                  <ContentActionsButton
+                    targetType="review"
+                    targetId={review.id}
+                    authorUserId={review.from_user}
+                    color={colors.mutedForeground}
+                    size={18}
+                    onBlocked={(userId) =>
+                      setReviews((prev) => prev.filter((item) => item.from_user !== userId))
+                    }
+                  />
                 </View>
                 {review.comment && (
                   <Text style={[styles.reviewComment, {color: colors.mutedForeground}]} numberOfLines={3}>

@@ -12,6 +12,7 @@ from .public_profile_serializers import (
     PublicProfileUpdateSerializer,
     PublicProfileListSerializer
 )
+from moderation.utils import blocked_user_ids
 
 
 class PublicProfileViewSet(viewsets.ModelViewSet):
@@ -46,6 +47,9 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter profiles: city-based for list, but allow direct access for retrieve."""
         queryset = PublicProfile.objects.select_related('user').all()
+        hidden = blocked_user_ids(self.request.user)
+        if hidden:
+            queryset = queryset.exclude(user_id__in=hidden)
 
         # For retrieve action (viewing a specific profile), allow access regardless of city
         if self.action == 'retrieve':

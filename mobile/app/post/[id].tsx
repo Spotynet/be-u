@@ -22,6 +22,7 @@ import { useThemeVariant } from "@/contexts/ThemeVariantContext";
 import { postApi } from "@/lib/api";
 import { useAuth } from "@/features/auth";
 import { getAvatarColorFromSubcategory } from "@/constants/categories";
+import { ContentActionsButton } from "@/components/moderation/ContentActionsButton";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -230,7 +231,13 @@ export default function PostDetailScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={styles.headerButton} />
+          <ContentActionsButton
+            targetType="post"
+            targetId={post.id}
+            authorUserId={post.author?.id}
+            color={colors.foreground}
+            onBlocked={() => router.back()}
+          />
         )}
       </View>
 
@@ -423,6 +430,16 @@ export default function PostDetailScreen() {
                       </Text>
                     )}
                   </View>
+                  <ContentActionsButton
+                    targetType="comment"
+                    targetId={comment.id}
+                    authorUserId={authorObj?.id}
+                    color={colors.mutedForeground}
+                    size={18}
+                    onBlocked={(userId) =>
+                      setComments((prev) => prev.filter((item) => item.author?.id !== userId))
+                    }
+                  />
                 </View>
               );
             })

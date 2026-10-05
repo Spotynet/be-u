@@ -32,6 +32,7 @@ export default function RegisterClient() {
     googleId?: string;
     googleAccessToken?: string;
     googleRefreshToken?: string;
+    appleSub?: string;
   }>();
   const {colors} = useThemeVariant();
   const insets = useSafeAreaInsets();
@@ -83,6 +84,7 @@ export default function RegisterClient() {
         country: values.country || undefined,
         latitude: values.latitude,
         longitude: values.longitude,
+        appleSub: params.appleSub || undefined,
       };
       await register(registerData);
       router.replace("/(tabs)/perfil");

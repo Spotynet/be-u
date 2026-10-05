@@ -1,5 +1,6 @@
 import {View, Text, StyleSheet, TouchableOpacity, Linking, Platform} from "react-native";
-import {SafeMapView, SafeMarker, Region} from "@/components/map/SafeMapView";
+import {SafeMapView, Region} from "@/components/map/SafeMapView";
+import {SafeMarker} from "@/components/map/SafeMarker";
 import {Ionicons, MaterialCommunityIcons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {Location} from "@/types/global";

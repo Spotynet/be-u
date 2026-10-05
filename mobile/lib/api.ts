@@ -32,7 +32,9 @@ const REFRESH_TOKEN_KEY = "@refresh_token";
 // Create axios instance with default config
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  // VPC DNS blips can delay the API host; give requests room instead of
+  // failing the login flow at 10s while the backend is still working.
+  timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -299,6 +301,7 @@ export const authApi = {
     latitude?: number;
     longitude?: number;
     placeName?: string;
+    appleSub?: string;
   }) =>
     api.post<{message: string; user: any; access: string; refresh: string}>(
       "/auth/register/",
@@ -316,6 +319,27 @@ export const authApi = {
   getProfile: () => api.get<{user: any}>("/auth/profile/"),
 
   updateProfile: (data: any) => api.put<{user: any}>("/auth/profile/", data),
+
+  appleLogin: (payload: {
+    identity_token: string;
+    nonce: string;
+    given_name?: string;
+    family_name?: string;
+  }) =>
+    api.post<{
+      message?: string;
+      user?: any;
+      access?: string;
+      refresh?: string;
+      requires_registration?: boolean;
+      apple_sub?: string;
+      apple_user_data?: {
+        email: string;
+        first_name: string;
+        last_name: string;
+      };
+      error?: string;
+    }>("/auth/apple/", payload),
 
   googleAuthUrl: (redirectUri?: string) =>
     api.get<{auth_url: string; state: string}>("/auth/google/auth-url/", {
@@ -344,6 +368,18 @@ export const authApi = {
       "/auth/google/callback/",
       payload
     ),
+};
+
+export const moderationApi = {
+  report: (payload: {
+    target_type: "post" | "comment" | "review" | "profile";
+    target_id: number;
+    reason: string;
+    note?: string;
+  }) => api.post<{id: number; message: string}>("/moderation/reports/", payload),
+
+  blockUser: (userId: number) =>
+    api.post<{id: number; blocked_user_id: number}>("/moderation/blocks/", {user_id: userId}),
 };
 
 // Profile management API functions

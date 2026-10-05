@@ -13,6 +13,7 @@ from .serializers import (
     PostSerializer, PostCreateSerializer, CommentCreateSerializer,
     PollVoteSerializer, PostMediaSerializer, PostCommentSerializer
 )
+from moderation.utils import blocked_user_ids
 
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
@@ -70,6 +71,10 @@ class PostViewSet(viewsets.ModelViewSet):
             subcat_token = str(subcategory).strip().lower()
             if subcat_token and subcat_token != 'todos':
                 queryset = queryset.filter(linked_subcategory__iexact=subcat_token)
+
+        hidden = blocked_user_ids(self.request.user)
+        if hidden:
+            queryset = queryset.exclude(author_id__in=hidden)
 
         return queryset
 
@@ -132,6 +137,9 @@ class PostViewSet(viewsets.ModelViewSet):
     def comments(self, request, pk=None):
         post = self.get_object()
         comments = post.comments.select_related('author').all()
+        hidden = blocked_user_ids(request.user)
+        if hidden:
+            comments = comments.exclude(author_id__in=hidden)
         page = self.paginate_queryset(comments)
 
         if page is not None:

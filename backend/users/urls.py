@@ -22,6 +22,7 @@ urlpatterns = [
     path('auth/refresh/', auth_views.refresh_token_view, name='refresh'),
     path('auth/google/auth-url/', auth_views.google_auth_url_view, name='google-auth-url'),
     path('auth/google/callback/', auth_views.google_callback_view, name='google-callback'),
+    path('auth/apple/', auth_views.apple_login_view, name='apple-login'),
     path('auth/google/link/', auth_views.google_link_account_view, name='google-link'),
     path('auth/profile/', views.profile_view, name='profile'),
     

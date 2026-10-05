@@ -17,6 +17,7 @@ export interface RegisterCredentials {
   lastName: string;
   username: string;
   role?: "CLIENT" | "PROFESSIONAL" | "PLACE";
+  appleSub?: string;
 }
 
 export type EmailCodeLoginResult = true | "requires_registration";

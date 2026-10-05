@@ -9,6 +9,7 @@ import {
   Platform,
   Image,
   Alert,
+  Linking,
 } from "react-native";
 import {useRouter} from "expo-router";
 import {Ionicons} from "@expo/vector-icons";
@@ -20,6 +21,7 @@ import * as ImagePicker from "expo-image-picker";
 import {supportApi, errorUtils} from "@/lib/api";
 import {FeedbackToast, FeedbackToastType} from "@/components/FeedbackToast";
 import {AppHeader} from "@/components/ui/AppHeader";
+import {CONTACT_EMAIL, CONTACT_URL} from "@/constants/legal";
 
 const MINT_GREEN = "#5eead4";
 const MAX_MESSAGE_LENGTH = 500;
@@ -230,6 +232,16 @@ export default function HelpSupportScreen() {
           </View>
         </View>
 
+        <View style={[styles.contactCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+          <Text style={[styles.sectionTitle, {color: colors.foreground}]}>Contacto</Text>
+          <TouchableOpacity onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`)} activeOpacity={0.7}>
+            <Text style={[styles.contactLink, {color: colors.primary}]}>{CONTACT_EMAIL}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => Linking.openURL(CONTACT_URL)} activeOpacity={0.7}>
+            <Text style={[styles.contactLink, {color: colors.primary}]}>{CONTACT_URL}</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Theme */}
         <View style={styles.fieldGroup}>
           <Text style={[styles.label, {color: colors.foreground}]}>Tema</Text>
@@ -420,6 +432,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   chipText: {fontSize: 13, fontWeight: "500", flexShrink: 1},
+
+  contactCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
+    gap: 6,
+  },
+  contactLink: {fontSize: 14, fontWeight: "600"},
 
   interceptBox: {
     flexDirection: "row",

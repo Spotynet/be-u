@@ -1,0 +1,14 @@
+FROM node:20-bookworm-slim
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY patches ./patches
+
+RUN npm ci
+
+COPY . .
+
+EXPOSE 3009
+
+CMD ["npx", "expo", "start", "--web", "--port", "3009", "--host", "lan"]

@@ -1,0 +1,10 @@
+Run once on the shared EC2 (requires your sudo password):
+
+  cd /home/spotynet/projects/apps/be-u
+  sudo ./deploy/apply-nginx.sh
+
+Then verify:
+
+  curl -skI --resolve nabbi-dev.spotynet.com:443:127.0.0.1 https://nabbi-dev.spotynet.com/ | head -5
+  curl -skI --resolve nabbi-api-dev.spotynet.com:443:127.0.0.1 https://nabbi-api-dev.spotynet.com/ | head -5
+  curl -skI --resolve nabbi-mobile-dev.spotynet.com:443:127.0.0.1 https://nabbi-mobile-dev.spotynet.com/ | head -5

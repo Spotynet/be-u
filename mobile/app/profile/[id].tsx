@@ -33,6 +33,7 @@ import {getSubCategoryById, MAIN_CATEGORIES, getAvatarColorFromSubcategory} from
 import {AvailabilityDisplay} from "@/components/profile/AvailabilityDisplay";
 import {useFavorites} from "@/features/favorites";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {ContentActionsButton} from "@/components/moderation/ContentActionsButton";
 
 import * as Haptics from "expo-haptics";
 
@@ -1007,6 +1008,13 @@ export default function ProfileDetailScreen() {
           </View>
         </View>
         <View style={styles.headerActions}>
+          <ContentActionsButton
+            targetType="profile"
+            targetId={Number(profile.id)}
+            authorUserId={Number(profile.user || (profile as any).user_id)}
+            color={colors.foreground}
+            onBlocked={() => goBack("/(tabs)/explore")}
+          />
           <TouchableOpacity
             style={styles.headerActionButton}
             onPress={handleShare}
