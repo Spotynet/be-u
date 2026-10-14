@@ -1,9 +1,12 @@
 "use client";
 
 import {useState, useEffect, useCallback, useRef} from "react";
+import {useRouter} from "next/navigation";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {ProtectedRoute} from "@/components/layout/ProtectedRoute";
+import {AppShell} from "@/components/layout/AppShell";
 import {serviceApi, reservationApi, reviewApi, publicProfileApi, ventasApi, api} from "@/lib/api";
+import {homePathForRole, isClientRole, isProviderRole} from "@/lib/roles";
 import {
   HomeIcon,
   CalendarDaysIcon,
@@ -2863,171 +2866,10 @@ const NAV_ITEMS: {id: Section; label: string; icon: React.ComponentType<{style?:
   {id: "perfil",    label: "Mi perfil", icon: UserCircleIcon},
 ];
 
-// ─── Client wall (role = "client") ───────────────────────────────────────────
-function ClientWall({onLogout}: {onLogout: () => void}) {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: CREAM,
-        fontFamily: "var(--font-geist-sans)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "24px",
-      }}
-    >
-      <div
-        style={{
-          background: "white",
-          borderRadius: 28,
-          border: `1.5px solid ${LIGHT}`,
-          boxShadow: "0 8px 40px rgba(0,0,0,0.07)",
-          maxWidth: 480,
-          width: "100%",
-          overflow: "hidden",
-        }}
-      >
-        {/* Top accent bar */}
-        <div style={{height: 5, background: `linear-gradient(90deg, ${MAIN}, ${ACCENT})`}} />
-
-        <div style={{padding: "40px 36px 36px", textAlign: "center"}}>
-          {/* Logo */}
-          <div
-            style={{
-              width: 52,
-              height: 52,
-              borderRadius: 12,
-              background: "#1F3328",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-
-          >
-            <img
-              src="/nabbi_logo_t.png"
-              alt="nabbi logo"
-              style={{width: 32, height: 32}}
-            />
-          </div>
-
-          {/* Icon */}
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: "50%",
-              background: `rgba(${MAIN_RGB},0.1)`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 20px",
-            }}
-          >
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={MAIN} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="5" y="2" width="14" height="20" rx="2" />
-              <line x1="12" y1="18" x2="12.01" y2="18" strokeWidth="2.5" />
-            </svg>
-          </div>
-
-          <h1
-            style={{
-              color: INK,
-              fontWeight: 900,
-              fontSize: 22,
-              margin: "0 0 10px",
-              lineHeight: 1.25,
-              letterSpacing: "-0.02em",
-            }}
-          >
-            Este panel es solo para profesionales
-          </h1>
-
-          <p style={{color: "#64748b", fontSize: 15, lineHeight: 1.65, margin: "0 0 8px"}}>
-            El dashboard de <strong style={{color: DARK}}>nabbi</strong> está diseñado para
-            profesionales y establecimientos que gestionan sus servicios y reservas.
-          </p>
-          <p style={{color: "#64748b", fontSize: 15, lineHeight: 1.65, margin: "0 0 28px"}}>
-            Como cliente, puedes reservar citas y explorar servicios desde la{" "}
-            <strong style={{color: DARK}}>app móvil de nabbi</strong> disponible en tu dispositivo.
-          </p>
-
-          {/* App store badges row */}
-          <div style={{display: "flex", gap: 10, justifyContent: "center", marginBottom: 28, flexWrap: "wrap"}}>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 9,
-                background: INK,
-                color: "white",
-                borderRadius: 12,
-                padding: "10px 18px",
-                fontSize: 13,
-                fontWeight: 700,
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-              </svg>
-              App Store
-            </div>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 9,
-                background: INK,
-                color: "white",
-                borderRadius: 12,
-                padding: "10px 18px",
-                fontSize: 13,
-                fontWeight: 700,
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M3.18 23.76c.3.17.65.19.96.04l12.45-6.99-2.78-2.79-10.63 9.74zM.54 1.03C.2 1.4 0 1.96 0 2.67v18.67c0 .71.2 1.27.55 1.64l.09.08 10.46-10.46v-.25L.63.95l-.09.08zM20.12 9.8l-2.98-1.67-3.12 3.12 3.12 3.12 3-1.68c.85-.48.85-1.27-.02-1.89zM3.18.24L15.63 7.2l-2.78 2.79L2.22.25c.3-.15.66-.13.96-.01z"/>
-              </svg>
-              Google Play
-            </div>
-          </div>
-
-          {/* Logout */}
-          <button
-            onClick={onLogout}
-            style={{
-              background: "transparent",
-              border: `1.5px solid ${LIGHT}`,
-              borderRadius: 12,
-              color: "#94a3b8",
-              fontSize: 13,
-              fontWeight: 600,
-              padding: "10px 22px",
-              cursor: "pointer",
-              width: "100%",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "#dc2626";
-              (e.currentTarget as HTMLButtonElement).style.color = "#dc2626";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.borderColor = LIGHT;
-              (e.currentTarget as HTMLButtonElement).style.color = "#94a3b8";
-            }}
-          >
-            Cerrar sesión
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Dashboard shell ─────────────────────────────────────────────────────────
 function DashboardApp() {
   const {user, logout} = useAuth();
+  const router = useRouter();
   const [section, setSection] = useState<Section>("resumen");
   const [services, setServices]         = useState<any[]>([]);
   const [reservations, setReservations] = useState<any[]>([]);
@@ -3068,22 +2910,34 @@ function DashboardApp() {
     setIsLoading(false);
   }, []);
 
+  // Clients use the web app shell — dashboard is provider-only
   useEffect(() => {
-    if (user?.role !== "client") loadData();
-  }, [loadData, user?.role]);
+    if (user && isClientRole(user.role)) {
+      router.replace(homePathForRole(user.role));
+    }
+  }, [user, router]);
 
-  // Block clients — dashboard is for professionals and places only
-  if (user?.role === "client") {
-    return <ClientWall onLogout={logout} />;
+  useEffect(() => {
+    if (user && isProviderRole(user.role)) loadData();
+  }, [loadData, user]);
+
+  if (user && isClientRole(user.role)) {
+    return (
+      <div style={{minHeight: "40vh", display: "flex", alignItems: "center", justifyContent: "center", color: LABEL}}>
+        Redirigiendo a explorar…
+      </div>
+    );
   }
 
   return (
+    <AppShell>
     <div
       style={{
         minHeight: "100vh",
         background: CREAM,
         fontFamily: "var(--font-geist-sans)",
         display: "flex",
+        margin: "-20px -16px -88px",
       }}
     >
       {/* ── Sidebar (desktop) ── */}
@@ -3426,6 +3280,7 @@ function DashboardApp() {
         </nav>
       </div>
     </div>
+    </AppShell>
   );
 }
 

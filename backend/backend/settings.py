@@ -75,6 +75,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -354,13 +355,25 @@ AWS_QUERYSTRING_EXPIRE = 3600  # URL expiration time in seconds (1 hour)
 # Choose storage backend based on USE_S3
 if USE_S3:
     # Use S3 for media files in production
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    _default_storage = 'storages.backends.s3boto3.S3Boto3Storage'
+    DEFAULT_FILE_STORAGE = _default_storage
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
 else:
     # Use local file storage for development
-    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+    _default_storage = 'django.core.files.storage.FileSystemStorage'
+    DEFAULT_FILE_STORAGE = _default_storage
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
+
+# Django 4.2+ STORAGES (media + WhiteNoise-compressed static for gunicorn)
+STORAGES = {
+    "default": {
+        "BACKEND": _default_storage,
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
 
 # If we're behind a reverse proxy (common in staging/prod), ensure Django builds https absolute URLs.
 # This fixes profile photo URLs being emitted as http://... and avoids mixed content / broken links.

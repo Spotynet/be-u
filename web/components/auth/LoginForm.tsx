@@ -4,6 +4,7 @@ import {useState} from "react";
 import Link from "next/link";
 import {useRouter} from "next/navigation";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {homePathForRole} from "@/lib/roles";
 
 const INK   = "#12211A";
 const DARK  = "#1F3328";
@@ -95,7 +96,21 @@ export const LoginForm = () => {
         router.push(`/register?email=${encodeURIComponent(email)}`);
         return;
       }
-      router.push("/dashboard");
+      const next = typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("next")
+        : null;
+      if (next && next.startsWith("/")) {
+        router.push(next);
+        return;
+      }
+      // Role comes from freshly set auth context on next tick — read from storage/profile via hook after login
+      const {authApi} = await import("@/lib/api");
+      try {
+        const profile = await authApi.getProfile();
+        router.push(homePathForRole(profile.data.user?.role));
+      } catch {
+        router.push("/feed");
+      }
     } catch (err) {
       console.error("Code verification failed:", err);
     }

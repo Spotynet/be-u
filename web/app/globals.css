@@ -443,3 +443,116 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-foreground-muted);
 }
+
+/* ── Responsive app page helpers ── */
+.nabbi-page,
+.nabbi-page * {
+  box-sizing: border-box;
+}
+
+.nabbi-page input,
+.nabbi-page select,
+.nabbi-page textarea,
+.nabbi-page button {
+  max-width: 100%;
+}
+
+.nabbi-page input[type="text"],
+.nabbi-page input[type="email"],
+.nabbi-page input[type="password"],
+.nabbi-page input[type="number"],
+.nabbi-page input[type="date"],
+.nabbi-page input[type="time"],
+.nabbi-page input[type="search"],
+.nabbi-page select,
+.nabbi-page textarea {
+  width: 100%;
+}
+
+.nabbi-form-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 480px) {
+  .nabbi-form-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.nabbi-stack-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.nabbi-stack-row > * {
+  min-width: 0;
+}
+
+.nabbi-page-title {
+  color: #12211a;
+  font-weight: 900;
+  font-size: clamp(1.35rem, 4vw, 1.75rem);
+  letter-spacing: -0.03em;
+  margin: 0 0 8px;
+  line-height: 1.2;
+}
+
+.nabbi-page-sub {
+  color: #64748b;
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.nabbi-card {
+  background: white;
+  border: 1px solid rgba(18, 33, 26, 0.08);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+@media (min-width: 480px) {
+  .nabbi-card {
+    padding: 16px;
+  }
+}
+
+/* App shell: prevent horizontal overflow */
+.nabbi-shell,
+.nabbi-shell main {
+  overflow-x: clip;
+  min-width: 0;
+}
+
+.nabbi-top-nav {
+  display: none;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  flex-wrap: nowrap;
+}
+
+.nabbi-top-nav::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .nabbi-top-nav {
+    display: flex;
+  }
+
+  .nabbi-bottom-nav {
+    display: none !important;
+  }
+}
+
+.nabbi-bottom-nav a {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

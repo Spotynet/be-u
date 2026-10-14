@@ -1,0 +1,15 @@
+.git/
+**/.git/
+**/node_modules/
+**/.next/
+**/__pycache__/
+**/.venv/
+**/venv/
+**/.expo/
+**/.env
+**/.env.*
+!**/.env.example
+**/dist/
+backups/
+*.md
+!setup.md

@@ -4,8 +4,12 @@
 # After initial host setup: sudo ./deploy/bootstrap-shared.sh (once)
 # Day-to-day: ./dev.sh
 #
+# Release flow (separate machines/scripts):
+#   ./dev.sh     → hot reload on this box
+#   ./build.sh   → build + push images to ECR (builder/dev)
+#   ./deploy.sh  → pull + run on prod
+#
 # Domains are defined below. Secrets stay in backend/.env.
-# For production on a dedicated machine, use ./deploy.sh.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -17,6 +21,7 @@ NABBI_API_HOST="nabbi-api-dev.spotynet.com"
 NABBI_MOBILE_HOST="nabbi-mobile-dev.spotynet.com"
 
 export NABBI_WEB_HOST NABBI_API_HOST NABBI_MOBILE_HOST
+# Compose DNS: Next server-side rewrites → api service
 export BACKEND_ORIGIN="http://api:3007"
 export NEXT_PUBLIC_BACKEND_ORIGIN="http://api:3007"
 export NEXT_PUBLIC_API_URL="https://${NABBI_API_HOST}/api"

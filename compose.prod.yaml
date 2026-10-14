@@ -1,9 +1,99 @@
-# Dedicated / production override: project nginx owns host port 80.
-# Usage: docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+# Production: pull pre-built images from ECR (no build on host) + nginx on :80.
+# Usage: NABBI_IMAGE_TAG=<sha|master> ./deploy.sh
+# Do NOT use on the shared Spotynet multi-app EC2.
 #
-# !override replaces the shared-host bind (127.0.0.1:3020:80) from compose.yaml.
+# NABBI_IMAGE_REGISTRY example:
+#   123456789012.dkr.ecr.us-east-1.amazonaws.com/apps/nabbi
+# Images: ${NABBI_IMAGE_REGISTRY}/api|web|mobile:${NABBI_IMAGE_TAG}
+# Published by ./build.sh (not GitHub Actions)
 
 services:
+  api:
+    image: ${NABBI_IMAGE_REGISTRY}/api:${NABBI_IMAGE_TAG:-master}
+    build: !reset null
+    pull_policy: always
+    volumes: !override []
+    user: "1001:1001"
+    command: ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:3007", "--workers", "3"]
+    environment:
+      DEBUG: ${DEBUG:-False}
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3007/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  web:
+    image: ${NABBI_IMAGE_REGISTRY}/web:${NABBI_IMAGE_TAG:-master}
+    build: !reset null
+    pull_policy: always
+    volumes: !override []
+    user: "1001:1001"
+    command: ["node", "server.js"]
+    environment:
+      BACKEND_ORIGIN: ${BACKEND_ORIGIN:-http://api:3007}
+      NEXT_PUBLIC_BACKEND_ORIGIN: ${NEXT_PUBLIC_BACKEND_ORIGIN:-https://api.be-u.ai}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.be-u.ai/api}
+      NEXT_TELEMETRY_DISABLED: "1"
+      PORT: "3008"
+      HOSTNAME: "0.0.0.0"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3008/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  mobile:
+    image: ${NABBI_IMAGE_REGISTRY}/mobile:${NABBI_IMAGE_TAG:-master}
+    build: !reset null
+    pull_policy: always
+    volumes: !override []
+    command: !override ["nginx", "-g", "daemon off;"]
+    environment: !override
+      EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-https://api.be-u.ai}
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+        reservations:
+          memory: 32M
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3009/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   nginx:
     ports: !override
       - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+      mobile:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

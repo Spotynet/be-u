@@ -6,6 +6,7 @@ const backendOrigin =
   (process.env.NODE_ENV === "production" ? "https://stg.be-u.ai" : "http://localhost:8000");
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   allowedDevOrigins: ["nabbi-dev.spotynet.com"],
   async rewrites() {
     return [

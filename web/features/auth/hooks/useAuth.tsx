@@ -140,7 +140,7 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
     tokenUtils.removeToken();
     setUser(null);
     setError(null);
-    router.push("/login");
+    router.push("/");
   };
 
   const updateProfile = async (data: Partial<User>) => {

@@ -20,3 +20,5 @@ cryptography==41.0.7
 python-dotenv==1.0.0
 requests==2.31.0
 qrcode>=8.0
+gunicorn>=23.0.0,<24
+whitenoise>=6.8.0,<7

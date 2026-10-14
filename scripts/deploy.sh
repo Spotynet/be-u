@@ -1,4 +1,7 @@
 #!/bin/bash
+# DEPRECATED: use ./dev.sh (shared EC2) or ./deploy.sh (prod Compose) instead.
+# This script still uses PM2 + host venv and is kept only for emergency rollback.
+#
 # Deploy backend to EC2 and/or EAS update (preview).
 # Usage: ./scripts/deploy.sh [message]
 #        ./scripts/deploy.sh --backend-only

@@ -24,7 +24,15 @@ export const ProtectedRoute = ({
 
   useEffect(() => {
     if (!isLoading && requireAuth && !isAuthenticated) {
-      router.push(redirectTo);
+      const next =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : "";
+      const target =
+        next && next !== "/" && !next.startsWith("/login")
+          ? `${redirectTo}?next=${encodeURIComponent(next)}`
+          : redirectTo;
+      router.push(target);
     }
   }, [isAuthenticated, isLoading, router, redirectTo, requireAuth]);
 

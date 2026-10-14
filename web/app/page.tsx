@@ -402,10 +402,7 @@ export default function Home() {
   const router = useRouter();
   const [openFaq, setOpenFaq] = useState<number|null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) router.push("/dashboard");
-  }, [isAuthenticated, isLoading, router]);
+  const appHome = "/feed";
 
   // Close mobile menu on resize to desktop
   useEffect(() => {
@@ -440,28 +437,40 @@ export default function Home() {
 
             {/* Right actions */}
             <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-              {/* "Entrar" — desktop only */}
-              <button className="hidden md:block" onClick={()=>router.push("/login")}
-                style={{color:"#4b5563",fontSize:14,fontWeight:600,background:"none",border:`1.5px solid rgba(${DARK_RGB},0.15)`,borderRadius:999,cursor:"pointer",padding:"8px 18px",transition:"border-color 0.15s,color 0.15s"}}
-                onMouseEnter={e=>{e.currentTarget.style.color=DARK;e.currentTarget.style.borderColor=`rgba(${DARK_RGB},0.4)`;}}
-                onMouseLeave={e=>{e.currentTarget.style.color="#4b5563";e.currentTarget.style.borderColor=`rgba(${DARK_RGB},0.15)`;}}>
-                Entrar
-              </button>
+              {!isLoading && isAuthenticated ? (
+                <button
+                  onClick={()=>router.push(appHome)}
+                  style={{background:ACCENT,color:INK,borderRadius:999,fontWeight:800,border:"none",cursor:"pointer",transition:"opacity 0.15s,transform 0.15s",whiteSpace:"nowrap",padding:"9px 20px",fontSize:14,boxShadow:`0 2px 14px rgba(${ACCENT_RGB},0.4)`}}
+                  onMouseEnter={e=>{e.currentTarget.style.opacity="0.85";e.currentTarget.style.transform="scale(1.04)";}}
+                  onMouseLeave={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1)";}}>
+                  Ir a la app
+                </button>
+              ) : (
+                <>
+                  {/* "Entrar" — desktop only */}
+                  <button className="hidden md:block" onClick={()=>router.push("/login")}
+                    style={{color:"#4b5563",fontSize:14,fontWeight:600,background:"none",border:`1.5px solid rgba(${DARK_RGB},0.15)`,borderRadius:999,cursor:"pointer",padding:"8px 18px",transition:"border-color 0.15s,color 0.15s"}}
+                    onMouseEnter={e=>{e.currentTarget.style.color=DARK;e.currentTarget.style.borderColor=`rgba(${DARK_RGB},0.4)`;}}
+                    onMouseLeave={e=>{e.currentTarget.style.color="#4b5563";e.currentTarget.style.borderColor=`rgba(${DARK_RGB},0.15)`;}}>
+                    Entrar
+                  </button>
 
-              {/* CTA — always visible, shorter on mobile */}
-              <button onClick={()=>router.push("/register")}
-                style={{background:ACCENT,color:INK,borderRadius:999,fontWeight:800,border:"none",cursor:"pointer",transition:"opacity 0.15s,transform 0.15s",whiteSpace:"nowrap",padding:"9px 20px",fontSize:14,boxShadow:`0 2px 14px rgba(${ACCENT_RGB},0.4)`}}
-                onMouseEnter={e=>{e.currentTarget.style.opacity="0.85";e.currentTarget.style.transform="scale(1.04)";}}
-                onMouseLeave={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1)";}}>
-                <span className="hidden sm:inline-flex items-center gap-2">
-                  <AppIcon icon={RocketLaunchIcon} size={16} color={INK}/>
-                  Empezar gratis
-                </span>
-                <span className="inline-flex items-center gap-1.5 sm:hidden">
-                  <AppIcon icon={RocketLaunchIcon} size={14} color={INK}/>
-                  Gratis
-                </span>
-              </button>
+                  {/* CTA — always visible, shorter on mobile */}
+                  <button onClick={()=>router.push("/register")}
+                    style={{background:ACCENT,color:INK,borderRadius:999,fontWeight:800,border:"none",cursor:"pointer",transition:"opacity 0.15s,transform 0.15s",whiteSpace:"nowrap",padding:"9px 20px",fontSize:14,boxShadow:`0 2px 14px rgba(${ACCENT_RGB},0.4)`}}
+                    onMouseEnter={e=>{e.currentTarget.style.opacity="0.85";e.currentTarget.style.transform="scale(1.04)";}}
+                    onMouseLeave={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1)";}}>
+                    <span className="hidden sm:inline-flex items-center gap-2">
+                      <AppIcon icon={RocketLaunchIcon} size={16} color={INK}/>
+                      Empezar gratis
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 sm:hidden">
+                      <AppIcon icon={RocketLaunchIcon} size={14} color={INK}/>
+                      Gratis
+                    </span>
+                  </button>
+                </>
+              )}
 
               {/* Hamburger — mobile only */}
               <button className="md:hidden" onClick={()=>setMobileMenuOpen(o=>!o)}
@@ -496,17 +505,26 @@ export default function Home() {
                   </a>
                 ))}
                 <div style={{display:"flex",gap:8,marginTop:14}}>
-                  <button onClick={()=>{router.push("/login");setMobileMenuOpen(false);}}
-                    style={{flex:1,borderRadius:12,padding:"12px 0",fontWeight:700,fontSize:15,background:"white",color:DARK,border:`1.5px solid rgba(${DARK_RGB},0.2)`,cursor:"pointer"}}>
-                    Iniciar sesión
-                  </button>
-                  <button onClick={()=>{router.push("/register");setMobileMenuOpen(false);}}
-                    style={{flex:1,borderRadius:12,padding:"12px 0",fontWeight:800,fontSize:15,background:ACCENT,color:INK,border:"none",cursor:"pointer",boxShadow:`0 4px 14px rgba(${ACCENT_RGB},0.4)`}}>
-                    <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
-                      <AppIcon icon={RocketLaunchIcon} size={16} color={INK}/>
-                      Empezar gratis
-                    </span>
-                  </button>
+                  {!isLoading && isAuthenticated ? (
+                    <button onClick={()=>{router.push(appHome);setMobileMenuOpen(false);}}
+                      style={{flex:1,borderRadius:12,padding:"12px 0",fontWeight:800,fontSize:15,background:ACCENT,color:INK,border:"none",cursor:"pointer",boxShadow:`0 4px 14px rgba(${ACCENT_RGB},0.4)`}}>
+                      Ir a la app
+                    </button>
+                  ) : (
+                    <>
+                      <button onClick={()=>{router.push("/login");setMobileMenuOpen(false);}}
+                        style={{flex:1,borderRadius:12,padding:"12px 0",fontWeight:700,fontSize:15,background:"white",color:DARK,border:`1.5px solid rgba(${DARK_RGB},0.2)`,cursor:"pointer"}}>
+                        Iniciar sesión
+                      </button>
+                      <button onClick={()=>{router.push("/register");setMobileMenuOpen(false);}}
+                        style={{flex:1,borderRadius:12,padding:"12px 0",fontWeight:800,fontSize:15,background:ACCENT,color:INK,border:"none",cursor:"pointer",boxShadow:`0 4px 14px rgba(${ACCENT_RGB},0.4)`}}>
+                        <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
+                          <AppIcon icon={RocketLaunchIcon} size={16} color={INK}/>
+                          Empezar gratis
+                        </span>
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -898,46 +916,25 @@ export default function Home() {
                   Llévanos en el bolsillo
                 </p>
                 <h2 style={{color:DARK,fontWeight:900,fontSize:"clamp(1.7rem,4vw,2.8rem)",letterSpacing:"-0.04em",lineHeight:1.1,marginBottom:14}}>
-                  nabbi en tu móvil,<br/>siempre contigo.
+                  nabbi en la web,<br/>siempre contigo.
                 </h2>
                 <p style={{color:"#475569",fontSize:"clamp(15px,2vw,17px)",lineHeight:1.7,marginBottom:32}}>
-                  Recibe notificaciones al instante, gestiona tus citas desde cualquier lugar y deja que nabbi trabaje mientras tú haces tu vida.
+                  Explora profesionales, reserva citas y gestiona tu agenda desde cualquier navegador. Sin descargas.
                 </p>
 
-                {/* Store buttons */}
                 <div style={{display:"flex",flexWrap:"wrap",gap:12}}>
-                  {/* App Store */}
-                  <a href="#" aria-label="Descargar en App Store"
-                    style={{display:"inline-flex",alignItems:"center",gap:12,background:DARK,color:"white",borderRadius:16,padding:"13px 22px",textDecoration:"none",transition:"opacity 0.15s,transform 0.15s",boxShadow:`0 4px 16px rgba(${DARK_RGB},0.28)`}}
-                    onMouseEnter={e=>{e.currentTarget.style.opacity="0.88";e.currentTarget.style.transform="scale(1.03)";}}
-                    onMouseLeave={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1)";}}>
-                    {/* Apple logo */}
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11"/>
-                    </svg>
-                    <div>
-                      <p style={{margin:0,fontSize:10,fontWeight:500,opacity:0.7,letterSpacing:"0.02em"}}>Disponible en</p>
-                      <p style={{margin:0,fontSize:16,fontWeight:800,letterSpacing:"-0.01em"}}>App Store</p>
-                    </div>
-                  </a>
-
-                  {/* Google Play */}
-                  <a href="#" aria-label="Descargar en Google Play"
-                    style={{display:"inline-flex",alignItems:"center",gap:12,background:DARK,color:"white",borderRadius:16,padding:"13px 22px",textDecoration:"none",transition:"opacity 0.15s,transform 0.15s",boxShadow:`0 4px 16px rgba(${DARK_RGB},0.28)`}}
-                    onMouseEnter={e=>{e.currentTarget.style.opacity="0.88";e.currentTarget.style.transform="scale(1.03)";}}
-                    onMouseLeave={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1)";}}>
-                    {/* Play Store logo */}
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M3.18 23.76c.31.17.67.19 1.01.06l11.37-6.57-2.5-2.5-9.88 9.01z" fill="#EA4335"/>
-                      <path d="M20.47 10.6L17.6 8.97l-2.8 2.8 2.8 2.8 2.9-1.68c.83-.48.83-1.82-.03-2.29z" fill="#FBBC04"/>
-                      <path d="M3.18.24C2.83.1 2.44.14 2.13.36L13.3 11.77l2.5-2.5L4.19.18c-.33-.12-.68-.1-1.01.06z" fill="#4285F4"/>
-                      <path d="M2.13.36A1.5 1.5 0 001.5 1.5v21c0 .46.24.88.63 1.14l11.17-11.87L2.13.36z" fill="#34A853"/>
-                    </svg>
-                    <div>
-                      <p style={{margin:0,fontSize:10,fontWeight:500,opacity:0.7,letterSpacing:"0.02em"}}>Disponible en</p>
-                      <p style={{margin:0,fontSize:16,fontWeight:800,letterSpacing:"-0.01em"}}>Google Play</p>
-                    </div>
-                  </a>
+                  <button
+                    type="button"
+                    onClick={()=>router.push("/register")}
+                    style={{display:"inline-flex",alignItems:"center",gap:12,background:ACCENT,color:INK,border:"none",borderRadius:16,padding:"13px 22px",fontWeight:800,fontSize:15,cursor:"pointer",boxShadow:`0 4px 16px rgba(${DARK_RGB},0.18)`}}>
+                    Crear cuenta gratis
+                  </button>
+                  <button
+                    type="button"
+                    onClick={()=>router.push("/login")}
+                    style={{display:"inline-flex",alignItems:"center",gap:12,background:DARK,color:"white",border:"none",borderRadius:16,padding:"13px 22px",fontWeight:800,fontSize:15,cursor:"pointer"}}>
+                    Iniciar sesión
+                  </button>
                 </div>
 
                 {/* Social proof */}

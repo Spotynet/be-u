@@ -5,6 +5,8 @@ import Link from "next/link";
 import {useRouter, useSearchParams} from "next/navigation";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {RegisterData} from "@/features/auth/types";
+import {profileCustomizationApi} from "@/lib/api";
+import {homePathForRole} from "@/lib/roles";
 
 // ─── Brand tokens (mirrors landing page) ────────────────────────────────────
 const INK   = "#12211A";   // verde casi negro
@@ -144,9 +146,10 @@ const selectBase: React.CSSProperties = {
 export const RegisterForm = () => {
   const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
-    role: "client" as "client" | "professional",
+    role: "client" as "client" | "professional" | "place",
     firstName: "",
     lastName: "",
+    placeName: "",
     username: "",
     email: searchParams.get("email") || "",
     phone: "",
@@ -187,6 +190,7 @@ export const RegisterForm = () => {
     const trimmed = {
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
+      placeName: formData.placeName.trim(),
       username: formData.username.trim(),
       email: formData.email.trim(),
       phone: formData.phone.trim(),
@@ -196,7 +200,12 @@ export const RegisterForm = () => {
       country: formData.country.trim(),
     };
 
-    if (!trimmed.firstName || !trimmed.username || !trimmed.email) {
+    if (formData.role === "place") {
+      if (!trimmed.placeName || !trimmed.username || !trimmed.email) {
+        setLocalError("Completa nombre del lugar, usuario y correo electrónico.");
+        return null;
+      }
+    } else if (!trimmed.firstName || !trimmed.username || !trimmed.email) {
       setLocalError("Completa nombre, usuario y correo electrónico para continuar.");
       return null;
     }
@@ -208,8 +217,11 @@ export const RegisterForm = () => {
       setLocalError("Debes aceptar los términos y condiciones para crear tu cuenta.");
       return null;
     }
-    if (formData.role === "professional" && (!formData.category || !formData.subcategory)) {
-      setLocalError("Selecciona una categoría y una subcategoría para tu perfil profesional.");
+    if (
+      (formData.role === "professional" || formData.role === "place") &&
+      (!formData.category || !formData.subcategory)
+    ) {
+      setLocalError("Selecciona una categoría y una subcategoría para tu perfil.");
       return null;
     }
 
@@ -222,9 +234,11 @@ export const RegisterForm = () => {
     if (!trimmed) return;
 
     try {
+      const isPlace = formData.role === "place";
       const registerData: RegisterData = {
-        firstName: trimmed.firstName,
-        lastName: trimmed.lastName,
+        firstName: isPlace ? trimmed.placeName : trimmed.firstName,
+        lastName: isPlace ? "" : trimmed.lastName,
+        placeName: isPlace ? trimmed.placeName : undefined,
         username: trimmed.username,
         email: trimmed.email,
         role: formData.role,
@@ -233,11 +247,32 @@ export const RegisterForm = () => {
         bio: trimmed.bio || undefined,
         address: trimmed.address || undefined,
         country: trimmed.country || undefined,
-        category: formData.role === "professional" ? formData.category : undefined,
-        subcategory: formData.role === "professional" ? formData.subcategory : undefined,
+        category:
+          formData.role === "professional" || formData.role === "place"
+            ? formData.category
+            : undefined,
+        subcategory:
+          formData.role === "professional" || formData.role === "place"
+            ? formData.subcategory
+            : undefined,
       };
       await register(registerData);
-      router.push("/dashboard");
+
+      if (isPlace) {
+        try {
+          await profileCustomizationApi.updatePublicProfile({
+            category: [formData.category],
+            sub_categories: [formData.subcategory],
+            ...(trimmed.address
+              ? {street: trimmed.address, city: trimmed.city, country: trimmed.country}
+              : {}),
+          });
+        } catch (profileErr) {
+          console.warn("PublicProfile update skipped:", profileErr);
+        }
+      }
+
+      router.push(homePathForRole(formData.role === "client" ? "CLIENT" : formData.role.toUpperCase()));
     } catch (err) {
       console.error("Registration failed:", err);
     }
@@ -272,10 +307,11 @@ export const RegisterForm = () => {
           <label style={{display:"block", color:DARK, fontSize:12, fontWeight:600, marginBottom:8}}>
             Tipo de cuenta
           </label>
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
+          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10}}>
             {[
               {value:"client", label:"Cliente"},
               {value:"professional", label:"Profesional"},
+              {value:"place", label:"Lugar"},
             ].map((option) => (
               <label
                 key={option.value}
@@ -289,9 +325,11 @@ export const RegisterForm = () => {
                   border:`1.5px solid ${formData.role === option.value ? MAIN : "rgba(85,131,103,0.22)"}`,
                   background:formData.role === option.value ? "rgba(85,131,103,0.08)" : "white",
                   color:DARK,
-                  fontSize:14,
+                  fontSize:13,
                   fontWeight:700,
                   cursor:"pointer",
+                  padding:"0 6px",
+                  textAlign:"center",
                 }}>
                 <input
                   type="radio"
@@ -307,10 +345,22 @@ export const RegisterForm = () => {
           </div>
         </div>
 
-        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
-          <Field label="Nombre" name="firstName" placeholder="Nombre" value={formData.firstName} onChange={handleInputChange} disabled={isLoading} icon={<IconUser/>}/>
-          <Field label="Apellido" name="lastName" placeholder="Apellido" value={formData.lastName} onChange={handleInputChange} disabled={isLoading} icon={<IconUser/>}/>
-        </div>
+        {formData.role === "place" ? (
+          <Field
+            label="Nombre del lugar"
+            name="placeName"
+            placeholder="Nombre de tu salón o negocio"
+            value={formData.placeName}
+            onChange={handleInputChange}
+            disabled={isLoading}
+            icon={<IconUser/>}
+          />
+        ) : (
+          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
+            <Field label="Nombre" name="firstName" placeholder="Nombre" value={formData.firstName} onChange={handleInputChange} disabled={isLoading} icon={<IconUser/>}/>
+            <Field label="Apellido" name="lastName" placeholder="Apellido" value={formData.lastName} onChange={handleInputChange} disabled={isLoading} icon={<IconUser/>}/>
+          </div>
+        )}
 
         <Field label="Nombre de usuario" name="username" placeholder="@usuario" value={formData.username} onChange={handleInputChange} disabled={isLoading} icon={<IconUser/>}/>
         <Field label="Correo electrónico" name="email" type="email" autoComplete="email" placeholder="tu@email.com" value={formData.email} onChange={handleInputChange} disabled={isLoading} icon={<IconEmail/>}/>
@@ -320,7 +370,7 @@ export const RegisterForm = () => {
           <Field label="País (opcional)" name="country" placeholder="País" value={formData.country} onChange={handleInputChange} disabled={isLoading} icon={<IconUser/>}/>
         </div>
 
-        {formData.role === "professional" && (
+        {(formData.role === "professional" || formData.role === "place") && (
           <>
             <Field label="Teléfono (opcional)" name="phone" placeholder="+52 55 1234 5678" value={formData.phone} onChange={handleInputChange} disabled={isLoading} icon={<IconUser/>}/>
             <div>
@@ -355,25 +405,27 @@ export const RegisterForm = () => {
                 ))}
               </select>
             </div>
-            <div>
-              <label style={{display:"block", color:DARK, fontSize:12, fontWeight:600, marginBottom:6}}>
-                Bio (opcional)
-              </label>
-              <textarea
-                name="bio"
-                placeholder="Cuéntale a tus clientes qué haces"
-                value={formData.bio}
-                onChange={handleInputChange}
-                disabled={isLoading}
-                rows={4}
-                style={{
-                  ...inputBase,
-                  paddingRight: 14,
-                  resize: "vertical",
-                  minHeight: 104,
-                }}
-              />
-            </div>
+            {formData.role === "professional" && (
+              <div>
+                <label style={{display:"block", color:DARK, fontSize:12, fontWeight:600, marginBottom:6}}>
+                  Bio (opcional)
+                </label>
+                <textarea
+                  name="bio"
+                  placeholder="Cuéntale a tus clientes qué haces"
+                  value={formData.bio}
+                  onChange={handleInputChange}
+                  disabled={isLoading}
+                  rows={4}
+                  style={{
+                    ...inputBase,
+                    paddingRight: 14,
+                    resize: "vertical",
+                    minHeight: 104,
+                  }}
+                />
+              </div>
+            )}
           </>
         )}
 

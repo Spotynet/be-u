@@ -5,6 +5,8 @@ import {Card, CardContent, CardHeader} from "@/components/ui/Card";
 import {Button} from "@/components/ui/Button";
 import {Input} from "@/components/ui/Input";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {AppShell} from "@/components/layout/AppShell";
+import {ProtectedRoute} from "@/components/layout/ProtectedRoute";
 import {publicProfileApi, serviceApi} from "@/lib/api";
 import {PublicProfile, Service, CreatePublicProfileData, CreateServiceData} from "@/types/api";
 import {PublicProfileForm} from "@/components/profile/PublicProfileForm";
@@ -129,32 +131,18 @@ export default function ProfilePage() {
     }
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6">
-            <h2 className="text-2xl font-bold text-center mb-4">Authentication Required</h2>
-            <p className="text-center text-gray-600">Please log in to access your profile.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
+  return (
+    <ProtectedRoute>
+    <AppShell>
+    {loading ? (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p>Loading profile...</p>
         </div>
       </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    ) : (
+    <div className="min-h-screen bg-gray-50 py-8" style={{margin: "-20px -16px -88px", padding: "32px 16px"}}>
       <div className="max-w-6xl mx-auto px-4">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Profile Management</h1>
@@ -412,5 +400,8 @@ export default function ProfilePage() {
         )}
       </div>
     </div>
+    )}
+    </AppShell>
+    </ProtectedRoute>
   );
 }
