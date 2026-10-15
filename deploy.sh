@@ -97,10 +97,15 @@ compose -f compose.yaml -f compose.prod.yaml exec -T api \
 echo
 compose -f compose.yaml -f compose.prod.yaml ps
 echo
-echo "PRODUCTION URLs (add TLS in front of :80 if needed):"
-echo "  http://${NABBI_WEB_HOST}/"
-echo "  http://${NABBI_API_HOST}/"
-echo "  http://${NABBI_MOBILE_HOST}/"
+echo "Compose nginx is on 127.0.0.1:8080 (host nginx should own :80/:443)."
+echo "First-time TLS on this host:"
+echo "  sudo ./deploy/setup-prod-nginx.sh           # HTTP proxy"
+echo "  sudo ./deploy/setup-prod-nginx.sh --certbot # + Let's Encrypt"
+echo
+echo "Check (HTTP via host nginx):"
+echo "  curl -sI -H 'Host: ${NABBI_WEB_HOST}' http://127.0.0.1/ | head -3"
+echo "  curl -sI -H 'Host: ${NABBI_API_HOST}' http://127.0.0.1/ | head -3"
+echo "  curl -sI -H 'Host: ${NABBI_MOBILE_HOST}' http://127.0.0.1/ | head -3"
 echo
 echo "Rollback: NABBI_IMAGE_TAG=<previous_sha> ./deploy.sh"
 echo "Logs: docker compose -f compose.yaml -f compose.prod.yaml logs -f"

@@ -22,9 +22,12 @@ DEV (shared Spotynet EC2)
                      └─ nabbi-api-dev.spotynet.com    → api:3007
 
 PROD (dedicated EC2)
-  Browser → project nginx :80
-              → web / mobile / api (same service names)
+  Browser → host nginx :443 (Certbot)
+              → host nginx :80
+                   → 127.0.0.1:8080  (Compose project nginx)
+                        → web / mobile / api
   App code runs from ECR images (not bind mounts)
+  Setup TLS: sudo ./deploy/setup-prod-nginx.sh --certbot
 ```
 
 | Rule | Nabbi detail |
@@ -33,6 +36,7 @@ PROD (dedicated EC2)
 | Services | `api`, `web`, `mobile`, `nginx` — **one process per container** |
 | App ports | `expose` only; nginx publishes the host port |
 | Shared EC2 gateway | `127.0.0.1:3020` — never bind Nabbi nginx to host `:80` here |
+| Prod gateway | Compose `127.0.0.1:8080`; host nginx + Certbot on `:80`/`:443` |
 | Secrets | `backend/.env` (gitignored) — Django/DB/S3/OAuth |
 | Registry config | `deploy.env` (gitignored) — `AWS_ACCOUNT_ID`, region, image tag |
 | Images | ECR `apps/nabbi/{api,web,mobile}` |

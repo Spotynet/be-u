@@ -47,16 +47,23 @@ git checkout master   # required for push (default branch from origin/HEAD)
 git clone … && cd be-u
 cp backend/.env.example backend/.env   # prod secrets, DEBUG=False
 cp deploy.env.example deploy.env       # AWS_ACCOUNT_ID=
-# instance role: ECR pull; AWS CLI installed
+# instance role: ECR pull; AWS CLI + Docker installed
 
 NABBI_IMAGE_TAG=<sha_from_build> ./deploy.sh
 # or after :master was pushed:
 ./deploy.sh
 
+# Host nginx (owns :80/:443) → Compose on 127.0.0.1:8080
+sudo ./deploy/setup-prod-nginx.sh
+# DNS A records for be-u.ai / api.be-u.ai / app.be-u.ai must point here, then:
+sudo ./deploy/setup-prod-nginx.sh --certbot
+
 ./deploy.sh down
 ```
 
-Do **not** run `./deploy.sh` on the shared Spotynet EC2 (binds `:80`).
+Do **not** run `./deploy.sh` on the shared Spotynet EC2.
+
+Compose publishes **`127.0.0.1:8080` only**. Host nginx + Certbot terminate TLS.
 
 ## Image names
 

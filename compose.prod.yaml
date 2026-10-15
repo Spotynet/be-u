@@ -1,5 +1,7 @@
-# Production: pull pre-built images from ECR (no build on host) + nginx on :80.
+# Production: pull pre-built images from ECR (no build on host).
+# Project nginx publishes 127.0.0.1:8080 only; host nginx + Certbot own :80/:443.
 # Usage: NABBI_IMAGE_TAG=<sha|master> ./deploy.sh
+# TLS:   sudo ./deploy/setup-prod-nginx.sh --certbot
 # Do NOT use on the shared Spotynet multi-app EC2.
 #
 # NABBI_IMAGE_REGISTRY example:
@@ -82,8 +84,9 @@ services:
       start_period: 10s
 
   nginx:
+    # Host nginx + Certbot own :80/:443; Compose only on localhost.
     ports: !override
-      - "80:80"
+      - "127.0.0.1:8080:80"
     depends_on:
       api:
         condition: service_healthy
