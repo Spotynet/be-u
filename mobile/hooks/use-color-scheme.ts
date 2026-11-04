@@ -1,5 +1,6 @@
 import {useColorScheme as useRNColorScheme} from "react-native";
 
-export function useColorScheme() {
-  return useRNColorScheme() ?? "light";
+/** Normalize RN's ColorSchemeName (incl. `unspecified`) to light/dark. */
+export function useColorScheme(): "light" | "dark" {
+  return useRNColorScheme() === "dark" ? "dark" : "light";
 }

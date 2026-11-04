@@ -823,7 +823,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   mapGrid: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   gridLineVertical: {
     position: "absolute",
@@ -871,7 +871,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
   },
   pinsContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   pinWrapper: {
     position: "absolute",

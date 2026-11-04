@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useCallback} from "react";
-import {View, ViewProps, InteractionManager} from "react-native";
+import {View, ViewProps} from "react-native";
 import {useProviderTour} from "@/features/onboarding/ProviderTourProvider";
 
 interface TourTargetProps extends ViewProps {
@@ -30,16 +30,21 @@ export const TourTarget = ({targetId, children, ...viewProps}: TourTargetProps) 
     // Register immediately
     measureAndRegister();
 
-    // Re-measure after interactions settle
-    const task = InteractionManager.runAfterInteractions(() => {
-      measureAndRegister();
-    });
+    // Re-measure after paint / interactions settle (InteractionManager removed in RN 0.88)
+    const idleId =
+      typeof requestIdleCallback === "function"
+        ? requestIdleCallback(() => measureAndRegister())
+        : null;
+    const settleTimeoutId = setTimeout(measureAndRegister, 0);
 
     // Also re-measure after a longer delay for slow renders
     const timeoutId = setTimeout(measureAndRegister, 200);
 
     return () => {
-      task.cancel();
+      if (idleId != null && typeof cancelIdleCallback === "function") {
+        cancelIdleCallback(idleId);
+      }
+      clearTimeout(settleTimeoutId);
       clearTimeout(timeoutId);
       unregisterTarget(targetId);
     };

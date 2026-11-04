@@ -1303,7 +1303,7 @@ function makeStyles(colors: any, theme: any) {
     resizeMode: "cover",
   },
   storyOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     padding: 12,
     justifyContent: "space-between",
   },
@@ -1597,7 +1597,7 @@ function makeStyles(colors: any, theme: any) {
     resizeMode: "cover",
   },
   gridOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     borderRadius: 8,
     justifyContent: "center",

@@ -10,13 +10,24 @@ export const getExpoPushToken = async (): Promise<string | null> => {
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
       }),
     });
-    const {status: existingStatus} = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== "granted") {
-      const {status} = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+    // Nested expo-modules-core types don't always resolve under dynamic import.
+    const existingPermissions = (await Notifications.getPermissionsAsync()) as {
+      status: string;
+      granted?: boolean;
+    };
+    let finalStatus = existingPermissions.granted || existingPermissions.status === "granted"
+      ? "granted"
+      : existingPermissions.status;
+    if (finalStatus !== "granted") {
+      const requested = (await Notifications.requestPermissionsAsync()) as {
+        status: string;
+        granted?: boolean;
+      };
+      finalStatus = requested.granted || requested.status === "granted" ? "granted" : requested.status;
     }
     if (finalStatus !== "granted") {
       return null;

@@ -1,6 +1,6 @@
 import React, {createContext, useContext, useState, ReactNode, useEffect} from "react";
 import {LightTheme, DarkTheme} from "@/constants/theme";
-import {useColorScheme} from "react-native";
+import {useColorScheme} from "@/hooks/use-color-scheme";
 
 type ColorMode = "light" | "dark";
 
@@ -13,16 +13,17 @@ interface ThemeVariantContextType {
 const ThemeVariantContext = createContext<ThemeVariantContextType | undefined>(undefined);
 
 export const ThemeVariantProvider = ({children}: {children: ReactNode}) => {
-  const systemColorScheme = useColorScheme();
-  const [colorMode, setColorMode] = useState<ColorMode>(systemColorScheme === "dark" ? "dark" : "light");
+  // Local hook already normalizes RN's `unspecified` / null to light|dark.
+  const resolvedSystemScheme = useColorScheme();
+  const [colorMode, setColorMode] = useState<ColorMode>(resolvedSystemScheme);
   const [isManualOverride, setIsManualOverride] = useState(false);
 
   // Sync with system scheme only when it changes and user hasn't overridden it manually
   useEffect(() => {
-    if (systemColorScheme && !isManualOverride) {
-      setColorMode(systemColorScheme);
+    if (!isManualOverride) {
+      setColorMode(resolvedSystemScheme);
     }
-  }, [systemColorScheme]);
+  }, [resolvedSystemScheme, isManualOverride]);
 
   const handleSetColorMode = (mode: ColorMode) => {
     setIsManualOverride(true);

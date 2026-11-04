@@ -7,7 +7,6 @@
     "icon": "./assets/images/nabbi_logo.png",
     "scheme": "nabbi",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.beu.nabbi",
@@ -57,7 +56,6 @@
           "apiKey": "AIzaSyCVvh62dBTtipmenjLwlS34jPYCBZAD3A8"
         }
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.beu.nabbi",
       "permissions": [
@@ -105,7 +103,9 @@
       ],
       "expo-notifications",
       "expo-font",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      "@react-native-community/datetimepicker",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true
@@ -118,7 +118,7 @@
     },
     "owner": "jdtorreserazo",
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "sdkVersion"
     },
     "updates": {
       "url": "https://u.expo.dev/1e30ea9b-cf36-4754-bc44-b5acbd3b5c0b"

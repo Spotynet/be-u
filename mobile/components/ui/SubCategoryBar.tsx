@@ -77,8 +77,7 @@ export const SubCategoryBar = ({
             styles.categoryItem,
             isSelected && [styles.categoryItemSelected, {borderBottomColor: highlightColor}],
           ]}
-          onPress={() => handleCategoryPress(category.id)}
-          delayPressIn={0}>
+          onPress={() => handleCategoryPress(category.id)}>
           <View style={styles.categoryContent}>
             {iconName ? (
               <View style={styles.iconContainer}>

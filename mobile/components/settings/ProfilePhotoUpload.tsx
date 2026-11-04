@@ -183,12 +183,12 @@ const s = StyleSheet.create({
   photo: {width: "100%", height: "100%"},
   placeholder: {width: "100%", height: "100%", justifyContent: "center", alignItems: "center"},
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "#000",
     borderRadius: AVATAR / 2,
   },
   overlayContent: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
   },

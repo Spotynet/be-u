@@ -110,7 +110,7 @@ export const generateGoogleAuthUrl = (redirectUri: string, state?: string): { au
     throw new Error('Google OAuth client ID not configured');
   }
   
-  const finalState = state || AuthSession.makeRedirectUri({ useProxy: false });
+  const finalState = state || AuthSession.makeRedirectUri();
   const scopes = [
     'openid',
     'https://www.googleapis.com/auth/userinfo.profile',

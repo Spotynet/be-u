@@ -1,9 +1,8 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import {Tabs} from "expo-router";
+import {Tabs, type BottomTabBarProps} from "expo-router/js-tabs";
 import React, {useRef, useEffect} from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Animated,
@@ -11,7 +10,6 @@ import {
 } from "react-native";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useNotifications} from "@/features/notifications/hooks/useNotifications";
-import type {BottomTabBarProps} from "@react-navigation/bottom-tabs";
 
 const VISIBLE_TABS = ["index", "calendario", "notificaciones", "perfil"];
 
@@ -49,6 +47,8 @@ function TabItem({
       Animated.spring(iconAnim, {toValue: isFocused ? 1.1 : 1,  useNativeDriver: true, friction: 8,  tension: 130}),
     ]).start();
   }, [isFocused]);
+
+  if (!meta) return null;
 
   const chipScale   = chipAnim.interpolate({inputRange: [0, 1], outputRange: [0.6, 1]});
   const chipOpacity = chipAnim.interpolate({inputRange: [0, 1], outputRange: [0, 1]});
@@ -88,7 +88,7 @@ function TabItem({
   );
 }
 
-function FloatingTabBar({state, navigation}: BottomTabBarProps) {
+function FloatingTabBar({state, emitter, navigateToTab}: BottomTabBarProps) {
   const {colors} = useThemeVariant();
   const {unreadCount} = useNotifications();
 
@@ -103,10 +103,11 @@ function FloatingTabBar({state, navigation}: BottomTabBarProps) {
           const globalIdx = state.routes.findIndex((r) => r.key === route.key);
           const isFocused = state.index === globalIdx;
 
+          // SDK 58 tab bar API: emitter + navigateToTab(route.key) — no navigation prop.
           const onPress = () => {
-            const event = navigation.emit({type: "tabPress", target: route.key, canPreventDefault: true});
+            const event = emitter.emit({type: "tabPress", target: route.key, canPreventDefault: true});
             if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name, route.params);
+              navigateToTab(route.key);
             }
           };
 
@@ -116,7 +117,7 @@ function FloatingTabBar({state, navigation}: BottomTabBarProps) {
               route={route}
               isFocused={isFocused}
               onPress={onPress}
-              onLongPress={() => navigation.emit({type: "tabLongPress", target: route.key})}
+              onLongPress={() => emitter.emit({type: "tabLongPress", target: route.key})}
               unreadCount={unreadCount}
               accentColor={accentColor}
               inactiveColor={inactiveColor}

@@ -1,5 +1,5 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import {Tabs} from "expo-router";
+import {Tabs, type BottomTabBarProps} from "expo-router/js-tabs";
 import React, {useRef, useEffect} from "react";
 import {
   View,
@@ -12,7 +12,6 @@ import {useSafeAreaInsets} from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
 import {useNotifications} from "@/features/notifications/hooks/useNotifications";
-import type {BottomTabBarProps} from "@react-navigation/bottom-tabs";
 
 const VISIBLE_TABS = ["index", "calendario", "notificaciones", "perfil"];
 
@@ -51,12 +50,16 @@ function TabItem({
     ]).start();
   }, [isFocused]);
 
+  if (!meta) return null;
+
   const chipScale   = chipAnim.interpolate({inputRange: [0, 1], outputRange: [0.6, 1]});
   const chipOpacity = chipAnim.interpolate({inputRange: [0, 1], outputRange: [0, 1]});
   const showBadge   = route.name === "notificaciones" && unreadCount > 0;
 
   const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS === "ios") {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     onPress();
   };
 
@@ -94,26 +97,28 @@ function TabItem({
   );
 }
 
-function FloatingTabBar({state, navigation}: BottomTabBarProps) {
+function FloatingTabBar({state, emitter, navigateToTab, insets}: BottomTabBarProps) {
   const {colors} = useThemeVariant();
   const {unreadCount} = useNotifications();
-  const insets = useSafeAreaInsets();
+  const safeInsets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets?.bottom ?? 0, safeInsets.bottom, 12);
 
   const visibleRoutes = state.routes.filter((r) => VISIBLE_TABS.includes(r.name));
   const accentColor   = colors.accent;
   const inactiveColor = "rgba(255,255,255,0.42)";
 
   return (
-    <View style={[styles.outerWrap, {paddingBottom: Math.max(insets.bottom, 12)}]}>
+    <View style={[styles.outerWrap, {paddingBottom: bottomInset}]}>
       <View style={[styles.pill, {backgroundColor: colors.navBarBg, borderColor: "rgba(255,255,255,0.07)"}]}>
         {visibleRoutes.map((route) => {
           const globalIdx = state.routes.findIndex((r) => r.key === route.key);
           const isFocused = state.index === globalIdx;
 
+          // SDK 58 tab bar API: emitter + navigateToTab(route.key) — no navigation prop.
           const onPress = () => {
-            const event = navigation.emit({type: "tabPress", target: route.key, canPreventDefault: true});
+            const event = emitter.emit({type: "tabPress", target: route.key, canPreventDefault: true});
             if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name, route.params);
+              navigateToTab(route.key);
             }
           };
 
@@ -123,7 +128,7 @@ function FloatingTabBar({state, navigation}: BottomTabBarProps) {
               route={route}
               isFocused={isFocused}
               onPress={onPress}
-              onLongPress={() => navigation.emit({type: "tabLongPress", target: route.key})}
+              onLongPress={() => emitter.emit({type: "tabLongPress", target: route.key})}
               unreadCount={unreadCount}
               accentColor={accentColor}
               inactiveColor={inactiveColor}

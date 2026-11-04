@@ -200,7 +200,7 @@ export const CoachMarksOverlay = () => {
       <Animated.View style={[styles.overlay, {opacity: fadeAnim}]}>
         {/* SVG Mask for spotlight effect */}
         {hasTarget && (
-          <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={StyleSheet.absoluteFill}>
+          <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={StyleSheet.absoluteFill as object}>
             <Defs>
               <Mask id="spotlightMask">
                 <Rect width={SCREEN_WIDTH} height={SCREEN_HEIGHT} fill="white" />

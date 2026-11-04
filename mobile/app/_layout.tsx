@@ -1,12 +1,12 @@
 import {ThemeVariantProvider, useThemeVariant} from "@/contexts/ThemeVariantContext";
-import {Stack} from "expo-router";
+import {Stack} from "expo-router/stack";
 import {SafeAreaProvider} from "react-native-safe-area-context";
 import {AuthProvider} from "@/features/auth";
 import {CategoryProvider} from "@/contexts/CategoryContext";
 import {ProviderTourProvider} from "@/features/onboarding/ProviderTourProvider";
 import {CoachMarksOverlay} from "@/components/onboarding/CoachMarksOverlay";
 import {useEffect} from "react";
-import {AppState, Text, TextInput, useColorScheme} from "react-native";
+import {AppState, StyleSheet, Text, TextInput} from "react-native";
 import {tokenRefreshScheduler} from "@/lib/api";
 import {ErrorBoundary} from "@/components/ErrorBoundary";
 import * as SplashScreen from "expo-splash-screen";
@@ -14,7 +14,14 @@ import {useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Po
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import {StatusBar} from "expo-status-bar";
-import {useAppTheme} from "@/constants/colors";
+
+// RN 0.88 removed StyleSheet.absoluteFillObject; keep an alias for deps like react-native-calendars.
+const styleSheetCompat = StyleSheet as typeof StyleSheet & {
+  absoluteFillObject?: typeof StyleSheet.absoluteFill;
+};
+if (styleSheetCompat.absoluteFillObject == null) {
+  styleSheetCompat.absoluteFillObject = StyleSheet.absoluteFill;
+}
 
 SplashScreen.preventAutoHideAsync();
 
@@ -23,10 +30,7 @@ const ThemeAppContent = () => {
   
   return (
     <>
-      <StatusBar 
-        style={colorMode === 'dark' ? 'light' : 'dark'} 
-        backgroundColor={colors.navBarBg} 
-      />
+      <StatusBar style={colorMode === 'dark' ? 'light' : 'dark'} />
       <CategoryProvider>
         <AuthProvider>
           <ProviderTourProvider>
@@ -69,10 +73,16 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!fontsLoaded) return;
-    Text.defaultProps = Text.defaultProps || {};
-    Text.defaultProps.style = [{fontFamily: "Poppins_400Regular"}, Text.defaultProps.style];
-    TextInput.defaultProps = TextInput.defaultProps || {};
-    TextInput.defaultProps.style = [{fontFamily: "Poppins_400Regular"}, TextInput.defaultProps.style];
+    // React 19 removed typed defaultProps; keep runtime defaults for global Poppins font.
+    const TextComponent = Text as typeof Text & {defaultProps?: {style?: unknown}};
+    const TextInputComponent = TextInput as typeof TextInput & {defaultProps?: {style?: unknown}};
+    TextComponent.defaultProps = TextComponent.defaultProps || {};
+    TextComponent.defaultProps.style = [{fontFamily: "Poppins_400Regular"}, TextComponent.defaultProps.style];
+    TextInputComponent.defaultProps = TextInputComponent.defaultProps || {};
+    TextInputComponent.defaultProps.style = [
+      {fontFamily: "Poppins_400Regular"},
+      TextInputComponent.defaultProps.style,
+    ];
     SplashScreen.hideAsync();
   }, [fontsLoaded]);
 
