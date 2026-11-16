@@ -24,7 +24,20 @@ done
 
 ## 2. IAM — builder/dev (ECR **push**)
 
-Attach to the instance role on the machine that runs `./build.sh`:
+**Preferred (one command, needs admin AWS creds):**
+
+```bash
+# From a principal that can iam:PutRolePolicy on role instanceRole:
+AWS_PROFILE=admin ./deploy/apply-ecr-iam.sh
+# or:
+AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... ./deploy/apply-ecr-iam.sh
+```
+
+That attaches inline policy `SpotynetEcrPushApps` to `instanceRole` for
+`arn:aws:ecr:us-east-1:ACCOUNT_ID:repository/apps/*` (shared Spotynet builder)
+and ensures `apps/nabbi/{api,web,mobile}` repos exist.
+
+Manual equivalent — attach to the instance role that runs `./build.sh`:
 
 ```json
 {
@@ -46,9 +59,11 @@ Attach to the instance role on the machine that runs `./build.sh`:
         "ecr:UploadLayerPart",
         "ecr:CompleteLayerUpload",
         "ecr:DescribeImages",
-        "ecr:DescribeRepositories"
+        "ecr:DescribeRepositories",
+        "ecr:ListImages",
+        "ecr:CreateRepository"
       ],
-      "Resource": "arn:aws:ecr:us-east-1:ACCOUNT_ID:repository/apps/nabbi/*"
+      "Resource": "arn:aws:ecr:us-east-1:ACCOUNT_ID:repository/apps/*"
     }
   ]
 }

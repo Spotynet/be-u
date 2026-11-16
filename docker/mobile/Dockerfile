@@ -1,10 +1,11 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-bookworm-slim AS deps
+# Expo/metro 58+ requires Node ^22.13 (or ^24 / >=26)
+FROM node:22-bookworm-slim AS deps
 
 WORKDIR /app
 
-COPY mobile/package*.json ./
+COPY mobile/package*.json mobile/.npmrc ./
 RUN npm ci
 
 # Dev: dependencies only; source bind-mounted at runtime.
