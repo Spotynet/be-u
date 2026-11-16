@@ -69,10 +69,7 @@ export default function ReservationsPage() {
             type="button"
             onClick={() => setFilter(value)}
             className={[
-              "rounded-full px-4 py-2 text-[13px] font-bold",
-              filter === value
-                ? "border-[1.5px] border-primary bg-primary/15 text-foreground"
-                : "border-[1.5px] border-primary/20 bg-card text-foreground",
+              filter === value ? "nabbi-chip nabbi-chip-active" : "nabbi-chip",
             ].join(" ")}>
             {label}
           </button>

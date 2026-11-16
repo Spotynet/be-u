@@ -315,8 +315,8 @@ function BookingInner() {
                     className={[
                       "rounded-[10px] px-3.5 py-2.5 text-sm font-bold",
                       selectedTime === t
-                        ? "border-[1.5px] border-primary bg-primary/15 text-primary-dark"
-                        : "border-[1.5px] border-primary/20 bg-card text-primary-dark",
+                        ? "nabbi-chip nabbi-chip-active"
+                        : "nabbi-chip",
                     ].join(" ")}>
                     {t.slice(0, 5)}
                   </button>

@@ -631,7 +631,7 @@ export default function PublicProfilePage() {
                       <button
                         type="submit"
                         disabled={reviewBusy}
-                        className="rounded-xl bg-primary py-3 font-extrabold text-white disabled:opacity-65">
+                        className="nabbi-btn nabbi-btn-primary w-full rounded-xl py-3 disabled:opacity-65">
                         {reviewBusy ? "Enviando…" : "Publicar reseña"}
                       </button>
                     </form>

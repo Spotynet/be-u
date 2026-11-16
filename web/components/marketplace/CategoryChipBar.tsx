@@ -27,7 +27,7 @@ export function CategoryChipBar({
 
   return (
     <div
-      className={`nabbi-stack-row flex-nowrap overflow-x-auto pb-1 ${className}`}
+      className={`nabbi-stack-row flex-nowrap overflow-x-auto pb-0.5 ${className}`}
       role="tablist"
       aria-label="Categorías">
       {chips.map((chip) => {
@@ -39,12 +39,7 @@ export function CategoryChipBar({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(chip.id)}
-            className={[
-              "shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors",
-              active
-                ? "border border-primary bg-primary text-primary-foreground"
-                : "border border-card-border bg-background text-foreground hover:bg-background-secondary",
-            ].join(" ")}>
+            className={`nabbi-chip ${active ? "nabbi-chip-active" : ""}`}>
             {chip.name}
           </button>
         );

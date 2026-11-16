@@ -7,7 +7,6 @@ import {providerApi, errorUtils} from "@/lib/api";
 import {
   CategoryChipBar,
   ProviderCard,
-  SectionHeader,
 } from "@/components/marketplace";
 import {CDMX_CENTER, getGoogleMapsBrowserKey, loadGoogleMapsScript} from "@/lib/googleMapsLoader";
 
@@ -43,7 +42,6 @@ function ExplorePageInner() {
     return () => mq.removeEventListener("change", apply);
   }, []);
 
-  // Sync URL → state when header search navigates here
   useEffect(() => {
     setSearch(searchParams.get("q") || "");
     const cat = searchParams.get("category");
@@ -169,7 +167,6 @@ function ExplorePageInner() {
     };
   }, [showMap, profiles, coords, nearby]);
 
-  // Focus map when selecting a card
   useEffect(() => {
     if (!selected || !mapInstance.current) return;
     const lat = Number(selected.latitude);
@@ -196,19 +193,26 @@ function ExplorePageInner() {
   const listContent = (
     <div className="min-w-0">
       {loading && (
-        <p className="text-sm text-foreground-muted">Cargando…</p>
+        <div className="rounded-2xl border border-[#ccd8ce] bg-white p-5 text-sm font-semibold text-[#3d6050]">
+          Buscando profesionales y lugares…
+        </div>
       )}
       {error && (
-        <div className="mb-3 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-600">
+        <div className="mb-3 rounded-2xl border border-[#fca5a5] bg-[#fef2f2] p-4 text-sm font-semibold text-[#b91c1c]">
           {error}
         </div>
       )}
       {!loading && !error && profiles.length === 0 && (
-        <p className="text-sm text-foreground-muted">
-          No encontramos perfiles con esos filtros.
-        </p>
+        <div className="rounded-2xl border border-dashed border-[#ccd8ce] bg-white p-8 text-center">
+          <p className="m-0 text-[15px] font-extrabold text-[#12211a]">
+            No encontramos resultados
+          </p>
+          <p className="mt-2 mb-0 text-sm text-[#3d6050]">
+            Prueba otra búsqueda, quita filtros o activa “Cerca de mí”.
+          </p>
+        </div>
       )}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
         {cardData.map((p) =>
           isDesktop ? (
             <div key={p.id} className="relative">
@@ -219,7 +223,7 @@ function ExplorePageInner() {
               />
               <Link
                 href={`/profile/${p.id}`}
-                className="absolute bottom-3 right-3 z-10 rounded-lg bg-secondary px-2.5 py-1.5 text-[11px] font-extrabold text-secondary-foreground shadow-sm no-underline hover:bg-secondary-hover">
+                className="nabbi-btn nabbi-btn-accent absolute bottom-3 right-3 z-10 !px-3 !py-2 !text-[12px]">
                 Ver perfil
               </Link>
             </div>
@@ -232,26 +236,27 @@ function ExplorePageInner() {
   );
 
   const mapPane = (
-    <div className="nabbi-explore-map relative min-h-[420px] overflow-hidden rounded-2xl border border-card-border bg-[#e8efe9] lg:min-h-0">
+    <div className="nabbi-explore-map relative min-h-[420px] overflow-hidden rounded-[20px] border border-[#ccd8ce] bg-[#e8efe9] lg:min-h-0">
       {mapError && (
-        <div className="absolute inset-x-3 top-3 z-10 rounded-xl border border-orange-300 bg-orange-50 p-3 text-sm text-orange-800">
+        <div className="absolute inset-x-3 top-3 z-10 rounded-xl border border-orange-300 bg-orange-50 p-3 text-sm font-semibold text-orange-900">
           {mapError} Mientras tanto usa la vista Lista.
         </div>
       )}
       <div ref={mapRef} className="absolute inset-0 h-full w-full" />
       {selected && (
-        <div className="absolute bottom-3 left-3 right-3 z-10 flex items-center justify-between gap-3 rounded-2xl border border-card-border bg-card p-3.5 shadow-card">
+        <div className="absolute bottom-3 left-3 right-3 z-10 flex items-center justify-between gap-3 rounded-2xl border border-[#ccd8ce] bg-white p-3.5 shadow-[0_12px_28px_-10px_rgba(18,33,26,0.28)]">
           <div className="min-w-0">
-            <div className="truncate font-extrabold text-foreground">
+            <div className="truncate text-[15px] font-extrabold text-[#12211a]">
               {selected.name || selected.display_name}
             </div>
-            <div className="text-xs font-bold text-primary">
+            <div className="text-xs font-bold text-[#558367]">
               {selected.profile_type === "PLACE" ? "Lugar" : "Profesional"}
+              {selected.city ? ` · ${selected.city}` : ""}
             </div>
           </div>
           <Link
             href={`/profile/${selected.id}`}
-            className="shrink-0 rounded-[10px] bg-secondary px-3 py-2 text-[13px] font-extrabold text-secondary-foreground no-underline hover:bg-secondary-hover">
+            className="nabbi-btn nabbi-btn-accent shrink-0 !px-3.5 !py-2.5 !text-[13px]">
             Ver perfil
           </Link>
         </div>
@@ -261,12 +266,26 @@ function ExplorePageInner() {
 
   return (
     <div className="nabbi-page w-full">
-      <SectionHeader
-        title="Explorar"
-        subtitle="Encuentra profesionales y lugares cerca de ti."
-      />
+      <div className="mb-4 overflow-hidden rounded-[22px] border border-[#ccd8ce] bg-gradient-to-br from-[#1f3328] via-[#2a4638] to-[#558367] px-4 py-5 text-white shadow-[0_16px_40px_-18px_rgba(18,33,26,0.45)] sm:px-5">
+        <p className="m-0 text-[11px] font-extrabold uppercase tracking-[0.14em] text-white/70">
+          Marketplace
+        </p>
+        <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="m-0 text-[clamp(1.45rem,4vw,1.9rem)] font-black tracking-tight text-white">
+              Explorar
+            </h1>
+            <p className="mt-1.5 mb-0 max-w-xl text-[14px] leading-relaxed text-white/80">
+              Encuentra profesionales y lugares cerca de ti. Reserva en pocos toques.
+            </p>
+          </div>
+          <div className="rounded-full bg-white/15 px-3.5 py-2 text-[13px] font-bold text-white backdrop-blur-sm">
+            {loading ? "…" : `${profiles.length} resultados`}
+          </div>
+        </div>
+      </div>
 
-      <div className="sticky top-[68px] z-20 mb-4 space-y-3 rounded-2xl border border-card-border bg-card px-3 py-3 shadow-sm sm:px-3.5">
+      <div className="sticky top-[68px] z-20 mb-4 space-y-3 rounded-[20px] border border-[#ccd8ce] bg-white/95 px-3 py-3.5 shadow-[0_10px_30px_-18px_rgba(18,33,26,0.35)] backdrop-blur-md sm:px-4">
         <div className="nabbi-stack-row flex-nowrap overflow-x-auto pb-0.5">
           {!isDesktop && (
             <>
@@ -319,7 +338,8 @@ function ExplorePageInner() {
             if (e.key === "Enter") syncUrl({q: search});
           }}
           placeholder="Buscar por nombre o ciudad…"
-          className="w-full rounded-xl border-[1.5px] border-primary/25 bg-card px-3.5 py-3 text-[15px] text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+          className="nabbi-search"
+          aria-label="Buscar"
         />
 
         <CategoryChipBar
@@ -332,7 +352,6 @@ function ExplorePageInner() {
         />
       </div>
 
-      {/* Desktop split / mobile toggle */}
       {isDesktop ? (
         <div className="nabbi-explore-split">
           <div className="max-h-[calc(100vh-160px)] overflow-y-auto pr-1">
@@ -362,12 +381,7 @@ function FilterChip({
     <button
       type="button"
       onClick={onClick}
-      className={[
-        "shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors",
-        active
-          ? "border border-primary bg-primary text-primary-foreground"
-          : "border border-card-border bg-background text-foreground hover:bg-background-secondary",
-      ].join(" ")}>
+      className={`nabbi-chip ${active ? "nabbi-chip-active" : ""}`}>
       {label}
     </button>
   );
@@ -377,7 +391,7 @@ export default function ExplorePage() {
   return (
     <Suspense
       fallback={
-        <div className="nabbi-page p-4 text-sm text-foreground-muted">
+        <div className="nabbi-page p-4 text-sm font-semibold text-[#3d6050]">
           Cargando explorar…
         </div>
       }>

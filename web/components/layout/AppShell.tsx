@@ -209,9 +209,10 @@ export function AppShell({children}: {children: React.ReactNode}) {
                         className={[
                           "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[10px] px-2.5 py-1.5 text-[13px] no-underline",
                           active
-                            ? "bg-white font-extrabold text-primary-dark"
-                            : "font-semibold text-white/85 hover:bg-white/10 hover:text-white",
-                        ].join(" ")}>
+                            ? "bg-white font-extrabold"
+                            : "font-semibold text-white/90 hover:bg-white/12 hover:text-white",
+                        ].join(" ")}
+                        style={active ? {color: "#1f3328"} : undefined}>
                         {item.label}
                         {item.badge && item.badge > 0 ? (
                           <span className="min-w-4 rounded-full bg-rose-600 px-1.5 text-center text-[10px] font-extrabold text-white">
@@ -279,7 +280,7 @@ export function AppShell({children}: {children: React.ReactNode}) {
                 </Link>
                 <Link
                   href="/register"
-                  className="rounded-[10px] bg-primary px-3 py-2 text-[13px] font-bold text-white no-underline">
+                  className="nabbi-btn nabbi-btn-accent !px-3 !py-2 !text-[13px]">
                   Crear cuenta
                 </Link>
               </nav>
@@ -330,10 +331,9 @@ export function AppShell({children}: {children: React.ReactNode}) {
                 href={item.href}
                 className={[
                   "relative px-0.5 py-2.5 text-center text-[11px] no-underline",
-                  active
-                    ? "font-extrabold text-primary"
-                    : "font-semibold text-foreground-secondary",
-                ].join(" ")}>
+                  active ? "font-extrabold" : "font-semibold",
+                ].join(" ")}
+                style={{color: active ? "#558367" : "#3d6050"}}>
                 {item.shortLabel || item.label}
                 {item.badge && item.badge > 0 ? (
                   <span className="absolute right-[12%] top-1 min-w-[14px] rounded-full bg-rose-600 px-1 text-[9px] font-extrabold text-white">

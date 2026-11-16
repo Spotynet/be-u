@@ -164,10 +164,7 @@ function TabChip({
       type="button"
       onClick={onClick}
       className={[
-        "rounded-full px-3.5 py-1.5 text-[13px] font-bold",
-        active
-          ? "border border-primary bg-primary text-primary-foreground"
-          : "border border-card-border bg-background text-foreground hover:bg-background-secondary",
+        `nabbi-chip ${active ? "nabbi-chip-active" : ""}`,
       ].join(" ")}>
       {label}
     </button>

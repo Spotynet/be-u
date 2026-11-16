@@ -1,139 +1,181 @@
 @import "tailwindcss";
 
-/* CSS Variables for Theme System */
-:root {
-  /* Radius */
-  --radius: 0.5rem;
-
-  /* Shadows */
-  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-dropdown: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+/*
+  Tailwind v4: theme tokens must live in @theme (or @theme inline) to generate
+  utilities like bg-primary / text-primary-foreground. Runtime theme switches
+  override the same --color-* variables on :root / [data-theme].
+*/
+@theme inline {
+  --color-background: var(--nabbi-bg);
+  --color-background-secondary: var(--nabbi-bg-secondary);
+  --color-foreground: var(--nabbi-fg);
+  --color-foreground-secondary: var(--nabbi-fg-secondary);
+  --color-foreground-muted: var(--nabbi-fg-muted);
+  --color-card: var(--nabbi-card);
+  --color-card-foreground: var(--nabbi-card-fg);
+  --color-card-border: var(--nabbi-card-border);
+  --color-primary: var(--nabbi-primary);
+  --color-primary-foreground: var(--nabbi-primary-fg);
+  --color-primary-hover: var(--nabbi-primary-hover);
+  --color-primary-light: var(--nabbi-primary-light);
+  --color-primary-dark: var(--nabbi-primary-dark);
+  --color-secondary: var(--nabbi-secondary);
+  --color-secondary-foreground: var(--nabbi-secondary-fg);
+  --color-secondary-hover: var(--nabbi-secondary-hover);
+  --color-secondary-light: var(--nabbi-secondary-light);
+  --color-secondary-dark: var(--nabbi-secondary-dark);
+  --color-accent: var(--nabbi-accent);
+  --color-accent-foreground: var(--nabbi-accent-fg);
+  --color-accent-hover: var(--nabbi-accent-hover);
+  --color-success: var(--nabbi-success);
+  --color-success-foreground: var(--nabbi-success-fg);
+  --color-success-light: var(--nabbi-success-light);
+  --color-warning: var(--nabbi-warning);
+  --color-warning-foreground: var(--nabbi-warning-fg);
+  --color-warning-light: var(--nabbi-warning-light);
+  --color-error: var(--nabbi-error);
+  --color-error-foreground: var(--nabbi-error-fg);
+  --color-error-light: var(--nabbi-error-light);
+  --color-border: var(--nabbi-border);
+  --color-border-light: var(--nabbi-border-light);
+  --color-border-dark: var(--nabbi-border-dark);
+  --color-input: var(--nabbi-input);
+  --color-input-border: var(--nabbi-input-border);
+  --color-input-focus: var(--nabbi-input-focus);
+  --color-ring: var(--nabbi-ring);
+  --radius-lg: var(--radius);
+  --shadow-card: var(--nabbi-shadow-card);
+  --shadow-card-hover: var(--nabbi-shadow-card-hover);
+  --shadow-dropdown: var(--nabbi-shadow-dropdown);
 }
 
-/* Light Theme (Default) — nabbi brand: verde salvia #558367 + terracota + ámbar + teal + arena */
+:root {
+  --radius: 0.75rem;
+  --nabbi-shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --nabbi-shadow-card-hover: 0 10px 24px -8px rgb(18 33 26 / 0.18);
+  --nabbi-shadow-dropdown: 0 12px 28px -8px rgb(18 33 26 / 0.22);
+}
+
+/* Light Theme (Default) — nabbi brand: verde salvia #558367 + ámbar + teal + arena */
 :root,
 [data-theme="light"] {
-  /* Background colors */
-  --color-background: #faf8f3;
-  --color-background-secondary: #e3d8c6;
+  --nabbi-bg: #faf8f3;
+  --nabbi-bg-secondary: #e8efe9;
+  --nabbi-fg: #12211a;
+  --nabbi-fg-secondary: #3d6050;
+  --nabbi-fg-muted: #5a7d6a;
+  --nabbi-card: #ffffff;
+  --nabbi-card-fg: #12211a;
+  --nabbi-card-border: #ccd8ce;
+  --nabbi-primary: #558367;
+  --nabbi-primary-fg: #ffffff;
+  --nabbi-primary-hover: #426856;
+  --nabbi-primary-light: #d8eae0;
+  --nabbi-primary-dark: #1f3328;
+  --nabbi-secondary: #f6c531;
+  --nabbi-secondary-fg: #12211a;
+  --nabbi-secondary-hover: #e0b020;
+  --nabbi-secondary-light: #fef8dc;
+  --nabbi-secondary-dark: #8a6f0c;
+  --nabbi-accent: #225d65;
+  --nabbi-accent-fg: #ffffff;
+  --nabbi-accent-hover: #1a4a52;
+  --nabbi-success: #558367;
+  --nabbi-success-fg: #ffffff;
+  --nabbi-success-light: #d8eae0;
+  --nabbi-warning: #d39932;
+  --nabbi-warning-fg: #12211a;
+  --nabbi-warning-light: #fef6dc;
+  --nabbi-error: #c0392b;
+  --nabbi-error-fg: #ffffff;
+  --nabbi-error-light: #fde8e8;
+  --nabbi-border: #ccd8ce;
+  --nabbi-border-light: #e3d8c6;
+  --nabbi-border-dark: #a8c0b0;
+  --nabbi-input: #ffffff;
+  --nabbi-input-border: #ccd8ce;
+  --nabbi-input-focus: #558367;
+  --nabbi-ring: #558367;
 
-  /* Text colors */
-  --color-foreground: #1f3328;
-  --color-foreground-secondary: #3d6050;
-  --color-foreground-muted: #5a7d6a;
-
-  /* Card colors */
-  --color-card: #ffffff;
-  --color-card-foreground: #1f3328;
-  --color-card-border: #ccd8ce;
-
-  /* Primary colors — verde salvia #558367 */
-  --color-primary: #558367;
-  --color-primary-foreground: #ffffff;
-  --color-primary-hover: #426856;
-  --color-primary-light: #d8eae0;
-  --color-primary-dark: #1f3328;
-
-  /* Secondary colors — amarillo #F6C531 */
-  --color-secondary: #F6C531;
-  --color-secondary-foreground: #12211A;
-  --color-secondary-hover: #e0b020;
-  --color-secondary-light: #fef8dc;
-  --color-secondary-dark: #b8920f;
-
-  /* Accent colors — teal #225D65 */
-  --color-accent: #225D65;
-  --color-accent-foreground: #ffffff;
-  --color-accent-hover: #1a4a52;
-
-  /* Status colors */
-  --color-success: #558367;
-  --color-success-foreground: #ffffff;
-  --color-success-light: #d8eae0;
-
-  --color-warning: #D39932;
-  --color-warning-foreground: #ffffff;
-  --color-warning-light: #fef6dc;
-
-  --color-error: #c0392b;
-  --color-error-foreground: #ffffff;
-  --color-error-light: #fde8e8;
-
-  /* Border colors */
-  --color-border: #ccd8ce;
-  --color-border-light: #e3d8c6;
-  --color-border-dark: #a8c0b0;
-
-  /* Input colors */
-  --color-input: #ffffff;
-  --color-input-border: #ccd8ce;
-  --color-input-focus: #558367;
-
-  /* Ring colors */
-  --color-ring: #558367;
+  /* Back-compat aliases used by older CSS */
+  --color-background: var(--nabbi-bg);
+  --color-background-secondary: var(--nabbi-bg-secondary);
+  --color-foreground: var(--nabbi-fg);
+  --color-foreground-secondary: var(--nabbi-fg-secondary);
+  --color-foreground-muted: var(--nabbi-fg-muted);
+  --color-card: var(--nabbi-card);
+  --color-card-foreground: var(--nabbi-card-fg);
+  --color-card-border: var(--nabbi-card-border);
+  --color-primary: var(--nabbi-primary);
+  --color-primary-foreground: var(--nabbi-primary-fg);
+  --color-primary-hover: var(--nabbi-primary-hover);
+  --color-primary-light: var(--nabbi-primary-light);
+  --color-primary-dark: var(--nabbi-primary-dark);
+  --color-secondary: var(--nabbi-secondary);
+  --color-secondary-foreground: var(--nabbi-secondary-fg);
+  --color-secondary-hover: var(--nabbi-secondary-hover);
+  --color-secondary-light: var(--nabbi-secondary-light);
+  --color-secondary-dark: var(--nabbi-secondary-dark);
+  --color-accent: var(--nabbi-accent);
+  --color-accent-foreground: var(--nabbi-accent-fg);
+  --color-accent-hover: var(--nabbi-accent-hover);
+  --color-success: var(--nabbi-success);
+  --color-success-foreground: var(--nabbi-success-fg);
+  --color-success-light: var(--nabbi-success-light);
+  --color-warning: var(--nabbi-warning);
+  --color-warning-foreground: var(--nabbi-warning-fg);
+  --color-warning-light: var(--nabbi-warning-light);
+  --color-error: var(--nabbi-error);
+  --color-error-foreground: var(--nabbi-error-fg);
+  --color-error-light: var(--nabbi-error-light);
+  --color-border: var(--nabbi-border);
+  --color-border-light: var(--nabbi-border-light);
+  --color-border-dark: var(--nabbi-border-dark);
+  --color-input: var(--nabbi-input);
+  --color-input-border: var(--nabbi-input-border);
+  --color-input-focus: var(--nabbi-input-focus);
+  --color-ring: var(--nabbi-ring);
 }
 
 /* Dark Theme */
 [data-theme="dark"] {
-  /* Background colors */
-  --color-background: #0f172a;
-  --color-background-secondary: #1e293b;
-
-  /* Text colors */
-  --color-foreground: #f8fafc;
-  --color-foreground-secondary: #cbd5e1;
-  --color-foreground-muted: #94a3b8;
-
-  /* Card colors */
-  --color-card: #1e293b;
-  --color-card-foreground: #f8fafc;
-  --color-card-border: #334155;
-
-  /* Primary colors */
-  --color-primary: #60a5fa;
-  --color-primary-foreground: #0f172a;
-  --color-primary-hover: #3b82f6;
-  --color-primary-light: #1e3a8a;
-  --color-primary-dark: #1e40af;
-
-  /* Secondary colors */
-  --color-secondary: #94a3b8;
-  --color-secondary-foreground: #0f172a;
-  --color-secondary-hover: #cbd5e1;
-  --color-secondary-light: #334155;
-  --color-secondary-dark: #1e293b;
-
-  /* Accent colors */
-  --color-accent: #a78bfa;
-  --color-accent-foreground: #0f172a;
-  --color-accent-hover: #8b5cf6;
-
-  /* Status colors */
-  --color-success: #34d399;
-  --color-success-foreground: #0f172a;
-  --color-success-light: #064e3b;
-
-  --color-warning: #fbbf24;
-  --color-warning-foreground: #0f172a;
-  --color-warning-light: #78350f;
-
-  --color-error: #f87171;
-  --color-error-foreground: #0f172a;
-  --color-error-light: #7f1d1d;
-
-  /* Border colors */
-  --color-border: #334155;
-  --color-border-light: #475569;
-  --color-border-dark: #1e293b;
-
-  /* Input colors */
-  --color-input: #1e293b;
-  --color-input-border: #475569;
-  --color-input-focus: #60a5fa;
-
-  /* Ring colors */
-  --color-ring: #60a5fa;
+  --nabbi-bg: #0f172a;
+  --nabbi-bg-secondary: #1e293b;
+  --nabbi-fg: #f8fafc;
+  --nabbi-fg-secondary: #cbd5e1;
+  --nabbi-fg-muted: #94a3b8;
+  --nabbi-card: #1e293b;
+  --nabbi-card-fg: #f8fafc;
+  --nabbi-card-border: #334155;
+  --nabbi-primary: #60a5fa;
+  --nabbi-primary-fg: #0f172a;
+  --nabbi-primary-hover: #3b82f6;
+  --nabbi-primary-light: #1e3a8a;
+  --nabbi-primary-dark: #93c5fd;
+  --nabbi-secondary: #fbbf24;
+  --nabbi-secondary-fg: #0f172a;
+  --nabbi-secondary-hover: #f59e0b;
+  --nabbi-secondary-light: #78350f;
+  --nabbi-secondary-dark: #fde68a;
+  --nabbi-accent: #a78bfa;
+  --nabbi-accent-fg: #0f172a;
+  --nabbi-accent-hover: #8b5cf6;
+  --nabbi-success: #34d399;
+  --nabbi-success-fg: #0f172a;
+  --nabbi-success-light: #064e3b;
+  --nabbi-warning: #fbbf24;
+  --nabbi-warning-fg: #0f172a;
+  --nabbi-warning-light: #78350f;
+  --nabbi-error: #f87171;
+  --nabbi-error-fg: #0f172a;
+  --nabbi-error-light: #7f1d1d;
+  --nabbi-border: #334155;
+  --nabbi-border-light: #475569;
+  --nabbi-border-dark: #1e293b;
+  --nabbi-input: #1e293b;
+  --nabbi-input-border: #475569;
+  --nabbi-input-focus: #60a5fa;
+  --nabbi-ring: #60a5fa;
 }
 
 /* Blue Theme */
@@ -513,6 +555,103 @@ body {
   border: 1px solid rgba(18, 33, 26, 0.08);
   border-radius: 16px;
   padding: 14px;
+}
+
+/* High-contrast interactive primitives (never rely on broken TW color utilities) */
+.nabbi-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  shrink: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  border: 1.5px solid #ccd8ce;
+  background: #ffffff;
+  color: #12211a;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  white-space: nowrap;
+}
+.nabbi-chip:hover {
+  background: #e8efe9;
+  border-color: #a8c0b0;
+}
+.nabbi-chip-active {
+  border-color: #426856;
+  background: #558367;
+  color: #ffffff;
+}
+.nabbi-chip-active:hover {
+  background: #426856;
+  border-color: #426856;
+  color: #ffffff;
+}
+
+.nabbi-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.nabbi-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.nabbi-btn-primary {
+  background: #558367;
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(85, 131, 103, 0.28);
+}
+.nabbi-btn-primary:hover:not(:disabled) {
+  background: #426856;
+}
+.nabbi-btn-accent {
+  background: #f6c531;
+  color: #12211a;
+  box-shadow: 0 6px 16px rgba(246, 197, 49, 0.35);
+}
+.nabbi-btn-accent:hover:not(:disabled) {
+  background: #e0b020;
+}
+.nabbi-btn-ghost {
+  background: #ffffff;
+  color: #12211a;
+  border: 1.5px solid #ccd8ce;
+}
+.nabbi-btn-ghost:hover:not(:disabled) {
+  background: #e8efe9;
+}
+
+.nabbi-search {
+  width: 100%;
+  border-radius: 14px;
+  border: 1.5px solid #ccd8ce;
+  background: #ffffff;
+  color: #12211a;
+  padding: 13px 16px;
+  font-size: 15px;
+  font-weight: 500;
+  outline: none;
+}
+.nabbi-search::placeholder {
+  color: #5a7d6a;
+}
+.nabbi-search:focus {
+  border-color: #558367;
+  box-shadow: 0 0 0 3px rgba(85, 131, 103, 0.18);
 }
 
 @media (min-width: 480px) {
