@@ -247,9 +247,19 @@ export default function PostDetailScreen() {
           <TouchableOpacity
             style={styles.authorInfo}
             onPress={() => {
-              if (post.author_profile_id) {
-                router.push(`/profile/${post.author_profile_id}`);
+              if (!post.author_profile_id) return;
+              if (!user) {
+                Alert.alert(
+                  "Inicia sesión",
+                  "Necesitas iniciar sesión para ver el perfil.",
+                  [
+                    {text: "Cancelar", style: "cancel"},
+                    {text: "Entrar", onPress: () => router.push("/login")},
+                  ]
+                );
+                return;
               }
+              router.push(`/profile/${post.author_profile_id}`);
             }}>
             <View
               style={[

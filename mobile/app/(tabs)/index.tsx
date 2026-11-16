@@ -467,9 +467,19 @@ export default function Home() {
           <TouchableOpacity 
             style={styles.postUserInfoContainer}
             onPress={() => {
-              if (authorProfileId) {
-                router.push(`/profile/${authorProfileId}` as any);
+              if (!authorProfileId) return;
+              if (!user) {
+                Alert.alert(
+                  "Inicia sesión",
+                  "Necesitas iniciar sesión para ver el perfil.",
+                  [
+                    {text: "Cancelar", style: "cancel"},
+                    {text: "Entrar", onPress: () => router.push("/login")},
+                  ]
+                );
+                return;
               }
+              router.push(`/profile/${authorProfileId}` as any);
             }}
             activeOpacity={0.7}>
             <View style={[

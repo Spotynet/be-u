@@ -7,6 +7,7 @@ import {AppShell} from "@/components/layout/AppShell";
 import {ContentActions} from "@/components/moderation/ContentActions";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {postApi, errorUtils} from "@/lib/api";
+import {loginHref} from "@/lib/authGate";
 import {
   postAuthorName,
   postAuthorProfileId,
@@ -59,7 +60,16 @@ function PostDetailInner() {
   }, [load]);
 
   const requireAuth = (next: string) => {
-    router.push(`/login?next=${encodeURIComponent(next)}`);
+    router.push(loginHref(next));
+  };
+
+  const openGatedPath = (path: string | null) => {
+    if (!path) return;
+    if (!isAuthenticated) {
+      requireAuth(path);
+      return;
+    }
+    router.push(path);
   };
 
   const handleLike = async () => {
@@ -167,11 +177,12 @@ function PostDetailInner() {
             <div className="flex items-center justify-between gap-3 p-4">
               <div className="text-lg font-black text-foreground">
                 {profileId ? (
-                  <Link
-                    href={`/profile/${profileId}`}
-                    className="text-foreground no-underline">
+                  <button
+                    type="button"
+                    onClick={() => openGatedPath(`/profile/${profileId}`)}
+                    className="border-0 bg-transparent p-0 text-left text-lg font-black text-foreground">
                     {authorName}
-                  </Link>
+                  </button>
                 ) : (
                   authorName
                 )}
@@ -232,20 +243,22 @@ function PostDetailInner() {
                 {post.user_has_liked ? "♥" : "♡"} {post.likes_count ?? 0}
               </button>
               {bookingHref && (
-                <Link
-                  href={bookingHref}
-                  className="rounded-xl bg-secondary px-3.5 py-2 text-sm font-extrabold text-secondary-foreground no-underline">
+                <button
+                  type="button"
+                  onClick={() => openGatedPath(bookingHref)}
+                  className="rounded-xl bg-secondary px-3.5 py-2 text-sm font-extrabold text-secondary-foreground">
                   {post.linked_service_id || post.linked_service
                     ? "Reservar"
                     : "Ver perfil"}
-                </Link>
+                </button>
               )}
               {groupSessionId && (
-                <Link
-                  href={`/group-sessions/${groupSessionId}`}
-                  className="rounded-xl bg-primary px-3.5 py-2 text-sm font-extrabold text-white no-underline">
+                <button
+                  type="button"
+                  onClick={() => openGatedPath(`/group-sessions/${groupSessionId}`)}
+                  className="rounded-xl bg-primary px-3.5 py-2 text-sm font-extrabold text-white">
                   Ver sesión grupal
-                </Link>
+                </button>
               )}
               {isOwner && (
                 <button

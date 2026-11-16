@@ -2,7 +2,10 @@
 
 import {useState} from "react";
 import Link from "next/link";
+import {useRouter} from "next/navigation";
 import {ContentActions} from "@/components/moderation/ContentActions";
+import {useAuth} from "@/features/auth/hooks/useAuth";
+import {loginHref} from "@/lib/authGate";
 import {
   postAuthorAvatar,
   postAuthorName,
@@ -36,6 +39,8 @@ export function PostCard({
   onLike?: (id: number) => Promise<void> | void;
   onBlocked?: (userId: number) => void;
 }) {
+  const {isAuthenticated} = useAuth();
+  const router = useRouter();
   const urls = postMediaUrls(post);
   const [slide, setSlide] = useState(0);
   const [liking, setLiking] = useState(false);
@@ -48,6 +53,22 @@ export function PostCard({
   const avatar = postAuthorAvatar(post);
   const activeUrl = urls[Math.min(slide, Math.max(urls.length - 1, 0))];
   const showMedia = Boolean(activeUrl) && !imgFailed;
+  const profilePath = profileId ? `/profile/${profileId}` : null;
+
+  const requireLogin = (next: string) => {
+    router.push(loginHref(next));
+  };
+
+  const openProfile = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    if (!profilePath) return;
+    if (!isAuthenticated) {
+      requireLogin(profilePath);
+      return;
+    }
+    router.push(profilePath);
+  };
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -65,23 +86,27 @@ export function PostCard({
     <article
       className="overflow-hidden rounded-[18px] border border-[#ccd8ce] bg-white shadow-[0_10px_28px_-16px_rgba(18,33,26,0.28)]">
       <div className="flex items-center gap-3 px-3.5 py-3">
-        <div
-          className="h-10 w-10 shrink-0 rounded-full ring-2 ring-[#d8eae0]"
+        <button
+          type="button"
+          onClick={openProfile}
+          className="h-10 w-10 shrink-0 rounded-full border-0 p-0 ring-2 ring-[#d8eae0]"
           style={{
             background: avatar
               ? `center/cover url(${avatar})`
               : `linear-gradient(135deg, ${MAIN}, #1F3328)`,
+            cursor: profilePath ? "pointer" : "default",
           }}
-          aria-hidden
+          aria-label={profilePath ? `Ver perfil de ${authorName}` : undefined}
         />
         <div className="min-w-0 flex-1">
-          {profileId ? (
-            <Link
-              href={`/profile/${profileId}`}
-              className="block truncate text-[14px] font-extrabold no-underline"
+          {profilePath ? (
+            <button
+              type="button"
+              onClick={openProfile}
+              className="block w-full truncate border-0 bg-transparent p-0 text-left text-[14px] font-extrabold"
               style={{color: INK}}>
               {authorName}
-            </Link>
+            </button>
           ) : (
             <span className="block truncate text-[14px] font-extrabold" style={{color: INK}}>
               {authorName}
@@ -200,12 +225,13 @@ export function PostCard({
           {post.comments_count != null ? ` · ${post.comments_count}` : ""}
         </Link>
 
-        {profileId ? (
-          <Link
-            href={`/profile/${profileId}`}
+        {profilePath ? (
+          <button
+            type="button"
+            onClick={openProfile}
             className="nabbi-btn nabbi-btn-accent ml-auto !px-3.5 !py-2 !text-[13px]">
             Reservar
-          </Link>
+          </button>
         ) : null}
       </div>
     </article>

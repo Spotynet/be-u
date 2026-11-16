@@ -1,12 +1,12 @@
 "use client";
 
 import {useState} from "react";
-import Link from "next/link";
 import {useRouter} from "next/navigation";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useFeed} from "@/features/posts/hooks/useFeed";
 import {PostCard} from "@/components/posts/PostCard";
 import {CategoryChipBar} from "@/components/marketplace";
+import {loginHref} from "@/lib/authGate";
 import {postAuthorUserId} from "@/lib/posts";
 
 export default function FeedPage() {
@@ -16,12 +16,24 @@ export default function FeedPage() {
   const {isAuthenticated} = useAuth();
   const router = useRouter();
 
+  const requireLogin = (next: string) => {
+    router.push(loginHref(next));
+  };
+
   const handleLike = async (id: number) => {
     if (!isAuthenticated) {
-      router.push(`/login?next=${encodeURIComponent("/feed")}`);
+      requireLogin("/feed");
       return;
     }
     await toggleLike(id);
+  };
+
+  const handleCreatePost = () => {
+    if (!isAuthenticated) {
+      requireLogin("/posts/create");
+      return;
+    }
+    router.push("/posts/create");
   };
 
   const visiblePosts = posts.filter((post) => {
@@ -44,11 +56,12 @@ export default function FeedPage() {
               Ideas, trabajos y novedades de profesionales y lugares en nabbi.
             </p>
           </div>
-          <Link
-            href="/posts/create"
+          <button
+            type="button"
+            onClick={handleCreatePost}
             className="nabbi-btn nabbi-btn-accent shrink-0 !px-4 !py-2.5 !text-[13px]">
             + Crear post
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -106,9 +119,12 @@ export default function FeedPage() {
           <p className="mt-2 mb-5 text-sm leading-relaxed text-[#3d6050]">
             Sé el primero en compartir un trabajo, tip o novedad con la comunidad.
           </p>
-          <Link href="/posts/create" className="nabbi-btn nabbi-btn-primary inline-flex">
+          <button
+            type="button"
+            onClick={handleCreatePost}
+            className="nabbi-btn nabbi-btn-primary inline-flex">
             Crear la primera
-          </Link>
+          </button>
         </div>
       )}
 

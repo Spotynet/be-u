@@ -113,6 +113,18 @@ export function AppShell({children}: {children: React.ReactNode}) {
     {href: "/me", label: "Perfil"},
   ];
 
+  const guestMobileItems: NavItem[] = [
+    {
+      href: "/feed",
+      label: "Feed",
+      match: (p) => p.startsWith("/post") || p.startsWith("/posts"),
+    },
+    {href: "/explore", label: "Explorar"},
+    {href: "/login", label: "Entrar"},
+  ];
+
+  const bottomItems = isAuthenticated ? mobileItems : guestMobileItems;
+
   const onSearch = (e: FormEvent) => {
     e.preventDefault();
     const q = search.trim();
@@ -306,45 +318,41 @@ export function AppShell({children}: {children: React.ReactNode}) {
         className={[
           "nabbi-shell-main nabbi-shell-inner box-border min-w-0 flex-1 px-3 sm:px-4",
           wideBrowse ? "py-3 sm:py-4" : "py-4",
-          isAuthenticated
-            ? "pb-[calc(88px+env(safe-area-inset-bottom))]"
-            : "pb-8",
+          "pb-[calc(88px+env(safe-area-inset-bottom))]",
         ].join(" ")}>
         {children}
       </main>
 
-      {isAuthenticated ? (
-        <nav
-          className="nabbi-bottom-nav fixed bottom-0 left-0 right-0 z-40 grid border-t border-card-border bg-card"
-          style={{
-            gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0, 1fr))`,
-            paddingBottom: "env(safe-area-inset-bottom)",
-          }}>
-          {mobileItems.map((item) => {
-            const active =
-              pathname === item.href ||
-              pathname.startsWith(item.href + "/") ||
-              item.match?.(pathname);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={[
-                  "relative px-0.5 py-2.5 text-center text-[11px] no-underline",
-                  active ? "font-extrabold" : "font-semibold",
-                ].join(" ")}
-                style={{color: active ? "#558367" : "#3d6050"}}>
-                {item.shortLabel || item.label}
-                {item.badge && item.badge > 0 ? (
-                  <span className="absolute right-[12%] top-1 min-w-[14px] rounded-full bg-rose-600 px-1 text-[9px] font-extrabold text-white">
-                    {item.badge > 9 ? "9+" : item.badge}
-                  </span>
-                ) : null}
-              </Link>
-            );
-          })}
-        </nav>
-      ) : null}
+      <nav
+        className="nabbi-bottom-nav fixed bottom-0 left-0 right-0 z-40 grid border-t border-card-border bg-card"
+        style={{
+          gridTemplateColumns: `repeat(${bottomItems.length}, minmax(0, 1fr))`,
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}>
+        {bottomItems.map((item) => {
+          const active =
+            pathname === item.href ||
+            pathname.startsWith(item.href + "/") ||
+            item.match?.(pathname);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={[
+                "relative px-0.5 py-2.5 text-center text-[11px] no-underline",
+                active ? "font-extrabold" : "font-semibold",
+              ].join(" ")}
+              style={{color: active ? "#558367" : "#3d6050"}}>
+              {item.shortLabel || item.label}
+              {item.badge && item.badge > 0 ? (
+                <span className="absolute right-[12%] top-1 min-w-[14px] rounded-full bg-rose-600 px-1 text-[9px] font-extrabold text-white">
+                  {item.badge > 9 ? "9+" : item.badge}
+                </span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }
