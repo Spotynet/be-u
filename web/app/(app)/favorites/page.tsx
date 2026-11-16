@@ -1,17 +1,12 @@
 "use client";
 
-import {PageContainer} from "@/components/layout/PageContainer";
-
 import {useCallback, useEffect, useState} from "react";
 import Link from "next/link";
 import {useRouter} from "next/navigation";
+import {ProviderCard, SectionHeader} from "@/components/marketplace";
 import {useFavorites} from "@/features/favorites/hooks/useFavorites";
 import {postApi, errorUtils} from "@/lib/api";
 import {PostCard} from "@/components/posts/PostCard";
-
-const INK = "#12211A";
-const MAIN = "#558367";
-const DARK = "#1F3328";
 
 export default function FavoritesPage() {
   const {favorites, loading, error, removeFavorite} = useFavorites();
@@ -40,63 +35,62 @@ export default function FavoritesPage() {
     if (tab === "posts") loadLiked();
   }, [tab, loadLiked]);
 
-  const providerHref = (f: {public_profile_id?: number | null; content_object_id?: number}) => {
+  const providerHref = (f: {
+    public_profile_id?: number | null;
+    content_object_id?: number;
+  }) => {
     const publicId = f.public_profile_id;
     if (publicId) return `/profile/${publicId}`;
-    // Fallback only if API omitted public_profile_id
     return `/explore`;
   };
 
   return (
-    <PageContainer size="md">
-      <h1 className="nabbi-page-title">Favoritos</h1>
-      <p className="nabbi-page-sub">
-        Proveedores guardados y publicaciones que te gustaron.
-      </p>
+    <div className="nabbi-page mx-auto w-full max-w-[1100px]">
+      <SectionHeader
+        title="Favoritos"
+        subtitle="Proveedores guardados y publicaciones que te gustaron."
+      />
 
-      <div style={{display: "flex", gap: 8, marginBottom: 18}}>
-        <Chip active={tab === "providers"} onClick={() => setTab("providers")} label="Proveedores" />
-        <Chip active={tab === "posts"} onClick={() => setTab("posts")} label="Posts" />
+      <div className="mb-5 flex flex-wrap gap-2">
+        <TabChip
+          active={tab === "providers"}
+          onClick={() => setTab("providers")}
+          label="Proveedores"
+        />
+        <TabChip
+          active={tab === "posts"}
+          onClick={() => setTab("posts")}
+          label="Posts"
+        />
       </div>
 
       {tab === "providers" && (
         <>
-          {loading && <p style={{color: "#64748b"}}>Cargando…</p>}
+          {loading && <p className="text-foreground-muted">Cargando…</p>}
           {error && (
-            <div style={{background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, padding: 12, color: "#dc2626"}}>
+            <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-red-600">
               {error}
             </div>
           )}
           {!loading && favorites.length === 0 && (
-            <p style={{color: "#64748b"}}>
+            <p className="text-foreground-muted">
               Aún no tienes favoritos.{" "}
-              <Link href="/explore" style={{color: MAIN, fontWeight: 700}}>
+              <Link href="/explore" className="font-bold text-primary">
                 Explorar
               </Link>
             </p>
           )}
-          <div style={{display: "flex", flexDirection: "column", gap: 10}}>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {favorites.map((f) => (
-              <div
-                key={f.id}
-                className="nabbi-stack-row"
-                style={{
-                  background: "white",
-                  borderRadius: 14,
-                  border: "1px solid rgba(18,33,26,0.08)",
-                  padding: 14,
-                  justifyContent: "space-between",
-                }}>
-                <Link
+              <div key={f.id} className="relative">
+                <ProviderCard
+                  provider={{
+                    id: f.public_profile_id || f.content_object_id || f.id,
+                    name: f.favorite_name || `Favorito #${f.content_object_id}`,
+                    profile_type: f.favorite_type,
+                  }}
                   href={providerHref(f)}
-                  style={{textDecoration: "none", color: INK, flex: "1 1 160px", minWidth: 0}}>
-                  <div style={{fontWeight: 800, wordBreak: "break-word"}}>
-                    {f.favorite_name || `Favorito #${f.content_object_id}`}
-                  </div>
-                  <div style={{fontSize: 12, color: MAIN, fontWeight: 700, marginTop: 2}}>
-                    {f.favorite_type === "PLACE" ? "Lugar" : "Profesional"}
-                  </div>
-                </Link>
+                />
                 <button
                   type="button"
                   disabled={removingId === f.id}
@@ -108,18 +102,7 @@ export default function FavoritesPage() {
                       setRemovingId(null);
                     }
                   }}
-                  style={{
-                    border: "1.5px solid #e11d48",
-                    background: "transparent",
-                    color: "#e11d48",
-                    borderRadius: 10,
-                    padding: "8px 12px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    fontSize: 13,
-                    flexShrink: 0,
-                    opacity: removingId === f.id ? 0.6 : 1,
-                  }}>
+                  className="absolute right-2 top-2 z-10 rounded-lg border border-rose-500 bg-card/95 px-2.5 py-1.5 text-[12px] font-bold text-rose-600 disabled:opacity-60">
                   Quitar
                 </button>
               </div>
@@ -130,16 +113,18 @@ export default function FavoritesPage() {
 
       {tab === "posts" && (
         <>
-          {postsLoading && <p style={{color: "#64748b"}}>Cargando…</p>}
+          {postsLoading && <p className="text-foreground-muted">Cargando…</p>}
           {postsError && (
-            <div style={{background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, padding: 12, color: "#dc2626"}}>
+            <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-red-600">
               {postsError}
             </div>
           )}
           {!postsLoading && likedPosts.length === 0 && (
-            <p style={{color: "#64748b"}}>Aún no has dado like a ninguna publicación.</p>
+            <p className="text-foreground-muted">
+              Aún no has dado like a ninguna publicación.
+            </p>
           )}
-          <div style={{display: "flex", flexDirection: "column", gap: 14}}>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {likedPosts.map((post) => (
               <PostCard
                 key={post.id}
@@ -155,38 +140,35 @@ export default function FavoritesPage() {
             <button
               type="button"
               onClick={() => router.push("/feed")}
-              style={{
-                marginTop: 16,
-                border: "none",
-                background: "transparent",
-                color: MAIN,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}>
+              className="mt-4 border-0 bg-transparent font-bold text-primary">
               Ir al feed →
             </button>
           )}
         </>
       )}
-    </PageContainer>
+    </div>
   );
 }
 
-function Chip({label, active, onClick}: {label: string; active: boolean; onClick: () => void}) {
+function TabChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      style={{
-        border: active ? `1.5px solid ${MAIN}` : "1.5px solid rgba(85,131,103,0.2)",
-        background: active ? "rgba(85,131,103,0.12)" : "white",
-        color: DARK,
-        borderRadius: 999,
-        padding: "7px 14px",
-        fontSize: 13,
-        fontWeight: 700,
-        cursor: "pointer",
-      }}>
+      className={[
+        "rounded-full px-3.5 py-1.5 text-[13px] font-bold",
+        active
+          ? "border border-primary bg-primary text-primary-foreground"
+          : "border border-card-border bg-background text-foreground hover:bg-background-secondary",
+      ].join(" ")}>
       {label}
     </button>
   );

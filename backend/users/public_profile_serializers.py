@@ -1,8 +1,22 @@
 from rest_framework import serializers
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from .models import PublicProfile, User, ProfessionalProfile, PlaceProfile
 from .profile_models import AvailabilitySchedule
 from .profile_serializers import AvailabilityScheduleSerializer
+
+
+def absolute_user_image_url(user, request=None):
+    """Return an absolute URL for user.image, preserving S3 signatures."""
+    if not user or not getattr(user, "image", None):
+        return None
+    image_url = user.image.url
+    if getattr(settings, "USE_S3", False):
+        # S3 URLs are already absolute and signed — do not rebuild
+        return image_url
+    if not image_url.startswith("http") and request is not None:
+        return request.build_absolute_uri(image_url)
+    return image_url
 
 
 class PublicProfileSerializer(serializers.ModelSerializer):
@@ -24,25 +38,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
     
     def get_user_image(self, obj):
         """Get user image URL with proper absolute URL handling"""
-        if obj.user and obj.user.image:
-            from django.conf import settings
-            
-            # Get the URL from the image field
-            image_url = obj.user.image.url
-            
-            # For S3, the .url property already includes signed query params if AWS_QUERYSTRING_AUTH is True
-            # Don't use build_absolute_uri() as it can break the signature
-            if hasattr(settings, 'USE_S3') and settings.USE_S3:
-                # S3 URLs are already absolute and signed - return as-is
-                return image_url
-            else:
-                # For local storage, build absolute URL
-                if not image_url.startswith('http'):
-                    request = self.context.get('request')
-                    if request:
-                        return request.build_absolute_uri(image_url)
-                return image_url
-        return None
+        return absolute_user_image_url(obj.user, self.context.get("request"))
     
     class Meta:
         model = PublicProfile
@@ -251,6 +247,7 @@ class PublicProfileListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for listing public profiles"""
     
     user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_image = serializers.SerializerMethodField()
     distance = serializers.SerializerMethodField()
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
@@ -258,10 +255,13 @@ class PublicProfileListSerializer(serializers.ModelSerializer):
     class Meta:
         model = PublicProfile
         fields = [
-            'id', 'user_email', 'profile_type', 'name',
-            'category', 'city', 'rating', 'has_calendar', 'created_at',
-            'latitude', 'longitude', 'distance'
+            'id', 'user_email', 'user_image', 'profile_type', 'name',
+            'category', 'city', 'bio', 'description', 'images', 'rating',
+            'has_calendar', 'created_at', 'latitude', 'longitude', 'distance'
         ]
+
+    def get_user_image(self, obj):
+        return absolute_user_image_url(obj.user, self.context.get("request"))
 
     def get_distance(self, obj):
         return getattr(obj, "distance_km", None)

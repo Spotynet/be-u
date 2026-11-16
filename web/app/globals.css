@@ -502,7 +502,7 @@ body {
 }
 
 .nabbi-page-sub {
-  color: #64748b;
+  color: var(--color-foreground-secondary);
   margin: 0 0 20px;
   font-size: 14px;
   line-height: 1.45;
@@ -547,6 +547,73 @@ body {
 
   .nabbi-bottom-nav {
     display: none !important;
+  }
+
+  /* No bottom-nav reserve on tablet/desktop */
+  .nabbi-shell-main {
+    padding-bottom: 32px !important;
+  }
+}
+
+/* Marketplace helpers */
+.nabbi-shell-inner {
+  max-width: 1360px;
+  width: 100%;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.nabbi-explore-split {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 1024px) {
+  .nabbi-explore-split {
+    display: grid;
+    grid-template-columns: minmax(320px, 40%) 1fr;
+    gap: 20px;
+    align-items: start;
+    min-height: calc(100vh - 140px);
+  }
+
+  .nabbi-explore-map {
+    position: sticky;
+    top: 72px;
+    height: calc(100vh - 100px);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+}
+
+.nabbi-store-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 1024px) {
+  .nabbi-store-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 28px;
+    align-items: start;
+  }
+}
+
+.nabbi-booking-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 1024px) {
+  .nabbi-booking-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 28px;
+    align-items: start;
   }
 }
 

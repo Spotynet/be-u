@@ -398,11 +398,18 @@ function FaqItem({icon: Icon, question, answer, isOpen, onToggle}:{icon: HeroIco
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const {isAuthenticated, isLoading} = useAuth();
+  const {isAuthenticated, isInitializing} = useAuth();
   const router = useRouter();
   const [openFaq, setOpenFaq] = useState<number|null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const appHome = "/feed";
+  const goAppHome = () => {
+    const home =
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 640px)").matches
+        ? "/explore"
+        : "/feed";
+    router.push(home);
+  };
 
   // Close mobile menu on resize to desktop
   useEffect(() => {
@@ -437,9 +444,9 @@ export default function Home() {
 
             {/* Right actions */}
             <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-              {!isLoading && isAuthenticated ? (
+              {!isInitializing && isAuthenticated ? (
                 <button
-                  onClick={()=>router.push(appHome)}
+                  onClick={goAppHome}
                   style={{background:ACCENT,color:INK,borderRadius:999,fontWeight:800,border:"none",cursor:"pointer",transition:"opacity 0.15s,transform 0.15s",whiteSpace:"nowrap",padding:"9px 20px",fontSize:14,boxShadow:`0 2px 14px rgba(${ACCENT_RGB},0.4)`}}
                   onMouseEnter={e=>{e.currentTarget.style.opacity="0.85";e.currentTarget.style.transform="scale(1.04)";}}
                   onMouseLeave={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1)";}}>
@@ -505,8 +512,8 @@ export default function Home() {
                   </a>
                 ))}
                 <div style={{display:"flex",gap:8,marginTop:14}}>
-                  {!isLoading && isAuthenticated ? (
-                    <button onClick={()=>{router.push(appHome);setMobileMenuOpen(false);}}
+                  {!isInitializing && isAuthenticated ? (
+                    <button onClick={()=>{goAppHome();setMobileMenuOpen(false);}}
                       style={{flex:1,borderRadius:12,padding:"12px 0",fontWeight:800,fontSize:15,background:ACCENT,color:INK,border:"none",cursor:"pointer",boxShadow:`0 4px 14px rgba(${ACCENT_RGB},0.4)`}}>
                       Ir a la app
                     </button>

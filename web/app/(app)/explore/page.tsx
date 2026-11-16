@@ -1,30 +1,70 @@
 "use client";
 
-import {useCallback, useEffect, useRef, useState} from "react";
+import {Suspense, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import Link from "next/link";
+import {useRouter, useSearchParams} from "next/navigation";
 import {providerApi, errorUtils} from "@/lib/api";
-import {MAIN_CATEGORIES} from "@/constants/categories";
+import {
+  CategoryChipBar,
+  ProviderCard,
+  SectionHeader,
+} from "@/components/marketplace";
 import {CDMX_CENTER, getGoogleMapsBrowserKey, loadGoogleMapsScript} from "@/lib/googleMapsLoader";
 
-const DARK = "#1F3328";
-const MAIN = "#558367";
-const INK = "#12211A";
+function ExplorePageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialQ = searchParams.get("q") || "";
+  const initialCategory = searchParams.get("category") || "";
+  const initialNearby = searchParams.get("nearby") === "1";
 
-export default function ExplorePage() {
   const [profiles, setProfiles] = useState<any[]>([]);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<string>("");
+  const [search, setSearch] = useState(initialQ);
+  const [category, setCategory] = useState<string>(initialCategory);
   const [profileType, setProfileType] = useState<"" | "PROFESSIONAL" | "PLACE">("");
-  const [view, setView] = useState<"list" | "map">("list");
-  const [nearby, setNearby] = useState(false);
+  const [mobileView, setMobileView] = useState<"list" | "map">("list");
+  const [nearby, setNearby] = useState(initialNearby);
   const [coords, setCoords] = useState<{lat: number; lng: number} | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
   const [selected, setSelected] = useState<any | null>(null);
+  const [isDesktop, setIsDesktop] = useState(false);
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const mapsApi = useRef<any>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const apply = () => setIsDesktop(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  // Sync URL → state when header search navigates here
+  useEffect(() => {
+    setSearch(searchParams.get("q") || "");
+    const cat = searchParams.get("category");
+    if (cat != null) setCategory(cat);
+    if (searchParams.get("nearby") === "1") setNearby(true);
+  }, [searchParams]);
+
+  const syncUrl = useCallback(
+    (next: {q?: string; category?: string; nearby?: boolean}) => {
+      const params = new URLSearchParams();
+      const q = next.q ?? search;
+      const cat = next.category ?? category;
+      const near = next.nearby ?? nearby;
+      if (q.trim()) params.set("q", q.trim());
+      if (cat) params.set("category", cat);
+      if (near) params.set("nearby", "1");
+      const qs = params.toString();
+      router.replace(qs ? `/explore?${qs}` : "/explore", {scroll: false});
+    },
+    [router, search, category, nearby]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,6 +102,7 @@ export default function ExplorePage() {
       (pos) => {
         setCoords({lat: pos.coords.latitude, lng: pos.coords.longitude});
         setNearby(true);
+        syncUrl({nearby: true});
       },
       () => {
         setError("No pudimos obtener tu ubicación. Revisa permisos del navegador.");
@@ -72,7 +113,14 @@ export default function ExplorePage() {
   };
 
   useEffect(() => {
-    if (view !== "map") return;
+    if (nearby && !coords) enableNearby();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nearby]);
+
+  const showMap = isDesktop || mobileView === "map";
+
+  useEffect(() => {
+    if (!showMap) return;
     const key = getGoogleMapsBrowserKey();
     if (!key) {
       setMapError("Falta NEXT_PUBLIC_GOOGLE_MAPS_API_KEY para el mapa.");
@@ -83,6 +131,7 @@ export default function ExplorePage() {
       try {
         setMapError(null);
         const maps = await loadGoogleMapsScript(key);
+        mapsApi.current = maps;
         if (cancelled || !mapRef.current) return;
         const center = coords || CDMX_CENTER;
         if (!mapInstance.current) {
@@ -118,191 +167,221 @@ export default function ExplorePage() {
     return () => {
       cancelled = true;
     };
-  }, [view, profiles, coords, nearby]);
+  }, [showMap, profiles, coords, nearby]);
+
+  // Focus map when selecting a card
+  useEffect(() => {
+    if (!selected || !mapInstance.current) return;
+    const lat = Number(selected.latitude);
+    const lng = Number(selected.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    mapInstance.current.panTo({lat, lng});
+    mapInstance.current.setZoom(Math.max(mapInstance.current.getZoom() || 12, 14));
+  }, [selected]);
+
+  const cardData = useMemo(
+    () =>
+      profiles.map((p) => ({
+        ...p,
+        display_name: p.name,
+        user_image: p.user_image,
+        photo_url: p.user_image || p.images?.[0],
+        cover_photo: p.images?.[0] || p.user_image,
+        city: p.city,
+        bio: p.bio || p.description,
+      })),
+    [profiles]
+  );
+
+  const listContent = (
+    <div className="min-w-0">
+      {loading && (
+        <p className="text-sm text-foreground-muted">Cargando…</p>
+      )}
+      {error && (
+        <div className="mb-3 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-600">
+          {error}
+        </div>
+      )}
+      {!loading && !error && profiles.length === 0 && (
+        <p className="text-sm text-foreground-muted">
+          No encontramos perfiles con esos filtros.
+        </p>
+      )}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+        {cardData.map((p) =>
+          isDesktop ? (
+            <div key={p.id} className="relative">
+              <ProviderCard
+                provider={p}
+                selected={selected?.id === p.id}
+                onSelect={() => setSelected(p)}
+              />
+              <Link
+                href={`/profile/${p.id}`}
+                className="absolute bottom-3 right-3 z-10 rounded-lg bg-secondary px-2.5 py-1.5 text-[11px] font-extrabold text-secondary-foreground shadow-sm no-underline hover:bg-secondary-hover">
+                Ver perfil
+              </Link>
+            </div>
+          ) : (
+            <ProviderCard key={p.id} provider={p} href={`/profile/${p.id}`} />
+          )
+        )}
+      </div>
+    </div>
+  );
+
+  const mapPane = (
+    <div className="nabbi-explore-map relative min-h-[420px] overflow-hidden rounded-2xl border border-card-border bg-[#e8efe9] lg:min-h-0">
+      {mapError && (
+        <div className="absolute inset-x-3 top-3 z-10 rounded-xl border border-orange-300 bg-orange-50 p-3 text-sm text-orange-800">
+          {mapError} Mientras tanto usa la vista Lista.
+        </div>
+      )}
+      <div ref={mapRef} className="absolute inset-0 h-full w-full" />
+      {selected && (
+        <div className="absolute bottom-3 left-3 right-3 z-10 flex items-center justify-between gap-3 rounded-2xl border border-card-border bg-card p-3.5 shadow-card">
+          <div className="min-w-0">
+            <div className="truncate font-extrabold text-foreground">
+              {selected.name || selected.display_name}
+            </div>
+            <div className="text-xs font-bold text-primary">
+              {selected.profile_type === "PLACE" ? "Lugar" : "Profesional"}
+            </div>
+          </div>
+          <Link
+            href={`/profile/${selected.id}`}
+            className="shrink-0 rounded-[10px] bg-secondary px-3 py-2 text-[13px] font-extrabold text-secondary-foreground no-underline hover:bg-secondary-hover">
+            Ver perfil
+          </Link>
+        </div>
+      )}
+    </div>
+  );
 
   return (
-    <div className="nabbi-page" style={{width: "100%", maxWidth: 1100, margin: "0 auto"}}>
-      <h1 className="nabbi-page-title">Explorar</h1>
-      <p className="nabbi-page-sub">Encuentra profesionales y lugares cerca de ti.</p>
+    <div className="nabbi-page w-full">
+      <SectionHeader
+        title="Explorar"
+        subtitle="Encuentra profesionales y lugares cerca de ti."
+      />
 
-      <div style={{display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12}}>
-        <Chip active={view === "list"} onClick={() => setView("list")} label="Lista" />
-        <Chip active={view === "map"} onClick={() => setView("map")} label="Mapa" />
-        <Chip
-          active={nearby}
-          onClick={() => {
-            if (nearby) {
-              setNearby(false);
-            } else {
-              enableNearby();
-            }
-          }}
-          label={nearby ? "Cerca de mí ✓" : "Cerca de mí"}
-        />
-      </div>
-
-      <div style={{display: "flex", flexDirection: "column", gap: 12, marginBottom: 16}}>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por nombre o ciudad…"
-          style={{
-            width: "100%",
-            padding: "12px 14px",
-            borderRadius: 12,
-            border: "1.5px solid rgba(85,131,103,0.22)",
-            fontSize: 15,
-            outline: "none",
-            boxSizing: "border-box",
-          }}
-        />
-        <div style={{display: "flex", flexWrap: "wrap", gap: 8}}>
-          <Chip active={!category} onClick={() => setCategory("")} label="Todas" />
-          {MAIN_CATEGORIES.map((c) => (
-            <Chip key={c.id} active={category === c.id} onClick={() => setCategory(c.id)} label={c.name} />
-          ))}
-        </div>
-        <div style={{display: "flex", flexWrap: "wrap", gap: 8}}>
-          <Chip active={!profileType} onClick={() => setProfileType("")} label="Todos" />
-          <Chip
+      <div className="sticky top-[68px] z-20 mb-4 space-y-3 rounded-2xl border border-card-border bg-card px-3 py-3 shadow-sm sm:px-3.5">
+        <div className="nabbi-stack-row flex-nowrap overflow-x-auto pb-0.5">
+          {!isDesktop && (
+            <>
+              <FilterChip
+                active={mobileView === "list"}
+                onClick={() => setMobileView("list")}
+                label="Lista"
+              />
+              <FilterChip
+                active={mobileView === "map"}
+                onClick={() => setMobileView("map")}
+                label="Mapa"
+              />
+            </>
+          )}
+          <FilterChip
+            active={nearby}
+            onClick={() => {
+              if (nearby) {
+                setNearby(false);
+                syncUrl({nearby: false});
+              } else {
+                enableNearby();
+              }
+            }}
+            label={nearby ? "Cerca de mí ✓" : "Cerca de mí"}
+          />
+          <FilterChip
+            active={!profileType}
+            onClick={() => setProfileType("")}
+            label="Todos"
+          />
+          <FilterChip
             active={profileType === "PROFESSIONAL"}
             onClick={() => setProfileType("PROFESSIONAL")}
             label="Profesionales"
           />
-          <Chip active={profileType === "PLACE"} onClick={() => setProfileType("PLACE")} label="Lugares" />
+          <FilterChip
+            active={profileType === "PLACE"}
+            onClick={() => setProfileType("PLACE")}
+            label="Lugares"
+          />
         </div>
+
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onBlur={() => syncUrl({q: search})}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") syncUrl({q: search});
+          }}
+          placeholder="Buscar por nombre o ciudad…"
+          className="w-full rounded-xl border-[1.5px] border-primary/25 bg-card px-3.5 py-3 text-[15px] text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+        />
+
+        <CategoryChipBar
+          value={category}
+          onChange={(id) => {
+            setCategory(id);
+            syncUrl({category: id});
+          }}
+          allLabel="Todas"
+        />
       </div>
 
-      {loading && <p style={{color: "#64748b"}}>Cargando…</p>}
-      {error && (
-        <div style={{background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, padding: 12, color: "#dc2626", marginBottom: 12}}>
-          {error}
+      {/* Desktop split / mobile toggle */}
+      {isDesktop ? (
+        <div className="nabbi-explore-split">
+          <div className="max-h-[calc(100vh-160px)] overflow-y-auto pr-1">
+            {listContent}
+          </div>
+          {mapPane}
         </div>
-      )}
-
-      {view === "map" && (
-        <div style={{marginBottom: 16}}>
-          {mapError && (
-            <div style={{background: "#fff7ed", border: "1px solid #fdba74", borderRadius: 12, padding: 12, color: "#c2410c", marginBottom: 10, fontSize: 14}}>
-              {mapError} Mientras tanto usa la vista Lista.
-            </div>
-          )}
-          <div
-            ref={mapRef}
-            style={{
-              width: "100%",
-              height: 420,
-              borderRadius: 16,
-              border: "1px solid rgba(18,33,26,0.08)",
-              background: "#e8efe9",
-            }}
-          />
-          {selected && (
-            <div
-              style={{
-                marginTop: 10,
-                background: "white",
-                borderRadius: 14,
-                border: "1px solid rgba(18,33,26,0.08)",
-                padding: 14,
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 12,
-                alignItems: "center",
-              }}>
-              <div>
-                <div style={{fontWeight: 800, color: INK}}>{selected.name}</div>
-                <div style={{fontSize: 12, color: MAIN, fontWeight: 700}}>
-                  {selected.profile_type === "PLACE" ? "Lugar" : "Profesional"}
-                </div>
-              </div>
-              <Link
-                href={`/profile/${selected.id}`}
-                style={{
-                  background: MAIN,
-                  color: "white",
-                  textDecoration: "none",
-                  borderRadius: 10,
-                  padding: "8px 12px",
-                  fontWeight: 700,
-                  fontSize: 13,
-                }}>
-                Ver perfil
-              </Link>
-            </div>
-          )}
-        </div>
-      )}
-
-      {view === "list" && !loading && !error && profiles.length === 0 && (
-        <p style={{color: "#64748b"}}>No encontramos perfiles con esos filtros.</p>
-      )}
-
-      {view === "list" && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-            gap: 14,
-          }}>
-          {profiles.map((p) => (
-            <Link
-              key={p.id}
-              href={`/profile/${p.id}`}
-              style={{
-                textDecoration: "none",
-                background: "white",
-                borderRadius: 16,
-                border: "1px solid rgba(18,33,26,0.08)",
-                overflow: "hidden",
-                color: INK,
-              }}>
-              <div
-                style={{
-                  height: 120,
-                  background: `linear-gradient(135deg, ${MAIN}33, ${DARK})`,
-                  backgroundImage: p.profile_photo || p.images?.[0]
-                    ? `url(${p.profile_photo || p.images[0]})`
-                    : undefined,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-              />
-              <div style={{padding: 14}}>
-                <div style={{fontWeight: 800, fontSize: 16, marginBottom: 4}}>{p.name || "Sin nombre"}</div>
-                <div style={{fontSize: 12, color: MAIN, fontWeight: 700, marginBottom: 4}}>
-                  {p.profile_type === "PLACE" ? "Lugar" : "Profesional"}
-                </div>
-                {(p.city || p.street) && (
-                  <div style={{fontSize: 13, color: "#64748b"}}>
-                    {[p.city, p.street].filter(Boolean).join(" · ")}
-                  </div>
-                )}
-              </div>
-            </Link>
-          ))}
-        </div>
+      ) : mobileView === "map" ? (
+        <div className="min-h-[70vh]">{mapPane}</div>
+      ) : (
+        listContent
       )}
     </div>
   );
 }
 
-function Chip({label, active, onClick}: {label: string; active: boolean; onClick: () => void}) {
+function FilterChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      style={{
-        border: active ? `1.5px solid ${MAIN}` : "1.5px solid rgba(85,131,103,0.2)",
-        background: active ? "rgba(85,131,103,0.12)" : "white",
-        color: DARK,
-        borderRadius: 999,
-        padding: "7px 14px",
-        fontSize: 13,
-        fontWeight: 700,
-        cursor: "pointer",
-      }}>
+      className={[
+        "shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors",
+        active
+          ? "border border-primary bg-primary text-primary-foreground"
+          : "border border-card-border bg-background text-foreground hover:bg-background-secondary",
+      ].join(" ")}>
       {label}
     </button>
+  );
+}
+
+export default function ExplorePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="nabbi-page p-4 text-sm text-foreground-muted">
+          Cargando explorar…
+        </div>
+      }>
+      <ExplorePageInner />
+    </Suspense>
   );
 }

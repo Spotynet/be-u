@@ -147,7 +147,14 @@ export function PostCard({
         )}
       </Link>
 
-      <div style={{padding: "8px 14px 14px", display: "flex", alignItems: "center", gap: 12}}>
+      <div
+        style={{
+          padding: "8px 14px 14px",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap",
+        }}>
         <button
           type="button"
           onClick={handleLike}
@@ -162,9 +169,32 @@ export function PostCard({
           }}>
           {liked ? "♥" : "♡"} {post.likes_count ?? 0}
         </button>
-        <Link href={`/post/${post.id}`} style={{color: "#64748b", fontWeight: 700, fontSize: 14, textDecoration: "none"}}>
+        <Link
+          href={`/post/${post.id}`}
+          style={{
+            color: "#64748b",
+            fontWeight: 700,
+            fontSize: 14,
+            textDecoration: "none",
+          }}>
           Comentarios
         </Link>
+        {profileId ? (
+          <Link
+            href={`/profile/${profileId}`}
+            style={{
+              marginLeft: "auto",
+              background: "#F6C531",
+              color: INK,
+              textDecoration: "none",
+              fontWeight: 800,
+              fontSize: 13,
+              padding: "8px 12px",
+              borderRadius: 10,
+            }}>
+            Reservar
+          </Link>
+        ) : null}
       </div>
     </article>
   );

@@ -129,7 +129,9 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
         items = filter_by_radius(list(self.get_queryset()), latitude, longitude, radius_km)
         items.sort(key=lambda item: item.distance_km if item.distance_km is not None else float("inf"))
 
-        serializer = PublicProfileListSerializer(items, many=True)
+        serializer = PublicProfileListSerializer(
+            items, many=True, context={"request": request}
+        )
         return Response(serializer.data)
     
     @action(detail=False, methods=["get"], url_path="recommendations", permission_classes=[IsAuthenticated])
@@ -177,7 +179,9 @@ class PublicProfileViewSet(viewsets.ModelViewSet):
         # Limit results
         items = items[:limit]
         
-        serializer = PublicProfileListSerializer(items, many=True)
+        serializer = PublicProfileListSerializer(
+            items, many=True, context={"request": request}
+        )
         return Response({
             "results": serializer.data,
             "count": len(items),

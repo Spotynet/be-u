@@ -1,15 +1,29 @@
 "use client";
 
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import Link from "next/link";
-import {PageContainer} from "@/components/layout/PageContainer";
+import {SectionHeader} from "@/components/marketplace";
 import {reservationApi, errorUtils} from "@/lib/api";
 
-const INK = "#12211A";
-const MAIN = "#558367";
+const STATUS_FILTERS = [
+  {id: "", label: "Todos"},
+  {id: "PENDING", label: "Pendiente"},
+  {id: "CONFIRMED", label: "Confirmada"},
+  {id: "CANCELLED", label: "Cancelada"},
+  {id: "COMPLETED", label: "Completada"},
+] as const;
+
+function statusTone(status?: string): string {
+  const s = (status || "").toUpperCase();
+  if (s === "CONFIRMED" || s === "COMPLETED") return "text-emerald-700 bg-emerald-50";
+  if (s === "PENDING") return "text-amber-700 bg-amber-50";
+  if (s === "CANCELLED") return "text-rose-700 bg-rose-50";
+  return "text-primary bg-primary-light";
+}
 
 export default function ReservationsPage() {
   const [filter, setFilter] = useState<"upcoming" | "past">("upcoming");
+  const [status, setStatus] = useState("");
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,13 +46,18 @@ export default function ReservationsPage() {
     load();
   }, [load]);
 
-  return (
-    <PageContainer size="md">
-      <h1 className="nabbi-page-title" style={{marginBottom: 16}}>
-        Mis reservas
-      </h1>
+  const visible = useMemo(() => {
+    if (!status) return items;
+    return items.filter(
+      (r) => (r.status || "").toUpperCase() === status.toUpperCase()
+    );
+  }, [items, status]);
 
-      <div style={{display: "flex", gap: 8, marginBottom: 18}}>
+  return (
+    <div className="nabbi-page mx-auto w-full max-w-[960px]">
+      <SectionHeader title="Mis reservas" />
+
+      <div className="mb-3 flex flex-wrap gap-2">
         {(
           [
             ["upcoming", "Próximas"],
@@ -49,74 +68,77 @@ export default function ReservationsPage() {
             key={value}
             type="button"
             onClick={() => setFilter(value)}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 999,
-              border: filter === value ? `1.5px solid ${MAIN}` : "1.5px solid rgba(85,131,103,0.2)",
-              background: filter === value ? "rgba(85,131,103,0.12)" : "white",
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: "pointer",
-              color: INK,
-            }}>
+            className={[
+              "rounded-full px-4 py-2 text-[13px] font-bold",
+              filter === value
+                ? "border-[1.5px] border-primary bg-primary/15 text-foreground"
+                : "border-[1.5px] border-primary/20 bg-card text-foreground",
+            ].join(" ")}>
             {label}
           </button>
         ))}
       </div>
 
-      {loading && <p style={{color: "#64748b"}}>Cargando…</p>}
+      <div className="mb-5 flex flex-wrap gap-2">
+        {STATUS_FILTERS.map((s) => (
+          <button
+            key={s.id || "all"}
+            type="button"
+            onClick={() => setStatus(s.id)}
+            className={[
+              "rounded-full px-3 py-1.5 text-[12px] font-semibold",
+              status === s.id
+                ? "bg-primary-dark text-white"
+                : "border border-card-border bg-card text-foreground-secondary",
+            ].join(" ")}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {loading && <p className="text-foreground-muted">Cargando…</p>}
       {error && (
-        <div style={{background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, padding: 12, color: "#dc2626"}}>
+        <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-red-600">
           {error}
         </div>
       )}
-      {!loading && !error && items.length === 0 && (
-        <p style={{color: "#64748b"}}>
-          No tienes reservas {filter === "upcoming" ? "próximas" : "pasadas"}.{" "}
-          <Link href="/explore" style={{color: MAIN, fontWeight: 700}}>
+      {!loading && !error && visible.length === 0 && (
+        <p className="text-foreground-muted">
+          No tienes reservas {filter === "upcoming" ? "próximas" : "pasadas"}
+          {status ? " con ese estado" : ""}.{" "}
+          <Link href="/explore" className="font-bold text-primary">
             Explorar
           </Link>
         </p>
       )}
 
-      <div style={{display: "flex", flexDirection: "column", gap: 10}}>
-        {items.map((r) => (
+      <div className="flex flex-col gap-2.5 md:gap-3">
+        {visible.map((r) => (
           <Link
             key={r.id}
             href={`/reservation/${r.id}`}
-            style={{
-              textDecoration: "none",
-              background: "white",
-              borderRadius: 14,
-              border: "1px solid rgba(18,33,26,0.08)",
-              padding: 16,
-              color: INK,
-            }}>
-            <div style={{display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap"}}>
-              <div>
-                <div style={{fontWeight: 800, fontSize: 16}}>
+            className="block rounded-2xl border border-card-border bg-card p-4 text-foreground no-underline shadow-card transition-shadow hover:shadow-card-hover md:px-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[16px] font-extrabold">
                   {r.service_name || r.service?.name || "Servicio"}
                 </div>
-                <div style={{fontSize: 13, color: "#64748b", marginTop: 4}}>
+                <div className="mt-1 text-[13px] text-foreground-muted">
                   {r.provider_name || r.provider?.name || ""}
                   {r.date ? ` · ${r.date}` : ""}
                   {r.time ? ` ${String(r.time).slice(0, 5)}` : ""}
                 </div>
               </div>
               <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 800,
-                  color: MAIN,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.04em",
-                }}>
+                className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide ${statusTone(
+                  r.status
+                )}`}>
                 {r.status}
               </span>
             </div>
           </Link>
         ))}
       </div>
-    </PageContainer>
+    </div>
   );
 }

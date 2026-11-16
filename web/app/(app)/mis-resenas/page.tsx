@@ -13,7 +13,7 @@ const DARK = "#1F3328";
 const MAIN = "#558367";
 
 export default function MisResenasPage() {
-  const {user, isLoading} = useAuth();
+  const {user, isInitializing} = useAuth();
   const router = useRouter();
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,10 +21,10 @@ export default function MisResenasPage() {
   const [profileId, setProfileId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!isLoading && user && !isProviderRole(user.role)) {
+    if (!isInitializing && user && !isProviderRole(user.role)) {
       router.replace("/me");
     }
-  }, [user, isLoading, router]);
+  }, [user, isInitializing, router]);
 
   const load = useCallback(async () => {
     if (!user || !isProviderRole(user.role)) return;

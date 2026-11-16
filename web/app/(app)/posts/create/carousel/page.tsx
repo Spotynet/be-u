@@ -14,7 +14,7 @@ const ACCENT = "#F6C531";
 
 export default function CreateCarouselPostPage() {
   const router = useRouter();
-  const {user, isLoading} = useAuth();
+  const {user, isInitializing} = useAuth();
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -22,10 +22,10 @@ export default function CreateCarouselPostPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isLoading && user && !isProviderRole(user.role)) {
+    if (!isInitializing && user && !isProviderRole(user.role)) {
       router.replace("/posts/create/photo");
     }
-  }, [user, isLoading, router]);
+  }, [user, isInitializing, router]);
 
   const onFiles = (list: FileList | null) => {
     const next = Array.from(list || []).slice(0, 5);

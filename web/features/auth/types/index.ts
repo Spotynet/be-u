@@ -78,6 +78,9 @@ export interface ResetPasswordData {
 // Auth context types
 export interface AuthContextType {
   user: User | null;
+  /** True while the initial session check runs on mount. */
+  isInitializing: boolean;
+  /** True while an auth action (login, register, etc.) is in flight. */
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;

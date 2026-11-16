@@ -19,11 +19,11 @@ export const ProtectedRoute = ({
   requireRoles = [],
   fallback,
 }: ProtectedRouteProps) => {
-  const {isAuthenticated, isLoading, user} = useAuth();
+  const {isAuthenticated, isInitializing, user} = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && requireAuth && !isAuthenticated) {
+    if (!isInitializing && requireAuth && !isAuthenticated) {
       const next =
         typeof window !== "undefined"
           ? `${window.location.pathname}${window.location.search}`
@@ -34,10 +34,10 @@ export const ProtectedRoute = ({
           : redirectTo;
       router.push(target);
     }
-  }, [isAuthenticated, isLoading, router, redirectTo, requireAuth]);
+  }, [isAuthenticated, isInitializing, router, redirectTo, requireAuth]);
 
   // Show loading spinner while checking authentication
-  if (isLoading) {
+  if (isInitializing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center space-y-4">

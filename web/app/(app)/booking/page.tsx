@@ -1,15 +1,13 @@
 "use client";
 
-import {PageContainer} from "@/components/layout/PageContainer";
-
 import {Suspense, useEffect, useMemo, useState} from "react";
+import Link from "next/link";
 import {useRouter, useSearchParams} from "next/navigation";
+import {
+  BookingSummaryPanel,
+  StickyBookingBar,
+} from "@/components/marketplace";
 import {reservationApi, serviceApi, profileCustomizationApi, errorUtils} from "@/lib/api";
-
-const INK = "#12211A";
-const DARK = "#1F3328";
-const MAIN = "#558367";
-const ACCENT = "#F6C531";
 
 function formatLocalDate(d: Date): string {
   const y = d.getFullYear();
@@ -210,8 +208,7 @@ function BookingInner() {
 
   const minDate = formatLocalDate(new Date());
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitReservation = async () => {
     setError(null);
     if (!serviceInfo.serviceInstanceId || !selectedDate || !selectedTime) {
       setError("Selecciona fecha y hora para continuar.");
@@ -241,117 +238,148 @@ function BookingInner() {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitReservation();
+  };
+
+  const canConfirm = !!(selectedDate && selectedTime) && !submitting;
+  const priceLabel = serviceInfo.price ? `$${serviceInfo.price}` : undefined;
+
+  const confirm = () => {
+    if (!canConfirm) return;
+    void submitReservation();
+  };
+
   if (!serviceInfo.serviceInstanceId) {
     return (
-      <div>
-        <h1 style={{color: INK, fontWeight: 900}}>Reservar</h1>
-        <p style={{color: "#64748b"}}>
+      <div className="nabbi-page max-w-xl">
+        <h1 className="nabbi-page-title">Reservar</h1>
+        <p className="nabbi-page-sub">
           Faltan datos del servicio. Vuelve a un perfil y elige un servicio.
         </p>
+        <Link href="/explore" className="font-bold text-primary">
+          Ir a Explorar
+        </Link>
       </div>
     );
   }
 
+  const summaryLines = [
+    {label: "Duración", value: `${serviceInfo.duration} min`},
+    ...(selectedDate ? [{label: "Fecha", value: selectedDate}] : []),
+    ...(selectedTime ? [{label: "Hora", value: selectedTime.slice(0, 5)}] : []),
+  ];
+
   return (
-    <PageContainer size="md">
+    <div className="nabbi-page w-full pb-28 lg:pb-4">
       <h1 className="nabbi-page-title">Reservar</h1>
       <p className="nabbi-page-sub">
         {serviceInfo.serviceName} con {serviceInfo.providerName}
-        {serviceInfo.price ? ` · $${serviceInfo.price}` : ""} · {serviceInfo.duration} min
+        {serviceInfo.price ? ` · $${serviceInfo.price}` : ""} · {serviceInfo.duration}{" "}
+        min
       </p>
 
-      <form onSubmit={handleSubmit} style={{display: "flex", flexDirection: "column", gap: 16}}>
-        <label style={{display: "flex", flexDirection: "column", gap: 6}}>
-          <span style={{fontWeight: 700, color: DARK, fontSize: 13}}>Fecha</span>
-          <input
-            type="date"
-            min={minDate}
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            required
-            style={{
-              padding: "12px 14px",
-              borderRadius: 12,
-              border: "1.5px solid rgba(85,131,103,0.22)",
-              fontSize: 15,
-            }}
-          />
-        </label>
+      <div className="nabbi-booking-layout">
+        <form
+          id="booking-form"
+          onSubmit={handleSubmit}
+          className="flex min-w-0 flex-col gap-4">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-bold text-foreground">Fecha</span>
+            <input
+              type="date"
+              min={minDate}
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              required
+              className="rounded-xl border-[1.5px] border-primary/25 bg-card px-3.5 py-3 text-[15px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+          </label>
 
-        <div>
-          <div style={{fontWeight: 700, color: DARK, fontSize: 13, marginBottom: 8}}>Hora</div>
-          {loadingSlots && <p style={{color: "#64748b", fontSize: 14}}>Cargando horarios…</p>}
-          {slotError && !loadingSlots && (
-            <p style={{color: "#dc2626", fontSize: 14}}>{slotError}</p>
-          )}
-          {!loadingSlots && availableTimes.length > 0 && (
-            <div style={{display: "flex", flexWrap: "wrap", gap: 8}}>
-              {availableTimes.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setSelectedTime(t)}
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: 10,
-                    border:
+          <div>
+            <div className="mb-2 text-[13px] font-bold text-foreground">Hora</div>
+            {loadingSlots && (
+              <p className="text-sm text-foreground-muted">Cargando horarios…</p>
+            )}
+            {slotError && !loadingSlots && (
+              <p className="text-sm text-error">{slotError}</p>
+            )}
+            {!loadingSlots && availableTimes.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {availableTimes.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setSelectedTime(t)}
+                    className={[
+                      "rounded-[10px] px-3.5 py-2.5 text-sm font-bold",
                       selectedTime === t
-                        ? `1.5px solid ${MAIN}`
-                        : "1.5px solid rgba(85,131,103,0.2)",
-                    background: selectedTime === t ? "rgba(85,131,103,0.15)" : "white",
-                    fontWeight: 700,
-                    fontSize: 14,
-                    color: DARK,
-                    cursor: "pointer",
-                  }}>
-                  {t.slice(0, 5)}
-                </button>
-              ))}
+                        ? "border-[1.5px] border-primary bg-primary/15 text-primary-dark"
+                        : "border-[1.5px] border-primary/20 bg-card text-primary-dark",
+                    ].join(" ")}>
+                    {t.slice(0, 5)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-bold text-foreground">
+              Notas (opcional)
+            </span>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              placeholder="Algo que deba saber el profesional…"
+              className="rounded-xl border-[1.5px] border-primary/25 bg-card px-3.5 py-3 text-[15px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+          </label>
+
+          {error && (
+            <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-600">
+              {error}
             </div>
           )}
-        </div>
 
-        <label style={{display: "flex", flexDirection: "column", gap: 6}}>
-          <span style={{fontWeight: 700, color: DARK, fontSize: 13}}>Notas (opcional)</span>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-            placeholder="Algo que deba saber el profesional…"
-            style={{
-              padding: "12px 14px",
-              borderRadius: 12,
-              border: "1.5px solid rgba(85,131,103,0.22)",
-              fontSize: 15,
-              resize: "vertical",
-            }}
+          {/* Mobile-only inline submit fallback when sticky is awkward */}
+          <button
+            type="submit"
+            disabled={!canConfirm}
+            className="hidden min-h-12 rounded-xl bg-secondary text-[15px] font-extrabold text-secondary-foreground disabled:opacity-60 md:hidden">
+            {submitting ? "Confirmando…" : "Confirmar reserva"}
+          </button>
+        </form>
+
+        <div className="hidden lg:block">
+          <BookingSummaryPanel
+            title="Resumen"
+            providerName={serviceInfo.providerName}
+            serviceName={serviceInfo.serviceName}
+            lines={summaryLines}
+            totalValue={priceLabel}
+            ctaLabel={submitting ? "Confirmando…" : "Confirmar reserva"}
+            disabled={!canConfirm}
+            busy={submitting}
+            onConfirm={confirm}
           />
-        </label>
+        </div>
+      </div>
 
-        {error && (
-          <div style={{background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, padding: 12, color: "#dc2626", fontSize: 14}}>
-            {error}
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={submitting || !selectedDate || !selectedTime}
-          style={{
-            background: ACCENT,
-            color: INK,
-            border: "none",
-            borderRadius: 14,
-            padding: "14px 0",
-            fontWeight: 800,
-            fontSize: 15,
-            cursor: submitting ? "not-allowed" : "pointer",
-            opacity: submitting || !selectedDate || !selectedTime ? 0.6 : 1,
-          }}>
-          {submitting ? "Confirmando…" : "Confirmar reserva"}
-        </button>
-      </form>
-    </PageContainer>
+      <StickyBookingBar
+        priceLabel={priceLabel || serviceInfo.serviceName}
+        subtitle={
+          selectedDate && selectedTime
+            ? `${selectedDate} · ${selectedTime.slice(0, 5)}`
+            : "Elige fecha y hora"
+        }
+        ctaLabel={submitting ? "Confirmando…" : "Confirmar reserva"}
+        disabled={!canConfirm}
+        onClick={confirm}
+      />
+    </div>
   );
 }
 

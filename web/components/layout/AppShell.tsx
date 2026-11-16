@@ -1,15 +1,11 @@
 "use client";
 
-import {useEffect, useState} from "react";
+import {FormEvent, useEffect, useRef, useState} from "react";
 import Link from "next/link";
-import {usePathname} from "next/navigation";
+import {usePathname, useRouter} from "next/navigation";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {isProviderRole} from "@/lib/roles";
 import {notificationApi} from "@/lib/api";
-
-const MAIN = "#558367";
-const DARK = "#1F3328";
-const CREAM = "#F7F4EE";
 
 type NavItem = {
   href: string;
@@ -21,9 +17,19 @@ type NavItem = {
 
 export function AppShell({children}: {children: React.ReactNode}) {
   const pathname = usePathname();
-  const {user, isAuthenticated} = useAuth();
+  const router = useRouter();
+  const {user, isAuthenticated, logout} = useAuth();
   const provider = isProviderRole(user?.role);
   const [unread, setUnread] = useState(0);
+  const [search, setSearch] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const wideBrowse =
+    pathname.startsWith("/explore") ||
+    pathname.startsWith("/profile/") ||
+    pathname.startsWith("/booking") ||
+    pathname.startsWith("/favorites");
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -50,25 +56,47 @@ export function AppShell({children}: {children: React.ReactNode}) {
     };
   }, [isAuthenticated, pathname]);
 
-  /** Desktop / tablet top nav — full set */
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [menuOpen]);
+
   const desktopItems: NavItem[] = [
-    {href: "/feed", label: "Feed", match: (p) => p.startsWith("/post") || p.startsWith("/posts")},
     {href: "/explore", label: "Explorar"},
+    {
+      href: "/feed",
+      label: "Feed",
+      match: (p) => p.startsWith("/post") || p.startsWith("/posts"),
+    },
     {
       href: "/notifications",
       label: "Avisos",
       match: (p) => p.startsWith("/notification"),
       badge: unread,
     },
-    {href: "/reservations", label: "Reservas", match: (p) => p.startsWith("/reservation")},
-    {href: "/favorites", label: "Favoritos"},
-    ...(provider ? [{href: "/dashboard", label: "Dashboard"}] : []),
-    {href: "/me", label: "Perfil"},
+    {
+      href: "/reservations",
+      label: "Reservas",
+      match: (p) => p.startsWith("/reservation"),
+    },
   ];
 
-  /** Mobile bottom nav — keep to 5 so labels aren't crushed */
   const mobileItems: NavItem[] = [
-    {href: "/feed", label: "Feed", match: (p) => p.startsWith("/post") || p.startsWith("/posts")},
+    {
+      href: "/feed",
+      label: "Feed",
+      match: (p) => p.startsWith("/post") || p.startsWith("/posts"),
+    },
     {href: "/explore", label: "Explorar", shortLabel: "Explorar"},
     {
       href: "/notifications",
@@ -85,178 +113,210 @@ export function AppShell({children}: {children: React.ReactNode}) {
     {href: "/me", label: "Perfil"},
   ];
 
+  const onSearch = (e: FormEvent) => {
+    e.preventDefault();
+    const q = search.trim();
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    router.push(params.toString() ? `/explore?${params}` : "/explore");
+  };
+
+  const goNearby = () => {
+    router.push("/explore?nearby=1");
+  };
+
   return (
-    <div
-      className="nabbi-shell"
-      style={{
-        minHeight: "100vh",
-        background: CREAM,
-        display: "flex",
-        flexDirection: "column",
-        fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-      }}>
-      <header
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 40,
-          background: DARK,
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
-        }}>
-        <div
-          style={{
-            maxWidth: 1100,
-            margin: "0 auto",
-            padding: "10px 12px",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            minWidth: 0,
-          }}>
-          <Link
-            href="/"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              textDecoration: "none",
-              flexShrink: 0,
-            }}>
-            <img
-              src="/nabbi_logo_t.png"
-              alt="nabbi"
-              width={28}
-              height={28}
-              style={{borderRadius: 8}}
-            />
-            <span
-              style={{
-                color: "white",
-                fontWeight: 900,
-                fontSize: 17,
-                letterSpacing: "-0.03em",
-              }}>
-              nabbi
-            </span>
-          </Link>
+    <div className="nabbi-shell flex min-h-screen flex-col bg-background font-sans">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-primary-dark">
+        <div className="nabbi-shell-inner flex flex-col gap-2 px-3 py-2.5 sm:px-4">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <Link
+              href={isAuthenticated ? "/explore" : "/"}
+              className="flex shrink-0 items-center gap-2 no-underline">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/nabbi_logo_t.png"
+                alt="nabbi"
+                width={28}
+                height={28}
+                className="rounded-lg"
+              />
+              <span className="text-[17px] font-black tracking-tight text-white">
+                nabbi
+              </span>
+            </Link>
+
+            {isAuthenticated ? (
+              <>
+                <button
+                  type="button"
+                  onClick={goNearby}
+                  className="hidden shrink-0 items-center gap-1.5 rounded-xl border border-white/25 bg-white/15 px-2.5 py-2 text-[12px] font-bold text-white transition-colors hover:bg-white/25 sm:inline-flex">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    aria-hidden>
+                    <path d="M12 21s-6-5.4-6-10a6 6 0 1 1 12 0c0 4.6-6 10-6 10z" />
+                    <circle cx="12" cy="11" r="2.2" />
+                  </svg>
+                  Cerca
+                </button>
+
+                <form
+                  onSubmit={onSearch}
+                  className="hidden min-w-0 flex-1 md:block">
+                  <label className="sr-only" htmlFor="nabbi-shell-search">
+                    Buscar
+                  </label>
+                  <div className="relative">
+                    <svg
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/45"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      aria-hidden>
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="M20 20l-3.5-3.5" />
+                    </svg>
+                    <input
+                      id="nabbi-shell-search"
+                      type="search"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Buscar profesionales o lugares"
+                      className="w-full rounded-xl border border-white/15 bg-white/15 py-2.5 pl-10 pr-3 text-[14px] text-white placeholder:text-white/60 outline-none ring-0 focus:border-white/30 focus:bg-white/20"
+                    />
+                  </div>
+                </form>
+
+                <nav className="nabbi-top-nav ml-auto items-center gap-0.5">
+                  {desktopItems.map((item) => {
+                    const active =
+                      pathname === item.href ||
+                      pathname.startsWith(item.href + "/") ||
+                      item.match?.(pathname);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={[
+                          "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[10px] px-2.5 py-1.5 text-[13px] no-underline",
+                          active
+                            ? "bg-white font-extrabold text-primary-dark"
+                            : "font-semibold text-white/85 hover:bg-white/10 hover:text-white",
+                        ].join(" ")}>
+                        {item.label}
+                        {item.badge && item.badge > 0 ? (
+                          <span className="min-w-4 rounded-full bg-rose-600 px-1.5 text-center text-[10px] font-extrabold text-white">
+                            {item.badge > 9 ? "9+" : item.badge}
+                          </span>
+                        ) : null}
+                      </Link>
+                    );
+                  })}
+                </nav>
+
+                <div className="relative ml-1 hidden shrink-0 sm:block" ref={menuRef}>
+                  <button
+                    type="button"
+                    aria-expanded={menuOpen}
+                    aria-haspopup="menu"
+                    onClick={() => setMenuOpen((v) => !v)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-[13px] font-extrabold text-secondary-foreground ring-2 ring-white/40">
+                    {(user?.firstName || user?.email || "U")
+                      .slice(0, 1)
+                      .toUpperCase()}
+                  </button>
+                  {menuOpen ? (
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-[calc(100%+8px)] z-50 min-w-[210px] overflow-hidden rounded-xl border border-border-dark bg-card py-1.5 shadow-dropdown">
+                      <Link
+                        href="/favorites"
+                        role="menuitem"
+                        className="block px-3.5 py-2.5 text-[13px] font-semibold text-foreground no-underline hover:bg-primary-light hover:text-primary-dark">
+                        Favoritos
+                      </Link>
+                      <Link
+                        href="/me"
+                        role="menuitem"
+                        className="block px-3.5 py-2.5 text-[13px] font-semibold text-foreground no-underline hover:bg-primary-light hover:text-primary-dark">
+                        Mi perfil
+                      </Link>
+                      {provider ? (
+                        <Link
+                          href="/dashboard"
+                          role="menuitem"
+                          className="block px-3.5 py-2.5 text-[13px] font-semibold text-foreground no-underline hover:bg-primary-light hover:text-primary-dark">
+                          Dashboard
+                        </Link>
+                      ) : null}
+                      <div className="my-1 border-t border-card-border" />
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => logout()}
+                        className="block w-full px-3.5 py-2.5 text-left text-[13px] font-bold text-error hover:bg-error-light">
+                        Cerrar sesión
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <nav className="ml-auto flex shrink-0 items-center gap-2">
+                <Link
+                  href="/login"
+                  className="text-[14px] font-semibold text-white/75 no-underline hover:text-white">
+                  Entrar
+                </Link>
+                <Link
+                  href="/register"
+                  className="rounded-[10px] bg-primary px-3 py-2 text-[13px] font-bold text-white no-underline">
+                  Crear cuenta
+                </Link>
+              </nav>
+            )}
+          </div>
+
+          {/* Mobile search row */}
           {isAuthenticated ? (
-            <nav
-              className="nabbi-top-nav"
-              style={{
-                marginLeft: "auto",
-                gap: 2,
-                alignItems: "center",
-                minWidth: 0,
-                maxWidth: "100%",
-              }}>
-              {desktopItems.map((item) => {
-                const active =
-                  pathname === item.href ||
-                  pathname.startsWith(item.href + "/") ||
-                  item.match?.(pathname);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    style={{
-                      padding: "7px 10px",
-                      borderRadius: 10,
-                      textDecoration: "none",
-                      fontSize: 13,
-                      fontWeight: active ? 700 : 500,
-                      color: active ? "white" : "rgba(255,255,255,0.55)",
-                      background: active ? `rgba(85,131,103,0.35)` : "transparent",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      whiteSpace: "nowrap",
-                      flexShrink: 0,
-                    }}>
-                    {item.label}
-                    {item.badge && item.badge > 0 ? (
-                      <span
-                        style={{
-                          background: "#e11d48",
-                          color: "white",
-                          borderRadius: 999,
-                          fontSize: 10,
-                          fontWeight: 800,
-                          padding: "1px 6px",
-                          minWidth: 16,
-                          textAlign: "center",
-                        }}>
-                        {item.badge > 9 ? "9+" : item.badge}
-                      </span>
-                    ) : null}
-                  </Link>
-                );
-              })}
-            </nav>
-          ) : (
-            <nav
-              style={{
-                marginLeft: "auto",
-                display: "flex",
-                gap: 8,
-                alignItems: "center",
-                flexShrink: 0,
-              }}>
-              <Link
-                href="/login"
-                style={{
-                  color: "rgba(255,255,255,0.75)",
-                  textDecoration: "none",
-                  fontWeight: 600,
-                  fontSize: 14,
-                }}>
-                Entrar
-              </Link>
-              <Link
-                href="/register"
-                style={{
-                  background: MAIN,
-                  color: "white",
-                  textDecoration: "none",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                }}>
-                Crear cuenta
-              </Link>
-            </nav>
-          )}
+            <form onSubmit={onSearch} className="md:hidden">
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar profesionales o lugares"
+                className="w-full rounded-xl border border-white/15 bg-white/15 py-2.5 px-3 text-[14px] text-white placeholder:text-white/60 outline-none focus:border-white/30"
+              />
+            </form>
+          ) : null}
         </div>
       </header>
 
       <main
-        style={{
-          flex: 1,
-          maxWidth: 1100,
-          width: "100%",
-          margin: "0 auto",
-          padding: isAuthenticated
-            ? "16px 12px calc(88px + env(safe-area-inset-bottom))"
-            : "16px 12px 32px",
-          boxSizing: "border-box",
-          minWidth: 0,
-        }}>
+        className={[
+          "nabbi-shell-main nabbi-shell-inner box-border min-w-0 flex-1 px-3 sm:px-4",
+          wideBrowse ? "py-3 sm:py-4" : "py-4",
+          isAuthenticated
+            ? "pb-[calc(88px+env(safe-area-inset-bottom))]"
+            : "pb-8",
+        ].join(" ")}>
         {children}
       </main>
 
-      {isAuthenticated && (
+      {isAuthenticated ? (
         <nav
-          className="nabbi-bottom-nav"
+          className="nabbi-bottom-nav fixed bottom-0 left-0 right-0 z-40 grid border-t border-card-border bg-card"
           style={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            background: "white",
-            borderTop: "1px solid rgba(18,33,26,0.08)",
-            display: "grid",
             gridTemplateColumns: `repeat(${mobileItems.length}, minmax(0, 1fr))`,
-            zIndex: 40,
             paddingBottom: "env(safe-area-inset-bottom)",
           }}>
           {mobileItems.map((item) => {
@@ -268,30 +328,15 @@ export function AppShell({children}: {children: React.ReactNode}) {
               <Link
                 key={item.href}
                 href={item.href}
-                style={{
-                  textAlign: "center",
-                  padding: "10px 2px",
-                  textDecoration: "none",
-                  fontSize: 11,
-                  fontWeight: active ? 800 : 500,
-                  color: active ? MAIN : "#6b7c72",
-                  position: "relative",
-                }}>
+                className={[
+                  "relative px-0.5 py-2.5 text-center text-[11px] no-underline",
+                  active
+                    ? "font-extrabold text-primary"
+                    : "font-semibold text-foreground-secondary",
+                ].join(" ")}>
                 {item.shortLabel || item.label}
                 {item.badge && item.badge > 0 ? (
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: 4,
-                      right: "12%",
-                      background: "#e11d48",
-                      color: "white",
-                      borderRadius: 999,
-                      fontSize: 9,
-                      fontWeight: 800,
-                      padding: "0 4px",
-                      minWidth: 14,
-                    }}>
+                  <span className="absolute right-[12%] top-1 min-w-[14px] rounded-full bg-rose-600 px-1 text-[9px] font-extrabold text-white">
                     {item.badge > 9 ? "9+" : item.badge}
                   </span>
                 ) : null}
@@ -299,7 +344,7 @@ export function AppShell({children}: {children: React.ReactNode}) {
             );
           })}
         </nav>
-      )}
+      ) : null}
     </div>
   );
 }

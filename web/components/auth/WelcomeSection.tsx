@@ -14,10 +14,10 @@ interface WelcomeSectionProps {
 export const WelcomeSection = ({description}: WelcomeSectionProps) => {
   return (
     <div
+      className="hidden lg:flex"
       style={{
         background: `linear-gradient(145deg, #243c2c 0%, ${DARK} 50%, ${INK} 100%)`,
         padding: "52px 44px",
-        display: "flex",
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",

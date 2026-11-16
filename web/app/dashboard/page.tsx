@@ -2937,7 +2937,7 @@ function DashboardApp() {
         background: CREAM,
         fontFamily: "var(--font-geist-sans)",
         display: "flex",
-        margin: "-20px -16px -88px",
+        margin: "-16px -12px calc(-1 * (88px + env(safe-area-inset-bottom, 0px)))",
       }}
     >
       {/* ── Sidebar (desktop) ── */}

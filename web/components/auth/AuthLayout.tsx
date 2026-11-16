@@ -71,12 +71,8 @@ export const AuthLayout = ({children}: AuthLayoutProps) => {
           boxShadow: "0 48px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06)",
         }}>
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            minHeight: 620,
-          }}
-          className="grid-cols-1 lg:grid-cols-2">
+          className="grid grid-cols-1 lg:grid-cols-2"
+          style={{minHeight: 620}}>
           {children}
         </div>
       </div>

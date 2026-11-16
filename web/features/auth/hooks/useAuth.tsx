@@ -29,7 +29,8 @@ interface AuthProviderProps {
 
 export const AuthProvider = ({children}: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -51,7 +52,7 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
           }
         }
       }
-      setIsLoading(false);
+      setIsInitializing(false);
     };
 
     checkAuth();
@@ -194,6 +195,7 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
 
   const value: AuthContextType = {
     user,
+    isInitializing,
     isLoading,
     isAuthenticated,
     login,
