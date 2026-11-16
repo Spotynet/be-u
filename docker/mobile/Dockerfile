@@ -5,7 +5,6 @@ FROM node:20-bookworm-slim AS deps
 WORKDIR /app
 
 COPY mobile/package*.json ./
-COPY mobile/patches ./patches
 RUN npm ci
 
 # Dev: dependencies only; source bind-mounted at runtime.
