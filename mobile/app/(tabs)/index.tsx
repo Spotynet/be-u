@@ -23,6 +23,15 @@ import {useState, useRef, useEffect} from "react";
 import {useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {postApi, tokenUtils} from "@/lib/api";
+import {
+  postAuthorAvatar,
+  postAuthorName,
+  postAuthorProfileId,
+  postAuthorUserId,
+  postMatchesCategory,
+  postMediaUrl,
+  postMediaUrls,
+} from "@/lib/posts";
 import {SubCategoryBar} from "@/components/ui/SubCategoryBar";
 import {getAvatarColorFromSubcategory} from "@/constants/categories";
 import {postFormats} from "@/constants/postFormats";
@@ -316,82 +325,16 @@ export default function Home() {
   const currentSubcategories = subcategoriesByMainCategory[selectedMainCategory];
   
   // Filter posts by active category and subcategory
-  const filteredPosts = posts.filter((post: any) => {
-    // First, filter by main category
-    // Handle both list and string formats (for backward compatibility)
-    const authorCategory = post.author_category;
-    let categoryMatches = false;
-    
-    // Handle null/undefined cases
-    if (authorCategory == null) {
-      return false;
-    }
-    
-    if (Array.isArray(authorCategory)) {
-      // If category is a list, check if effective category is in the list
-      // Also handle case-insensitive comparison
-      categoryMatches = authorCategory.some((cat: string) => 
-        cat && cat.toLowerCase() === effectiveFeedCategory.toLowerCase()
-      );
-    } else if (typeof authorCategory === 'string') {
-      // If category is a string, do direct comparison (case-insensitive)
-      categoryMatches = authorCategory.toLowerCase() === effectiveFeedCategory.toLowerCase();
-    }
-    
-    if (!categoryMatches) {
-      return false;
-    }
+  const filteredPosts = posts.filter((post: any) =>
+    postMatchesCategory(post, effectiveFeedCategory, selectedSubCategory)
+  );
 
-    // If "todos" subcategory is selected, show all posts in the main category
-    if (selectedSubCategory === 'todos') {
-      return true;
-    }
-    
-    // Otherwise, filter by subcategory - check if author has the selected subcategory
-    const authorSubCategories = post.author_sub_categories || [];
-    return authorSubCategories.includes(selectedSubCategory);
-  });
-  
   // Get video posts (stories) filtered by active category and subcategory
-  const videoPosts = posts.filter((post: any) => {
-    // First, filter by post type
-    if (post.post_type !== 'video') {
-      return false;
-    }
-    
-    // Filter by main category - handle both list and string formats
-    const authorCategory = post.author_category;
-    let categoryMatches = false;
-    
-    // Handle null/undefined cases
-    if (authorCategory == null) {
-      return false;
-    }
-    
-    if (Array.isArray(authorCategory)) {
-      // If category is a list, check if effective category is in the list
-      // Also handle case-insensitive comparison
-      categoryMatches = authorCategory.some((cat: string) => 
-        cat && cat.toLowerCase() === effectiveFeedCategory.toLowerCase()
-      );
-    } else if (typeof authorCategory === 'string') {
-      // If category is a string, do direct comparison (case-insensitive)
-      categoryMatches = authorCategory.toLowerCase() === effectiveFeedCategory.toLowerCase();
-    }
-    
-    if (!categoryMatches) {
-      return false;
-    }
-    
-    // If "todos" subcategory is selected, show all video posts in the main category
-    if (selectedSubCategory === 'todos') {
-      return true;
-    }
-    
-    // Otherwise, filter by subcategory
-    const authorSubCategories = post.author_sub_categories || [];
-    return authorSubCategories.includes(selectedSubCategory);
-  });
+  const videoPosts = posts.filter(
+    (post: any) =>
+      post.post_type === "video" &&
+      postMatchesCategory(post, effectiveFeedCategory, selectedSubCategory)
+  );
 
   const fetchPosts = async () => {
     try {
@@ -457,16 +400,12 @@ export default function Home() {
   };
 
   const renderDbPost = (post: any) => {
-    const firstMedia = (post.media || [])[0];
-    const imageUrl = firstMedia?.media_url || firstMedia?.media_file;
-    const authorName =
-      post.author_display_name ||
-      post.author?.public_profile?.display_name ||
-      post.author?.first_name ||
-      post.author?.username ||
-      "";
     const allMedia = post.media || [];
-    const mediaUrls = allMedia.map((m: any) => m.media_url || m.media_file).filter(Boolean);
+    const mediaUrls = postMediaUrls(post);
+    const imageUrl = mediaUrls[0] || null;
+    const authorName = postAuthorName(post);
+    const authorAvatar = postAuthorAvatar(post);
+    const authorUserId = postAuthorUserId(post);
     const isMosaic = post.post_type === 'mosaic';
     const isBeforeAfter = post.post_type === 'before_after';
     const isCarousel = post.post_type === 'carousel';
@@ -474,14 +413,14 @@ export default function Home() {
     // For before/after posts, get the two images (order 0 = before, order 1 = after)
     const beforeImage = allMedia.find((m: any) => m.order === 0 || m.caption === 'before');
     const afterImage = allMedia.find((m: any) => m.order === 1 || m.caption === 'after');
-    const beforeUrl = beforeImage?.media_url || beforeImage?.media_file;
-    const afterUrl = afterImage?.media_url || afterImage?.media_file;
+    const beforeUrl = postMediaUrl(beforeImage);
+    const afterUrl = postMediaUrl(afterImage);
     
     // For carousel posts, get all images ordered by order field
     const carouselImages = isCarousel 
-      ? allMedia
+      ? [...allMedia]
           .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
-          .map((m: any) => m.media_url || m.media_file)
+          .map((m: any) => postMediaUrl(m))
           .filter(Boolean)
       : [];
     
@@ -489,9 +428,9 @@ export default function Home() {
       post.author_category,
       post.author_sub_categories
     );
-    const authorProfileId = post.author_profile_id;
+    const authorProfileId = postAuthorProfileId(post);
     const authorProfileType = post.author_profile_type;
-    const isOwnPost = user?.id != null && post.author?.id === user.id;
+    const isOwnPost = user?.id != null && authorUserId === user.id;
 
     const handleReservePress = () => {
       if (!authorProfileId) {
@@ -528,9 +467,8 @@ export default function Home() {
           <TouchableOpacity 
             style={styles.postUserInfoContainer}
             onPress={() => {
-              const profileId = post.author_public_profile_id || post.author_profile_id;
-              if (profileId) {
-                router.push(`/profile/${profileId}` as any);
+              if (authorProfileId) {
+                router.push(`/profile/${authorProfileId}` as any);
               }
             }}
             activeOpacity={0.7}>
@@ -540,13 +478,13 @@ export default function Home() {
             ]}>
               <View style={[
                 styles.postAvatar,
-                { backgroundColor: post.author_photo ? "transparent" : colors.muted },
+                { backgroundColor: authorAvatar ? "transparent" : colors.muted },
               ]}>
-                {post.author_photo ? (
-                  <Image source={{uri: post.author_photo}} style={styles.postAvatarImage} />
+                {authorAvatar ? (
+                  <Image source={{uri: authorAvatar}} style={styles.postAvatarImage} />
                 ) : (
                   <Text style={styles.postAvatarText}>
-                    {authorName.charAt(0).toUpperCase()}
+                    {(authorName || "U").charAt(0).toUpperCase()}
                   </Text>
                 )}
               </View>
@@ -568,19 +506,21 @@ export default function Home() {
             </View>
           </TouchableOpacity>
           <View style={styles.postHeaderRight}>
-            {(!user || post.author?.id !== user.id) && (
+            {(!user || authorUserId !== user.id) && (
               <ContentActionsButton
                 targetType="post"
                 targetId={post.id}
-                authorUserId={post.author?.id}
+                authorUserId={authorUserId}
                 color={colors.mutedForeground}
                 onBlocked={(userId) => {
-                  setPosts((prev) => prev.filter((item) => item.author?.id !== userId));
+                  setPosts((prev) =>
+                    prev.filter((item) => postAuthorUserId(item) !== userId)
+                  );
                 }}
               />
             )}
             {/* Solo el dueño del post ve los 3 puntos verticales */}
-            {user && post.author?.id === user.id && (
+            {user && authorUserId === user.id && (
               <View
                 ref={(el) => {
                   if (el) postOptionButtonRefs.current[post.id] = el;
@@ -707,7 +647,6 @@ export default function Home() {
               style={[styles.reserveButton, {backgroundColor: colors.primary}]}
               activeOpacity={0.8}
               onPress={() => {
-                const profileId = post.author_public_profile_id || post.author_profile_id;
                 if (!user) {
                   Alert.alert(
                     "Inicia sesión",
@@ -733,14 +672,14 @@ export default function Home() {
                       serviceName: post.linked_service_name,
                       serviceType: post.linked_service_type || "professional_service",
                       providerId: String(post.linked_provider_id),
-                      providerName: post.author_display_name || "",
+                      providerName: authorName || "",
                       price: post.linked_service_price != null ? String(post.linked_service_price) : "",
                       duration: post.linked_service_duration_minutes != null ? String(post.linked_service_duration_minutes) : "60",
                       category: normalizedCategory,
                     },
                   } as any);
-                } else if (profileId) {
-                  router.push(`/profile/${profileId}` as any);
+                } else if (authorProfileId) {
+                  router.push(`/profile/${authorProfileId}` as any);
                 }
               }}>
               <Text style={styles.reserveButtonText}>Reservar</Text>
@@ -838,9 +777,8 @@ export default function Home() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.storiesContainer}>
               {videoPosts.map((post: any) => {
-                const firstMedia = (post.media || [])[0];
-                const videoUrl = firstMedia?.media_url || firstMedia?.media_file;
-                const authorName = post.author?.first_name || post.author?.username || "Usuario";
+                const videoUrl = postMediaUrls(post)[0] || null;
+                const authorName = postAuthorName(post);
                 // Get subcategory badge emoji from category
                 const firstSubCategory = post.author_sub_categories?.[0];
                 const badgeEmoji = firstSubCategory ? "📹" : "✨";

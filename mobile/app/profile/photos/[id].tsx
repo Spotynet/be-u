@@ -215,7 +215,7 @@ export default function ProfilePhotosScreen() {
                     post.media && post.media.length > 0
                       ? typeof post.media[0] === "string"
                         ? post.media[0]
-                        : post.media[0]?.media_file
+                        : post.media[0]?.media_url || post.media[0]?.media_file
                       : post.image_url;
                   return {post, idx, mediaUrl};
                 })

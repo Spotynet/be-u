@@ -306,7 +306,11 @@ export function FavoritesTab() {
                       activeOpacity={0.7}>
                       {post.media && post.media.length > 0 ? (
                         <Image
-                          source={{uri: post.media[0].media_file}}
+                          source={{
+                            uri:
+                              post.media[0].media_url ||
+                              post.media[0].media_file,
+                          }}
                           style={styles.postImage}
                           resizeMode="cover"
                         />
