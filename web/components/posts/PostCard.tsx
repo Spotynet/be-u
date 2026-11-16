@@ -3,29 +3,24 @@
 import {useState} from "react";
 import Link from "next/link";
 import {ContentActions} from "@/components/moderation/ContentActions";
+import {
+  postAuthorAvatar,
+  postAuthorName,
+  postAuthorProfileId,
+  postAuthorUserId,
+  postMediaUrls,
+} from "@/lib/posts";
 
 const INK = "#12211A";
 const MAIN = "#558367";
 const MUTED = "#3d6050";
 const SOFT = "#5a7d6a";
 
-function mediaUrls(post: any): string[] {
-  const media = post.media || post.images || post.media_files || [];
-  if (Array.isArray(media) && media.length) {
-    return media
-      .map((m: any) => (typeof m === "string" ? m : m.url || m.image || m.file))
-      .filter(Boolean);
-  }
-  if (post.image) return [post.image];
-  if (post.cover_image) return [post.cover_image];
-  if (post.before && post.after) return [post.before, post.after].filter(Boolean);
-  return [];
-}
-
 function typeLabel(raw?: string | null): string {
   const t = (raw || "post").toString().toLowerCase();
   if (t.includes("before")) return "Antes / Después";
   if (t.includes("carousel")) return "Carrusel";
+  if (t.includes("mosaic")) return "Mosaico";
   if (t.includes("photo") || t.includes("image")) return "Foto";
   if (t.includes("video")) return "Video";
   if (t.includes("review")) return "Reseña";
@@ -41,18 +36,16 @@ export function PostCard({
   onLike?: (id: number) => Promise<void> | void;
   onBlocked?: (userId: number) => void;
 }) {
-  const urls = mediaUrls(post);
+  const urls = postMediaUrls(post);
   const [slide, setSlide] = useState(0);
   const [liking, setLiking] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
-  const authorName = post.author_name || post.author?.name || post.user_name || "Usuario";
-  const profileId =
-    post.author_profile_id || post.author_public_profile_id || post.public_profile_id;
-  const authorUserId =
-    Number(post.author || post.author_id || post.user || post.user_id) || null;
+  const authorName = postAuthorName(post);
+  const profileId = postAuthorProfileId(post);
+  const authorUserId = postAuthorUserId(post);
   const caption = post.content || post.caption || "";
   const liked = !!post.user_has_liked;
-  const avatar = post.author_avatar || post.author_image;
+  const avatar = postAuthorAvatar(post);
   const activeUrl = urls[Math.min(slide, Math.max(urls.length - 1, 0))];
   const showMedia = Boolean(activeUrl) && !imgFailed;
 

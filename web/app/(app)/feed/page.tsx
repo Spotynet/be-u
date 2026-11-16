@@ -7,6 +7,7 @@ import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useFeed} from "@/features/posts/hooks/useFeed";
 import {PostCard} from "@/components/posts/PostCard";
 import {CategoryChipBar} from "@/components/marketplace";
+import {postAuthorUserId} from "@/lib/posts";
 
 export default function FeedPage() {
   const [category, setCategory] = useState<string>("");
@@ -24,7 +25,7 @@ export default function FeedPage() {
   };
 
   const visiblePosts = posts.filter((post) => {
-    const authorId = Number(post.author || post.author_id || post.user || post.user_id);
+    const authorId = postAuthorUserId(post);
     return !authorId || !blockedUsers.includes(authorId);
   });
 

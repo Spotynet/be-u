@@ -7,18 +7,12 @@ import {AppShell} from "@/components/layout/AppShell";
 import {ContentActions} from "@/components/moderation/ContentActions";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {postApi, errorUtils} from "@/lib/api";
-
-function mediaUrls(post: any): string[] {
-  const media = post?.media || post?.images || post?.media_files || [];
-  if (Array.isArray(media) && media.length) {
-    return media
-      .map((m: any) => (typeof m === "string" ? m : m.url || m.image || m.file))
-      .filter(Boolean);
-  }
-  if (post?.image) return [post.image];
-  if (post?.before || post?.after) return [post.before, post.after].filter(Boolean);
-  return [];
-}
+import {
+  postAuthorName,
+  postAuthorProfileId,
+  postAuthorUserId,
+  postMediaUrls,
+} from "@/lib/posts";
 
 function PostDetailInner() {
   const params = useParams();
@@ -122,14 +116,11 @@ function PostDetailInner() {
     }
   };
 
-  const urls = mediaUrls(post);
-  const profileId =
-    post?.author_profile_id || post?.author_public_profile_id || post?.public_profile_id;
-  const isOwner =
-    user &&
-    (Number(post?.author) === Number(user.id) ||
-      Number(post?.author_id) === Number(user.id) ||
-      Number(post?.user) === Number(user.id));
+  const urls = postMediaUrls(post);
+  const profileId = postAuthorProfileId(post);
+  const authorName = postAuthorName(post);
+  const authorUserId = postAuthorUserId(post);
+  const isOwner = !!(user && authorUserId && Number(user.id) === authorUserId);
 
   const groupSessionId =
     post?.linked_group_session_id || post?.linked_group_session || post?.group_session_id;
@@ -145,7 +136,7 @@ function PostDetailInner() {
         serviceType:
           post.linked_service_type === "place_service" ? "place_service" : "professional_service",
         providerId: String(post.linked_provider_id || profileId || 0),
-        providerName: post.author_name || "Proveedor",
+        providerName: authorName || "Proveedor",
         price: String(post.linked_service_price || ""),
         duration: String(post.linked_service_duration_minutes || 60),
       });
@@ -154,9 +145,6 @@ function PostDetailInner() {
     if (profileId) return `/profile/${profileId}`;
     return null;
   })();
-
-  const authorUserId =
-    Number(post?.author || post?.author_id || post?.user || post?.user_id) || null;
 
   return (
     <div className="nabbi-page mx-auto w-full max-w-[1100px]">
@@ -182,10 +170,10 @@ function PostDetailInner() {
                   <Link
                     href={`/profile/${profileId}`}
                     className="text-foreground no-underline">
-                    {post.author_name || "Usuario"}
+                    {authorName}
                   </Link>
                 ) : (
-                  post.author_name || "Usuario"
+                  authorName
                 )}
               </div>
               {!isOwner && (
