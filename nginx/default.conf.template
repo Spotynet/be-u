@@ -1,5 +1,10 @@
 # Nabbi / be-u project nginx — hostnames from env (./dev.sh / ./deploy.sh).
 # Official nginx image runs envsubst on /etc/nginx/templates/*.template
+#
+# Docker embedded DNS + variables so missing optional upstreams (e.g. mobile)
+# do not prevent nginx from starting.
+
+resolver 127.0.0.11 valid=10s ipv6=off;
 
 # Next.js web
 server {
@@ -7,7 +12,8 @@ server {
     server_name ${NABBI_WEB_HOST};
 
     location / {
-        proxy_pass http://web:3008;
+        set $nabbi_web web:3008;
+        proxy_pass http://$nabbi_web;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -18,13 +24,14 @@ server {
     }
 }
 
-# Expo mobile web
+# Expo mobile web (optional — may be down during rebuild)
 server {
     listen 80;
     server_name ${NABBI_MOBILE_HOST};
 
     location / {
-        proxy_pass http://mobile:3009;
+        set $nabbi_mobile mobile:3009;
+        proxy_pass http://$nabbi_mobile;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -41,7 +48,8 @@ server {
     server_name ${NABBI_API_HOST};
 
     location / {
-        proxy_pass http://api:3007;
+        set $nabbi_api api:3007;
+        proxy_pass http://$nabbi_api;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -57,7 +65,8 @@ server {
     server_name _;
 
     location / {
-        proxy_pass http://web:3008;
+        set $nabbi_web web:3008;
+        proxy_pass http://$nabbi_web;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

@@ -84,7 +84,7 @@ services:
     depends_on:
       - api
       - web
-      - mobile
+      # mobile is optional; nginx starts even if mobile is down
     restart: unless-stopped
 
 volumes:
