@@ -180,7 +180,7 @@ export default function ProfileDetailScreen() {
   const handleShare = async () => {
     if (!profile) return;
     try {
-      const url = `https://be-u.ai/profile/${id}`;
+      const url = `https://nabbi.app/profile/${id}`;
       const message = `Mira el perfil de ${profile.name || "este proveedor"} en nabbi`;
       if (Platform.OS === "ios") {
         await Linking.openURL(`sms:&body=${encodeURIComponent(message + " " + url)}`);

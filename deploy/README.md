@@ -55,7 +55,7 @@ NABBI_IMAGE_TAG=<sha_from_build> ./deploy.sh
 
 # Host nginx (owns :80/:443) → Compose on 127.0.0.1:8080
 sudo ./deploy/setup-prod-nginx.sh
-# DNS A records for be-u.ai / api.be-u.ai / app.be-u.ai must point here, then:
+# DNS A records for nabbi.app / api.nabbi.app must point here, then:
 sudo ./deploy/setup-prod-nginx.sh --certbot
 
 ./deploy.sh down
@@ -83,6 +83,17 @@ NABBI_IMAGE_TAG=deadbeef \
 
 # Dev
 curl -sI -H 'Host: nabbi-dev.spotynet.com' http://127.0.0.1:3020/ | head -3
+
+# Prod: api host must be Django, NOT Next.js (Next 308s cause browser CORS errors)
+curl -sI -H 'Host: api.nabbi.app' http://127.0.0.1:8080/ | head -5
+# Expect Django/gunicorn headers — if you see X-Powered-By: Next.js, recreate nginx:
+#   NABBI_API_HOST=api.nabbi.app NABBI_WEB_HOST=nabbi.app \
+#     docker compose -f compose.yaml -f compose.prod.yaml up -d --force-recreate nginx
+
+curl -sI -X OPTIONS https://api.nabbi.app/api/auth/register/ \
+  -H 'Origin: https://nabbi.app' \
+  -H 'Access-Control-Request-Method: POST' | grep -i access-control
+# Expect: access-control-allow-origin: https://nabbi.app
 ```
 
 ## Deprecated

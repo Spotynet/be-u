@@ -3,7 +3,7 @@ import type {NextConfig} from "next";
 const backendOrigin =
   process.env.BACKEND_ORIGIN ||
   process.env.NEXT_PUBLIC_BACKEND_ORIGIN ||
-  (process.env.NODE_ENV === "production" ? "https://stg.be-u.ai" : "http://localhost:8000");
+  (process.env.NODE_ENV === "production" ? "https://api.nabbi.app" : "http://localhost:8000");
 
 const nextConfig: NextConfig = {
   output: "standalone",

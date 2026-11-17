@@ -42,8 +42,8 @@ services:
     command: ["node", "server.js"]
     environment:
       BACKEND_ORIGIN: ${BACKEND_ORIGIN:-http://api:3007}
-      NEXT_PUBLIC_BACKEND_ORIGIN: ${NEXT_PUBLIC_BACKEND_ORIGIN:-https://api.be-u.ai}
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.be-u.ai/api}
+      NEXT_PUBLIC_BACKEND_ORIGIN: ${NEXT_PUBLIC_BACKEND_ORIGIN:-https://api.nabbi.app}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.nabbi.app/api}
       NEXT_TELEMETRY_DISABLED: "1"
       PORT: "3008"
       HOSTNAME: "0.0.0.0"
@@ -68,7 +68,7 @@ services:
     volumes: !override []
     command: !override ["nginx", "-g", "daemon off;"]
     environment: !override
-      EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-https://api.be-u.ai}
+      EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-https://api.nabbi.app/api}
     deploy:
       resources:
         limits:
@@ -85,6 +85,12 @@ services:
 
   nginx:
     # Host nginx + Certbot own :80/:443; Compose only on localhost.
+    # Prod host defaults (override compose.yaml's *-dev.spotynet.com).
+    # If these stay on dev names, api.nabbi.app falls through to Next.js → CORS 308.
+    environment:
+      NABBI_API_HOST: ${NABBI_API_HOST:-api.nabbi.app}
+      NABBI_WEB_HOST: ${NABBI_WEB_HOST:-nabbi.app}
+      NABBI_MOBILE_HOST: ${NABBI_MOBILE_HOST:-mobile.internal}
     ports: !override
       - "127.0.0.1:8080:80"
     depends_on:

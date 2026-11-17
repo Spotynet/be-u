@@ -83,8 +83,8 @@ module.exports = {
                 ring: 'var(--color-ring)',
             },
             fontFamily: {
-                sans: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
-                mono: ['var(--font-geist-mono)', 'monospace'],
+                sans: ['var(--font-nabbi)', 'var(--font-geist-sans)', 'system-ui', 'sans-serif'],
+                mono: ['ui-monospace', 'monospace'],
             },
             borderRadius: {
                 lg: 'var(--radius)',

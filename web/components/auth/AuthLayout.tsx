@@ -28,7 +28,7 @@ export const AuthLayout = ({children}: AuthLayoutProps) => {
         padding: "48px 16px",
         position: "relative",
         overflow: "hidden",
-        fontFamily: "var(--font-geist-sans)",
+        fontFamily: "var(--font-nabbi), var(--font-geist-sans), system-ui, sans-serif",
       }}>
 
       {/* Decorative blobs — más opacos = verde más visible (menos “fantasma”) */}

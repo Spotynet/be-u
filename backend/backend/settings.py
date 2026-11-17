@@ -42,7 +42,24 @@ SECRET_KEY = os.environ.get(
 # Default to True for localhost development
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'stg.be-u.ai', 'be-u.ai', '*.be-u.ai', 'nabbi-api-dev.spotynet.com']
+# Comma-separated extras via ALLOWED_HOSTS_EXTRA (optional)
+_allowed_hosts = [
+    'localhost',
+    '127.0.0.1',
+    'stg.be-u.ai',
+    'be-u.ai',
+    '*.be-u.ai',
+    'nabbi-api-dev.spotynet.com',
+    'nabbi.app',
+    'api.nabbi.app',
+    'www.nabbi.app',
+]
+_allowed_hosts_extra = os.environ.get('ALLOWED_HOSTS_EXTRA', '').strip()
+if _allowed_hosts_extra:
+    _allowed_hosts.extend(
+        h.strip() for h in _allowed_hosts_extra.split(',') if h.strip()
+    )
+ALLOWED_HOSTS = _allowed_hosts
 CORS_ALLOW_ALL_ORIGINS = True
 
 # Application definition
@@ -248,6 +265,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3001",
     "https://stg.be-u.ai",
     "https://be-u.ai",
+    "https://nabbi.app",
+    "https://www.nabbi.app",
+    "https://nabbi-dev.spotynet.com",
     # Mobile app (Expo/React Native) - not needed for native apps but useful for Expo web
     "http://localhost:8081",  # Expo default port
     "http://localhost:19000",  # Expo Go

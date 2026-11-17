@@ -21,11 +21,17 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://nabbi-api-dev.spotynet.com/api"
+        "EXPO_PUBLIC_API_URL": "https://api.nabbi.app/api"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "APPLE_ID_EMAIL_HERE",
+        "ascAppId": "ASC_APP_ID_HERE",
+        "appleTeamId": "APPLE_TEAM_ID_HERE"
+      }
+    }
   }
 }

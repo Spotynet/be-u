@@ -26,9 +26,7 @@ import {
   MagnifyingGlassIcon,
   QuestionMarkCircleIcon,
   RocketLaunchIcon,
-  ScissorsIcon,
   ShieldCheckIcon,
-  SparklesIcon,
   Squares2X2Icon,
   StarIcon,
   UserGroupIcon,
@@ -37,29 +35,27 @@ import {
 import Link from "next/link";
 import {useRouter} from "next/navigation";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {useTheme} from "@/components/ThemeProvider";
+import {ThemeModeSwitch} from "@/components/ThemeModeSwitch";
 import {getCatIcon} from "@/components/icons/CategoryIcons";
+import {
+  ACCENT,
+  ACCENT_RGB,
+  CREAM,
+  DARK,
+  DARK_RGB,
+  GOLD,
+  GOLD_RGB,
+  INK,
+  LABEL,
+  LIGHT,
+  MAIN,
+  MAIN_RGB,
+  TEAL_RGB,
+  getSurfaces,
+  type Surfaces,
+} from "@/constants/brand";
 
-// ─── Brand tokens ─────────────────────────────────────────────────────────────
-// Main: #558367 (verde salvia) · Accent: #AE5238 (terracota) · Gold: #D39932 (ámbar)
-// Teal: #225D65 (azul pizarra) · Light: #E3D8C6 (arena cálida)
-const INK   = "#12211A";        // verde casi negro → footer
-const DARK  = "#1F3328";        // bosque profundo → hero, secciones dark
-const MAIN  = "#558367";        // verde salvia principal
-const LIGHT = "#E3D8C6";        // arena cálida → secciones alternas
-const CREAM = "#FAF8F3";        // blanco cálido → fondo de página
-const ACCENT= "#F6C531";        // amarillo vibrante → CTAs, botones primarios
-const GOLD  = "#D39932";        // ámbar/mostaza → stats, detalles elegantes
-const TEAL  = "#225D65";        // azul pizarra → blob, notif. tarjeta, paso 02
-const LABEL = "#3d6050";        // verde apagado → texto label
-/** RGB helpers */
-const MAIN_RGB  = "85, 131, 103";
-const ACCENT_RGB= "246, 197, 49";
-const DARK_RGB  = "31, 51, 40";
-const GOLD_RGB  = "211, 153, 50";
-const TEAL_RGB  = "34, 93, 101";
-
-
-// ─── Categorías ───────────────────────────────────────────────────────────────
 type HeroIcon = ComponentType<SVGProps<SVGSVGElement>>;
 
 const CATEGORIES = [
@@ -72,7 +68,7 @@ const CATEGORIES = [
     border: "rgba(236,72,153,0.2)",
     tagBg: "rgba(236,72,153,0.09)",
     tagColor: "#be185d",
-    subs: ["Cabello", "Pestañas", "Cejas", "Maquillaje", "Manos & Pies", "Faciales", "Barbería"],
+    subs: ["Cabello", "Pestañas", "Cejas", "Maquillaje", "Manos y pies", "Faciales", "Barbería"],
   },
   {
     id: "bienestar",
@@ -83,7 +79,7 @@ const CATEGORIES = [
     border: "rgba(34,197,94,0.2)",
     tagBg: "rgba(34,197,94,0.1)",
     tagColor: "#15803d",
-    subs: ["Spa & Masajes", "Yoga", "Meditación", "Pilates", "Breathwork", "Acupuntura", "Fisioterapia", "Psicoterapia", "Nutrición", "Holística"],
+    subs: ["Spa y masajes", "Yoga", "Meditación", "Pilates", "Breathwork", "Acupuntura", "Fisioterapia", "Psicoterapia", "Nutrición", "Holística"],
   },
   {
     id: "mascotas",
@@ -103,19 +99,55 @@ const ALL_SUBS = CATEGORIES.flatMap((c) =>
 );
 
 const FAQS = [
-  {icon: QuestionMarkCircleIcon, q:"¿Cómo funciona esto exactamente?",a:"Tú nos dices qué necesitas (un corte, una clase de yoga, lo que sea). nabbi vigila las agendas de tus profes 24/7. Cuando hay hueco, te reserva y te manda notificación. Así de simple."},
-  {icon: Squares2X2Icon, q:"¿Qué servicios cubre nabbi?",a:"Belleza (Cabello, Pestañas, Cejas, Maquillaje, Manos & Pies, Faciales, Barbería), Bienestar (Spa, Yoga, Meditación, Pilates, Breathwork, Acupuntura, Fisioterapia, Psicoterapia, Nutrición, Holística) y Mascotas (Estética, Spa, Cuidadores, Paseadores, Guarderías). Más de 22 tipos de servicio."},
-  {icon: RocketLaunchIcon, q:"¿Es gratis? No me hagas pagar nada raro",a:"Sí, usar nabbi para encontrar y reservar citas es completamente gratis para ti. Los profesionales y negocios tienen sus propios planes según lo que necesiten."},
-  {icon: BellAlertIcon, q:"¿Y si reserva algo que ya no quiero?",a:"Tranqui. Siempre recibes una notificación antes de que se confirme todo. Puedes aprobar, cancelar o reprogramar desde la app sin drama."},
-  {icon: HeartIcon, q:"¿Funciona para el baño de mi perro también?",a:"Claro. En Mascotas tenemos estéticas, spas, cuidadores a domicilio, paseadores y guarderías. Tu peludo también merece lo mejor."},
-  {icon: BriefcaseIcon, q:"Soy profesional / tengo un negocio, ¿puedo unirme?",a:"Claro. Entra a la app, elige tu categoría (Belleza, Bienestar o Mascotas), define tus servicios y empieza a recibir reservas."},
-  {icon: CalendarDaysIcon, q:"¿Con qué calendarios conecta?",a:"Con Google Calendar y Apple Calendar para que tus citas caigan directo en tu agenda. También conectamos con sistemas de clínicas y centros de bienestar."},
-  {icon: ShieldCheckIcon, q:"¿Mis datos están seguros?",a:"Todo cifrado, nada compartido sin tu permiso. Puedes revisar nuestra política de privacidad cuando quieras; está en lenguaje humano, sin letras pequeñas raras."},
+  {
+    icon: QuestionMarkCircleIcon,
+    q: "¿Cómo funciona esto exactamente?",
+    a: "Tú nos dices qué necesitas: un corte, una clase de yoga o lo que sea. nabbi vigila las agendas de tus profesionales las 24 horas. Cuando hay un hueco, te reserva y te manda una notificación. Así de simple.",
+  },
+  {
+    icon: Squares2X2Icon,
+    q: "¿Qué servicios cubre nabbi?",
+    a: "Belleza (cabello, pestañas, cejas, maquillaje, manos y pies, faciales, barbería), bienestar (spa, yoga, meditación, pilates, breathwork, acupuntura, fisioterapia, psicoterapia, nutrición, holística) y mascotas (estética, spa, cuidadores, paseadores, guarderías). Más de 22 tipos de servicio.",
+  },
+  {
+    icon: RocketLaunchIcon,
+    q: "¿Es gratis?",
+    a: "Sí. Usar nabbi para encontrar y reservar citas es gratis para ti. Los profesionales y negocios tienen sus propios planes según lo que necesiten.",
+  },
+  {
+    icon: BellAlertIcon,
+    q: "¿Y si reserva algo que ya no quiero?",
+    a: "No te preocupes. Siempre recibes una notificación antes de que se confirme. Puedes aprobar, cancelar o reprogramar desde la aplicación sin problema.",
+  },
+  {
+    icon: HeartIcon,
+    q: "¿Funciona para el baño de mi perro también?",
+    a: "Sí. En mascotas tenemos estéticas, spas, cuidadores a domicilio, paseadores y guarderías.",
+  },
+  {
+    icon: BriefcaseIcon,
+    q: "Soy profesional o tengo un negocio, ¿puedo unirme?",
+    a: "Claro. Entra a la aplicación, elige tu categoría (belleza, bienestar o mascotas), define tus servicios y empieza a recibir reservas.",
+  },
+  {
+    icon: CalendarDaysIcon,
+    q: "¿Con qué calendarios conecta?",
+    a: "Con Google Calendar y Apple Calendar, para que tus citas lleguen directo a tu agenda. También conectamos con sistemas de clínicas y centros de bienestar.",
+  },
+  {
+    icon: ShieldCheckIcon,
+    q: "¿Mis datos están seguros?",
+    a: "Todo está cifrado y no se comparte nada sin tu permiso. Puedes revisar nuestra política de privacidad cuando quieras: está escrita en lenguaje claro.",
+  },
 ];
 
-// ─── Sub-components ────────────────────────────────────────────────────────────
+const NAV_LINKS = [
+  {href: "#categorias", label: "Categorías", icon: Squares2X2Icon},
+  {href: "#como-funciona", label: "Cómo funciona", icon: BoltIcon},
+  {href: "#faq", label: "FAQ", icon: ChatBubbleLeftRightIcon},
+] as const;
 
-function NabbiIcon({size = 44, variant = "color"}: {size?: number; variant?: "color" | "white"}) {
+function NabbiIcon({size = 44}: {size?: number}) {
   const padding = size * 0.2;
   return (
     <div
@@ -123,18 +155,14 @@ function NabbiIcon({size = 44, variant = "color"}: {size?: number; variant?: "co
         width: size,
         height: size,
         borderRadius: 12,
-        background: "#1F3328",
-        padding: padding,
+        background: DARK,
+        padding,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-      }}
-    >
-      <img
-        src="/nabbi_logo_t.png"
-        alt="nabbi logo"
-        style={{width: "100%", height: "100%"}}
-      />
+        flexShrink: 0,
+      }}>
+      <img src="/nabbi_logo_t.png" alt="" style={{width: "100%", height: "100%"}} />
     </div>
   );
 }
@@ -148,7 +176,7 @@ function AppIcon({
   size?: number;
   color?: string;
 }) {
-  return <Icon style={{width:size, height:size, color, flexShrink:0}} aria-hidden="true"/>;
+  return <Icon style={{width: size, height: size, color, flexShrink: 0}} aria-hidden="true" />;
 }
 
 function IconChip({
@@ -165,371 +193,529 @@ function IconChip({
   return (
     <span
       style={{
-        display:"inline-flex",
-        alignItems:"center",
-        justifyContent:"center",
-        width:size + 12,
-        height:size + 12,
-        borderRadius:"999px",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: size + 12,
+        height: size + 12,
+        borderRadius: "999px",
         background,
-        flexShrink:0,
-      }}
-    >
-      <Icon style={{width:size, height:size, color}} aria-hidden="true"/>
+        flexShrink: 0,
+      }}>
+      <Icon style={{width: size, height: size, color}} aria-hidden="true" />
     </span>
   );
 }
 
 function Wave({from, to}: {from: string; to: string}) {
   return (
-    <div style={{background: to, lineHeight: 0, marginTop: -1}}>
-      <svg viewBox="0 0 1440 56" preserveAspectRatio="none" style={{display:"block",width:"100%",height:"clamp(32px,4vw,56px)"}}>
-        <path d="M0,28 C200,56 400,4 600,28 C800,52 1000,4 1200,28 C1320,42 1390,38 1440,28 L1440,0 L0,0 Z" fill={from}/>
+    <div className="lp-wave" style={{background: to, lineHeight: 0, marginTop: -1}} aria-hidden="true">
+      <svg viewBox="0 0 1440 56" preserveAspectRatio="none" style={{display: "block", width: "100%"}}>
+        <path d="M0,28 C200,56 400,4 600,28 C800,52 1000,4 1200,28 C1320,42 1390,38 1440,28 L1440,0 L0,0 Z" fill={from} />
       </svg>
     </div>
   );
 }
 
+function CtaButton({
+  children,
+  onClick,
+  variant = "primary",
+  size = "md",
+  fullWidth = false,
+  className = "",
+  style,
+  type = "button",
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  variant?: "primary" | "secondary" | "ghost" | "dark" | "text" | "textLight";
+  size?: "sm" | "md";
+  fullWidth?: boolean;
+  className?: string;
+  style?: CSSProperties;
+  type?: "button" | "submit";
+}) {
+  const {theme} = useTheme();
+  const s = getSurfaces(theme === "dark" ? "dark" : "light");
+
+  const variants: Record<string, CSSProperties> = {
+    primary: {
+      background: s.cta,
+      color: s.ctaText,
+      border: "1.5px solid transparent",
+      boxShadow: `0 4px 16px rgba(${s.ctaRgb},0.35)`,
+    },
+    secondary: {
+      background: "rgba(255,255,255,0.1)",
+      color: "white",
+      border: "1.5px solid rgba(255,255,255,0.22)",
+      boxShadow: "none",
+    },
+    ghost: {
+      background: s.card,
+      color: s.text,
+      border: `1.5px solid ${s.border}`,
+      boxShadow: "none",
+    },
+    dark: {
+      background: s.forestMid,
+      color: s.mode === "dark" ? s.text : "#ffffff",
+      border: "1.5px solid transparent",
+      boxShadow: "none",
+    },
+    text: {
+      background: "transparent",
+      color: s.text,
+      border: "1.5px solid transparent",
+      boxShadow: "none",
+      fontWeight: 600,
+    },
+    textLight: {
+      background: "transparent",
+      color: "rgba(255,255,255,0.92)",
+      border: "1.5px solid transparent",
+      boxShadow: "none",
+      fontWeight: 600,
+    },
+  };
+
+  const sizes: Record<string, CSSProperties> = {
+    sm: {padding: "10px 18px", fontSize: 14, minHeight: 44},
+    md: {padding: "14px 28px", fontSize: 15, minHeight: 48},
+  };
+
+  return (
+    <button
+      type={type}
+      className={`lp-focus ${className}`}
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        width: fullWidth ? "100%" : undefined,
+        borderRadius: 999,
+        fontWeight: 800,
+        letterSpacing: "-0.01em",
+        cursor: "pointer",
+        transition: "opacity 0.15s, transform 0.15s",
+        ...sizes[size],
+        ...variants[variant],
+        ...style,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.opacity = "0.9";
+        e.currentTarget.style.transform = "scale(1.02)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.opacity = "1";
+        e.currentTarget.style.transform = "scale(1)";
+      }}>
+      {children}
+    </button>
+  );
+}
+
+/** Product mock — no floating badges over the hero visual */
 function PhoneMockup() {
   const cats = [
-    {id:"belleza",   label:"Belleza",   bg:"rgba(236,72,153,0.18)", border:"rgba(236,72,153,0.32)", color:"#f9a8d4"},
-    {id:"bienestar", label:"Bienestar", bg:"rgba(85,131,103,0.2)",  border:"rgba(85,131,103,0.35)", color:"#86efac"},
-    {id:"mascotas",  label:"Mascotas",  bg:"rgba(245,158,11,0.18)", border:"rgba(245,158,11,0.32)", color:"#fde68a"},
+    {id: "belleza", label: "Belleza", bg: "rgba(236,72,153,0.18)", border: "rgba(236,72,153,0.32)", color: "#f9a8d4"},
+    {id: "bienestar", label: "Bienestar", bg: `rgba(${MAIN_RGB},0.2)`, border: `rgba(${MAIN_RGB},0.35)`, color: "#86efac"},
+    {id: "mascotas", label: "Mascotas", bg: "rgba(245,158,11,0.18)", border: "rgba(245,158,11,0.32)", color: "#fde68a"},
   ];
   const monitoring = [
-    {id:"bienestar", label:"Yoga · búsqueda activa",    status:"buscando…",      statusColor:"rgba(255,255,255,0.45)", dot:"rgba(255,255,255,0.3)"},
-    {id:"mascotas",  label:"Baño · 2 opciones listas",  status:"listo para confirmar",    statusColor:"#86efac",               dot:"#22c55e"},
+    {id: "bienestar", label: "Yoga, búsqueda activa", status: "Buscando...", statusColor: "rgba(255,255,255,0.45)", dot: "rgba(255,255,255,0.3)"},
+    {id: "mascotas", label: "Baño, 2 opciones listas", status: "Listo para confirmar", statusColor: "#86efac", dot: "#22c55e"},
   ];
   const navIcons = [Squares2X2Icon, MagnifyingGlassIcon, ChatBubbleLeftRightIcon, UserGroupIcon];
 
   return (
-    <div style={{width:"min(290px,70vw)",margin:"0 auto",position:"relative"}}>
-
-      {/* Floating bubble — cita encontrada (top-right) */}
-      <div className="float-anim" style={{
-        position:"absolute",top:-20,right:-16,zIndex:10,
-        background:"white",borderRadius:16,padding:"10px 13px",
-        boxShadow:"0 12px 36px rgba(0,0,0,0.22)",
-        minWidth:150,border:`1.5px solid rgba(${MAIN_RGB},0.4)`,
-      }}>
-        <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
-          <div style={{width:7,height:7,borderRadius:"50%",background:"#22c55e",flexShrink:0}}/>
-          <span style={{color:DARK,fontWeight:800,fontSize:11}}>¡Cita conseguida!</span>
-        </div>
-        <p style={{margin:0,color:"#64748b",fontSize:9.5,lineHeight:1.4}}>Lorena P. · Hoy 17:30</p>
-        <p style={{margin:"1px 0 0",color:MAIN,fontSize:9,fontWeight:700}}>Corte & Color · Belleza</p>
-      </div>
-
-      {/* Floating bubble — nabbi activo (bottom-left) */}
-      <div className="float-slow" style={{
-        position:"absolute",bottom:52,left:-22,zIndex:10,
-        background:ACCENT,borderRadius:14,padding:"8px 12px",
-        boxShadow:`0 8px 24px rgba(${ACCENT_RGB},0.45)`,
-        border:"1.5px solid rgba(255,255,255,0.35)",
-      }}>
-          <p style={{margin:0,color:INK,fontWeight:800,fontSize:10,lineHeight:1.3,display:"flex",alignItems:"center",gap:5}}>
-            <AppIcon icon={BoltIcon} size={12} color={INK}/>
-            nabbi activo
-          </p>
-          <p style={{margin:"2px 0 0",color:"rgba(18,33,26,0.65)",fontSize:8.5}}>vigilando 24/7</p>
-      </div>
-
-      {/* Phone frame */}
-      <div style={{
-        background:`linear-gradient(160deg,${INK} 0%,#1a221d 100%)`,
-        borderRadius:"2.8rem",
-        padding:8,
-        border:"2px solid rgba(255,255,255,0.11)",
-        boxShadow:"0 40px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)",
-      }}>
-
-        {/* Notch */}
-        <div style={{display:"flex",justifyContent:"center",marginBottom:5}}>
-          <div style={{width:52,height:5,borderRadius:3,background:"rgba(255,255,255,0.14)"}}/>
+    <div className="lp-phone-shell">
+      <div
+        style={{
+          background: `linear-gradient(160deg,${INK} 0%,#1a221d 100%)`,
+          borderRadius: "2.8rem",
+          padding: 8,
+          border: "2px solid rgba(255,255,255,0.11)",
+          boxShadow: "0 40px 80px rgba(0,0,0,0.45)",
+        }}>
+        <div style={{display: "flex", justifyContent: "center", marginBottom: 5}}>
+          <div style={{width: 52, height: 5, borderRadius: 3, background: "rgba(255,255,255,0.14)"}} />
         </div>
 
-        {/* Screen */}
-        <div style={{background:"#0d1710",borderRadius:"2.2rem",overflow:"hidden",display:"flex",flexDirection:"column"}}>
-
-          {/* Status bar */}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 18px 5px",color:"rgba(255,255,255,0.4)",fontSize:9.5}}>
-            <span style={{fontWeight:600}}>9:41</span>
-            <div style={{display:"flex",alignItems:"center",gap:4}}>
-              <div style={{display:"flex",alignItems:"flex-end",gap:"1.5px"}}>
-                {[3,5,7].map(h=><div key={h} style={{width:2.5,height:h,borderRadius:1,background:"rgba(255,255,255,0.45)"}}/>)}
-              </div>
-              <div style={{width:14,height:7,border:"1.5px solid rgba(255,255,255,0.4)",borderRadius:2,display:"flex",alignItems:"center",padding:"1px"}}>
-                <div style={{width:"72%",height:"100%",background:ACCENT,borderRadius:1}}/>
-              </div>
+        <div style={{background: "#0d1710", borderRadius: "2.2rem", overflow: "hidden", display: "flex", flexDirection: "column"}}>
+          <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 18px 5px", color: "rgba(255,255,255,0.4)", fontSize: 9.5}}>
+            <span style={{fontWeight: 600}}>9:41</span>
+            <div style={{width: 14, height: 7, border: "1.5px solid rgba(255,255,255,0.4)", borderRadius: 2, display: "flex", alignItems: "center", padding: 1}}>
+              <div style={{width: "72%", height: "100%", background: ACCENT, borderRadius: 1}} />
             </div>
           </div>
 
-          {/* App header */}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"2px 16px 10px"}}>
-            <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <NabbiIcon size={22} variant="white"/>
-              <span style={{color:"white",fontWeight:900,fontSize:15,letterSpacing:"-0.03em"}}>nabbi</span>
+          <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 16px 10px"}}>
+            <div style={{display: "flex", alignItems: "center", gap: 6}}>
+              <NabbiIcon size={22} />
+              <span style={{color: "white", fontWeight: 800, fontSize: 15, letterSpacing: "-0.03em"}}>nabbi</span>
             </div>
-            <div style={{position:"relative",padding:4}}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 01-3.46 0"/>
-              </svg>
-              <div style={{position:"absolute",top:2,right:2,width:6,height:6,borderRadius:"50%",background:ACCENT,border:"1.5px solid #0d1710"}}/>
+            <BellAlertIcon style={{width: 17, height: 17, color: "rgba(255,255,255,0.55)"}} aria-hidden="true" />
+          </div>
+
+          <div style={{padding: "0 16px 10px"}}>
+            <p style={{color: "rgba(255,255,255,0.45)", fontSize: 9.5, margin: "0 0 2px", fontWeight: 500}}>Buenos días</p>
+            <p style={{color: "white", fontWeight: 800, fontSize: 13.5, margin: "0 0 7px", letterSpacing: "-0.02em"}}>¿Qué necesitas hoy?</p>
+            <div style={{display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.28)", borderRadius: 999, padding: "3px 9px"}}>
+              <div style={{width: 5, height: 5, borderRadius: "50%", background: "#22c55e"}} />
+              <span style={{color: "#86efac", fontSize: 8.5, fontWeight: 700}}>nabbi vigilando, 3 activas</span>
             </div>
           </div>
 
-          {/* Greeting + live status */}
-          <div style={{padding:"0 16px 10px"}}>
-            <p style={{color:"rgba(255,255,255,0.45)",fontSize:9.5,margin:"0 0 2px",fontWeight:500}}>Buenos días</p>
-            <p style={{color:"white",fontWeight:800,fontSize:13.5,margin:"0 0 7px",letterSpacing:"-0.02em"}}>¿Qué necesitas hoy?</p>
-            <div style={{display:"inline-flex",alignItems:"center",gap:5,background:"rgba(34,197,94,0.12)",border:"1px solid rgba(34,197,94,0.28)",borderRadius:999,padding:"3px 9px"}}>
-              <div style={{width:5,height:5,borderRadius:"50%",background:"#22c55e"}}/>
-              <span style={{color:"#86efac",fontSize:8.5,fontWeight:700}}>nabbi vigilando · 3 activas</span>
-            </div>
-          </div>
-
-          {/* Category shortcuts */}
-          <div style={{display:"flex",gap:5,padding:"0 12px 11px"}}>
-            {cats.map(c=>(
-              <div key={c.id} style={{flex:1,background:c.bg,border:`1px solid ${c.border}`,borderRadius:12,padding:"9px 4px 7px",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-                <div style={{width:30,height:30,borderRadius:10,background:"rgba(255,255,255,0.09)",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
+          <div style={{display: "flex", gap: 5, padding: "0 12px 11px"}}>
+            {cats.map((c) => (
+              <div key={c.id} style={{flex: 1, background: c.bg, border: `1px solid ${c.border}`, borderRadius: 12, padding: "9px 4px 7px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4}}>
+                <div style={{width: 30, height: 30, borderRadius: 10, background: "rgba(255,255,255,0.09)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden"}}>
                   {getCatIcon(c.id, 28)}
                 </div>
-                <span style={{color:c.color,fontSize:7.5,fontWeight:700,textAlign:"center",lineHeight:1.2}}>{c.label}</span>
+                <span style={{color: c.color, fontSize: 7.5, fontWeight: 700, textAlign: "center", lineHeight: 1.2}}>{c.label}</span>
               </div>
             ))}
           </div>
 
-          {/* Divider */}
-          <div style={{height:1,background:"rgba(255,255,255,0.07)",margin:"0 12px 10px"}}/>
+          <div style={{height: 1, background: "rgba(255,255,255,0.07)", margin: "0 12px 10px"}} />
 
-          {/* Cita encontrada card */}
-          <div style={{margin:"0 12px",borderRadius:14,background:`rgba(${MAIN_RGB},0.14)`,border:`1.5px solid rgba(${MAIN_RGB},0.42)`,padding:"10px 12px",marginBottom:9}}>
-            <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:8}}>
-              <div style={{width:6,height:6,borderRadius:"50%",background:"#22c55e"}}/>
-              <span style={{color:"#86efac",fontSize:8.5,fontWeight:800,letterSpacing:"0.05em"}}>¡NABBI ENCONTRÓ CITA!</span>
+          <div style={{margin: "0 12px 9px", borderRadius: 14, background: `rgba(${MAIN_RGB},0.14)`, border: `1.5px solid rgba(${MAIN_RGB},0.42)`, padding: "10px 12px"}}>
+            <div style={{display: "flex", alignItems: "center", gap: 5, marginBottom: 8}}>
+              <div style={{width: 6, height: 6, borderRadius: "50%", background: "#22c55e"}} />
+              <span style={{color: "#86efac", fontSize: 8.5, fontWeight: 800, letterSpacing: "0.05em"}}>Cita encontrada</span>
             </div>
-            <div style={{display:"flex",gap:9,alignItems:"flex-start",marginBottom:9}}>
-              <div style={{width:32,height:32,borderRadius:10,background:"rgba(255,255,255,0.08)",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
+            <div style={{display: "flex", gap: 9, alignItems: "flex-start", marginBottom: 9}}>
+              <div style={{width: 32, height: 32, borderRadius: 10, background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0}}>
                 {getCatIcon("belleza", 30)}
               </div>
-              <div style={{flex:1,minWidth:0}}>
-                <p style={{color:"white",fontWeight:800,fontSize:11.5,margin:"0 0 1px"}}>Corte & Color</p>
-                <p style={{color:"rgba(255,255,255,0.55)",fontSize:9,margin:"0 0 2px"}}>Lorena Pérez · ⭐ 4.9</p>
-                <div style={{display:"inline-flex",alignItems:"center",gap:4,background:"rgba(246,197,49,0.15)",borderRadius:999,padding:"2px 7px"}}>
-                  <span style={{color:ACCENT,fontSize:8.5,fontWeight:700}}>Hoy · 17:30 — disponible</span>
-                </div>
+              <div style={{flex: 1, minWidth: 0}}>
+                <p style={{color: "white", fontWeight: 800, fontSize: 11.5, margin: "0 0 1px"}}>Corte y color</p>
+                <p style={{color: "rgba(255,255,255,0.55)", fontSize: 9, margin: "0 0 2px"}}>Lorena Pérez, 4.9</p>
+                <span style={{color: ACCENT, fontSize: 8.5, fontWeight: 700}}>Hoy, 17:30, disponible</span>
               </div>
             </div>
-            <button style={{width:"100%",borderRadius:999,padding:"9px 0",background:ACCENT,color:INK,fontWeight:800,fontSize:10.5,border:"none",cursor:"pointer",marginBottom:5,letterSpacing:"0.01em"}}>
+            <div style={{width: "100%", borderRadius: 999, padding: "9px 0", background: ACCENT, color: INK, fontWeight: 800, fontSize: 10.5, textAlign: "center", letterSpacing: "0.01em"}}>
               Confirmar cita
-            </button>
-            <button style={{width:"100%",borderRadius:999,padding:"6px 0",background:"rgba(255,255,255,0.06)",color:"rgba(255,255,255,0.5)",fontWeight:600,fontSize:9,border:"1px solid rgba(255,255,255,0.1)",cursor:"pointer"}}>
-              Ver más opciones
-            </button>
+            </div>
           </div>
 
-          {/* Monitoring list */}
-          <div style={{padding:"0 12px 11px"}}>
-            <p style={{color:"rgba(255,255,255,0.3)",fontSize:8.5,fontWeight:800,textTransform:"uppercase",letterSpacing:"0.07em",margin:"0 0 8px"}}>Vigilando</p>
-            {monitoring.map(item=>(
-              <div key={item.id} style={{display:"flex",alignItems:"center",gap:7,marginBottom:7}}>
-                <div style={{width:24,height:24,borderRadius:8,background:"rgba(255,255,255,0.07)",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
+          <div style={{padding: "0 12px 11px"}}>
+            <p style={{color: "rgba(255,255,255,0.3)", fontSize: 8.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 8px"}}>Vigilando</p>
+            {monitoring.map((item) => (
+              <div key={item.id} style={{display: "flex", alignItems: "center", gap: 7, marginBottom: 7}}>
+                <div style={{width: 24, height: 24, borderRadius: 8, background: "rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0}}>
                   {getCatIcon(item.id, 22)}
                 </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <p style={{color:"rgba(255,255,255,0.72)",fontSize:9.5,fontWeight:600,margin:"0 0 2px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.label}</p>
-                  <div style={{display:"flex",alignItems:"center",gap:3}}>
-                    <div style={{width:4,height:4,borderRadius:"50%",background:item.dot,flexShrink:0}}/>
-                    <span style={{fontSize:8.5,color:item.statusColor,fontWeight:500}}>{item.status}</span>
+                <div style={{flex: 1, minWidth: 0}}>
+                  <p style={{color: "rgba(255,255,255,0.72)", fontSize: 9.5, fontWeight: 600, margin: "0 0 2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>{item.label}</p>
+                  <div style={{display: "flex", alignItems: "center", gap: 3}}>
+                    <div style={{width: 4, height: 4, borderRadius: "50%", background: item.dot, flexShrink: 0}} />
+                    <span style={{fontSize: 8.5, color: item.statusColor, fontWeight: 500}}>{item.status}</span>
                   </div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Bottom nav */}
-          <div style={{display:"flex",justifyContent:"space-around",alignItems:"center",padding:"8px 0 16px",borderTop:"1px solid rgba(255,255,255,0.07)"}}>
-            {navIcons.map((Icon,i)=>(
-              <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                <Icon style={{width:17,height:17,color:i===0 ? ACCENT : "rgba(255,255,255,0.32)"}} aria-hidden="true"/>
-                {i===0 && <div style={{width:4,height:4,borderRadius:"50%",background:ACCENT}}/>}
-              </div>
+          <div style={{display: "flex", justifyContent: "space-around", alignItems: "center", padding: "8px 0 16px", borderTop: "1px solid rgba(255,255,255,0.07)"}}>
+            {navIcons.map((Icon, i) => (
+              <Icon key={i} style={{width: 17, height: 17, color: i === 0 ? ACCENT : "rgba(255,255,255,0.32)"}} aria-hidden="true" />
             ))}
           </div>
-
         </div>
 
-        {/* Home indicator */}
-        <div style={{display:"flex",justifyContent:"center",marginTop:6}}>
-          <div style={{width:64,height:3,borderRadius:2,background:"rgba(255,255,255,0.18)"}}/>
+        <div style={{display: "flex", justifyContent: "center", marginTop: 6}}>
+          <div style={{width: 64, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.18)"}} />
         </div>
       </div>
     </div>
   );
 }
 
-/** FAQ abierto: fondo opaco (no rgba translúcido) para que el texto no se mezcle con el section oscuro detrás */
-const FAQ_OPEN_BG = "#eef5f1";
-
-function FaqItem({icon: Icon, question, answer, isOpen, onToggle}:{icon: HeroIcon; question:string;answer:string;isOpen:boolean;onToggle:()=>void}) {
+function FaqItem({
+  icon: Icon,
+  question,
+  answer,
+  isOpen,
+  onToggle,
+  s,
+}: {
+  icon: HeroIcon;
+  question: string;
+  answer: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  s: Surfaces;
+}) {
   return (
-    <div style={{borderRadius:20,border:`1.5px solid ${isOpen?`rgba(${MAIN_RGB},0.55)`:LIGHT}`,background:isOpen?FAQ_OPEN_BG:"#ffffff",transition:"border-color 0.2s,background 0.2s",overflow:"hidden",boxShadow:isOpen?"0 8px 24px rgba(0,0,0,0.12)":"none"}}>
-      <button onClick={onToggle} style={{width:"100%",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,padding:"18px 20px",background:"none",border:"none",cursor:"pointer",textAlign:"left"}}>
-        <span style={{display:"flex",alignItems:"flex-start",gap:10,flex:1}}>
-          <IconChip icon={Icon} size={16} color={MAIN} background={`rgba(${MAIN_RGB},0.12)`}/>
-          <span style={{color:DARK,fontWeight:700,fontSize:14,lineHeight:1.45,flex:1}}>{question}</span>
+    <div
+      style={{
+        borderRadius: 20,
+        border: `1.5px solid ${isOpen ? `rgba(${s.primaryRgb},0.55)` : s.border}`,
+        background: isOpen ? s.faqOpenBg : s.card,
+        transition: "border-color 0.2s, background 0.2s",
+        overflow: "hidden",
+        boxShadow: isOpen ? "0 8px 24px rgba(0,0,0,0.12)" : "none",
+      }}>
+      <button
+        type="button"
+        className="lp-focus"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "16px",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "left",
+          minHeight: 44,
+        }}>
+        <span style={{display: "flex", alignItems: "flex-start", gap: 10, flex: 1, minWidth: 0}}>
+          <IconChip icon={Icon} size={16} color={s.primary} background={`rgba(${s.primaryRgb},0.12)`} />
+          <span style={{color: s.text, fontWeight: 700, fontSize: 14, lineHeight: 1.4, flex: 1}}>{question}</span>
         </span>
-        <div style={{width:28,height:28,borderRadius:"50%",background:isOpen?ACCENT:LIGHT,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background 0.2s,transform 0.2s",transform:isOpen?"rotate(45deg)":"rotate(0deg)"}}>
-          <svg width="12" height="12" viewBox="0 0 13 13" fill="none">
-            <line x1="6.5" y1="1" x2="6.5" y2="12" stroke={isOpen?"#fff":"#64748b"} strokeWidth="2" strokeLinecap="round"/>
-            <line x1="1" y1="6.5" x2="12" y2="6.5" stroke={isOpen?"#fff":"#64748b"} strokeWidth="2" strokeLinecap="round"/>
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
+            background: isOpen ? s.cta : s.bgAlt,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            transition: "background 0.2s, transform 0.2s",
+            transform: isOpen ? "rotate(45deg)" : "rotate(0deg)",
+          }}>
+          <svg width="12" height="12" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+            <line x1="6.5" y1="1" x2="6.5" y2="12" stroke={isOpen ? s.ctaText : s.textMuted} strokeWidth="2" strokeLinecap="round" />
+            <line x1="1" y1="6.5" x2="12" y2="6.5" stroke={isOpen ? s.ctaText : s.textMuted} strokeWidth="2" strokeLinecap="round" />
           </svg>
         </div>
       </button>
-      <div style={{maxHeight:isOpen?400:0,overflow:"hidden",transition:"max-height 0.35s ease"}}>
-        <p style={{color: LABEL,fontSize:14,lineHeight:1.8,padding:"0 20px 20px",margin:0,fontWeight:500}}>{answer}</p>
+      <div style={{maxHeight: isOpen ? 720 : 0, overflow: "hidden", transition: "max-height 0.35s ease"}}>
+        <p style={{color: s.textMuted, fontSize: 14, lineHeight: 1.7, padding: "0 16px 16px", margin: 0, fontWeight: 500}}>{answer}</p>
       </div>
     </div>
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function Home() {
   const {isAuthenticated, isInitializing} = useAuth();
+  const {theme} = useTheme();
+  const surf = getSurfaces(theme === "dark" ? "dark" : "light");
   const router = useRouter();
-  const [openFaq, setOpenFaq] = useState<number|null>(null);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const goAppHome = () => {
     const home =
-      typeof window !== "undefined" &&
-      window.matchMedia("(min-width: 640px)").matches
+      typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches
         ? "/explore"
         : "/feed";
     router.push(home);
   };
 
-  // Close mobile menu on resize to desktop
   useEffect(() => {
-    const onResize = () => { if (window.innerWidth >= 768) setMobileMenuOpen(false); };
+    const onResize = () => {
+      if (window.innerWidth >= 1024) setMobileMenuOpen(false);
+    };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileMenuOpen]);
+
   return (
-    <div style={{minHeight:"100vh",fontFamily:"var(--font-geist-sans)",background:CREAM}}>
+    <div className="lp-root" style={{minHeight: "100vh", fontFamily: "var(--font-nabbi), system-ui, sans-serif", background: surf.bg}}>
+      <a
+        href="#contenido"
+        className="lp-focus"
+        style={{
+          position: "absolute",
+          left: -9999,
+          top: 8,
+          zIndex: 100,
+          background: ACCENT,
+          color: INK,
+          padding: "10px 16px",
+          borderRadius: 999,
+          fontWeight: 700,
+          textDecoration: "none",
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.left = "12px";
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.left = "-9999px";
+        }}>
+        Saltar al contenido
+      </a>
 
       {/* ── HEADER ──────────────────────────────────────────────── */}
-      <header style={{position:"sticky",top:0,zIndex:50,background:"rgba(250,249,245,0.97)",backdropFilter:"blur(16px)",borderBottom:`1px solid rgba(${MAIN_RGB},0.35)`,boxShadow:`0 1px 12px rgba(${DARK_RGB},0.06)`}}>
+      <header
+        className="lp-header"
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+          background: surf.headerBg,
+          backdropFilter: "blur(16px)",
+          borderBottom: `1px solid ${surf.border}`,
+        }}>
         <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8">
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",height:64,gap:12}}>
+          {/* Mobile: logo | actions — Desktop: equal columns so nav is truly centered */}
+          <div className="lp-header-bar">
+            <div className="lp-header-left">
+              <Link href="/" style={{display: "flex", alignItems: "center", gap: 8, flexShrink: 0, textDecoration: "none"}} aria-label="nabbi inicio">
+                <NabbiIcon size={28} />
+                <span style={{fontWeight: 800, fontSize: 18, color: surf.text, letterSpacing: "-0.03em"}}>nabbi</span>
+              </Link>
+            </div>
 
-            {/* Logo */}
-            <Link href="/" style={{display:"flex",alignItems:"center",gap:8,flexShrink:0,textDecoration:"none"}}>
-              <NabbiIcon size={32} variant="color"/>
-              <span style={{fontWeight:900,fontSize:19,color:DARK,letterSpacing:"-0.03em"}}>nabbi</span>
-            </Link>
-
-            {/* Desktop nav — center */}
-            <nav className="hidden md:flex items-center gap-6" style={{flex:1,justifyContent:"center"}}>
-              {[["#categorias","Categorías"],["#como-funciona","Cómo funciona"],["#faq","FAQ"]].map(([href,label])=>(
-                <a key={href} href={href}
-                  style={{color:"#4b5563",fontSize:14,fontWeight:500,textDecoration:"none",transition:"color 0.15s",padding:"4px 0"}}
-                  onMouseEnter={e=>(e.currentTarget.style.color=DARK)}
-                  onMouseLeave={e=>(e.currentTarget.style.color="#4b5563")}>{label}</a>
+            <nav className="lp-header-desktop-nav" aria-label="Principal">
+              {NAV_LINKS.map(({href, label}) => (
+                <a
+                  key={href}
+                  href={href}
+                  className="lp-focus"
+                  style={{color: surf.textMuted, fontSize: 14, fontWeight: 500, textDecoration: "none", padding: "8px 0", minHeight: 44, display: "inline-flex", alignItems: "center"}}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = surf.text)}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = surf.textMuted)}>
+                  {label}
+                </a>
               ))}
             </nav>
 
-            {/* Right actions */}
-            <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-              {!isInitializing && isAuthenticated ? (
-                <button
-                  onClick={goAppHome}
-                  style={{background:ACCENT,color:INK,borderRadius:999,fontWeight:800,border:"none",cursor:"pointer",transition:"opacity 0.15s,transform 0.15s",whiteSpace:"nowrap",padding:"9px 20px",fontSize:14,boxShadow:`0 2px 14px rgba(${ACCENT_RGB},0.4)`}}
-                  onMouseEnter={e=>{e.currentTarget.style.opacity="0.85";e.currentTarget.style.transform="scale(1.04)";}}
-                  onMouseLeave={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1)";}}>
-                  Ir a la app
-                </button>
-              ) : (
-                <>
-                  {/* "Entrar" — desktop only */}
-                  <button className="hidden md:block" onClick={()=>router.push("/login")}
-                    style={{color:"#4b5563",fontSize:14,fontWeight:600,background:"none",border:`1.5px solid rgba(${DARK_RGB},0.15)`,borderRadius:999,cursor:"pointer",padding:"8px 18px",transition:"border-color 0.15s,color 0.15s"}}
-                    onMouseEnter={e=>{e.currentTarget.style.color=DARK;e.currentTarget.style.borderColor=`rgba(${DARK_RGB},0.4)`;}}
-                    onMouseLeave={e=>{e.currentTarget.style.color="#4b5563";e.currentTarget.style.borderColor=`rgba(${DARK_RGB},0.15)`;}}>
-                    Entrar
-                  </button>
-
-                  {/* CTA — always visible, shorter on mobile */}
-                  <button onClick={()=>router.push("/register")}
-                    style={{background:ACCENT,color:INK,borderRadius:999,fontWeight:800,border:"none",cursor:"pointer",transition:"opacity 0.15s,transform 0.15s",whiteSpace:"nowrap",padding:"9px 20px",fontSize:14,boxShadow:`0 2px 14px rgba(${ACCENT_RGB},0.4)`}}
-                    onMouseEnter={e=>{e.currentTarget.style.opacity="0.85";e.currentTarget.style.transform="scale(1.04)";}}
-                    onMouseLeave={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1)";}}>
-                    <span className="hidden sm:inline-flex items-center gap-2">
-                      <AppIcon icon={RocketLaunchIcon} size={16} color={INK}/>
+            <div className="lp-header-right">
+              <div className="lp-header-desktop-actions">
+                {!isInitializing && isAuthenticated ? (
+                  <CtaButton size="sm" onClick={goAppHome}>
+                    Ir a la app
+                  </CtaButton>
+                ) : (
+                  <>
+                    <CtaButton size="sm" variant="text" onClick={() => router.push("/login")}>
+                      Ingresar
+                    </CtaButton>
+                    <CtaButton size="sm" onClick={() => router.push("/register")}>
                       Empezar gratis
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 sm:hidden">
-                      <AppIcon icon={RocketLaunchIcon} size={14} color={INK}/>
-                      Gratis
-                    </span>
-                  </button>
-                </>
-              )}
+                    </CtaButton>
+                  </>
+                )}
+              </div>
 
-              {/* Hamburger — mobile only */}
-              <button className="md:hidden" onClick={()=>setMobileMenuOpen(o=>!o)}
-                style={{display:"flex",alignItems:"center",justifyContent:"center",background:mobileMenuOpen?LIGHT:"none",border:`1.5px solid ${mobileMenuOpen?ACCENT:`rgba(${DARK_RGB},0.15)`}`,borderRadius:10,cursor:"pointer",padding:7,color:DARK,flexShrink:0,transition:"background 0.15s,border-color 0.15s"}}
-                aria-label="Menú">
-                {mobileMenuOpen
-                  ? <XMarkIcon style={{width:20,height:20}} aria-hidden="true"/>
-                  : <Bars3Icon style={{width:20,height:20}} aria-hidden="true"/>
-                }
+              <div className="lp-header-mobile-cta">
+                {!isInitializing && isAuthenticated ? (
+                  <CtaButton size="sm" onClick={goAppHome}>
+                    Ir a la app
+                  </CtaButton>
+                ) : (
+                  <CtaButton size="sm" onClick={() => router.push("/register")}>
+                    Empezar
+                  </CtaButton>
+                )}
+              </div>
+
+              <div className="lp-header-theme-bar">
+                <ThemeModeSwitch />
+              </div>
+
+              <button
+                type="button"
+                className="lp-burger lp-focus"
+                onClick={() => setMobileMenuOpen((o) => !o)}
+                style={{
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: mobileMenuOpen ? surf.bgAlt : "transparent",
+                  border: `1.5px solid ${mobileMenuOpen ? surf.cta : surf.border}`,
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  padding: 10,
+                  color: surf.text,
+                  minWidth: 44,
+                  minHeight: 44,
+                }}
+                aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+                aria-expanded={mobileMenuOpen}>
+                {mobileMenuOpen ? <XMarkIcon style={{width: 20, height: 20}} aria-hidden="true" /> : <Bars3Icon style={{width: 20, height: 20}} aria-hidden="true" />}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Mobile nav dropdown — slides in below header */}
         {mobileMenuOpen && (
-          <div style={{borderTop:`1px solid ${LIGHT}`,background:"white",padding:"8px 0 20px",boxShadow:"0 12px 32px rgba(0,0,0,0.08)"}}>
+          <div className="lp-mobile-drawer" style={{borderTop: `1px solid ${surf.border}`, background: surf.card, padding: "8px 0 24px", boxShadow: "0 12px 32px rgba(0,0,0,0.08)"}}>
             <div className="mx-auto w-full max-w-[1600px] px-4">
-              <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                {[
-                  {href:"#categorias", icon:Squares2X2Icon, label:"Categorías"},
-                  {href:"#como-funciona", icon:BoltIcon, label:"Cómo funciona"},
-                  {href:"#faq", icon:ChatBubbleLeftRightIcon, label:"Preguntas frecuentes"},
-                ].map(({href, icon: Icon, label})=>(
-                  <a key={href} href={href} onClick={()=>setMobileMenuOpen(false)}
-                    style={{display:"flex",alignItems:"center",gap:12,color:DARK,fontSize:16,fontWeight:600,textDecoration:"none",padding:"14px 4px",borderBottom:`1px solid ${LIGHT}`}}>
-                    <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:28}}>
-                      <AppIcon icon={Icon} size={18} color={MAIN}/>
-                    </span>
+              <div style={{display: "flex", flexDirection: "column", gap: 2}}>
+                {NAV_LINKS.map(({href, label, icon: Icon}) => (
+                  <a
+                    key={href}
+                    href={href}
+                    className="lp-focus"
+                    onClick={() => setMobileMenuOpen(false)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      color: surf.text,
+                      fontSize: 16,
+                      fontWeight: 600,
+                      textDecoration: "none",
+                      padding: "14px 4px",
+                      borderBottom: `1px solid ${surf.border}`,
+                      minHeight: 48,
+                    }}>
+                    <AppIcon icon={Icon} size={18} color={MAIN} />
                     {label}
-                    <ChevronRightIcon style={{marginLeft:"auto",width:16,height:16,color:"#94a3b8"}} aria-hidden="true"/>
+                    <ChevronRightIcon style={{marginLeft: "auto", width: 16, height: 16, color: surf.textMuted}} aria-hidden="true" />
                   </a>
                 ))}
-                <div style={{display:"flex",gap:8,marginTop:14}}>
+                <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 4px", borderBottom: `1px solid ${surf.border}`, minHeight: 52}}>
+                  <span style={{color: surf.text, fontSize: 16, fontWeight: 600}}>Apariencia</span>
+                  <ThemeModeSwitch />
+                </div>
+                <div style={{marginTop: 16, display: "flex", flexDirection: "column", gap: 8}}>
                   {!isInitializing && isAuthenticated ? (
-                    <button onClick={()=>{goAppHome();setMobileMenuOpen(false);}}
-                      style={{flex:1,borderRadius:12,padding:"12px 0",fontWeight:800,fontSize:15,background:ACCENT,color:INK,border:"none",cursor:"pointer",boxShadow:`0 4px 14px rgba(${ACCENT_RGB},0.4)`}}>
+                    <CtaButton fullWidth onClick={() => { goAppHome(); setMobileMenuOpen(false); }}>
                       Ir a la app
-                    </button>
+                    </CtaButton>
                   ) : (
                     <>
-                      <button onClick={()=>{router.push("/login");setMobileMenuOpen(false);}}
-                        style={{flex:1,borderRadius:12,padding:"12px 0",fontWeight:700,fontSize:15,background:"white",color:DARK,border:`1.5px solid rgba(${DARK_RGB},0.2)`,cursor:"pointer"}}>
-                        Iniciar sesión
-                      </button>
-                      <button onClick={()=>{router.push("/register");setMobileMenuOpen(false);}}
-                        style={{flex:1,borderRadius:12,padding:"12px 0",fontWeight:800,fontSize:15,background:ACCENT,color:INK,border:"none",cursor:"pointer",boxShadow:`0 4px 14px rgba(${ACCENT_RGB},0.4)`}}>
-                        <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
-                          <AppIcon icon={RocketLaunchIcon} size={16} color={INK}/>
-                          Empezar gratis
-                        </span>
-                      </button>
+                      <CtaButton
+                        fullWidth
+                        onClick={() => {
+                          router.push("/register");
+                          setMobileMenuOpen(false);
+                        }}>
+                        Empezar gratis
+                      </CtaButton>
+                      <CtaButton
+                        fullWidth
+                        variant="ghost"
+                        onClick={() => {
+                          router.push("/login");
+                          setMobileMenuOpen(false);
+                        }}>
+                        Ingresar
+                      </CtaButton>
                     </>
                   )}
                 </div>
@@ -539,324 +725,299 @@ export default function Home() {
         )}
       </header>
 
-      <main>
+      <main id="contenido">
+        {/* ── HERO — brand, one headline, one line, CTAs, product visual ── */}
+        <section
+          className="lp-hero"
+          style={{background: `linear-gradient(150deg, ${surf.forest} 0%, ${surf.forestMid} 55%, ${surf.mode === "dark" ? "#15261c" : "#2d4030"} 100%)`}}
+          aria-labelledby="hero-brand">
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: `radial-gradient(ellipse 70% 60% at 70% 40%, rgba(${surf.primaryRgb},0.22) 0%, transparent 60%), radial-gradient(ellipse 40% 40% at 15% 80%, rgba(${surf.tealRgb},0.14) 0%, transparent 55%)`,
+              pointerEvents: "none",
+            }}
+            aria-hidden="true"
+          />
 
-        {/* ── HERO ─────────────────────────────────────────────── */}
-        <section className="lp-hero" style={{background:`linear-gradient(150deg, ${INK} 0%, ${DARK} 50%, #2d4030 100%)`}}>
-          {/* Decorative blobs */}
-          <div style={{position:"absolute",top:"-15%",right:"-8%",width:"min(500px,80vw)",height:"min(500px,80vw)",borderRadius:"50%",background:MAIN,opacity:0.18,filter:"blur(40px)",pointerEvents:"none"}}/>
-          <div style={{position:"absolute",bottom:"5%",left:"-10%",width:"min(320px,60vw)",height:"min(320px,60vw)",borderRadius:"50%",background:TEAL,opacity:0.12,filter:"blur(30px)",pointerEvents:"none"}}/>
-          <div style={{position:"absolute",top:"30%",right:"15%",width:"min(180px,30vw)",height:"min(180px,30vw)",borderRadius:"50%",background:GOLD,opacity:0.09,filter:"blur(24px)",pointerEvents:"none"}}/>
+          <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8" style={{position: "relative"}}>
+            <div className="lp-hero-grid">
+              <div className="lp-hero-copy">
+                <p
+                  id="hero-brand"
+                  className="lp-hero-brand"
+                  style={{
+                    color: surf.cta,
+                    fontWeight: 800,
+                    letterSpacing: "-0.04em",
+                    lineHeight: 1,
+                  }}>
+                  nabbi
+                </p>
 
-          {/* Floating icons — desktop only */}
-          <div className="float-anim hidden lg:flex" style={{position:"absolute",top:"15%",left:"5%",width:60,height:60,alignItems:"center",justifyContent:"center",borderRadius:"50%",background:"rgba(255,255,255,0.06)",opacity:0.8}}>
-            <ScissorsIcon style={{width:30,height:30,color:"rgba(255,255,255,0.45)"}} aria-hidden="true"/>
-          </div>
-          <div className="float-slow hidden lg:flex" style={{position:"absolute",top:"60%",left:"8%",width:52,height:52,alignItems:"center",justifyContent:"center",borderRadius:"50%",background:"rgba(255,255,255,0.05)",opacity:0.8}}>
-            <HeartIcon style={{width:24,height:24,color:"rgba(255,255,255,0.4)"}} aria-hidden="true"/>
-          </div>
-          <div className="float-anim hidden lg:flex" style={{position:"absolute",top:"25%",right:"5%",width:54,height:54,alignItems:"center",justifyContent:"center",borderRadius:"50%",background:"rgba(255,255,255,0.05)",opacity:0.8}}>
-            <SparklesIcon style={{width:26,height:26,color:"rgba(255,255,255,0.4)"}} aria-hidden="true"/>
-          </div>
-          <div className="float-slow hidden lg:flex" style={{position:"absolute",top:"70%",right:"8%",width:48,height:48,alignItems:"center",justifyContent:"center",borderRadius:"50%",background:"rgba(255,255,255,0.05)",opacity:0.8}}>
-            <BellAlertIcon style={{width:22,height:22,color:"rgba(255,255,255,0.4)"}} aria-hidden="true"/>
-          </div>
-
-          <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8" style={{position:"relative"}}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-
-              {/* Text */}
-              <div>
-                <div style={{display:"inline-flex",alignItems:"center",gap:8,background:`rgba(${GOLD_RGB},0.15)`,border:`1px solid rgba(${GOLD_RGB},0.4)`,borderRadius:999,padding:"6px 14px",marginBottom:20,color:GOLD,fontSize:12,fontWeight:700}}>
-                  <SparklesIcon style={{width:15,height:15,color:GOLD}} aria-hidden="true"/>
-                  <span>Belleza · Bienestar · Mascotas</span>
-                </div>
-
-                <h1 className="lp-h1" style={{color:"white",fontWeight:900,marginBottom:18,letterSpacing:"-0.04em",lineHeight:1.06}}>
-                  Deja de hacer{" "}
-                  <span style={{color:ACCENT,fontStyle:"italic"}}>refresh.</span>
-                  <br/>
-                  nabbi consigue tu cita.
+                <h1 className="lp-h1" style={{color: "white", fontWeight: 800}}>
+                  Deja de recargar{" "}
+                  <span style={{color: surf.cta, fontStyle: "italic"}}>una y otra vez.</span>
+                  <br />
+                  Consigue tu cita.
                 </h1>
 
-                <p style={{color:"rgba(255,255,255,0.88)",fontSize:"clamp(15px,2.5vw,18px)",lineHeight:1.7,maxWidth:460,marginBottom:10}}>
-                  Tu tiempo vale más que eso. nabbi vigila las agendas por ti las 24 horas — cuando hay hueco, reserva y te avisa.
-                </p>
-                <p style={{color:"rgba(255,255,255,0.68)",fontSize:14,lineHeight:1.6,maxWidth:420,marginBottom:28}}>
-                  Cabello, yoga, masajes, paseadores, faciales… lo que necesites, sin tener que llamar mil veces.
+                <p className="lp-hero-lead" style={{color: "rgba(255,255,255,0.82)", marginTop: 0}}>
+                  Vigila agendas las 24 horas en belleza, bienestar y mascotas. Cuando hay un hueco, reserva y te avisa.
                 </p>
 
-                <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:32}}>
-                  <button onClick={()=>router.push("/register")}
-                    style={{background:ACCENT,color:INK,borderRadius:999,padding:"14px 28px",fontWeight:900,fontSize:"clamp(14px,2vw,16px)",border:"none",cursor:"pointer",boxShadow:`0 8px 24px rgba(${ACCENT_RGB},0.45)`,transition:"transform 0.15s,box-shadow 0.15s"}}
-                    onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.04)";e.currentTarget.style.boxShadow=`0 12px 32px rgba(${ACCENT_RGB},0.5)`;}}
-                    onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow=`0 8px 24px rgba(${ACCENT_RGB},0.4)`;}}>
-                    <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
-                      <AppIcon icon={RocketLaunchIcon} size={18} color={INK}/>
-                      Empezar gratis
-                    </span>
-                  </button>
-                  <button onClick={()=>router.push("/login")}
-                    style={{background:"rgba(255,255,255,0.09)",color:"white",borderRadius:999,padding:"14px 24px",fontWeight:700,fontSize:"clamp(13px,2vw,15px)",border:"1px solid rgba(255,255,255,0.2)",cursor:"pointer",transition:"background 0.15s"}}
-                    onMouseEnter={e=>(e.currentTarget.style.background="rgba(255,255,255,0.16)")}
-                    onMouseLeave={e=>(e.currentTarget.style.background="rgba(255,255,255,0.09)")}>
-                    Ya tengo cuenta
-                  </button>
-                </div>
-
-                {/* Mini stats */}
-                <div style={{display:"flex",gap:24,flexWrap:"wrap"}}>
-                  {[{v:"22+",l:"servicios cubiertos"},{v:"24/7",l:"vigilancia automática"},{v:"0€",l:"para el usuario"}].map(s=>(
-                    <div key={s.l}>
-                      <p style={{color:GOLD,fontWeight:900,fontSize:22,margin:0,letterSpacing:"-0.04em"}}>{s.v}</p>
-                      <p style={{color:"rgba(255,255,255,0.68)",fontSize:11,margin:0,fontWeight:500}}>{s.l}</p>
-                    </div>
-                  ))}
+                <div className="lp-cta-row">
+                  {!isInitializing && isAuthenticated ? (
+                    <CtaButton onClick={goAppHome}>
+                      <AppIcon icon={RocketLaunchIcon} size={18} color={INK} />
+                      Ir a la app
+                    </CtaButton>
+                  ) : (
+                    <>
+                      <CtaButton onClick={() => router.push("/register")}>
+                        <AppIcon icon={RocketLaunchIcon} size={18} color={INK} />
+                        Empezar gratis
+                      </CtaButton>
+                      <CtaButton
+                        className="lp-hero-secondary"
+                        variant="secondary"
+                        onClick={() => router.push("/login")}>
+                        Ya tengo cuenta
+                      </CtaButton>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {/* Phone — hidden on very small screens */}
-              <div className="lp-phone-col">
-                <PhoneMockup/>
+              <div className="lp-phone-col" aria-hidden="true">
+                <PhoneMockup />
               </div>
             </div>
           </div>
         </section>
 
-        {/* ── MARQUEE ──────────────────────────────────────────── */}
-        <div style={{background:MAIN,overflow:"hidden",padding:"11px 0",borderTop:`3px solid ${DARK}`,borderBottom:`3px solid ${DARK}`}}>
+        {/* Marquee — tablet+ only */}
+        <div className="lp-marquee" style={{background: surf.primary, overflow: "hidden"}} aria-hidden="true">
           <div className="marquee-track">
-            {[...ALL_SUBS,...ALL_SUBS].map((s,i)=>(
-              <span key={i} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"0 18px",color:CREAM,fontWeight:700,fontSize:"clamp(12px,2vw,14px)",whiteSpace:"nowrap"}}>
-                <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:18,height:18,borderRadius:"50%",background:"rgba(255,255,255,0.15)",overflow:"hidden",flexShrink:0}}>
-                  {getCatIcon(s.catId, 16)}
+            {[...ALL_SUBS, ...ALL_SUBS].map((item, i) => (
+              <span key={i} style={{display: "inline-flex", alignItems: "center", gap: 6, padding: "0 18px", color: surf.bg, fontWeight: 700, fontSize: "clamp(12px,2vw,14px)", whiteSpace: "nowrap"}}>
+                <span style={{display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: "50%", background: "rgba(255,255,255,0.15)", overflow: "hidden", flexShrink: 0}}>
+                  {getCatIcon(item.catId, 16)}
                 </span>
-                {s.label}<span style={{color:GOLD,opacity:0.7,marginLeft:3}}>•</span>
+                {item.label}
+                <span style={{color: surf.gold, opacity: 0.7, marginLeft: 3}}>|</span>
               </span>
             ))}
           </div>
         </div>
 
-        {/* Wave: dark → white */}
-        <Wave from={DARK} to={CREAM}/>
+        <Wave from={surf.forestMid} to={surf.bg} />
 
         {/* ── CATEGORIES ───────────────────────────────────────── */}
-        <section id="categorias" className="lp-section" style={{background:CREAM}}>
+        <section id="categorias" className="lp-section" style={{background: surf.bg}} aria-labelledby="cat-heading">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div style={{textAlign:"center",marginBottom:"clamp(32px,5vw,52px)" as CSSProperties["marginBottom"]}}>
-              <p style={{color:LABEL,fontWeight:800,fontSize:12,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>¿Qué necesitas hoy?</p>
-              <h2 style={{color:DARK,fontWeight:900,fontSize:"clamp(1.7rem,4.5vw,3rem)",letterSpacing:"-0.04em",lineHeight:1.1,marginBottom:14}}>
-                Desde uñas y yoga hasta<br/>spa para tu mascota, lo tenemos todo.
+            <div className="lp-section-intro">
+              <p style={{color: surf.label, fontWeight: 800, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8}}>¿Qué necesitas hoy?</p>
+              <h2 id="cat-heading" style={{color: surf.text, fontWeight: 800, fontSize: "clamp(1.55rem,4.2vw,2.75rem)", letterSpacing: "-0.04em", lineHeight: 1.12, marginBottom: 10}}>
+                Belleza, bienestar y mascotas
               </h2>
-              <p style={{color:"#475569",fontSize:"clamp(15px,2vw,17px)",maxWidth:480,margin:"0 auto 16px"}}>
-                Escoge tu categoría. nabbi se encarga del resto — sin llamadas, sin esperas, sin refreshes.
+              <p style={{color: surf.textBody, fontSize: "clamp(14px,2vw,17px)", lineHeight: 1.55, margin: 0}}>
+                Elige categoría. nabbi se encarga del resto.
               </p>
-              {/* "Más próximamente" badge */}
-              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:`rgba(${DARK_RGB},0.06)`,border:`1.5px dashed rgba(${DARK_RGB},0.2)`,borderRadius:999,padding:"7px 18px"}}>
-                <SparklesIcon style={{width:16,height:16,color:MAIN}} aria-hidden="true"/>
-                <span style={{color:DARK,fontSize:13,fontWeight:700}}>Belleza, Bienestar y Mascotas disponibles ahora</span>
-                <span style={{background:ACCENT,color:INK,fontSize:11,fontWeight:800,borderRadius:999,padding:"2px 10px",letterSpacing:"0.02em"}}>+más muy pronto</span>
-              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6" style={{marginTop:32}}>
-              {CATEGORIES.map((cat,idx)=>(
-                <div key={cat.id}
-                  style={{borderRadius:24,border:`2px solid ${cat.border}`,overflow:"hidden",transition:"transform 0.22s,box-shadow 0.22s",cursor:"default",background:"white"}}
-                  onMouseEnter={e=>{(e.currentTarget as HTMLDivElement).style.transform="translateY(-6px)";(e.currentTarget as HTMLDivElement).style.boxShadow="0 28px 64px rgba(0,0,0,0.1)";}}
-                  onMouseLeave={e=>{(e.currentTarget as HTMLDivElement).style.transform="translateY(0)";(e.currentTarget as HTMLDivElement).style.boxShadow="none";}}>
-
-                  {/* ── Icon hero area ── */}
-                  <div style={{background:cat.iconGrad,height:172,position:"relative",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                    {/* Decorative blobs */}
-                    <div style={{position:"absolute",top:-30,right:-30,width:110,height:110,borderRadius:"50%",background:cat.border,opacity:0.3,pointerEvents:"none"}}/>
-                    <div style={{position:"absolute",bottom:-18,left:-18,width:80,height:80,borderRadius:"50%",background:cat.tagBg,opacity:0.55,pointerEvents:"none"}}/>
-                    <div style={{position:"absolute",top:16,left:18,width:22,height:22,borderRadius:"50%",background:cat.border,opacity:0.2,pointerEvents:"none"}}/>
-                    {/* Index badge */}
-                    <span style={{position:"absolute",top:14,right:18,fontWeight:900,fontSize:12,color:cat.tagColor,opacity:0.5,letterSpacing:"0.08em",fontFamily:"monospace"}}>0{idx+1}</span>
-                    {/* SVG icon */}
-                    <div style={{position:"relative",zIndex:1,filter:"drop-shadow(0 8px 24px rgba(0,0,0,0.12))"}}>
-                      {getCatIcon(cat.id)}
-                    </div>
+            <div className="lp-cat-grid">
+              {CATEGORIES.map((cat, idx) => (
+                <article
+                  key={cat.id}
+                  id={cat.id}
+                  className="lp-cat-card"
+                  style={{
+                    borderRadius: 22,
+                    border: `1.5px solid ${cat.border}`,
+                    overflow: "hidden",
+                    background: cat.color,
+                    display: "flex",
+                    flexDirection: "column",
+                    height: "100%",
+                    transition: "transform 0.22s, box-shadow 0.22s",
+                  }}>
+                  <div className="lp-cat-media" style={{background: cat.iconGrad, flexShrink: 0, position: "relative", display: "flex", alignItems: "center", justifyContent: "center"}}>
+                    <span style={{position: "absolute", top: 12, right: 14, fontWeight: 800, fontSize: 11, color: cat.tagColor, opacity: 0.4, letterSpacing: "0.08em"}}>0{idx + 1}</span>
+                    <div style={{position: "relative", zIndex: 1}}>{getCatIcon(cat.id)}</div>
                   </div>
-
-                  {/* ── Card content ── */}
-                  <div style={{padding:"20px 22px 22px",background:cat.color}}>
-                    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10}}>
-                      <div>
-                        <h3 style={{color:DARK,fontWeight:900,fontSize:21,margin:"0 0 3px",letterSpacing:"-0.02em"}}>{cat.label}</h3>
-                        <p style={{color:cat.tagColor,fontSize:12,margin:0,fontWeight:700,letterSpacing:"0.02em"}}>{cat.headline}</p>
-                      </div>
-                      <span style={{flexShrink:0,lineHeight:1}}>{getCatIcon(cat.id, 28)}</span>
-                    </div>
-                    <div style={{height:1,background:cat.border,margin:"12px 0"}}/>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:18}}>
-                      {cat.subs.map(sub=>(
-                        <span key={sub} style={{background:cat.tagBg,color:cat.tagColor,borderRadius:999,padding:"4px 11px",fontSize:12,fontWeight:600,border:`1px solid ${cat.border}`}}>{sub}</span>
+                  <div style={{padding: "16px 16px 18px", background: cat.color, flex: 1, display: "flex", flexDirection: "column", minHeight: 0}}>
+                    <h3 style={{color: INK, fontWeight: 800, fontSize: "clamp(17px,2.5vw,21px)", margin: "0 0 2px", letterSpacing: "-0.02em"}}>{cat.label}</h3>
+                    <p style={{color: cat.tagColor, fontSize: 12, margin: "0 0 10px", fontWeight: 700}}>{cat.headline}</p>
+                    <div style={{height: 1, background: cat.border, margin: "0 0 10px", flexShrink: 0}} />
+                    <div className="lp-cat-tags">
+                      {cat.subs.map((sub, i) => (
+                        <span
+                          key={sub}
+                          className={i >= 5 ? "lp-cat-tag-extra" : undefined}
+                          style={{background: cat.tagBg, color: cat.tagColor, borderRadius: 999, padding: "5px 11px", fontSize: 12, fontWeight: 600, border: `1px solid ${cat.border}`, lineHeight: 1.3}}>
+                          {sub}
+                        </span>
                       ))}
+                      {cat.subs.length > 5 && (
+                        <span
+                          className="lp-cat-tag-more"
+                          style={{background: cat.tagBg, color: cat.tagColor, borderRadius: 999, padding: "5px 11px", fontSize: 12, fontWeight: 700, border: `1px solid ${cat.border}`, lineHeight: 1.3}}>
+                          +{cat.subs.length - 5}
+                        </span>
+                      )}
                     </div>
-                    <button onClick={()=>router.push("/register")}
-                      style={{width:"100%",borderRadius:999,padding:"10px 0",background:"white",color:DARK,fontWeight:700,fontSize:13,border:`1.5px solid ${cat.border}`,cursor:"pointer",transition:"background 0.15s"}}
-                      onMouseEnter={e=>(e.currentTarget.style.background=cat.color)}
-                      onMouseLeave={e=>(e.currentTarget.style.background="white")}>
-                      <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
-                        Ver profesionales de {cat.label}
-                        <ArrowLongRightIcon style={{width:16,height:16}} aria-hidden="true"/>
-                      </span>
-                    </button>
+                    <CtaButton fullWidth variant="ghost" size="sm" onClick={() => router.push("/register")} style={{marginTop: "auto"}}>
+                      <span className="lp-cat-cta-short">Ver {cat.label}</span>
+                      <span className="lp-cat-cta-full">Ver profesionales de {cat.label}</span>
+                      <ArrowLongRightIcon style={{width: 16, height: 16}} aria-hidden="true" />
+                    </CtaButton>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
 
-            {/* Coming soon banner */}
-            <div style={{marginTop:28,borderRadius:20,border:`2px dashed rgba(${DARK_RGB},0.15)`,background:`rgba(${DARK_RGB},0.03)`,padding:"22px 28px",display:"flex",flexWrap:"wrap",alignItems:"center",justifyContent:"space-between",gap:16}}>
-              <div style={{display:"flex",alignItems:"center",gap:12}}>
-                <IconChip icon={RocketLaunchIcon} size={24} color={INK} background={`rgba(${ACCENT_RGB},0.28)`}/>
-                <div>
-                  <p style={{color:DARK,fontWeight:800,fontSize:15,margin:"0 0 3px"}}>Esto es solo el comienzo</p>
-                  <p style={{color:"#475569",fontSize:13,margin:0}}>Pronto llegamos a más categorías: fitness, salud, educación y mucho más.</p>
+            <div className="lp-soon-banner" style={{marginTop: 20, borderRadius: 18, border: `1.5px dashed ${surf.border}`, background: surf.mode === "dark" ? surf.elevated : `rgba(${surf.darkRgb},0.03)`, padding: "14px 16px"}}>
+              <div style={{display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1}}>
+                <IconChip icon={RocketLaunchIcon} size={18} color={INK} background={`rgba(${surf.ctaRgb},0.28)`} />
+                <div style={{minWidth: 0}}>
+                  <p style={{color: surf.text, fontWeight: 800, fontSize: 14, margin: "0 0 2px"}}>Más categorías pronto</p>
+                  <p style={{color: surf.textBody, fontSize: 12, margin: 0, lineHeight: 1.4}}>Fitness, salud, educación y más.</p>
                 </div>
               </div>
-              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <div className="lp-soon-tags">
                 {[
-                  {label:"Fitness", icon: BoltIcon},
-                  {label:"Salud", icon: ShieldCheckIcon},
-                  {label:"Educación", icon: AcademicCapIcon},
-                  {label:"Nutricionistas", icon: SparklesIcon},
-                ].map(tag=>(
-                  <span key={tag.label} style={{display:"inline-flex",alignItems:"center",gap:6,background:`rgba(${DARK_RGB},0.06)`,color:"#475569",borderRadius:999,padding:"5px 13px",fontSize:12,fontWeight:600,border:`1px dashed rgba(${DARK_RGB},0.15)`}}>
-                    <tag.icon style={{width:14,height:14}} aria-hidden="true"/>
+                  {label: "Fitness", icon: BoltIcon},
+                  {label: "Salud", icon: ShieldCheckIcon},
+                  {label: "Educación", icon: AcademicCapIcon},
+                ].map((tag) => (
+                  <span key={tag.label} style={{display: "inline-flex", alignItems: "center", gap: 6, background: surf.mode === "dark" ? "rgba(136,184,154,0.12)" : `rgba(${surf.darkRgb},0.06)`, color: surf.textBody, borderRadius: 999, padding: "5px 13px", fontSize: 12, fontWeight: 600, border: `1px dashed ${surf.border}`}}>
+                    <tag.icon style={{width: 14, height: 14}} aria-hidden="true" />
                     {tag.label}
                   </span>
                 ))}
-                <span style={{display:"inline-flex",alignItems:"center",gap:6,background:ACCENT,color:INK,borderRadius:999,padding:"5px 14px",fontSize:12,fontWeight:800}}>
-                  <ClockIcon style={{width:14,height:14}} aria-hidden="true"/>
-                  Próximamente
-                </span>
               </div>
+              <span className="lp-soon-badge" style={{display: "inline-flex", alignItems: "center", gap: 6, background: ACCENT, color: INK, borderRadius: 999, padding: "6px 12px", fontSize: 11, fontWeight: 800, flexShrink: 0, whiteSpace: "nowrap"}}>
+                <ClockIcon style={{width: 13, height: 13}} aria-hidden="true" />
+                Pronto
+              </span>
             </div>
           </div>
         </section>
 
-        {/* Wave: cream → light */}
-        <Wave from={CREAM} to={LIGHT}/>
+        <Wave from={surf.bg} to={surf.bgAlt} />
 
         {/* ── CÓMO FUNCIONA ────────────────────────────────────── */}
-        <section id="como-funciona" className="lp-section" style={{background:LIGHT}}>
+        <section id="como-funciona" className="lp-section" style={{background: surf.bgAlt}} aria-labelledby="how-heading">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div style={{textAlign:"center",marginBottom:"clamp(36px,5vw,56px)" as CSSProperties["marginBottom"]}}>
-              <p style={{color:LABEL,fontWeight:800,fontSize:12,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10,display:"inline-flex",alignItems:"center",gap:6}}>
-                <BoltIcon style={{width:14,height:14}} aria-hidden="true"/>
+            <div className="lp-section-intro">
+              <p style={{color: surf.label, fontWeight: 800, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8, display: "inline-flex", alignItems: "center", gap: 6, justifyContent: "center"}}>
+                <BoltIcon style={{width: 14, height: 14}} aria-hidden="true" />
                 En serio, es fácil
               </p>
-              <h2 style={{color:DARK,fontWeight:900,fontSize:"clamp(1.7rem,4.5vw,3rem)",letterSpacing:"-0.04em",lineHeight:1.1,marginBottom:14}}>
+              <h2 id="how-heading" style={{color: surf.text, fontWeight: 800, fontSize: "clamp(1.55rem,4.2vw,2.75rem)", letterSpacing: "-0.04em", lineHeight: 1.12, marginBottom: 10}}>
                 3 pasos y ya tienes tu cita
               </h2>
-              <p style={{color:"#475569",fontSize:"clamp(15px,2vw,17px)",maxWidth:400,margin:"0 auto"}}>
-                Sin formularios raros. Sin llamadas eternas. Sin refreshes manuales.
+              <p style={{color: surf.textBody, fontSize: "clamp(14px,2vw,17px)", lineHeight: 1.55, margin: 0}}>
+                Sin formularios raros. Sin llamadas eternas.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="lp-steps-grid">
               {[
-                {step:"01",icon: MagnifyingGlassIcon,color:"rgba(236,72,153,0.12)",border:"rgba(236,72,153,0.2)",title:"Dime qué necesitas",body:"Elige tu categoría: Belleza, Bienestar o Mascotas. Selecciona el servicio, el profesional y tus preferencias de horario."},
-                {step:"02",icon: BellAlertIcon,color:`rgba(${TEAL_RGB},0.15)`,border:`rgba(${TEAL_RGB},0.35)`,title:"nabbi vigila por ti",body:"nabbi monitorea las agendas las 24 horas, todos los días. Tú no tienes que hacer nada. En serio. Nada."},
-                {step:"03",icon: CheckBadgeIcon,color:"rgba(245,158,11,0.12)",border:"rgba(245,158,11,0.25)",title:"Tenemos cita",body:"En cuanto hay un hueco disponible, nabbi reserva y te manda notificación al momento. Solo tienes que aparecer."},
-              ].map((s,i)=>(
-                <div key={s.step} style={{position:"relative",textAlign:"center"}}>
-                  {i<2 && <div className="hidden md:block" style={{position:"absolute",top:36,left:"62%",width:"36%",borderTop:`2px dashed rgba(${DARK_RGB},0.15)`}}/>}
-                  <div style={{width:68,height:68,borderRadius:20,background:s.color,border:`2px solid ${s.border}`,display:"inline-flex",flexDirection:"column",alignItems:"center",justifyContent:"center",marginBottom:14,boxShadow:"0 4px 16px rgba(0,0,0,0.06)"}}>
-                    <s.icon style={{width:26,height:26,color:DARK}} aria-hidden="true"/>
-                    <span style={{color:DARK,fontWeight:900,fontSize:9,letterSpacing:"0.05em",opacity:0.5}}>{s.step}</span>
+                {step: "01", icon: MagnifyingGlassIcon, color: "rgba(236,72,153,0.12)", border: "rgba(236,72,153,0.2)", title: "Dime qué necesitas", body: "Elige categoría, servicio, profesional y tus preferencias de horario."},
+                {step: "02", icon: BellAlertIcon, color: `rgba(${TEAL_RGB},0.15)`, border: `rgba(${TEAL_RGB},0.35)`, title: "nabbi vigila por ti", body: "Monitorea agendas las 24 horas. Tú no tienes que hacer nada."},
+                {step: "03", icon: CheckBadgeIcon, color: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.25)", title: "Tenemos cita", body: "Cuando hay hueco, nabbi reserva y te avisa. Solo tienes que aparecer."},
+              ].map((step, i) => (
+                <div key={step.step} className="lp-step">
+                  {i < 2 && <div className="lp-step-connector" style={{position: "absolute", top: 36, left: "62%", width: "36%", borderTop: `2px dashed rgba(${surf.darkRgb},0.15)`}} aria-hidden="true" />}
+                  <div className="lp-step-icon" style={{background: step.color, border: `1.5px solid ${step.border}`}}>
+                    <step.icon style={{width: 22, height: 22, color: surf.text}} aria-hidden="true" />
+                    <span style={{color: surf.text, fontWeight: 800, fontSize: 9, letterSpacing: "0.05em", opacity: 0.5}}>{step.step}</span>
                   </div>
-                  <h3 style={{color:DARK,fontWeight:800,fontSize:18,marginBottom:8,letterSpacing:"-0.02em"}}>{s.title}</h3>
-                  <p className="lp-step-body" style={{color:"#475569",fontSize:14,lineHeight:1.7}}>{s.body}</p>
+                  <div>
+                    <h3 style={{color: surf.text, fontWeight: 800, fontSize: 17, margin: "0 0 6px", letterSpacing: "-0.02em"}}>{step.title}</h3>
+                    <p className="lp-step-body" style={{color: surf.textBody, fontSize: 14, lineHeight: 1.65, margin: 0}}>{step.body}</p>
+                  </div>
                 </div>
               ))}
             </div>
 
-            <div style={{textAlign:"center",marginTop:44}}>
-              <button onClick={()=>router.push("/register")}
-                style={{background:DARK,color:"white",borderRadius:999,padding:"14px 30px",fontWeight:800,fontSize:15,border:"none",cursor:"pointer",transition:"opacity 0.15s,transform 0.15s"}}
-                onMouseEnter={e=>{e.currentTarget.style.opacity="0.85";e.currentTarget.style.transform="scale(1.04)";}}
-                onMouseLeave={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1)";}}>
-                <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
-                  <CheckCircleIcon style={{width:18,height:18}} aria-hidden="true"/>
-                  Quiero empezar ya
-                </span>
-              </button>
+            <div className="lp-cta-row lp-cta-row--center" style={{marginTop: 28}}>
+              <CtaButton variant="dark" onClick={() => router.push("/register")}>
+                <CheckCircleIcon style={{width: 18, height: 18}} aria-hidden="true" />
+                Quiero empezar ya
+              </CtaButton>
             </div>
           </div>
         </section>
 
-        {/* Wave: light → white */}
-        <Wave from={LIGHT} to={CREAM}/>
+        <Wave from={surf.bgAlt} to={surf.bg} />
 
         {/* ── PARA PROFESIONALES ───────────────────────────────── */}
-        <section className="lp-section" style={{background:CREAM}}>
+        <section className="lp-section" style={{background: surf.bg}} aria-labelledby="pro-heading">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
-
-              {/* Left */}
               <div>
-                <p style={{color:LABEL,fontWeight:800,fontSize:12,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12,display:"inline-flex",alignItems:"center",gap:6}}>
-                  <BriefcaseIcon style={{width:14,height:14}} aria-hidden="true"/>
+                <p style={{color: surf.label, fontWeight: 800, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12, display: "inline-flex", alignItems: "center", gap: 6}}>
+                  <BriefcaseIcon style={{width: 14, height: 14}} aria-hidden="true" />
                   Para profesionales
                 </p>
-                <h2 style={{color:DARK,fontWeight:900,fontSize:"clamp(1.7rem,4vw,2.8rem)",letterSpacing:"-0.04em",lineHeight:1.1,marginBottom:14}}>
-                  ¿Tienes un negocio?<br/>nabbi llena tu agenda.
+                <h2 id="pro-heading" style={{color: surf.text, fontWeight: 800, fontSize: "clamp(1.7rem,4vw,2.6rem)", letterSpacing: "-0.04em", lineHeight: 1.12, marginBottom: 14}}>
+                  ¿Tienes un negocio?
+                  <br />
+                  nabbi llena tu agenda.
                 </h2>
-                <p style={{color:"#475569",fontSize:"clamp(15px,2vw,17px)",lineHeight:1.7,marginBottom:24}}>
-                  Únete a profesionales de Belleza, Bienestar y Mascotas que ya usan nabbi para tener su agenda siempre llena — sin marketing complicado ni nada raro.
+                <p style={{color: surf.textBody, fontSize: "clamp(15px,2vw,17px)", lineHeight: 1.7, marginBottom: 24}}>
+                  Únete a profesionales de belleza, bienestar y mascotas que ya usan nabbi para tener la agenda llena, sin marketing complicado.
                 </p>
-                <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:28}}>
+                <ul style={{listStyle: "none", padding: 0, margin: "0 0 28px", display: "flex", flexDirection: "column", gap: 10}}>
                   {[
-                    "Publicas tus servicios → nabbi te trae clientes",
-                    "Defines tu disponibilidad → nabbi gestiona los horarios",
-                    "Recibes reservas directas → sin llamadas eternas",
-                    "Construyes reputación → con reseñas verificadas de verdad",
-                    "Estadísticas de tu negocio → claras y sin complicaciones",
-                  ].map(item=>(
-                    <div key={item} style={{display:"flex",alignItems:"flex-start",gap:10}}>
-                      <div style={{width:20,height:20,borderRadius:"50%",background:ACCENT,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:2}}>
-                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke={INK} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    "Publicas tus servicios y nabbi te trae clientes",
+                    "Defines tu disponibilidad y nabbi gestiona los horarios",
+                    "Recibes reservas directas, sin llamadas eternas",
+                    "Construyes reputación con reseñas verificadas",
+                  ].map((item) => (
+                    <li key={item} style={{display: "flex", alignItems: "flex-start", gap: 10}}>
+                      <div style={{width: 20, height: 20, borderRadius: "50%", background: ACCENT, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2}}>
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                          <path d="M2 6L5 9L10 3" stroke={INK} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
                       </div>
-                      <span style={{color:"#334155",fontSize:"clamp(13px,1.8vw,15px)",lineHeight:1.5}}>{item}</span>
-                    </div>
+                      <span style={{color: surf.textBody, fontSize: "clamp(13px,1.8vw,15px)", lineHeight: 1.5}}>{item}</span>
+                    </li>
                   ))}
-                </div>
-                <button onClick={()=>router.push("/register")}
-                  style={{background:ACCENT,color:INK,borderRadius:999,padding:"14px 28px",fontWeight:800,fontSize:15,border:"none",cursor:"pointer",transition:"opacity 0.15s,transform 0.15s"}}
-                  onMouseEnter={e=>{e.currentTarget.style.opacity="0.85";e.currentTarget.style.transform="scale(1.04)";}}
-                  onMouseLeave={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.transform="scale(1)";}}>
-                  <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
-                    <BriefcaseIcon style={{width:18,height:18}} aria-hidden="true"/>
+                </ul>
+                <div className="lp-cta-row">
+                  <CtaButton onClick={() => router.push("/register")}>
+                    <BriefcaseIcon style={{width: 18, height: 18}} aria-hidden="true" />
                     Registrar mi negocio
-                  </span>
-                </button>
+                  </CtaButton>
+                </div>
               </div>
 
-              {/* Right: category cards */}
-              <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                {CATEGORIES.map(cat=>(
-                  <div key={cat.id} className="lp-pro-card"
-                    style={{background:cat.color,border:`1.5px solid ${cat.border}`,borderRadius:18,padding:"16px 18px",display:"flex",alignItems:"center",gap:14,transition:"transform 0.2s"}}
-                    onMouseEnter={e=>(e.currentTarget.style.transform="translateX(5px)")}
-                    onMouseLeave={e=>(e.currentTarget.style.transform="translateX(0)")}>
-                    <div style={{width:46,height:46,borderRadius:13,background:"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"0 2px 8px rgba(0,0,0,0.06)",overflow:"hidden"}}>
+              <div style={{display: "flex", flexDirection: "column", gap: 12}}>
+                {CATEGORIES.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="lp-pro-card"
+                    style={{background: cat.color, border: `1.5px solid ${cat.border}`, borderRadius: 18, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, transition: "transform 0.2s"}}>
+                    <div style={{width: 46, height: 46, borderRadius: 13, background: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden"}}>
                       {getCatIcon(cat.id, 36)}
                     </div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-                        <span style={{color:DARK,fontWeight:800,fontSize:15}}>{cat.label}</span>
-                        <span style={{color:cat.tagColor,fontWeight:700,fontSize:11,background:cat.tagBg,borderRadius:999,padding:"2px 9px",border:`1px solid ${cat.border}`,whiteSpace:"nowrap",flexShrink:0}}>{cat.subs.length} servicios</span>
+                    <div style={{flex: 1, minWidth: 0}}>
+                      <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5, gap: 8, flexWrap: "wrap"}}>
+                        <span style={{color: INK, fontWeight: 800, fontSize: 15}}>{cat.label}</span>
+                        <span style={{color: cat.tagColor, fontWeight: 700, fontSize: 11, background: cat.tagBg, borderRadius: 999, padding: "2px 9px", border: `1px solid ${cat.border}`, whiteSpace: "nowrap"}}>
+                          {cat.subs.length} servicios
+                        </span>
                       </div>
-                      <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                        {cat.subs.slice(0,4).map(s=>(
-                          <span key={s} style={{color:"#475569",fontSize:11,fontWeight:600}}>{s}</span>
+                      <div style={{display: "flex", flexWrap: "wrap", gap: 4}}>
+                        {cat.subs.slice(0, 4).map((sub) => (
+                          <span key={sub} style={{color: surf.textBody, fontSize: 11, fontWeight: 600}}>{sub}</span>
                         ))}
-                        {cat.subs.length>4 && <span style={{color:"#64748b",fontSize:11,fontWeight:500}}>+{cat.subs.length-4} más</span>}
+                        {cat.subs.length > 4 && <span style={{color: surf.textMuted, fontSize: 11}}>+{cat.subs.length - 4} más</span>}
                       </div>
                     </div>
                   </div>
@@ -866,312 +1027,250 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Wave: white → dark */}
-        <Wave from={CREAM} to={DARK}/>
+        <Wave from={surf.bg} to={surf.forestMid} />
 
         {/* ── FAQ ──────────────────────────────────────────────── */}
-        <section id="faq" className="lp-section" style={{background:DARK}}>
+        <section id="faq" className="lp-section" style={{background: surf.forestMid}} aria-labelledby="faq-heading">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div style={{textAlign:"center",marginBottom:"clamp(32px,5vw,52px)" as CSSProperties["marginBottom"]}}>
-              <p style={{color:GOLD,fontWeight:800,fontSize:12,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10,display:"inline-flex",alignItems:"center",gap:6}}>
-                <ChatBubbleLeftRightIcon style={{width:14,height:14}} aria-hidden="true"/>
+            <div className="lp-section-intro">
+              <p style={{color: surf.gold, fontWeight: 800, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8, display: "inline-flex", alignItems: "center", gap: 6, justifyContent: "center"}}>
+                <ChatBubbleLeftRightIcon style={{width: 14, height: 14}} aria-hidden="true" />
                 Las dudas de siempre
               </p>
-              <h2 style={{color:"white",fontWeight:900,fontSize:"clamp(1.7rem,4.5vw,3rem)",letterSpacing:"-0.04em",lineHeight:1.1,marginBottom:14}}>
+              <h2 id="faq-heading" style={{color: "white", fontWeight: 800, fontSize: "clamp(1.55rem,4.2vw,2.75rem)", letterSpacing: "-0.04em", lineHeight: 1.12, marginBottom: 10}}>
                 Respuestas sin rodeos
               </h2>
-              <p style={{color:"rgba(255,255,255,0.78)",fontSize:"clamp(15px,2vw,17px)",maxWidth:400,margin:"0 auto"}}>
-                Si tienes alguna duda más, escríbenos. Respondemos rápido, prometido.
+              <p style={{color: "rgba(255,255,255,0.72)", fontSize: "clamp(14px,2vw,17px)", lineHeight: 1.55, margin: 0}}>
+                Si tienes otra pregunta, escríbenos.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {FAQS.map((faq,i)=>(
-                <FaqItem key={i} icon={faq.icon} question={faq.q} answer={faq.a}
-                  isOpen={openFaq===i} onToggle={()=>setOpenFaq(openFaq===i?null:i)}/>
+            <div className="lp-faq-grid">
+              {FAQS.map((faq, i) => (
+                <FaqItem key={i} icon={faq.icon} question={faq.q} answer={faq.a} isOpen={openFaq === i} onToggle={() => setOpenFaq(openFaq === i ? null : i)} s={surf} />
               ))}
             </div>
 
-            <div style={{textAlign:"center",marginTop:40,padding:"28px 20px",background:`rgba(${MAIN_RGB},0.12)`,borderRadius:20,border:`1px solid rgba(${MAIN_RGB},0.28)`}}>
-              <p style={{color:"white",fontWeight:800,fontSize:17,marginBottom:8,display:"inline-flex",alignItems:"center",gap:8}}>
-                <QuestionMarkCircleIcon style={{width:20,height:20}} aria-hidden="true"/>
+            <div style={{textAlign: "center", marginTop: 40, padding: "24px 18px", background: `rgba(${surf.primaryRgb},0.12)`, borderRadius: 20, border: `1px solid rgba(${surf.primaryRgb},0.28)`}}>
+              <p style={{color: "white", fontWeight: 800, fontSize: "clamp(15px,3vw,17px)", marginBottom: 8, display: "inline-flex", alignItems: "center", gap: 8, justifyContent: "center", flexWrap: "wrap"}}>
+                <QuestionMarkCircleIcon style={{width: 20, height: 20}} aria-hidden="true" />
                 ¿Quedó alguna duda?
               </p>
-              <p style={{color:"rgba(255,255,255,0.72)",fontSize:14,marginBottom:20}}>Escríbenos y te respondemos antes de que termines de buscar en Google.</p>
-              <button onClick={()=>router.push("/register")}
-                style={{background:ACCENT,color:INK,borderRadius:999,padding:"12px 26px",fontWeight:800,fontSize:14,border:"none",cursor:"pointer"}}
-                onMouseEnter={e=>e.currentTarget.style.opacity="0.85"}
-                onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-                <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
-                  <EnvelopeIcon style={{width:18,height:18}} aria-hidden="true"/>
+              <p style={{color: "rgba(255,255,255,0.72)", fontSize: 14, marginBottom: 20}}>Escríbenos y te ayudamos.</p>
+              <div className="lp-cta-row lp-cta-row--center">
+                <CtaButton onClick={() => router.push("/contacto")}>
+                  <EnvelopeIcon style={{width: 18, height: 18}} aria-hidden="true" />
                   Contactar soporte
-                </span>
-              </button>
+                </CtaButton>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* ── DESCARGA LA APP ──────────────────────────────────── */}
-        <section className="lp-section" style={{background:CREAM}}>
+        {/* ── WEB ACCESS ───────────────────────────────────────── */}
+        <section className="lp-section" style={{background: surf.bg}} aria-labelledby="web-heading">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-
-              {/* Text */}
               <div>
-                <p style={{color:LABEL,fontWeight:800,fontSize:12,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12,display:"inline-flex",alignItems:"center",gap:6}}>
-                  <DevicePhoneMobileIcon style={{width:14,height:14}} aria-hidden="true"/>
-                  Llévanos en el bolsillo
+                <p style={{color: surf.label, fontWeight: 800, fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12, display: "inline-flex", alignItems: "center", gap: 6}}>
+                  <DevicePhoneMobileIcon style={{width: 14, height: 14}} aria-hidden="true" />
+                  Donde estés
                 </p>
-                <h2 style={{color:DARK,fontWeight:900,fontSize:"clamp(1.7rem,4vw,2.8rem)",letterSpacing:"-0.04em",lineHeight:1.1,marginBottom:14}}>
-                  nabbi en la web,<br/>siempre contigo.
+                <h2 id="web-heading" style={{color: surf.text, fontWeight: 800, fontSize: "clamp(1.7rem,4vw,2.6rem)", letterSpacing: "-0.04em", lineHeight: 1.12, marginBottom: 14}}>
+                  nabbi en la web,
+                  <br />
+                  siempre contigo.
                 </h2>
-                <p style={{color:"#475569",fontSize:"clamp(15px,2vw,17px)",lineHeight:1.7,marginBottom:32}}>
-                  Explora profesionales, reserva citas y gestiona tu agenda desde cualquier navegador. Sin descargas.
+                <p style={{color: surf.textBody, fontSize: "clamp(15px,2vw,17px)", lineHeight: 1.7, marginBottom: 28}}>
+                  Explora profesionales, reserva y gestiona tu agenda desde el navegador. Sin descargas. Las aplicaciones nativas llegan pronto.
                 </p>
-
-                <div style={{display:"flex",flexWrap:"wrap",gap:12}}>
-                  <button
-                    type="button"
-                    onClick={()=>router.push("/register")}
-                    style={{display:"inline-flex",alignItems:"center",gap:12,background:ACCENT,color:INK,border:"none",borderRadius:16,padding:"13px 22px",fontWeight:800,fontSize:15,cursor:"pointer",boxShadow:`0 4px 16px rgba(${DARK_RGB},0.18)`}}>
-                    Crear cuenta gratis
-                  </button>
-                  <button
-                    type="button"
-                    onClick={()=>router.push("/login")}
-                    style={{display:"inline-flex",alignItems:"center",gap:12,background:DARK,color:"white",border:"none",borderRadius:16,padding:"13px 22px",fontWeight:800,fontSize:15,cursor:"pointer"}}>
+                <div className="lp-cta-row">
+                  <CtaButton onClick={() => router.push("/register")}>Crear cuenta gratis</CtaButton>
+                  <CtaButton variant="dark" onClick={() => router.push("/login")}>
                     Iniciar sesión
-                  </button>
+                  </CtaButton>
                 </div>
-
-                {/* Social proof */}
-                <div style={{display:"flex",alignItems:"center",gap:16,marginTop:24,flexWrap:"wrap"}}>
-                  <div style={{display:"flex",gap:2}}>
-                    {Array.from({length:5}).map((_,i)=>(
-                      <StarIcon key={i} style={{width:16,height:16,color:GOLD}} aria-hidden="true"/>
+                <div style={{display: "flex", alignItems: "center", gap: 12, marginTop: 24, flexWrap: "wrap"}}>
+                  <div style={{display: "flex", gap: 2}} aria-hidden="true">
+                    {Array.from({length: 5}).map((_, i) => (
+                      <StarIcon key={i} style={{width: 16, height: 16, color: surf.gold}} />
                     ))}
                   </div>
-                  <span style={{color:"#475569",fontSize:13,fontWeight:500}}>Próximamente en tiendas · ¡Regístrate ya y sé el primero!</span>
+                  <span style={{color: surf.textBody, fontSize: 13, fontWeight: 500}}>Regístrate ahora y sé de los primeros</span>
                 </div>
               </div>
 
-              {/* Visual: device mockup panel */}
-              <div style={{display:"flex",justifyContent:"center",alignItems:"center"}}>
-                <div style={{position:"relative",width:"min(320px,85vw)"}}>
-                  {/* Glow */}
-                  <div style={{position:"absolute",inset:0,background:`radial-gradient(circle at 50% 50%, rgba(${GOLD_RGB},0.35) 0%, rgba(${MAIN_RGB},0.2) 50%, transparent 75%)`,borderRadius:32,transform:"scale(1.15)",pointerEvents:"none"}}/>
-
-                  {/* Main card */}
-                  <div style={{position:"relative",background:DARK,borderRadius:32,padding:"28px 24px",boxShadow:`0 32px 72px rgba(${DARK_RGB},0.38), 0 0 0 1px rgba(255,255,255,0.08)`}}>
-                    {/* App icon row */}
-                    <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:24}}>
-                      <div style={{width:52,height:52,borderRadius:14,background:`linear-gradient(135deg,${MAIN},${DARK})`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 4px 16px rgba(${MAIN_RGB},0.5)`}}>
-                        <NabbiIcon size={34} variant="color"/>
-                      </div>
+              <div style={{display: "flex", justifyContent: "center"}}>
+                <div style={{position: "relative", width: "min(320px,85vw)"}}>
+                  <div style={{position: "absolute", inset: 0, background: `radial-gradient(circle at 50% 50%, rgba(${surf.goldRgb},0.28) 0%, rgba(${surf.primaryRgb},0.16) 50%, transparent 75%)`, borderRadius: 32, transform: "scale(1.12)", pointerEvents: "none"}} aria-hidden="true" />
+                  <div style={{position: "relative", background: surf.forestMid, borderRadius: 32, padding: "28px 24px", boxShadow: `0 28px 64px rgba(${surf.darkRgb},0.32)`}}>
+                    <div style={{display: "flex", alignItems: "center", gap: 14, marginBottom: 24}}>
+                      <NabbiIcon size={40} />
                       <div>
-                        <p style={{color:"white",fontWeight:900,fontSize:18,margin:0,letterSpacing:"-0.03em"}}>nabbi</p>
-                        <p style={{color:"rgba(255,255,255,0.5)",fontSize:12,margin:0}}>Tu agenda inteligente</p>
-                      </div>
-                      <div style={{marginLeft:"auto",background:GOLD,color:INK,borderRadius:10,padding:"6px 16px",fontWeight:800,fontSize:13,cursor:"pointer"}}>
-                        Obtener
+                        <p style={{color: "white", fontWeight: 800, fontSize: 18, margin: 0, letterSpacing: "-0.03em"}}>nabbi</p>
+                        <p style={{color: "rgba(255,255,255,0.5)", fontSize: 12, margin: 0}}>Tu agenda inteligente</p>
                       </div>
                     </div>
-
-                    {/* Notification cards */}
                     {[
-                      {icon:CheckBadgeIcon,title:"Cita confirmada",sub:"Corte · Mañana 11:00 AM",color:`rgba(${MAIN_RGB},0.22)`,border:`rgba(${MAIN_RGB},0.4)`,iconColor:"#bbf7d0"},
-                      {icon:BellAlertIcon,title:"nabbi encontró un hueco",sub:"Masaje · Hoy 17:30 · disponible",color:`rgba(${GOLD_RGB},0.18)`,border:`rgba(${GOLD_RGB},0.35)`,iconColor:"#fcd34d"},
-                      {icon:CheckCircleIcon,title:"Reserva en automático",sub:"Yoga · Jueves 9:00 AM · listo",color:`rgba(${TEAL_RGB},0.18)`,border:`rgba(${TEAL_RGB},0.35)`,iconColor:"#99f6e4"},
-                    ].map((n,i)=>(
-                      <div key={i} style={{borderRadius:16,background:n.color,border:`1px solid ${n.border}`,padding:"12px 14px",marginBottom:i<2?10:0,display:"flex",alignItems:"center",gap:12}}>
-                        <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:36,height:36,borderRadius:12,background:"rgba(255,255,255,0.08)",flexShrink:0}}>
-                          <n.icon style={{width:20,height:20,color:n.iconColor}} aria-hidden="true"/>
+                      {icon: CheckBadgeIcon, title: "Cita confirmada", sub: "Corte, mañana 11:00", color: `rgba(${surf.primaryRgb},0.22)`, border: `rgba(${MAIN_RGB},0.4)`, iconColor: "#bbf7d0"},
+                      {icon: BellAlertIcon, title: "nabbi encontró un hueco", sub: "Masaje, hoy 17:30", color: `rgba(${GOLD_RGB},0.18)`, border: `rgba(${GOLD_RGB},0.35)`, iconColor: "#fcd34d"},
+                      {icon: CheckCircleIcon, title: "Reserva en automático", sub: "Yoga, jueves 9:00", color: `rgba(${TEAL_RGB},0.18)`, border: `rgba(${TEAL_RGB},0.35)`, iconColor: "#99f6e4"},
+                    ].map((n, i) => (
+                      <div key={i} style={{borderRadius: 16, background: n.color, border: `1px solid ${n.border}`, padding: "12px 14px", marginBottom: i < 2 ? 10 : 0, display: "flex", alignItems: "center", gap: 12}}>
+                        <span style={{display: "inline-flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 12, background: "rgba(255,255,255,0.08)", flexShrink: 0}}>
+                          <n.icon style={{width: 20, height: 20, color: n.iconColor}} aria-hidden="true" />
                         </span>
-                        <div style={{minWidth:0}}>
-                          <p style={{color:"white",fontWeight:700,fontSize:13,margin:"0 0 2px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{n.title}</p>
-                          <p style={{color:"rgba(255,255,255,0.55)",fontSize:11,margin:0,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{n.sub}</p>
+                        <div style={{minWidth: 0}}>
+                          <p style={{color: "white", fontWeight: 700, fontSize: 13, margin: "0 0 2px"}}>{n.title}</p>
+                          <p style={{color: "rgba(255,255,255,0.55)", fontSize: 11, margin: 0}}>{n.sub}</p>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
         </section>
 
-        {/* Wave: cream → light */}
-        <Wave from={CREAM} to={LIGHT}/>
+        <Wave from={surf.bg} to={surf.bgAlt} />
 
         {/* ── FINAL CTA ────────────────────────────────────────── */}
-        <section className="lp-cta" style={{background:LIGHT,position:"relative",overflow:"hidden"}}>
-          {[480,300,160].map(d=>(
-            <div key={d} style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:d,height:d,borderRadius:"50%",border:`2px solid ${GOLD}`,opacity:0.22,pointerEvents:"none"}}/>
-          ))}
-
-          <div style={{maxWidth:680,margin:"0 auto",padding:"0 20px",textAlign:"center",position:"relative"}}>
-            <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
-              <NabbiIcon size={50} variant="color"/>
+        <section className="lp-cta" style={{background: surf.bgAlt, position: "relative", overflow: "hidden"}} aria-labelledby="final-cta">
+          <div style={{maxWidth: 520, margin: "0 auto", padding: "0 20px", textAlign: "center", position: "relative"}}>
+            <div style={{display: "flex", justifyContent: "center", marginBottom: 14}}>
+              <NabbiIcon size={44} />
             </div>
-            <h2 style={{color:DARK,fontWeight:900,fontSize:"clamp(1.8rem,5vw,3.5rem)",letterSpacing:"-0.04em",lineHeight:1.08,marginBottom:14}}>
-              Tu próxima cita ya<br/>te está esperando
+            <h2 id="final-cta" style={{color: surf.text, fontWeight: 800, fontSize: "clamp(1.65rem,5vw,3rem)", letterSpacing: "-0.04em", lineHeight: 1.1, marginBottom: 12}}>
+              Tu próxima cita
+              <br />
+              te está esperando
             </h2>
-            <p style={{color:"#475569",fontSize:"clamp(15px,2vw,17px)",lineHeight:1.65,maxWidth:460,margin:"0 auto 30px"}}>
-              Belleza, bienestar o mascotas — dinos qué necesitas y nabbi lo consigue mientras tú haces tu vida.
+            <p style={{color: surf.textBody, fontSize: "clamp(14px,2vw,17px)", lineHeight: 1.6, maxWidth: 380, margin: "0 auto 24px"}}>
+              Dinos qué necesitas. nabbi lo consigue mientras tú haces tu vida.
             </p>
-
-            <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap",marginBottom:28}}>
-              <button onClick={()=>router.push("/register")}
-                style={{background:ACCENT,color:INK,borderRadius:999,padding:"15px 30px",fontWeight:900,fontSize:"clamp(14px,2vw,16px)",border:"none",cursor:"pointer",boxShadow:`0 8px 24px rgba(${ACCENT_RGB},0.45)`,transition:"transform 0.15s,box-shadow 0.15s"}}
-                onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.05)";e.currentTarget.style.boxShadow=`0 12px 32px rgba(${ACCENT_RGB},0.5)`;}}
-                onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow=`0 8px 24px rgba(${ACCENT_RGB},0.4)`;}}>
-                <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
-                  <RocketLaunchIcon style={{width:18,height:18}} aria-hidden="true"/>
-                  Empezar gratis
-                </span>
-              </button>
-              <button onClick={()=>router.push("/login")}
-                style={{background:"white",color:DARK,borderRadius:999,padding:"15px 28px",fontWeight:700,fontSize:"clamp(13px,2vw,15px)",border:`1.5px solid rgba(${DARK_RGB},0.15)`,cursor:"pointer",transition:"background 0.15s"}}
-                onMouseEnter={e=>(e.currentTarget.style.background="#f1f5f9")}
-                onMouseLeave={e=>(e.currentTarget.style.background="white")}>
+            <div className="lp-cta-row lp-cta-row--center">
+              <CtaButton onClick={() => router.push("/register")}>
+                <RocketLaunchIcon style={{width: 18, height: 18}} aria-hidden="true" />
+                Empezar gratis
+              </CtaButton>
+              <CtaButton variant="ghost" onClick={() => router.push("/login")}>
                 Ya tengo cuenta
-              </button>
-            </div>
-
-            <div style={{display:"flex",gap:7,justifyContent:"center",flexWrap:"wrap"}}>
-              {[
-                {label:"Cabello", icon: ScissorsIcon},
-                {label:"Yoga", icon: SparklesIcon},
-                {label:"Spa", icon: HeartIcon},
-                {label:"Paseadores", icon: UserGroupIcon},
-                {label:"Faciales", icon: SparklesIcon},
-                {label:"Pilates", icon: BoltIcon},
-                {label:"Nutrición", icon: ShieldCheckIcon},
-                {label:"Barbería", icon: ScissorsIcon},
-                {label:"Estética", icon: HeartIcon},
-                {label:"Breathwork", icon: SparklesIcon},
-              ].map(tag=>(
-                <span key={tag.label} style={{display:"inline-flex",alignItems:"center",gap:6,background:`rgba(${DARK_RGB},0.07)`,color:DARK,borderRadius:999,padding:"5px 12px",fontSize:12,fontWeight:600}}>
-                  <tag.icon style={{width:14,height:14}} aria-hidden="true"/>
-                  {tag.label}
-                </span>
-              ))}
+              </CtaButton>
             </div>
           </div>
         </section>
-
       </main>
 
       {/* ── FOOTER ───────────────────────────────────────────────── */}
-      <footer style={{background:INK}}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{paddingTop:56,paddingBottom:40}}>
-
-          {/* Top grid */}
-          <div className="lp-footer-grid" style={{marginBottom:44}}>
-
-            {/* Brand column */}
+      <footer style={{background: surf.footerBg}}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{paddingTop: 48, paddingBottom: "calc(32px + env(safe-area-inset-bottom, 0px))"}}>
+          <div className="lp-footer-grid" style={{marginBottom: 40}}>
             <div>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-                <NabbiIcon size={30} variant="white"/>
-                <span style={{color:"white",fontWeight:900,fontSize:20,letterSpacing:"-0.03em"}}>nabbi</span>
+              <div style={{display: "flex", alignItems: "center", gap: 10, marginBottom: 14}}>
+                <NabbiIcon size={30} />
+                <span style={{color: "white", fontWeight: 800, fontSize: 20, letterSpacing: "-0.03em"}}>nabbi</span>
               </div>
-              <p style={{color:"rgba(255,255,255,0.65)",fontSize:13,lineHeight:1.75,marginBottom:20}}>
-                Belleza, bienestar y mascotas.<br/>Tu cita, en automático.
+              <p style={{color: "rgba(255,255,255,0.65)", fontSize: 13, lineHeight: 1.75, marginBottom: 20}}>
+                Belleza, bienestar y mascotas.
+                <br />
+                Tu cita, en automático.
               </p>
-              {/* Category pills */}
-              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                {CATEGORIES.map(c=>(
-                  <span key={c.id} style={{display:"inline-flex",alignItems:"center",gap:4,background:"rgba(255,255,255,0.07)",color:"rgba(255,255,255,0.7)",fontSize:12,fontWeight:600,borderRadius:999,padding:"4px 10px 4px 4px",border:"1px solid rgba(255,255,255,0.1)"}}>
-                    <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:20,height:20,borderRadius:"50%",background:"rgba(255,255,255,0.08)",overflow:"hidden",flexShrink:0}}>
+              <div style={{display: "flex", flexWrap: "wrap", gap: 8}}>
+                {CATEGORIES.map((c) => (
+                  <a
+                    key={c.id}
+                    href={`#${c.id}`}
+                    className="lp-focus"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      background: "rgba(255,255,255,0.07)",
+                      color: "rgba(255,255,255,0.7)",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      borderRadius: 999,
+                      padding: "8px 12px 8px 8px",
+                      minHeight: 44,
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      textDecoration: "none",
+                    }}>
+                    <span style={{display: "inline-flex", width: 22, height: 22, borderRadius: "50%", background: "rgba(255,255,255,0.08)", overflow: "hidden", alignItems: "center", justifyContent: "center"}}>
                       {getCatIcon(c.id, 18)}
                     </span>
                     {c.label}
-                  </span>
+                  </a>
                 ))}
               </div>
             </div>
 
-            {/* Categorías */}
             <div>
-              <h4 style={{color:"rgba(255,255,255,0.4)",fontWeight:700,fontSize:11,marginBottom:16,textTransform:"uppercase",letterSpacing:"0.08em"}}>Categorías</h4>
-              <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:10}}>
-                {CATEGORIES.map(c=>(
+              <h4 style={{color: "rgba(255,255,255,0.4)", fontWeight: 700, fontSize: 11, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em"}}>Categorías</h4>
+              <ul style={{listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 0}}>
+                {CATEGORIES.map((c) => (
                   <li key={c.id}>
-                    <a href={`#${c.id}`}
-                      style={{color:"rgba(255,255,255,0.65)",fontSize:14,fontWeight:500,textDecoration:"none",display:"flex",alignItems:"center",gap:8,transition:"color 0.15s"}}
-                      onMouseEnter={e=>(e.currentTarget.style.color=ACCENT)}
-                      onMouseLeave={e=>(e.currentTarget.style.color="rgba(255,255,255,0.65)")}>
-                      <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:24,height:24,borderRadius:"50%",background:"rgba(255,255,255,0.08)",overflow:"hidden",flexShrink:0}}>
-                        {getCatIcon(c.id, 20)}
-                      </span>
+                    <a href={`#${c.id}`} className="lp-focus lp-footer-link" style={{color: "rgba(255,255,255,0.65)", fontSize: 14, fontWeight: 500, textDecoration: "none"}}>
                       {c.label}
                     </a>
                   </li>
                 ))}
-                <li>
-                  <span style={{color:"rgba(255,255,255,0.3)",fontSize:13,fontStyle:"italic"}}>+ más próximamente…</span>
-                </li>
               </ul>
             </div>
 
-            {/* Empresa */}
             <div>
-              <h4 style={{color:"rgba(255,255,255,0.4)",fontWeight:700,fontSize:11,marginBottom:16,textTransform:"uppercase",letterSpacing:"0.08em"}}>Empresa</h4>
-              <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:10}}>
+              <h4 style={{color: "rgba(255,255,255,0.4)", fontWeight: 700, fontSize: 11, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em"}}>Empresa</h4>
+              <ul style={{listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 0}}>
                 {[
-                  {label:"About", href:"#"},
-                  {label:"Blog", href:"#"},
-                  {label:"Privacidad", href:"/aviso-de-privacidad"},
-                  {label:"Términos", href:"/terminos-y-condiciones"},
-                ].map(link=>(
+                  {label: "Privacidad", href: "/aviso-de-privacidad"},
+                  {label: "Términos", href: "/terminos-y-condiciones"},
+                  {label: "Contacto", href: "/contacto"},
+                ].map((link) => (
                   <li key={link.label}>
-                    <a href={link.href}
-                      style={{color:"rgba(255,255,255,0.65)",fontSize:14,fontWeight:500,textDecoration:"none",transition:"color 0.15s"}}
-                      onMouseEnter={e=>(e.currentTarget.style.color=ACCENT)}
-                      onMouseLeave={e=>(e.currentTarget.style.color="rgba(255,255,255,0.65)")}>{link.label}</a>
+                    <Link href={link.href} className="lp-focus lp-footer-link" style={{color: "rgba(255,255,255,0.65)", fontSize: 14, fontWeight: 500, textDecoration: "none"}}>
+                      {link.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* Soporte */}
             <div>
-              <h4 style={{color:"rgba(255,255,255,0.4)",fontWeight:700,fontSize:11,marginBottom:16,textTransform:"uppercase",letterSpacing:"0.08em"}}>Soporte</h4>
-              <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:10}}>
-                {["Contacto","FAQ","Comunidad","Estado"].map(link=>(
-                  <li key={link}>
-                    <a href="#"
-                      style={{color:"rgba(255,255,255,0.65)",fontSize:14,fontWeight:500,textDecoration:"none",transition:"color 0.15s"}}
-                      onMouseEnter={e=>(e.currentTarget.style.color=ACCENT)}
-                      onMouseLeave={e=>(e.currentTarget.style.color="rgba(255,255,255,0.65)")}>{link}</a>
+              <h4 style={{color: "rgba(255,255,255,0.4)", fontWeight: 700, fontSize: 11, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.08em"}}>Producto</h4>
+              <ul style={{listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 0}}>
+                {[
+                  {label: "Cómo funciona", href: "#como-funciona"},
+                  {label: "FAQ", href: "#faq"},
+                  {label: "Crear cuenta", href: "/register"},
+                  {label: "Ingresar", href: "/login"},
+                ].map((link) => (
+                  <li key={link.label}>
+                    <a href={link.href} className="lp-focus lp-footer-link" style={{color: "rgba(255,255,255,0.65)", fontSize: 14, fontWeight: 500, textDecoration: "none"}}>
+                      {link.label}
+                    </a>
                   </li>
                 ))}
               </ul>
             </div>
           </div>
 
-          {/* Bottom bar */}
-            <div style={{borderTop:"1px solid rgba(255,255,255,0.08)",paddingTop:20,display:"flex",flexWrap:"wrap",justifyContent:"space-between",alignItems:"center",gap:12}}>
-            <p style={{color:"rgba(255,255,255,0.4)",fontSize:12,margin:0,display:"inline-flex",alignItems:"center",gap:6}}>
-              <span>© 2026 nabbi · hecho con</span>
-              <HeartIcon style={{width:14,height:14,color:ACCENT}} aria-hidden="true"/>
+          <div style={{borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 20, display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12}}>
+            <p style={{color: "rgba(255,255,255,0.4)", fontSize: 12, margin: 0, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", lineHeight: 1.5}}>
+              <span>© 2026 nabbi, hecho con</span>
+              <HeartIcon style={{width: 14, height: 14, color: surf.cta}} aria-hidden="true" />
               <span>para tu tiempo libre</span>
             </p>
-            <div style={{display:"flex",gap:16,alignItems:"center"}}>
-              {[
-                {label:"Privacidad", href:"/aviso-de-privacidad"},
-                {label:"Términos", href:"/terminos-y-condiciones"},
-              ].map(l=>(
-                <a key={l.label} href={l.href} style={{color:"rgba(255,255,255,0.4)",fontSize:12,textDecoration:"none",transition:"color 0.15s"}}
-                  onMouseEnter={e=>(e.currentTarget.style.color="rgba(255,255,255,0.7)")}
-                  onMouseLeave={e=>(e.currentTarget.style.color="rgba(255,255,255,0.4)")}>{l.label}</a>
-              ))}
+            <div style={{display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap"}}>
+              <Link href="/aviso-de-privacidad" className="lp-focus lp-footer-link" style={{color: "rgba(255,255,255,0.4)", fontSize: 12, textDecoration: "none", paddingInline: 4}}>
+                Privacidad
+              </Link>
+              <Link href="/terminos-y-condiciones" className="lp-focus lp-footer-link" style={{color: "rgba(255,255,255,0.4)", fontSize: 12, textDecoration: "none", paddingInline: 4}}>
+                Términos
+              </Link>
             </div>
           </div>
         </div>
       </footer>
-
     </div>
   );
 }

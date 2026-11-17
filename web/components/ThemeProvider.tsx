@@ -2,8 +2,10 @@
 
 import {createContext, useContext, useEffect, useState, ReactNode} from "react";
 
-// Available themes
-export type Theme = "light" | "dark" | "blue" | "green" | "purple";
+/** nabbi product themes only */
+export type Theme = "light" | "dark";
+
+const PRODUCT_THEMES: Theme[] = ["light", "dark"];
 
 interface ThemeContextType {
   theme: Theme;
@@ -13,20 +15,32 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+const availableThemes = [
+  {
+    value: "light" as Theme,
+    label: "Claro",
+    description: "Fondo cream nabbi (#FAF8F3)",
+  },
+  {
+    value: "dark" as Theme,
+    label: "Oscuro",
+    description: "Fondo forest nabbi (#0F1A14)",
+  },
+];
+
+function normalizeTheme(value: string | null | undefined, fallback: Theme = "light"): Theme {
+  if (value === "light" || value === "dark") return value;
+  // Migrate removed legacy themes (blue / green / purple) → light
+  return fallback;
+}
+
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
-    // Return default values instead of throwing error during SSR
     return {
       theme: "light" as Theme,
       setTheme: () => {},
-      availableThemes: [
-        { value: "light" as Theme, label: "Light", description: "Clean and bright theme" },
-        { value: "dark" as Theme, label: "Dark", description: "Easy on the eyes" },
-        { value: "blue" as Theme, label: "Blue", description: "Professional blue theme" },
-        { value: "green" as Theme, label: "Green", description: "Natural green theme" },
-        { value: "purple" as Theme, label: "Purple", description: "Creative purple theme" },
-      ],
+      availableThemes,
     };
   }
   return context;
@@ -41,72 +55,25 @@ export const ThemeProvider = ({children, defaultTheme = "light"}: ThemeProviderP
   const [theme, setThemeState] = useState<Theme>(defaultTheme);
   const [mounted, setMounted] = useState(false);
 
-  // Available themes configuration
-  const availableThemes = [
-    {
-      value: "light" as Theme,
-      label: "Light",
-      description: "Clean and bright theme",
-    },
-    {
-      value: "dark" as Theme,
-      label: "Dark",
-      description: "Easy on the eyes",
-    },
-    {
-      value: "blue" as Theme,
-      label: "Blue",
-      description: "Professional blue theme",
-    },
-    {
-      value: "green" as Theme,
-      label: "Green",
-      description: "Natural green theme",
-    },
-    {
-      value: "purple" as Theme,
-      label: "Purple",
-      description: "Creative purple theme",
-    },
-  ];
-
-  // Load theme from localStorage on mount
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as Theme;
-    if (savedTheme && availableThemes.some((t) => t.value === savedTheme)) {
-      setThemeState(savedTheme);
-    }
+    const saved = normalizeTheme(localStorage.getItem("theme"), defaultTheme);
+    setThemeState(saved);
     setMounted(true);
-  }, []);
+  }, [defaultTheme]);
 
-  // Apply theme to document
   useEffect(() => {
-    if (mounted) {
-      // Remove all theme classes
-      document.documentElement.removeAttribute("data-theme");
-
-      // Add current theme class
-      if (theme !== "light") {
-        document.documentElement.setAttribute("data-theme", theme);
-      }
-
-      // Save to localStorage
-      localStorage.setItem("theme", theme);
-    }
+    if (!mounted) return;
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
   }, [theme, mounted]);
 
   const setTheme = (newTheme: Theme) => {
+    if (!PRODUCT_THEMES.includes(newTheme)) return;
     setThemeState(newTheme);
   };
 
-  const value: ThemeContextType = {
-    theme,
-    setTheme,
-    availableThemes,
-  };
-
   return (
-    <ThemeContext.Provider value={value}>
+    <ThemeContext.Provider value={{theme, setTheme, availableThemes}}>
       <div className="theme-transition" data-theme={theme}>
         {children}
       </div>

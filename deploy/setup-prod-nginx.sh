@@ -43,23 +43,22 @@ nginx -t
 systemctl enable --now nginx
 systemctl reload nginx
 
-echo "Host nginx OK → proxy to 127.0.0.1:8080 for be-u.ai / api.be-u.ai / app.be-u.ai"
+echo "Host nginx OK → proxy to 127.0.0.1:8080 for nabbi.app / api.nabbi.app"
 echo "Ensure DNS A records point here, and Compose is up: ./deploy.sh"
-echo "HTTP check: curl -sI -H 'Host: be-u.ai' http://127.0.0.1/ | head -3"
+echo "HTTP check: curl -sI -H 'Host: nabbi.app' http://127.0.0.1/ | head -3"
 
 if [[ "$DO_CERTBOT" == "1" ]]; then
   echo
   echo "Requesting certificates (DNS must already point to this host)..."
   certbot --nginx \
-    -d be-u.ai \
-    -d api.be-u.ai \
-    -d app.be-u.ai \
+    -d nabbi.app \
+    -d api.nabbi.app \
     --non-interactive \
     --agree-tos \
     --register-unsafely-without-email \
     --redirect || {
       echo "certbot failed — fix DNS / ports 80+443, then re-run:" >&2
-      echo "  sudo certbot --nginx -d be-u.ai -d api.be-u.ai -d app.be-u.ai" >&2
+      echo "  sudo certbot --nginx -d nabbi.app -d api.nabbi.app" >&2
       exit 1
     }
   echo "TLS OK. Renewals: systemctl status certbot.timer"

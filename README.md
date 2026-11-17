@@ -45,6 +45,7 @@ npm run dev
 
 ```
 be-u/
+├── DESIGN_SYSTEM.md         # UI source of truth (web + mobile)
 ├── backend/                 # Django Backend
 │   ├── backend/            # Configuración principal
 │   ├── users/              # App de usuarios
@@ -60,6 +61,8 @@ be-u/
 ├── mobile/                 # React Native App
 └── start-servers.*         # Scripts para iniciar servidores
 ```
+
+**UI:** [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) · Web code: [web/FRONTEND_STANDARDS.md](./web/FRONTEND_STANDARDS.md) · Mobile code: [mobile/MOBILE_STANDARDS.md](./mobile/MOBILE_STANDARDS.md)
 
 ## 🛠️ Tecnologías
 

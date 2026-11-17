@@ -100,9 +100,9 @@ export default function TerminosPage() {
             <p>
               Estos Términos regulan el uso de la plataforma Nabbi (la &quot;Plataforma&quot; o la &quot;app&quot;), disponible
               en la aplicación móvil (App Store y Google Play) y en el sitio web
-              https://nabbi-mobile-dev.spotynet.com/, operada por Spotynet S.A. de C.V. (en adelante &quot;Nabbi&quot;,
+              https://nabbi.app/, operada por Spotynet S.A. de C.V. (en adelante &quot;Nabbi&quot;,
               &quot;nosotros&quot;), con domicilio en la Calle Orizaba 154, Roma Norte, Cuauhtemoc, 06700 CDMX., RFC
-              SPO190614UJ5 y correo de contacto nabbi@spotynet.com.
+              SPO190614UJ5 y correo de contacto contacto@nabbi.app.
             </p>
             <p style={{marginTop: 12}}>
               Al registrarte o usar Nabbi, confirmas que leíste y aceptaste estos Términos y nuestro Aviso de Privacidad.
@@ -309,7 +309,7 @@ export default function TerminosPage() {
             <h2 style={{fontSize: 20, fontWeight: 700, marginBottom: 12}}>15. Eliminación y cancelación de cuenta</h2>
             <p>
               Puedes eliminar tu cuenta cuando quieras: (i) desde la app, en Ajustes → Cuenta → Eliminar cuenta o (ii)
-              desde la web en [https://nabbi-mobile-dev.spotynet.com/eliminar-cuenta] o escribiendo a nabbi@spotynet.com.
+              desde la web en [https://nabbi.app/delete-account] o escribiendo a contacto@nabbi.app.
               El manejo de tus datos al eliminar la cuenta se detalla en el Aviso de Privacidad.
             </p>
             <p style={{marginTop: 12}}>
@@ -374,7 +374,7 @@ export default function TerminosPage() {
           <section>
             <h2 style={{fontSize: 20, fontWeight: 700, marginBottom: 12}}>21. Contacto</h2>
             <p>
-              Para dudas, quejas o notificaciones, escríbenos a nabbi@spotynet.com o al domicilio de la cláusula 1.
+              Para dudas, quejas o notificaciones, escríbenos a contacto@nabbi.app o al domicilio de la cláusula 1.
             </p>
           </section>
 

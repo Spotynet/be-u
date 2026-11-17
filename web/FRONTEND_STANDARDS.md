@@ -2,6 +2,9 @@
 
 This document outlines the coding standards, folder structure, and best practices for the nabbi frontend application. Use this as a reference for all development tasks to ensure consistency and maintainability.
 
+> **UI / brand / tokens / forms:** see the cross-platform **[`DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md)** (repo root).  
+> This file owns Next.js architecture and code patterns. If anything here conflicts with the design system on visuals, **the design system wins**.
+
 ## 📁 Folder Structure & Architecture
 
 ### Core Principles
@@ -58,22 +61,22 @@ web/
 
 ### Available Themes
 
-- `light` - Default light theme
-- `dark` - Dark theme for low-light environments
-- `blue` - Professional blue theme
-- `green` - Natural green theme
-- `purple` - Creative purple theme (brand theme)
+- `light` — **Default nabbi brand** (cream + sage + yellow CTA)
+- `dark` — Nabbi forest night (`#0F1A14`); primary stays sage `#558367`
+
+Canonical palette, CTA rules, typography, and form contracts: **[`DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md)**.
 
 ### Color Usage Guidelines
 
 ```css
-/* Use semantic color classes */
-bg-background           /* Main background */
-bg-card                /* Card backgrounds */
-text-foreground        /* Primary text */
-text-foreground-muted  /* Secondary text */
-text-primary           /* Brand/primary color */
-border-border          /* Borders */
+/* Use semantic color classes (mapped in globals.css) */
+bg-background           /* Cream page background */
+bg-card                 /* Card surfaces */
+text-foreground         /* Primary text (ink/forest) */
+text-foreground-muted   /* Secondary / helper text */
+text-primary            /* Sage brand green */
+bg-secondary            /* Yellow CTA fill — primary actions */
+border-border           /* Borders */
 ```
 
 ### Theme-Aware Component Pattern
@@ -85,6 +88,12 @@ border-border          /* Borders */
 // ❌ Bad: Hardcoded colors
 <div className="bg-white text-black border-gray-300">
 ```
+
+### Typography (web)
+
+- Target brand UI font: **Poppins** (parity with mobile). Do not add Inter/Roboto/new families.
+- Until Poppins is wired in `layout.tsx`, prefer existing layout font — never hardcode random `font-family` in features.
+- Type scale, weights, and CTA button grammar: **`DESIGN_SYSTEM.md`**.
 
 ### Responsive Design
 
@@ -333,18 +342,28 @@ export type {User, AuthContextType, LoginCredentials} from "./types";
 
 ### Design System
 
-- **Consistent Spacing**: Use Tailwind's spacing scale (4, 8, 12, 16, 24, 32, etc.)
-- **Typography Scale**: Use consistent text sizes and weights
-- **Color Harmony**: Maintain color relationships across themes
-- **Interactive States**: Define hover, focus, active, and disabled states
+Full visual spec (palette, tokens, buttons, forms, motion, a11y): **[`DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md)**.
+
+- **Spacing**: 4-based Tailwind scale (4, 8, 12, 16, 24, 32, …)
+- **Radius**: pills for buttons/chips (`rounded-full`); ~12px inputs; 16–20px cards
+- **Primary CTA**: yellow (`bg-secondary text-secondary-foreground`) — not sage — for the main action
+- **Interactive states**: hover, focus-visible, active, disabled — never remove focus rings
+
+### Forms
+
+- Visible labels (not placeholder-only); helper **or** error under the field
+- Disable submit while in-flight; map API errors to fields when possible
+- Shared auth visuals via `AuthLayout` / `LoginForm` / `RegisterForm` — don’t fork new auth chrome
+- Details: **`DESIGN_SYSTEM.md` § Forms**
 
 ### Accessibility Standards
 
 - **Semantic HTML**: Use proper HTML elements (`button`, `nav`, `main`, etc.)
 - **ARIA Labels**: Add labels for screen readers when needed
 - **Keyboard Navigation**: Ensure all interactive elements are keyboard accessible
-- **Color Contrast**: Maintain WCAG AA contrast ratios
+- **Color Contrast**: Maintain WCAG AA contrast ratios (ink on yellow CTA; body on cream)
 - **Focus Indicators**: Clear focus states for keyboard navigation
+- **Hit targets**: ≥ 44×44 px
 
 ### Loading States
 

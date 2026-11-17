@@ -1,6 +1,6 @@
 # Be-U Mobile App
 
-A React Native mobile application built with Expo Go, following the Mobile Development Standards.
+A React Native mobile application built with Expo, following nabbi Mobile Development Standards and the cross-platform [Design System](../DESIGN_SYSTEM.md).
 
 ## 🚀 Getting Started
 
@@ -26,10 +26,10 @@ Create a `.env` file in the `mobile/` directory with:
 
 ```env
 # API Configuration
-EXPO_PUBLIC_API_URL=https://stg.be-u.ai/api
+EXPO_PUBLIC_API_URL=https://nabbi-api-dev.spotynet.com/api
 
 # App Configuration
-EXPO_PUBLIC_APP_NAME=Be-U
+EXPO_PUBLIC_APP_NAME=nabbi
 EXPO_PUBLIC_APP_VERSION=1.0.0
 ```
 
@@ -256,7 +256,7 @@ This project follows the Mobile Development Standards:
 
 ## 🔗 Backend Integration
 
-The app is configured to work with the Be-U backend API at `https://stg.be-u.ai/api`:
+The app is configured to work with the nabbi backend API (dev: `https://nabbi-api-dev.spotynet.com/api`, prod: `https://api.nabbi.app/api`):
 
 - **Base URL**: Configurable via `EXPO_PUBLIC_API_URL` environment variable
 - **Authentication**: JWT token-based auth with automatic header injection
@@ -278,7 +278,7 @@ The API client (`lib/api.ts`) automatically:
 All environment variables must be prefixed with `EXPO_PUBLIC_` to be accessible in the app:
 
 ```env
-EXPO_PUBLIC_API_URL=https://stg.be-u.ai/api
+EXPO_PUBLIC_API_URL=https://nabbi-api-dev.spotynet.com/api
 ```
 
 ## 🎯 App Architecture
@@ -310,13 +310,15 @@ Be-U is organized around **3 main service categories**:
 
 All features, services, and UI components are organized according to these categories.
 
-See [MOBILE_STANDARDS.md](./MOBILE_STANDARDS.md) for complete category structure.
+See [MOBILE_STANDARDS.md](./MOBILE_STANDARDS.md) for complete category structure.  
+Visual language (colors, type, CTAs, forms): [DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md).
 
 ## 📚 Resources
 
 ### Documentation
 
 - [Mobile Development Standards](./MOBILE_STANDARDS.md) - Development guidelines & architecture
+- [Design System](../DESIGN_SYSTEM.md) - Cross-platform UI (tokens, typography, components, forms)
 - [Home Feed Redesign](./HOME_FEED_REDESIGN.md) - 🎨 Masonry feed documentation
 - [Explore Discover Experience](./EXPLORE_DISCOVER_REDESIGN.md) - 🌟 New explore page (v2.0)
 - [Map Page Guide](./MAP_PAGE_GUIDE.md) - 🗺️ Map functionality

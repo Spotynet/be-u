@@ -124,7 +124,7 @@ To get an **iOS build that runs in the Simulator** (e.g. to download from EAS an
     },
     "distribution": "internal",
     "env": {
-      "EXPO_PUBLIC_API_URL": "https://stg.be-u.ai/api"
+      "EXPO_PUBLIC_API_URL": "https://nabbi-api-dev.spotynet.com/api"
     }
   },
   "production": { ... }
@@ -170,7 +170,7 @@ For EAS Build:
 ## Your Project’s Profiles (`eas.json`)
 
 - **development** — Dev client, `EXPO_PUBLIC_API_URL` = localhost.
-- **preview** — Internal testing, `EXPO_PUBLIC_API_URL` = stg.be-u.ai.
-- **production** — Production, same API, version auto-increment.
+- **preview** — Internal testing, `EXPO_PUBLIC_API_URL` = nabbi-api-dev.spotynet.com.
+- **production** — App Store, `EXPO_PUBLIC_API_URL` = api.nabbi.app, version auto-increment.
 
-Use **preview** for a “fully native iOS test build” that hits staging; use **development** when you want to point at your local backend and use the dev client.
+Use **preview** for a native test build against the Spotynet dev API; use **production** only when `api.nabbi.app` is live. App Store Connect steps: `docs/APP_STORE_CONNECT.md`.

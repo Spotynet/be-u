@@ -1,71 +1,30 @@
 # Environment Variables Setup
 
-## Current Usage
+## API base URL
 
-The mobile app is already configured to use environment variables for API URLs. Here's how it works:
+The app reads `EXPO_PUBLIC_API_URL` via `lib/apiConfig.ts` (path must include `/api`).
 
-### 1. Environment Variable Usage
-
-The app uses `EXPO_PUBLIC_API_URL` in the following files:
-
-- `lib/api.ts` (line 24): `const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000/api";`
-- `features/auth/hooks/useAuth.tsx` (line 114): `process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000/api"`
-
-### 2. Setting Up Environment Variables
-
-Create a `.env` file in the mobile directory with the following content:
+### Local (`.env`)
 
 ```bash
-# Development (local backend)
-EXPO_PUBLIC_API_URL=http://localhost:8000/api
+# Dev API (default fallback in code)
+EXPO_PUBLIC_API_URL=https://nabbi-api-dev.spotynet.com/api
 
-# For staging environment
-# EXPO_PUBLIC_API_URL=https://stg.be-u.ai/api
-
-# For production environment
-# EXPO_PUBLIC_API_URL=https://be-u.ai/api
+# Or local Django
+# EXPO_PUBLIC_API_URL=http://127.0.0.1:3007/api
 ```
 
-### 3. Environment-Specific Configuration
+### EAS profiles (`eas.json`)
 
-#### Development
+| Profile | `EXPO_PUBLIC_API_URL` |
+|---------|------------------------|
+| development | `http://127.0.0.1:3007/api` |
+| preview | `https://nabbi-api-dev.spotynet.com/api` |
+| production | `https://api.nabbi.app/api` |
 
-```bash
-EXPO_PUBLIC_API_URL=http://localhost:8000/api
-```
+### Notes
 
-#### Staging
-
-```bash
-EXPO_PUBLIC_API_URL=https://stg.be-u.ai/api
-```
-
-#### Production
-
-```bash
-EXPO_PUBLIC_API_URL=https://be-u.ai/api
-```
-
-### 4. How to Switch Environments
-
-1. **For Development**: Use the default or set `EXPO_PUBLIC_API_URL=http://localhost:8000/api`
-2. **For Staging**: Set `EXPO_PUBLIC_API_URL=https://stg.be-u.ai/api`
-3. **For Production**: Set `EXPO_PUBLIC_API_URL=https://be-u.ai/api`
-
-### 5. Verification
-
-You can verify the API URL is being used correctly by checking the console logs when making API requests. The logs will show the full URL being used.
-
-### 6. Important Notes
-
-- Environment variables starting with `EXPO_PUBLIC_` are available in the client-side code
-- The app falls back to `http://localhost:8000/api` if no environment variable is set
-- Make sure to restart the Expo development server after changing environment variables
-- Never commit sensitive environment variables to version control
-
-### 7. Current Status
-
-✅ Environment variables are already properly configured
-✅ API calls use the environment variable
-✅ Fallback to localhost is working
-✅ Ready to switch between dev/staging/production
+- `EXPO_PUBLIC_*` vars are baked into the client at build time.
+- Restart Expo after changing local `.env`.
+- Do not commit secrets; API URL is public by design.
+- Legal/contact URLs live in `constants/legal.ts` (`https://nabbi.app/...`).

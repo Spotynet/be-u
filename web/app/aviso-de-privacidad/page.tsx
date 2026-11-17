@@ -105,11 +105,11 @@ export default function AvisoPrivacidadPage() {
               con domicilio en la Calle Orizaba 154, Roma Norte, Cuauhtemoc, 06700 CDMX.
             </p>
             <p style={{marginTop: 12}}>
-              Si tienes dudas sobre este Aviso o quieres ejercer tus derechos, escríbenos a: nabbi@spotynet.com
+              Si tienes dudas sobre este Aviso o quieres ejercer tus derechos, escríbenos a: contacto@nabbi.app
             </p>
             <p style={{marginTop: 12}}>
               Este Aviso aplica a la aplicación móvil Nabbi (disponible en App Store y Google Play) y al sitio web
-              https://nabbi-mobile-dev.spotynet.com/.
+              https://nabbi.app/.
             </p>
           </section>
 
@@ -124,7 +124,7 @@ export default function AvisoPrivacidadPage() {
             <p style={{marginTop: 12}}>
               Nabbi es solo para mayores de 18 años. No está dirigida a menores de edad y no recabamos datos de menores de
               forma intencional. Si detectamos datos de un menor, los eliminaremos. Si eres padre, madre o tutor y crees que
-              un menor nos proporcionó datos, escríbenos a nabbi@spotynet.com
+              un menor nos proporcionó datos, escríbenos a contacto@nabbi.app
             </p>
           </section>
 
@@ -185,7 +185,7 @@ export default function AvisoPrivacidadPage() {
             </ul>
             <p style={{marginTop: 12}}>
               Puedes negarte a estas finalidades secundarias sin que afecte tu uso de la app. Solo escríbenos a
-              nabbi@spotynet.com o usa las opciones dentro de la app.
+              contacto@nabbi.app o usa las opciones dentro de la app.
             </p>
           </section>
 
@@ -229,7 +229,7 @@ export default function AvisoPrivacidadPage() {
               <li><strong>Dentro de la app:</strong> en Ajustes → Cuenta → Eliminar cuenta [ajustar a la ruta real de la app].</li>
               <li>
                 <strong>Desde la web / por correo:</strong> solicita la eliminación en
-                [https://nabbi-mobile-dev.spotynet.com/eliminar-cuenta] o escribiendo a nabbi@spotynet.com, aunque
+                [https://nabbi.app/delete-account] o escribiendo a contacto@nabbi.app, aunque
                 ya no tengas la app instalada.
               </li>
             </ul>
@@ -247,7 +247,7 @@ export default function AvisoPrivacidadPage() {
               y Oponerte a ciertos usos. También puedes revocar tu consentimiento y limitar el uso o divulgación de tus datos.
             </p>
             <p style={{marginTop: 12}}>
-              Para ejercerlos, escríbenos a [privacidad@spotynet.com] e incluye: tu nombre y un medio para responderte, una
+              Para ejercerlos, escríbenos a [privacidad@nabbi.app] e incluye: tu nombre y un medio para responderte, una
               identificación que acredite tu identidad (o representación legal), la descripción clara de lo que solicitas, y
               cualquier dato que ayude a localizar tu información.
             </p>
@@ -300,7 +300,7 @@ export default function AvisoPrivacidadPage() {
             <h2 style={{fontSize: 20, fontWeight: 700, marginBottom: 12}}>13. Cambios a este Aviso</h2>
             <p>
               Podemos actualizar este Aviso para reflejar cambios legales o en nuestras prácticas. Publicaremos la versión
-              vigente en https://nabbi-mobile-dev.spotynet.com/ y dentro de la app, indicando la fecha de la última
+              vigente en https://nabbi.app/ y dentro de la app, indicando la fecha de la última
               actualización. Te recomendamos revisarlo de vez en cuando.
             </p>
           </section>

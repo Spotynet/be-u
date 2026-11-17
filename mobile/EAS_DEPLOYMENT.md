@@ -1,77 +1,56 @@
 # EAS Deployment Guide
 
-## Environment Variables Configuration
+## Domains
 
-### 1. **EAS Build Configuration**
+| Environment | API (`EXPO_PUBLIC_API_URL`) | Web / legal |
+|-------------|----------------------------|-------------|
+| Development | `http://127.0.0.1:3007/api` | local |
+| Preview | `https://nabbi-api-dev.spotynet.com/api` | Spotynet dev |
+| Production (App Store) | `https://api.nabbi.app/api` | `https://nabbi.app` |
 
-The `eas.json` file is configured with environment variables for different build profiles:
+Configured in `eas.json` per build profile.
 
-- **Development**: `http://localhost:8000/api`
-- **Preview**: `https://stg.be-u.ai/api`
-- **Production**: `https://be-u.ai/api`
-
-### 2. **Build Commands**
+## Build commands
 
 ```bash
-# Development build (for testing)
-eas build --profile development --platform all
+cd mobile
 
-# Preview build (staging)
-eas build --profile preview --platform all
-
-# Production build
-eas build --profile production --platform all
+eas build --profile development --platform ios
+eas build --profile preview --platform ios
+eas build --profile production --platform ios
 ```
 
-### 3. **Update Commands**
+## Submit (App Store)
+
+1. Fill `submit.production.ios` in `eas.json` (see `docs/APP_STORE_CONNECT.md`).
+2. Ensure production API + legal pages are live.
+3. Run:
 
 ```bash
-# Create update for development
-eas update --branch development --message "Development update"
+eas submit --profile production --platform ios
+```
 
-# Create update for preview/staging
-eas update --branch preview --message "Staging update"
+## OTA updates
 
-# Create update for production
+```bash
 eas update --branch production --message "Production update"
 ```
 
-### 4. **Environment Variable Verification**
+`runtimeVersion.policy` is `sdkVersion` in `app.json`.
 
-The app will log environment configuration on startup. Check the console for:
-
-```
-🔧 Environment Configuration: {
-  EXPO_PUBLIC_API_URL: "https://be-u.ai/api",
-  API_BASE_URL: "https://be-u.ai/api",
-  NODE_ENV: "production",
-  EXPO_PUBLIC_DEBUG: "false"
-}
-```
-
-### 5. **Troubleshooting**
-
-If environment variables are not working:
-
-1. **Check EAS build logs** for environment variable injection
-2. **Verify `eas.json`** configuration is correct
-3. **Check app logs** for the environment configuration output
-4. **Ensure you're using the correct build profile**
-
-### 6. **Local Development**
-
-For local development, create a `.env` file:
+## Local development
 
 ```bash
-# .env
-EXPO_PUBLIC_API_URL=http://localhost:8000/api
-EXPO_PUBLIC_DEBUG=true
+# mobile/.env
+EXPO_PUBLIC_API_URL=https://nabbi-api-dev.spotynet.com/api
 ```
 
-### 7. **Build Profiles Explained**
+Restart Expo after changing env vars.
 
-- **development**: For internal testing with localhost API
-- **preview**: For staging/testing with staging API
-- **production**: For production with live API
+## Legal URLs (in-app)
 
-Each profile has its own environment variables configured in `eas.json`.
+Defined in `constants/legal.ts`:
+
+- Privacy: `https://nabbi.app/aviso-de-privacidad`
+- Terms: `https://nabbi.app/terminos-y-condiciones`
+- Contact: `https://nabbi.app/contacto` / `contacto@nabbi.app`

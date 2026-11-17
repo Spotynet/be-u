@@ -11,6 +11,19 @@ server {
     listen 80;
     server_name ${NABBI_WEB_HOST};
 
+    # Always send /api to Django (never Next.js). Next trailing-slash 308s
+    # have no CORS headers and break browser calls to api.* hosts.
+    location /api {
+        set $nabbi_api api:3007;
+        proxy_pass http://$nabbi_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 50m;
+    }
+
     location / {
         set $nabbi_web web:3008;
         proxy_pass http://$nabbi_web;
@@ -59,10 +72,22 @@ server {
     }
 }
 
-# Local curls without Host → Next.js web
+# Unknown Host (misconfigured NABBI_*_HOST) or local curls without Host.
+# /api must still hit Django — otherwise Next.js 308s surface as CORS errors.
 server {
     listen 80 default_server;
     server_name _;
+
+    location /api {
+        set $nabbi_api api:3007;
+        proxy_pass http://$nabbi_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 50m;
+    }
 
     location / {
         set $nabbi_web web:3008;

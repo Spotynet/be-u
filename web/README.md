@@ -1,4 +1,10 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# nabbi web
+
+Next.js product + marketing site for nabbi.
+
+- **UI / brand:** [`../DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md)
+- **Code standards:** [`FRONTEND_STANDARDS.md`](./FRONTEND_STANDARDS.md)
+- **Theme implementation:** [`docs/THEME_SYSTEM.md`](./docs/THEME_SYSTEM.md)
 
 ## Getting Started
 

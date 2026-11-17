@@ -1,6 +1,9 @@
 # Mobile Development Standards & Guidelines
 
-This document outlines the coding standards, folder structure, and best practices for the Be-U mobile application built with Expo Go and React Native. Use this as a reference for all mobile development tasks to ensure consistency and maintainability.
+This document outlines the coding standards, folder structure, and best practices for the nabbi mobile application built with Expo and React Native. Use this as a reference for all mobile development tasks to ensure consistency and maintainability.
+
+> **UI / brand / tokens / forms:** see the cross-platform **[`DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md)** (repo root).  
+> This file owns Expo/React Native architecture and domain categories. If anything here conflicts with the design system on visuals, **the design system wins**.
 
 ## 🎯 App Architecture & Categories
 
@@ -122,32 +125,37 @@ mobile/
 
 ### Theme Architecture
 
-- **NativeWind**: Use Tailwind CSS for styling with NativeWind
-- **Cross-Platform Colors**: Use theme-aware color system
-- **Responsive Design**: Adapt to different screen sizes
-- **Dark Mode**: Support system dark mode preference
+- **Tokens**: `constants/theme.ts` and `constants/colors.ts` — nabbi cream / sage / yellow
+- **NativeWind** and/or StyleSheet — always via semantic tokens, not raw hex in features
+- **Dark mode**: nabbi forest dark (not generic slate). Prefer system preference via existing theme hooks
+- **Cross-platform parity**: same CTA and type rules as web — **[`DESIGN_SYSTEM.md`](../DESIGN_SYSTEM.md)**
 
 ### Available Themes
 
-- `light` - Default light theme
-- `dark` - Dark theme for low-light environments
-- `system` - Follow system preference (default)
+- `light` — Default nabbi brand (cream background, forest text, yellow CTA)
+- `dark` — Forest dark surfaces; yellow remains CTA
+- `system` — Follow OS when wired through theme context
+
+### Typography
+
+- **Poppins** is the brand UI font (loaded in `app/_layout.tsx`). Do not introduce a second UI family.
+- Weights in use: 400, 500, 600, 700, 800. Scale and hierarchy: **`DESIGN_SYSTEM.md` § Typography**.
 
 ### Color Usage Guidelines
 
 ```typescript
-// Use theme-aware colors from constants/theme.ts
-import { Colors } from '@/constants/theme';
+// Prefer AppTheme / ThemeVariant hooks over scattering hex
+import { useAppTheme } from '@/constants/colors';
+// or theme.ts / ThemeVariantContext — stay consistent within a screen
 
-// ✅ Good: Theme-aware styling
-<View style={{ backgroundColor: Colors.light.background }}>
-  <Text style={{ color: Colors.light.text }}>Content</Text>
+// ✅ Good: token-driven
+const colors = useAppTheme();
+<View style={{ backgroundColor: colors.bg }}>
+  <Text style={{ color: colors.textPrimary }}>Content</Text>
 </View>
 
-// ✅ Good: Using NativeWind with theme
-<View className="bg-background dark:bg-background-dark">
-  <Text className="text-foreground dark:text-foreground-dark">Content</Text>
-</View>
+// ✅ Primary CTA = yellow (accent / ctaYellow) + ink text — see DESIGN_SYSTEM.md
+// ❌ Bad: hardcoded #558367 / #F6C531 in feature screens
 ```
 
 ### NativeWind Configuration
@@ -186,6 +194,12 @@ const styles = StyleSheet.create({
 ```
 
 ## 🧩 Component Development Standards
+
+### UI primitives & forms
+
+- Prefer `components/ui` (`Button`, `Input`, `Card`, …). Align variants with **`DESIGN_SYSTEM.md`** (`primary` = yellow CTA).
+- Forms: visible labels, error under field, ≥ 44pt targets, disable submit while loading, Spanish copy.
+- Don’t invent a new visual language for one screen — extend primitives.
 
 ### Component Structure
 
@@ -732,7 +746,7 @@ API base URL is configured via environment variables:
 
 ```env
 # .env file
-EXPO_PUBLIC_API_URL=https://stg.be-u.ai/api
+EXPO_PUBLIC_API_URL=https://api.nabbi.app/api
 ```
 
 The API client automatically uses this URL. Never hardcode API URLs in your code.

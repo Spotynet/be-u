@@ -5,8 +5,11 @@
 # Build/push images first with ./build.sh on a builder/dev machine.
 #
 #   NABBI_IMAGE_TAG=<sha|master> ./deploy.sh
-#   ./deploy.sh be-u.ai api.be-u.ai app.be-u.ai
+#   ./deploy.sh nabbi.app api.nabbi.app
 #   SKIP_GIT_PULL=1 NABBI_IMAGE_TAG=$SHA ./deploy.sh
+#
+# Public DNS: nabbi.app (web) + api.nabbi.app (API). iOS uses App Store (no app.* host).
+# NABBI_MOBILE_HOST is internal-only (Compose Expo web export); no public DNS/TLS needed.
 #
 # Non-secret registry config: deploy.env (see deploy.env.example).
 # App secrets stay in backend/.env (gitignored).
@@ -25,9 +28,10 @@ resolve_ecr_registry
 NABBI_IMAGE_TAG="${NABBI_IMAGE_TAG:-master}"
 
 # === Production domains (edit once; committed defaults) ===
-NABBI_WEB_HOST="${NABBI_WEB_HOST:-be-u.ai}"
-NABBI_API_HOST="${NABBI_API_HOST:-api.be-u.ai}"
-NABBI_MOBILE_HOST="${NABBI_MOBILE_HOST:-app.be-u.ai}"
+NABBI_WEB_HOST="${NABBI_WEB_HOST:-nabbi.app}"
+NABBI_API_HOST="${NABBI_API_HOST:-api.nabbi.app}"
+# Internal Compose hostname only (optional mobile web container) — not a public site
+NABBI_MOBILE_HOST="${NABBI_MOBILE_HOST:-mobile.internal}"
 
 compose() {
   if docker info >/dev/null 2>&1; then
@@ -46,14 +50,10 @@ if [[ "${1:-}" == "down" ]]; then
   exit 0
 fi
 
-if [[ $# -ge 3 ]]; then
+if [[ $# -ge 2 ]]; then
   NABBI_WEB_HOST="$1"
   NABBI_API_HOST="$2"
-  NABBI_MOBILE_HOST="$3"
-elif [[ $# -ge 2 ]]; then
-  NABBI_WEB_HOST="$1"
-  NABBI_API_HOST="$2"
-  NABBI_MOBILE_HOST="${3:-app.${1#*.}}"
+  NABBI_MOBILE_HOST="${3:-mobile.internal}"
 fi
 
 export NABBI_WEB_HOST NABBI_API_HOST NABBI_MOBILE_HOST
@@ -61,7 +61,7 @@ export NABBI_IMAGE_REGISTRY NABBI_IMAGE_TAG AWS_REGION
 export BACKEND_ORIGIN="http://api:3007"
 export NEXT_PUBLIC_BACKEND_ORIGIN="https://${NABBI_API_HOST}"
 export NEXT_PUBLIC_API_URL="https://${NABBI_API_HOST}/api"
-export EXPO_PUBLIC_API_URL="https://${NABBI_API_HOST}"
+export EXPO_PUBLIC_API_URL="https://${NABBI_API_HOST}/api"
 
 if [[ ! -f backend/.env ]]; then
   echo "Missing backend/.env — create once (SECRET_KEY, DB_*, DEBUG=False, …)." >&2
@@ -105,7 +105,20 @@ echo
 echo "Check (HTTP via host nginx):"
 echo "  curl -sI -H 'Host: ${NABBI_WEB_HOST}' http://127.0.0.1/ | head -3"
 echo "  curl -sI -H 'Host: ${NABBI_API_HOST}' http://127.0.0.1/ | head -3"
-echo "  curl -sI -H 'Host: ${NABBI_MOBILE_HOST}' http://127.0.0.1/ | head -3"
+echo
+# Catch the classic prod CORS failure: api host routed to Next.js (308, no ACAO).
+api_headers="$(curl -sI -H "Host: ${NABBI_API_HOST}" "http://127.0.0.1:8080/api/auth/register/" || true)"
+if echo "$api_headers" | grep -qi 'x-powered-by: next.js\|x-nextjs-'; then
+  echo "ERROR: ${NABBI_API_HOST}/api is hitting Next.js, not Django." >&2
+  echo "  Check nginx env: NABBI_API_HOST=${NABBI_API_HOST}" >&2
+  echo "  Recreate: compose ... up -d --force-recreate nginx" >&2
+  exit 1
+fi
+if echo "$api_headers" | grep -q '308\|301'; then
+  echo "WARN: ${NABBI_API_HOST}/api/auth/register/ returned a redirect (CORS risk):" >&2
+  echo "$api_headers" | head -8 >&2
+fi
+echo "API routing OK (no Next.js on /api)."
 echo
 echo "Rollback: NABBI_IMAGE_TAG=<previous_sha> ./deploy.sh"
 echo "Logs: docker compose -f compose.yaml -f compose.prod.yaml logs -f"

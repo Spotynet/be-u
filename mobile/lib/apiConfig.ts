@@ -1,6 +1,7 @@
 /**
  * Single source of truth for the Django API base URL (path includes `/api`).
- * Set `EXPO_PUBLIC_API_URL` in `mobile/.env` (e.g. dev vs staging vs prod).
+ * Local/dev: set `EXPO_PUBLIC_API_URL` in `mobile/.env`.
+ * EAS: `eas.json` injects per profile — production uses `https://api.nabbi.app/api`.
  */
 
 const DEFAULT_API_BASE = "https://nabbi-api-dev.spotynet.com/api";

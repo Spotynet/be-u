@@ -50,11 +50,11 @@ if [[ -z "${NABBI_IMAGE_TAG:-}" ]]; then
 fi
 
 # Public URLs baked into web/mobile client bundles at build time
-NABBI_API_HOST="${NABBI_API_HOST:-api.be-u.ai}"
+NABBI_API_HOST="${NABBI_API_HOST:-api.nabbi.app}"
 BACKEND_ORIGIN="${BACKEND_ORIGIN:-http://api:3007}"
 NEXT_PUBLIC_BACKEND_ORIGIN="${NEXT_PUBLIC_BACKEND_ORIGIN:-https://${NABBI_API_HOST}}"
 NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-https://${NABBI_API_HOST}/api}"
-EXPO_PUBLIC_API_URL="${EXPO_PUBLIC_API_URL:-https://${NABBI_API_HOST}}"
+EXPO_PUBLIC_API_URL="${EXPO_PUBLIC_API_URL:-https://${NABBI_API_HOST}/api}"
 
 docker_cmd() {
   if docker info >/dev/null 2>&1; then
