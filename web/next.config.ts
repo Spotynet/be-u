@@ -7,6 +7,10 @@ const backendOrigin =
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Django API paths use trailing slashes. If /api is ever served by Next
+  // (misrouted api host), the default 308 strip has no CORS headers and
+  // browsers report "Access-Control-Allow-Origin missing" / status 308.
+  skipTrailingSlashRedirect: true,
   allowedDevOrigins: ["nabbi-dev.spotynet.com"],
   async rewrites() {
     return [

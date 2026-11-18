@@ -90,6 +90,10 @@ fi
 
 echo "Starting stack..."
 compose -f compose.yaml -f compose.prod.yaml up -d --remove-orphans
+# Always recreate nginx so envsubst re-runs (NABBI_*_HOST + mounted template).
+# A plain up -d leaves stale conf.d when only the template/env changed → CORS 308.
+echo "Recreating nginx (apply Host routing)..."
+compose -f compose.yaml -f compose.prod.yaml up -d --force-recreate --no-deps nginx
 echo
 echo "Running database migrations..."
 compose -f compose.yaml -f compose.prod.yaml exec -T api \
@@ -106,19 +110,23 @@ echo "Check (HTTP via host nginx):"
 echo "  curl -sI -H 'Host: ${NABBI_WEB_HOST}' http://127.0.0.1/ | head -3"
 echo "  curl -sI -H 'Host: ${NABBI_API_HOST}' http://127.0.0.1/ | head -3"
 echo
-# Catch the classic prod CORS failure: api host routed to Next.js (308, no ACAO).
-api_headers="$(curl -sI -H "Host: ${NABBI_API_HOST}" "http://127.0.0.1:8080/api/auth/register/" || true)"
-if echo "$api_headers" | grep -qi 'x-powered-by: next.js\|x-nextjs-'; then
-  echo "ERROR: ${NABBI_API_HOST}/api is hitting Next.js, not Django." >&2
-  echo "  Check nginx env: NABBI_API_HOST=${NABBI_API_HOST}" >&2
-  echo "  Recreate: compose ... up -d --force-recreate nginx" >&2
+# Catch the classic prod CORS failure: api host routed to Next.js.
+# Next 308s often omit X-Powered-By — treat any redirect on this URL as failure.
+api_root="$(curl -sI -H "Host: ${NABBI_API_HOST}" "http://127.0.0.1:8080/" | tr -d '\r' || true)"
+api_headers="$(curl -sI -H "Host: ${NABBI_API_HOST}" "http://127.0.0.1:8080/api/auth/register/" | tr -d '\r' || true)"
+if echo "$api_root" | grep -qiE 'x-powered-by: next\.js|x-nextjs-'; then
+  echo "ERROR: ${NABBI_API_HOST}/ is hitting Next.js, not Django." >&2
+  echo "  Check nginx env: NABBI_API_HOST=${NABBI_API_HOST} NABBI_WEB_HOST=${NABBI_WEB_HOST}" >&2
+  echo "  Recreate: compose -f compose.yaml -f compose.prod.yaml up -d --force-recreate nginx" >&2
   exit 1
 fi
-if echo "$api_headers" | grep -q '308\|301'; then
-  echo "WARN: ${NABBI_API_HOST}/api/auth/register/ returned a redirect (CORS risk):" >&2
-  echo "$api_headers" | head -8 >&2
+if echo "$api_headers" | grep -qiE 'x-powered-by: next\.js|x-nextjs-|^HTTP/[0-9.]+ 30[18]'; then
+  echo "ERROR: ${NABBI_API_HOST}/api/auth/register/ is not reaching Django cleanly (CORS risk):" >&2
+  echo "$api_headers" | head -12 >&2
+  echo "  Check nginx env: NABBI_API_HOST=${NABBI_API_HOST}" >&2
+  exit 1
 fi
-echo "API routing OK (no Next.js on /api)."
+echo "API routing OK (Django on ${NABBI_API_HOST}, no Next.js / redirect on /api)."
 echo
 echo "Rollback: NABBI_IMAGE_TAG=<previous_sha> ./deploy.sh"
 echo "Logs: docker compose -f compose.yaml -f compose.prod.yaml logs -f"

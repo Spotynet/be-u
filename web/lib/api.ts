@@ -44,6 +44,13 @@ const resolveApiBaseUrl = () => {
   if (typeof window !== "undefined") {
     const currentHost = window.location.hostname;
     const isLocalFrontend = ["localhost", "127.0.0.1", "::1"].includes(currentHost);
+    // Same-origin /api on nabbi.app avoids cross-origin calls to api.nabbi.app
+    // (nginx web vhost proxies /api → Django). Prevents CORS when API Host is misrouted.
+    const isProdWebHost = currentHost === "nabbi.app" || currentHost === "www.nabbi.app";
+
+    if (isProdWebHost) {
+      return "/api";
+    }
 
     if (!configuredUrl) {
       return isLocalFrontend ? "/api" : DEFAULT_REMOTE_API_URL;
