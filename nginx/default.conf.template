@@ -6,13 +6,20 @@
 
 resolver 127.0.0.11 valid=10s ipv6=off;
 
+# Prefer the outer TLS terminator's scheme (host nginx sets https). Falling back
+# to $scheme alone overwrites that with http and breaks secure cookies / redirects.
+map $http_x_forwarded_proto $nabbi_forwarded_proto {
+    default $http_x_forwarded_proto;
+    ""      $scheme;
+}
+
 # Next.js web
 server {
     listen 80;
     server_name ${NABBI_WEB_HOST};
 
-    # Always send /api to Django (never Next.js). Next trailing-slash 308s
-    # have no CORS headers and break browser calls to api.* hosts.
+    # Always send /api to Django (never Next.js). Next :path* rewrites drop the
+    # trailing slash → Django APPEND_SLASH 301 loop (POST becomes GET in browsers).
     location /api {
         set $nabbi_api api:3007;
         proxy_pass http://$nabbi_api;
@@ -20,7 +27,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $nabbi_forwarded_proto;
         client_max_body_size 50m;
     }
 
@@ -31,7 +38,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $nabbi_forwarded_proto;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
     }
@@ -49,7 +56,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $nabbi_forwarded_proto;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
     }
@@ -67,13 +74,13 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $nabbi_forwarded_proto;
         client_max_body_size 50m;
     }
 }
 
 # Unknown Host (misconfigured NABBI_*_HOST) or local curls without Host.
-# /api must still hit Django — otherwise Next.js 308s surface as CORS errors.
+# /api must still hit Django — otherwise Next.js rewrite 301s surface as register failures.
 server {
     listen 80 default_server;
     server_name _;
@@ -85,7 +92,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $nabbi_forwarded_proto;
         client_max_body_size 50m;
     }
 
@@ -96,7 +103,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $nabbi_forwarded_proto;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
     }

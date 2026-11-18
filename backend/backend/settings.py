@@ -50,6 +50,7 @@ _allowed_hosts = [
     'be-u.ai',
     '*.be-u.ai',
     'nabbi-api-dev.spotynet.com',
+    'nabbi-dev.spotynet.com',
     'nabbi.app',
     'api.nabbi.app',
     'www.nabbi.app',
