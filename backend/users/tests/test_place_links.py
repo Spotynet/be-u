@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from .models import ProfessionalProfile, PlaceProfile, User
-from .profile_models import PlaceProfessionalLink, LinkedAvailabilitySchedule, LinkedTimeSlot, AvailabilitySchedule
+from users.models import ProfessionalProfile, PlaceProfile, User
+from users.profile_models import PlaceProfessionalLink, LinkedAvailabilitySchedule, LinkedTimeSlot, AvailabilitySchedule
 
 
 class PlaceProfessionalLinkModelTests(TestCase):

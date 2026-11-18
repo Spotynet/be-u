@@ -9,6 +9,8 @@ import {
   EmailCodeLoginResult,
   LoginCredentials,
   RegisterData,
+  RegisterPendingResponse,
+  ResendVerificationResponse,
   User,
   ChangePasswordData,
 } from "../types";
@@ -119,15 +121,51 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
     }
   };
 
-  const register = async (data: RegisterData) => {
+  const register = async (data: RegisterData): Promise<RegisterPendingResponse> => {
     try {
       setError(null);
       setIsLoading(true);
 
       const response = await authApi.register(data);
+      return response.data;
+    } catch (err) {
+      const errorMessage = errorUtils.getErrorMessage(err);
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  const verifyRegistrationEmail = async (
+    credentials: EmailCodeCredentials
+  ): Promise<User> => {
+    try {
+      setError(null);
+      setIsLoading(true);
+
+      const response = await authApi.verifyRegistrationEmail(credentials);
+      if (!response.data.access || !response.data.refresh || !response.data.user) {
+        throw new Error(response.data.message || "Verificación fallida");
+      }
       tokenUtils.setTokens(response.data.access, response.data.refresh);
       setUser(response.data.user);
+      return response.data.user;
+    } catch (err) {
+      const errorMessage = errorUtils.getErrorMessage(err);
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resendVerification = async (email: string): Promise<ResendVerificationResponse> => {
+    try {
+      setError(null);
+      setIsLoading(true);
+      const response = await authApi.resendVerification({email});
+      return response.data;
     } catch (err) {
       const errorMessage = errorUtils.getErrorMessage(err);
       setError(errorMessage);
@@ -202,6 +240,8 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
     requestEmailCode,
     loginWithEmailCode,
     register,
+    verifyRegistrationEmail,
+    resendVerification,
     logout,
     updateProfile,
     changePassword,

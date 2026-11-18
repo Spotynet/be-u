@@ -22,6 +22,7 @@ import {
   type PlaceProfessionalLink,
   errorUtils,
 } from "@/lib/api";
+import {CustomDropdown} from "@/components/ui/CustomDropdown";
 
 function parseDurationMinutes(time?: string | number): number {
   if (typeof time === "number" && !Number.isNaN(time)) return time;
@@ -597,19 +598,19 @@ export default function PublicProfilePage() {
                       <div className="font-extrabold text-foreground">
                         Escribe una reseña
                       </div>
-                      <label className="text-[13px] font-bold text-foreground">
-                        Calificación
-                        <select
-                          value={reviewRating}
-                          onChange={(e) => setReviewRating(Number(e.target.value))}
-                          className="mt-1.5 block w-full rounded-[10px] border-[1.5px] border-primary/25 p-2.5">
-                          {[5, 4, 3, 2, 1].map((n) => (
-                            <option key={n} value={n}>
-                              {n} estrellas
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      <CustomDropdown
+                        label="Calificación"
+                        value={reviewRating}
+                        onChange={(value) => {
+                          if (value !== null) setReviewRating(value);
+                        }}
+                        options={[5, 4, 3, 2, 1].map((n) => ({
+                          value: n,
+                          label: `${n} estrellas`,
+                        }))}
+                        searchable={false}
+                        size="md"
+                      />
                       <textarea
                         value={reviewMessage}
                         onChange={(e) => setReviewMessage(e.target.value)}

@@ -1,7 +1,8 @@
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.throttling import ScopedRateThrottle
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -14,7 +15,29 @@ from .serializers import (
     GoogleCallbackSerializer,
     EmailCodeRequestSerializer,
     EmailCodeVerifySerializer,
+    EmailVerificationSerializer,
+    ResendVerificationSerializer,
 )
+from .email_verification import (
+    CooldownActive,
+    CodeExpired,
+    CodeInvalid,
+    HourlyLimitExceeded,
+    NoActiveCode,
+    TooManyAttempts,
+    issue_code,
+    mark_user_email_verified,
+    verify_code,
+)
+from .models import EmailVerificationCode
+
+
+class EmailCodeSendThrottle(ScopedRateThrottle):
+    scope = "email_code_send"
+
+
+class EmailCodeVerifyThrottle(ScopedRateThrottle):
+    scope = "email_code_verify"
 from .services import google_auth_service
 from calendar_integration.models import GoogleCalendarCredentials
 import json
@@ -54,6 +77,15 @@ def login_view(request):
         # Authenticate user using email (since USERNAME_FIELD is email)
         user = authenticate(username=email, password=password)
         if user is not None:
+            if not user.email_verified:
+                return Response(
+                    {
+                        "error": "email_not_verified",
+                        "code": "email_not_verified",
+                        "message": "Verifica tu correo para continuar.",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
             access_token = refresh.access_token
@@ -253,6 +285,11 @@ def google_callback_view(request):
             user.public_profile.has_calendar = True
             user.public_profile.save(update_fields=['has_calendar'])
 
+        # Provider verified-email claim → mark User.email_verified
+        if google_user_data.get('email_verified', False):
+            mark_user_email_verified(user)
+            user.refresh_from_db()
+
         refresh = RefreshToken.for_user(user)
         access_token = refresh.access_token
 
@@ -359,6 +396,11 @@ def apple_login_view(request):
             },
             status=status.HTTP_200_OK,
         )
+
+    # Apple only shares email when the address is verified by Apple
+    if email:
+        mark_user_email_verified(user)
+        user.refresh_from_db()
 
     refresh = RefreshToken.for_user(user)
     return Response(
@@ -493,6 +535,10 @@ def email_verify_code_view(request):
             status=status.HTTP_200_OK,
         )
 
+    # Passwordless login proves email ownership
+    mark_user_email_verified(user)
+    user.refresh_from_db()
+
     refresh = RefreshToken.for_user(user)
     access_token = refresh.access_token
 
@@ -599,10 +645,55 @@ def register_view(request):
         
         # Check if user already exists
         logger.info("Checking if email already exists...")
-        if User.objects.filter(email=email).exists():
-            logger.warning(f"Email {email} already exists in database")
-            return Response({'error': 'User with this email already exists'}, status=status.HTTP_400_BAD_REQUEST)
+        email_norm = (email or "").strip().lower()
+        existing = User.objects.filter(email__iexact=email_norm).first()
+        if existing:
+            if existing.email_verified:
+                logger.warning(f"Email {email_norm} already exists and is verified")
+                return Response(
+                    {'error': 'User with this email already exists'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            # Unverified: reissue verification code (no duplicate user)
+            try:
+                issued = issue_code(
+                    existing,
+                    existing.email,
+                    purpose=EmailVerificationCode.Purpose.REGISTER,
+                )
+            except CooldownActive as e:
+                return Response(
+                    {
+                        "email": existing.email,
+                        "emailVerified": False,
+                        "verificationRequired": True,
+                        "resendAvailableIn": e.seconds,
+                        "code": e.code,
+                        "message": e.message,
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
+            except HourlyLimitExceeded as e:
+                return Response(
+                    {
+                        "error": e.code,
+                        "code": e.code,
+                        "message": e.message,
+                        "retryAfter": e.seconds,
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+            return Response(
+                {
+                    "email": existing.email,
+                    "emailVerified": False,
+                    "verificationRequired": True,
+                    "resendAvailableIn": issued.resend_available_in,
+                },
+                status=status.HTTP_201_CREATED,
+            )
         logger.info("Email is available")
+        email = email_norm
         
         # Check if username already exists
         logger.info("Checking if username already exists...")
@@ -674,10 +765,16 @@ def register_view(request):
             city=city if city else None,
             latitude=latitude if latitude is not None else None,
             longitude=longitude if longitude is not None else None,
+            email_verified=False,
         )
         if not password:
             user.set_unusable_password()
             user.save(update_fields=["password"])
+        # Ensure new accounts start unverified (create_user may not pass custom fields on all paths)
+        if user.email_verified:
+            user.email_verified = False
+            user.email_verified_at = None
+            user.save(update_fields=["email_verified", "email_verified_at"])
         apple_sub = (data.get("appleSub") or data.get("apple_sub") or "").strip()
         if apple_sub:
             if User.objects.filter(apple_sub=apple_sub).exclude(pk=user.pk).exists():
@@ -808,23 +905,25 @@ def register_view(request):
         
         logger.info(f"User created successfully with ID: {user.id}")
         logger.info(f"User details: {user}")
-        
-        # Generate JWT tokens for new user
-        logger.info("Generating JWT tokens...")
-        refresh = RefreshToken.for_user(user)
-        access_token = refresh.access_token
-        logger.info("JWT tokens generated successfully")
-        
-        # Serialize user data
-        logger.info("Serializing user data...")
-        user_data = UserSerializer(user).data
-        logger.info(f"Serialized user data: {user_data}")
-        
+
+        # Issue verification code — tokens are returned only after /auth/verify-email/
+        try:
+            issued = issue_code(
+                user,
+                user.email,
+                purpose=EmailVerificationCode.Purpose.REGISTER,
+            )
+            resend_in = issued.resend_available_in
+        except (CooldownActive, HourlyLimitExceeded) as e:
+            # Extremely unlikely on first issue; still return verification-required shape
+            resend_in = getattr(e, "seconds", 30)
+            logger.warning("issue_code after register: %s", e)
+
         response_data = {
-            'message': 'User created successfully',
-            'access': str(access_token),
-            'refresh': str(refresh),
-            'user': user_data
+            "email": user.email,
+            "emailVerified": False,
+            "verificationRequired": True,
+            "resendAvailableIn": resend_in,
         }
         
         logger.info("=== REGISTRATION SUCCESSFUL ===")
@@ -966,4 +1065,136 @@ def refresh_token_view(request):
         return Response({'error': 'Invalid JSON'}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@throttle_classes([EmailCodeVerifyThrottle])
+@csrf_exempt
+def verify_email_view(request):
+    """
+    POST /api/auth/verify-email/
+    Body: { "email": "...", "code": "123456" }
+    On success returns the same shape as passwordless login (access, refresh, user).
+    """
+    serializer = EmailVerificationSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    email = serializer.validated_data["email"].strip().lower()
+    code = serializer.validated_data["code"].strip()
+
+    user = User.objects.filter(email__iexact=email).first()
+    if not user:
+        return Response(
+            {
+                "error": "no_active_code",
+                "code": "no_active_code",
+                "message": "No encontramos un código activo. Solicita uno nuevo.",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        verify_code(
+            user,
+            email,
+            code,
+            purpose=EmailVerificationCode.Purpose.REGISTER,
+        )
+    except CodeExpired as e:
+        return Response(
+            {"error": e.code, "code": e.code, "message": e.message},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except TooManyAttempts as e:
+        return Response(
+            {"error": e.code, "code": e.code, "message": e.message},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+    except CodeInvalid as e:
+        return Response(
+            {
+                "error": e.code,
+                "code": e.code,
+                "message": e.message,
+                "attemptsLeft": e.attempts_left,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except NoActiveCode as e:
+        return Response(
+            {"error": e.code, "code": e.code, "message": e.message},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user.refresh_from_db()
+    refresh = RefreshToken.for_user(user)
+    return Response(
+        {
+            "message": "Login successful",
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": UserSerializer(user).data,
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@throttle_classes([EmailCodeSendThrottle])
+@csrf_exempt
+def resend_verification_view(request):
+    """
+    POST /api/auth/resend-verification/
+    Body: { "email": "..." }
+    Always returns a generic 200 when possible (anti-enumeration), except 429 on limits.
+    """
+    serializer = ResendVerificationSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    email = serializer.validated_data["email"].strip().lower()
+    cooldown = int(getattr(settings, "EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS", 30))
+
+    user = User.objects.filter(email__iexact=email, email_verified=False).first()
+    if not user:
+        # Generic success — do not reveal whether the email exists / is verified
+        return Response(
+            {"sent": True, "resendAvailableIn": cooldown},
+            status=status.HTTP_200_OK,
+        )
+
+    try:
+        issued = issue_code(
+            user,
+            user.email,
+            purpose=EmailVerificationCode.Purpose.REGISTER,
+        )
+    except CooldownActive as e:
+        return Response(
+            {
+                "error": e.code,
+                "code": e.code,
+                "message": e.message,
+                "retryAfter": e.seconds,
+            },
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+    except HourlyLimitExceeded as e:
+        return Response(
+            {
+                "error": e.code,
+                "code": e.code,
+                "message": e.message,
+                "retryAfter": e.seconds,
+            },
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
+    return Response(
+        {"sent": True, "resendAvailableIn": issued.resend_available_in},
+        status=status.HTTP_200_OK,
+    )
 

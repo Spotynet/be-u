@@ -1,21 +1,72 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, ClientProfile, ProfessionalProfile, PlaceProfile, PublicProfile
+from .models import (
+    User,
+    ClientProfile,
+    ProfessionalProfile,
+    PlaceProfile,
+    PublicProfile,
+    EmailAuthCode,
+    EmailVerificationCode,
+)
 from .profile_models import ProfileImage, CustomService, AvailabilitySchedule, TimeSlot, BreakTime
 
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'role', 'first_name', 'last_name', 'phone', 'city', 'country', 'is_staff')
-    list_filter = ('role', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'country', 'city')
+    list_display = (
+        'username', 'email', 'role', 'email_verified', 'email_verified_at',
+        'first_name', 'last_name', 'phone', 'city', 'country', 'is_staff',
+    )
+    list_filter = (
+        'role', 'email_verified', 'is_staff', 'is_superuser', 'is_active',
+        'date_joined', 'country', 'city',
+    )
     search_fields = ('username', 'first_name', 'last_name', 'email', 'phone', 'country', 'city')
     ordering = ('username',)
-    
+    readonly_fields = ('email_verified_at',)
+
     fieldsets = UserAdmin.fieldsets + (
         ('Role Information', {'fields': ('role',)}),
         ('Contact Information', {'fields': ('phone', 'city', 'country')}),
+        ('Email verification', {'fields': ('email_verified', 'email_verified_at')}),
         ('Profile Image', {'fields': ('image',)}),
     )
+
+
+@admin.register(EmailVerificationCode)
+class EmailVerificationCodeAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'user', 'email', 'purpose', 'created_at', 'expires_at',
+        'consumed_at', 'attempts', 'last_sent_at',
+    )
+    list_filter = ('purpose',)
+    search_fields = ('email', 'user__email', 'user__username')
+    readonly_fields = (
+        'user', 'email', 'purpose', 'created_at', 'expires_at',
+        'consumed_at', 'attempts', 'last_sent_at',
+    )
+    exclude = ('code_hash',)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(EmailAuthCode)
+class EmailAuthCodeAdmin(admin.ModelAdmin):
+    list_display = ('id', 'email', 'created_at', 'expires_at', 'consumed_at', 'attempts')
+    search_fields = ('email',)
+    readonly_fields = ('email', 'created_at', 'expires_at', 'consumed_at', 'attempts', 'updated_at')
+    exclude = ('code_hash',)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(ClientProfile)

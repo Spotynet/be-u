@@ -3,7 +3,8 @@
 import {useState, useRef} from "react";
 import {Button} from "@/components/ui/Button";
 import {Input} from "@/components/ui/Input";
-import {Card} from "@/components/ui/Card";
+import {CustomDropdown} from "@/components/ui/CustomDropdown";
+import {Textarea} from "@/components/ui/Textarea";
 import {PublicProfile, CreatePublicProfileData} from "@/types/api";
 import {publicProfileApi} from "@/lib/api";
 
@@ -46,7 +47,7 @@ export function PublicProfileForm({profile, onSubmit, submitText}: PublicProfile
     try {
       await onSubmit(formData);
     } catch (err: any) {
-      setError(err.message || "Failed to save profile");
+      setError(err.message || "No se pudo guardar el perfil");
     } finally {
       setLoading(false);
     }
@@ -71,25 +72,25 @@ export function PublicProfileForm({profile, onSubmit, submitText}: PublicProfile
     // Validate file type
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
-      setError("Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.");
+      setError("Tipo de archivo no válido. Usa JPEG, PNG, GIF o WebP.");
       return;
     }
 
     // Validate file size (5MB max)
     const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
-      setError("File too large. Maximum size is 5MB.");
+      setError("El archivo es demasiado grande. Máximo 5 MB.");
       return;
     }
 
     // Check image limit
     if (formData.images && formData.images.length >= 10) {
-      setError("Maximum of 10 images allowed per profile.");
+      setError("Máximo 10 imágenes por perfil.");
       return;
     }
 
     if (!profile) {
-      setError("Please create your profile first before uploading images.");
+      setError("Crea tu perfil primero para subir imágenes.");
       return;
     }
 
@@ -103,7 +104,7 @@ export function PublicProfileForm({profile, onSubmit, submitText}: PublicProfile
         images: response.data.images || [],
       }));
     } catch (err: any) {
-      setError(err.message || "Failed to upload image");
+      setError(err.message || "No se pudo subir la imagen");
     } finally {
       setUploadingImage(false);
     }
@@ -119,7 +120,7 @@ export function PublicProfileForm({profile, onSubmit, submitText}: PublicProfile
         images: response.data.images || [],
       }));
     } catch (err: any) {
-      setError(err.message || "Failed to remove image");
+      setError(err.message || "No se pudo eliminar la imagen");
     }
   };
 
@@ -128,209 +129,171 @@ export function PublicProfileForm({profile, onSubmit, submitText}: PublicProfile
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800">{error}</p>
+        <div className="auth-alert auth-alert--error" role="alert">
+          <p>{error}</p>
         </div>
       )}
 
-      {/* Profile Type */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Profile Type *</label>
-        <select
-          value={formData.profile_type}
-          onChange={(e) => handleInputChange("profile_type", e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required>
-          <option value="PROFESSIONAL">Professional</option>
-          <option value="PLACE">Place</option>
-        </select>
-      </div>
+      <CustomDropdown
+        label="Tipo de perfil"
+        value={formData.profile_type}
+        onChange={(value) => {
+          if (value) handleInputChange("profile_type", value);
+        }}
+        options={[
+          {value: "PROFESSIONAL", label: "Profesional"},
+          {value: "PLACE", label: "Lugar"},
+        ]}
+        searchable={false}
+        required
+      />
 
-      {/* Basic Information */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
-          <Input
-            type="text"
-            value={formData.name}
-            onChange={(e) => handleInputChange("name", e.target.value)}
-            placeholder="Enter profile name"
-            required
-          />
-        </div>
+        <Input
+          label="Nombre"
+          type="text"
+          value={formData.name}
+          onChange={(e) => handleInputChange("name", e.target.value)}
+          placeholder="Ana"
+          required
+        />
 
         {formData.profile_type === "PROFESSIONAL" && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
-            <Input
-              type="text"
-              value={formData.last_name}
-              onChange={(e) => handleInputChange("last_name", e.target.value)}
-              placeholder="Enter last name"
-              required={formData.profile_type === "PROFESSIONAL"}
-            />
-          </div>
+          <Input
+            label="Apellido"
+            type="text"
+            value={formData.last_name}
+            onChange={(e) => handleInputChange("last_name", e.target.value)}
+            placeholder="García"
+            required={formData.profile_type === "PROFESSIONAL"}
+          />
         )}
       </div>
 
-      {/* Description */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-        <textarea
-          value={formData.description}
-          onChange={(e) => handleInputChange("description", e.target.value)}
-          placeholder="Describe your profile"
-          rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
+      <Textarea
+        label="Descripción"
+        value={formData.description}
+        onChange={(e) => handleInputChange("description", e.target.value)}
+        placeholder="Describe tu perfil"
+        rows={3}
+      />
 
-      {/* Bio (for professionals) */}
       {formData.profile_type === "PROFESSIONAL" && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
-          <textarea
-            value={formData.bio}
-            onChange={(e) => handleInputChange("bio", e.target.value)}
-            placeholder="Tell us about yourself"
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <Textarea
+          label="Bio"
+          value={formData.bio}
+          onChange={(e) => handleInputChange("bio", e.target.value)}
+          placeholder="Cuéntale a tus clientes qué haces"
+          rows={3}
+        />
+      )}
+
+      <Input
+        label="Categoría"
+        type="text"
+        value={formData.category}
+        onChange={(e) => handleInputChange("category", e.target.value)}
+        placeholder="Belleza, bienestar..."
+      />
+
+      <Input
+        label="Subcategorías"
+        type="text"
+        value={(formData.sub_categories ?? []).join(", ")}
+        onChange={(e) => handleSubCategoriesChange(e.target.value)}
+        placeholder="Cabello, spa, yoga"
+        helperText="Separa varias con comas"
+      />
+
+      {formData.profile_type === "PLACE" && (
+        <div className="space-y-5">
+          <h3 className="text-base font-semibold text-foreground tracking-tight">Dirección</h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Calle"
+              type="text"
+              value={formData.street}
+              onChange={(e) => handleInputChange("street", e.target.value)}
+              placeholder="Calle y colonia"
+              required={formData.profile_type === "PLACE"}
+            />
+            <Input
+              label="Ciudad"
+              type="text"
+              value={formData.city}
+              onChange={(e) => handleInputChange("city", e.target.value)}
+              placeholder="Ciudad"
+              required={formData.profile_type === "PLACE"}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              label="Número exterior"
+              type="text"
+              value={formData.number_ext}
+              onChange={(e) => handleInputChange("number_ext", e.target.value)}
+              placeholder="Ext."
+            />
+            <Input
+              label="Número interior"
+              type="text"
+              value={formData.number_int}
+              onChange={(e) => handleInputChange("number_int", e.target.value)}
+              placeholder="Int."
+            />
+            <Input
+              label="Código postal"
+              type="text"
+              value={formData.postal_code}
+              onChange={(e) => handleInputChange("postal_code", e.target.value)}
+              placeholder="CP"
+            />
+          </div>
+
+          <Input
+            label="País"
+            type="text"
+            value={formData.country}
+            onChange={(e) => handleInputChange("country", e.target.value)}
+            placeholder="País"
           />
         </div>
       )}
 
-      {/* Category */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-        <Input
-          type="text"
-          value={formData.category}
-          onChange={(e) => handleInputChange("category", e.target.value)}
-          placeholder="e.g., Healthcare, Beauty, Fitness"
-        />
-      </div>
-
-      {/* Sub Categories */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Sub Categories</label>
-        <Input
-          type="text"
-          value={(formData.sub_categories ?? []).join(", ")}
-          onChange={(e) => handleSubCategoriesChange(e.target.value)}
-          placeholder="e.g., Massage, Facial, Haircut (comma separated)"
-        />
-        <p className="text-sm text-gray-500 mt-1">Separate multiple categories with commas</p>
-      </div>
-
-      {/* Address Fields (for places) */}
-      {formData.profile_type === "PLACE" && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Address Information</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Street *</label>
-              <Input
-                type="text"
-                value={formData.street}
-                onChange={(e) => handleInputChange("street", e.target.value)}
-                placeholder="Street address"
-                required={formData.profile_type === "PLACE"}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">City *</label>
-              <Input
-                type="text"
-                value={formData.city}
-                onChange={(e) => handleInputChange("city", e.target.value)}
-                placeholder="City"
-                required={formData.profile_type === "PLACE"}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Number Ext</label>
-              <Input
-                type="text"
-                value={formData.number_ext}
-                onChange={(e) => handleInputChange("number_ext", e.target.value)}
-                placeholder="External number"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Number Int</label>
-              <Input
-                type="text"
-                value={formData.number_int}
-                onChange={(e) => handleInputChange("number_int", e.target.value)}
-                placeholder="Internal number"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Postal Code</label>
-              <Input
-                type="text"
-                value={formData.postal_code}
-                onChange={(e) => handleInputChange("postal_code", e.target.value)}
-                placeholder="Postal code"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
-            <Input
-              type="text"
-              value={formData.country}
-              onChange={(e) => handleInputChange("country", e.target.value)}
-              placeholder="Country"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Calendar Option */}
-      <div className="flex items-center">
+      <label className="auth-terms">
         <input
           type="checkbox"
           id="has_calendar"
           checked={formData.has_calendar}
           onChange={(e) => handleInputChange("has_calendar", e.target.checked)}
-          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          className="auth-checkbox"
         />
-        <label htmlFor="has_calendar" className="ml-2 block text-sm text-gray-900">
-          Enable calendar functionality for bookings
-        </label>
-      </div>
+        <span>Activar calendario para reservas</span>
+      </label>
 
-      {/* Images Section */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Profile Images ({formData.images?.length || 0}/10)
-        </label>
+        <p className="nabbi-field__label" style={{marginBottom: 10}}>
+          Imágenes del perfil ({formData.images?.length || 0}/10)
+        </p>
 
-        {/* Image Gallery */}
         {formData.images && formData.images.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
             {formData.images.map((imageUrl, index) => (
               <div key={index} className="relative group">
                 <img
                   src={imageUrl}
-                  alt={`Profile image ${index + 1}`}
-                  className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                  alt={`Imagen ${index + 1}`}
+                  className="w-full h-24 object-cover rounded-xl border border-border"
                 />
                 <button
                   type="button"
                   onClick={() => handleRemoveImage(index)}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                  className="absolute -top-2 -right-2 bg-error text-error-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label="Eliminar imagen">
                   ×
                 </button>
               </div>
@@ -338,7 +301,6 @@ export function PublicProfileForm({profile, onSubmit, submitText}: PublicProfile
           </div>
         )}
 
-        {/* Upload Button */}
         {profile && formData.images && formData.images.length < 10 && (
           <div>
             <input
@@ -348,29 +310,23 @@ export function PublicProfileForm({profile, onSubmit, submitText}: PublicProfile
               onChange={handleImageUpload}
               className="hidden"
             />
-            <Button
-              type="button"
-              onClick={openFileDialog}
-              disabled={uploadingImage}
-              variant="outline"
-              className="w-full">
-              {uploadingImage ? "Uploading..." : "Add Image"}
+            <Button type="button" onClick={openFileDialog} disabled={uploadingImage} variant="outline" className="w-full">
+              {uploadingImage ? "Subiendo..." : "Agregar imagen"}
             </Button>
-            <p className="text-xs text-gray-500 mt-1">
-              Max 10 images, 5MB each. Supported: JPEG, PNG, GIF, WebP
+            <p className="nabbi-field__hint" style={{marginTop: 8}}>
+              Máximo 10 imágenes, 5 MB cada una. JPEG, PNG, GIF o WebP.
             </p>
           </div>
         )}
 
         {!profile && (
-          <p className="text-sm text-gray-500 italic">Create your profile first to upload images</p>
+          <p className="nabbi-field__hint">Crea tu perfil primero para subir imágenes.</p>
         )}
       </div>
 
-      {/* Submit Button */}
-      <div className="flex justify-end">
-        <Button type="submit" disabled={loading} className="px-6 py-2">
-          {loading ? "Saving..." : submitText}
+      <div className="flex justify-end pt-2">
+        <Button type="submit" disabled={loading}>
+          {loading ? "Guardando..." : submitText}
         </Button>
       </div>
     </form>

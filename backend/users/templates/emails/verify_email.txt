@@ -1,0 +1,12 @@
+Hola{% if first_name %} {{ first_name }}{% endif %},
+
+Tu código de verificación de nabbi es:
+
+{{ code }}
+
+Expira en {{ ttl_minutes }} minutos.
+
+Si no creaste una cuenta, ignora este mensaje.
+
+— nabbi
+{{ year }}

@@ -86,8 +86,15 @@ export default function RegisterClient() {
         longitude: values.longitude,
         appleSub: params.appleSub || undefined,
       };
-      await register(registerData);
-      router.replace("/(tabs)/perfil");
+      const pending = await register(registerData);
+      router.replace({
+        pathname: "/register/verify-email",
+        params: {
+          email: trimmed.email,
+          role: "client",
+          resendAvailableIn: String(pending.resendAvailableIn ?? 30),
+        },
+      });
     } catch (err) {
       Alert.alert("Error", errorUtils.getErrorMessage(err));
     } finally {

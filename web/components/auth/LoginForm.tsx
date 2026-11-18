@@ -1,109 +1,164 @@
 "use client";
 
-import {useState} from "react";
+import {useRef, useState} from "react";
 import Link from "next/link";
 import {useRouter} from "next/navigation";
+import {EnvelopeIcon} from "@heroicons/react/24/outline";
+import {NabbiLogo} from "@/components/brand/NabbiLogo";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {
+  buildAppError,
+  parseApiError,
+  useAuthToast,
+  useFormErrors,
+  useOnlineStatus,
+  validateCode,
+  validateEmail,
+} from "@/features/auth/errors";
 import {homePathForRole} from "@/lib/roles";
+import {Button} from "@/components/ui/Button";
+import {Input} from "@/components/ui/Input";
+import {FormAlert} from "@/components/auth/errors/FormAlert";
+import {AuthToastRegion} from "@/components/auth/errors/AuthToastRegion";
+import {RateLimitNotice, useCountdown} from "@/components/auth/errors/RateLimitNotice";
+import {OtpCodeInput, type OtpCodeInputHandle} from "@/components/auth/OtpCodeInput";
 
-const INK   = "#12211A";
-const DARK  = "#1F3328";
-const MAIN  = "#558367";
-const ACCENT= "#F6C531";
-/** Verde salvia claro — --color-primary-light (brandbook / landing) */
-const FORM_BG = `linear-gradient(165deg, #ecf6ef 0%, #d8eae0 45%, #e6f2eb 100%)`;
-const LABEL = "#3d6050";
+const EMAIL_DOMAIN_CHIPS = ["@gmail.com", "@outlook.com", "@icloud.com"] as const;
 
-const inputBase: React.CSSProperties = {
-  width: "100%",
-  background: "white",
-  border: "1.5px solid rgba(85,131,103,0.22)",
-  borderRadius: 12,
-  color: DARK,
-  fontSize: 15,
-  fontWeight: 500,
-  padding: "13px 44px 13px 16px",
-  outline: "none",
-  transition: "border-color 0.15s, box-shadow 0.15s",
-  boxSizing: "border-box",
-};
+interface LoginFormProps {
+  onSwitchToRegister?: () => void;
+  onNeedsRegistration?: (email: string) => void;
+  spacious?: boolean;
+  embedded?: boolean;
+}
 
-export const LoginForm = () => {
+export const LoginForm = ({
+  onSwitchToRegister,
+  onNeedsRegistration,
+  spacious = false,
+  embedded = false,
+}: LoginFormProps) => {
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [localError, setLocalError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const {requestEmailCode, loginWithEmailCode, error, clearError, isLoading} = useAuth();
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [otpShake, setOtpShake] = useState(0);
+  const [otpLocked, setOtpLocked] = useState(false);
+  const {requestEmailCode, loginWithEmailCode, clearError, isLoading} = useAuth();
   const router = useRouter();
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const otpRef = useRef<OtpCodeInputHandle>(null);
+  const online = useOnlineStatus();
+  const errors = useFormErrors();
+  const toast = useAuthToast();
+  const rateLimit = useCountdown(0);
 
-  const visibleError = localError || error;
-
-  const onFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.borderColor = MAIN;
-    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(85,131,103,0.15)";
-  };
-
-  const onBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.borderColor = "rgba(85,131,103,0.22)";
-    e.currentTarget.style.boxShadow = "none";
-  };
+  const showDomainChips =
+    step === "email" && email.length > 0 && !email.includes("@");
 
   const resetMessages = () => {
-    setLocalError(null);
+    errors.clearAll();
     setSuccessMessage(null);
-    if (error) clearError();
+    if (clearError) clearError();
+  };
+
+  const appendDomain = (domain: string) => {
+    const local = email.trim();
+    if (!local || local.includes("@")) return;
+    setEmail(`${local}${domain}`);
+    errors.clearField("email");
+    requestAnimationFrame(() => emailInputRef.current?.focus());
+  };
+
+  const handleApiError = (err: unknown) => {
+    const appErr = parseApiError(err);
+    if (appErr.scope === "toast") {
+      toast.push(appErr);
+      return appErr;
+    }
+    if (appErr.code === "rate_limited" || appErr.code === "resend_cooldown") {
+      rateLimit.reset(appErr.retryAfter ?? 30);
+    }
+    if (appErr.code === "invalid_code") {
+      setCode("");
+      setOtpShake((n) => n + 1);
+      otpRef.current?.focusFirst();
+      errors.setFromApiError(appErr);
+      return appErr;
+    }
+    if (appErr.code === "too_many_attempts" || appErr.code === "code_expired") {
+      setOtpLocked(true);
+    }
+    if (appErr.code === "email_not_verified") {
+      errors.setFromApiError(appErr);
+      return appErr;
+    }
+    errors.setFromApiError(appErr);
+    return appErr;
   };
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     resetMessages();
+    setTouched((t) => ({...t, email: true}));
 
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      setLocalError("Ingresa tu correo electrónico.");
+    const emailCode = validateEmail(email);
+    if (emailCode) {
+      errors.setFieldError("email", emailCode);
+      emailInputRef.current?.focus();
       return;
     }
-    if (!/\S+@\S+\.\S+/.test(trimmedEmail)) {
-      setLocalError("Ingresa un correo electrónico válido.");
+    if (!online) {
+      errors.setFormError(buildAppError("network_offline"));
       return;
     }
+    if (rateLimit.active) return;
 
     try {
-      await requestEmailCode(trimmedEmail);
-      setEmail(trimmedEmail);
+      const trimmed = email.trim();
+      await requestEmailCode(trimmed);
+      setEmail(trimmed);
       setStep("code");
+      setOtpLocked(false);
       setSuccessMessage("Te enviamos un código de 6 dígitos a tu correo.");
     } catch (err) {
-      console.error("Email code request failed:", err);
+      handleApiError(err);
     }
   };
 
   const handleCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     resetMessages();
+    setTouched((t) => ({...t, code: true}));
 
-    const normalizedCode = code.replace(/\D/g, "").slice(0, 6);
-    setCode(normalizedCode);
-    if (!/^\d{6}$/.test(normalizedCode)) {
-      setLocalError("El código debe tener 6 dígitos.");
+    const codeErr = validateCode(code);
+    if (codeErr) {
+      errors.setFieldError("code", codeErr);
+      otpRef.current?.focusFirst();
+      return;
+    }
+    if (!online) {
+      errors.setFormError(buildAppError("network_offline"));
       return;
     }
 
+    const normalizedCode = code.replace(/\D/g, "").slice(0, 6);
     try {
       const result = await loginWithEmailCode({email, code: normalizedCode});
       if (result === "requires_registration") {
-        router.push(`/register?email=${encodeURIComponent(email)}`);
+        if (onNeedsRegistration) onNeedsRegistration(email);
+        else router.push(`/register?email=${encodeURIComponent(email)}`);
         return;
       }
-      const next = typeof window !== "undefined"
-        ? new URLSearchParams(window.location.search).get("next")
-        : null;
+      const next =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("next")
+          : null;
       if (next && next.startsWith("/")) {
         router.push(next);
         return;
       }
-      // Role comes from freshly set auth context on next tick — read from storage/profile via hook after login
       const {authApi} = await import("@/lib/api");
       try {
         const profile = await authApi.getProfile();
@@ -112,183 +167,230 @@ export const LoginForm = () => {
         router.push("/feed");
       }
     } catch (err) {
-      console.error("Code verification failed:", err);
+      handleApiError(err);
     }
   };
 
   const handleResendCode = async () => {
     resetMessages();
+    if (!online) {
+      errors.setFormError(buildAppError("network_offline"));
+      return;
+    }
+    if (rateLimit.active) return;
     try {
       await requestEmailCode(email);
       setCode("");
+      setOtpLocked(false);
       setSuccessMessage("Te enviamos un nuevo código.");
     } catch (err) {
-      console.error("Email code resend failed:", err);
+      handleApiError(err);
     }
   };
 
+  const emailError =
+    touched.email || errors.fieldErrors.email ? errors.fieldErrors.email : undefined;
+  const offlineAlert = !online ? buildAppError("network_offline") : null;
+  const formBanner = offlineAlert || errors.formError;
+
   return (
     <div
-      style={{
-        background: FORM_BG,
-        padding: "52px 44px",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-      }}>
-      <div style={{marginBottom: 36}}>
-        <p style={{color:LABEL, fontWeight:800, fontSize:12, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:8}}>
-          {step === "email" ? "Bienvenido de vuelta" : "Verifica tu acceso"}
-        </p>
-        <h1 style={{color: INK, fontWeight: 900, fontSize: 32, letterSpacing: "-0.03em", margin: 0}}>
-          {step === "email" ? "Iniciar Sesión" : "Ingresa el código"}
-        </h1>
-        <p style={{color:"#64748b", fontSize:14, lineHeight:1.6, margin:"12px 0 0"}}>
+      className={`auth-form-panel${spacious ? " auth-form-panel--spacious" : ""}${embedded ? " auth-form-panel--embedded" : ""}`}>
+      {!embedded ? (
+        <NabbiLogo variant="auth-mobile" href={null} />
+      ) : null}
+
+      <div className="auth-form-header">
+        <h1
+          id="auth-form-title"
+          className={`auth-title${embedded ? " auth-title--embedded" : ""}`}
+          tabIndex={-1}
+          aria-live="polite">
           {step === "email"
-            ? "Escribe tu correo y te enviaremos un código para entrar."
-            : <>Te enviamos un código de 6 dígitos a <strong style={{color:DARK}}>{email}</strong>.</>}
+            ? embedded
+              ? "Entra con tu correo"
+              : "Iniciar sesión"
+            : "Ingresa el código"}
+        </h1>
+        <p className="auth-subtitle">
+          {step === "email" ? (
+            "Te enviamos un código a tu correo para entrar. Sin contraseñas."
+          ) : (
+            <>
+              Código enviado a <strong className="auth-subtitle__em">{email}</strong>.
+            </>
+          )}
         </p>
       </div>
 
-      <form style={{display: "flex", flexDirection: "column", gap: 22}} onSubmit={step === "email" ? handleEmailSubmit : handleCodeSubmit}>
+      <form
+        className="auth-form"
+        noValidate
+        onSubmit={step === "email" ? handleEmailSubmit : handleCodeSubmit}>
         {step === "email" ? (
-          <div>
-            <label style={{display:"block", color:DARK, fontSize:13, fontWeight:600, marginBottom:7}}>
-              Correo electrónico
-            </label>
-            <div style={{position:"relative"}}>
-              <input
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                placeholder="tu@email.com"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  resetMessages();
-                }}
-                disabled={isLoading}
-                style={inputBase}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-              <svg style={{position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",color:LABEL}} width="17" height="17" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-              </svg>
-            </div>
+          <div className="auth-field-stack">
+            <Input
+              ref={emailInputRef}
+              label="Correo electrónico"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              placeholder="ana@email.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                errors.clearField("email");
+                if (errors.formError) errors.setFormError(null);
+              }}
+              onBlur={() => {
+                setTouched((t) => ({...t, email: true}));
+                const code = validateEmail(email);
+                if (code) errors.setFieldError("email", code);
+                else errors.clearField("email");
+              }}
+              disabled={isLoading || rateLimit.active}
+              error={emailError}
+              leadingIcon={<EnvelopeIcon className="nabbi-field__icon-svg" />}
+            />
+            {showDomainChips ? (
+              <div
+                className="auth-domain-chips"
+                role="group"
+                aria-label="Dominios de correo sugeridos">
+                {EMAIL_DOMAIN_CHIPS.map((domain) => (
+                  <button
+                    key={domain}
+                    type="button"
+                    className="auth-domain-chip lp-focus"
+                    onClick={() => appendDomain(domain)}
+                    disabled={isLoading}>
+                    {domain}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : (
-          <div>
-            <label style={{display:"block", color:DARK, fontSize:13, fontWeight:600, marginBottom:7}}>
-              Código de verificación
-            </label>
-            <div style={{position:"relative"}}>
-              <input
-                name="code"
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                required
-                placeholder="123456"
-                maxLength={6}
-                value={code}
-                onChange={(e) => {
-                  setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
-                  resetMessages();
-                }}
-                disabled={isLoading}
-                style={{
-                  ...inputBase,
-                  paddingRight: 16,
-                  fontSize: 26,
-                  letterSpacing: "0.35em",
-                  textAlign: "center",
-                }}
-                onFocus={onFocus}
-                onBlur={onBlur}
-              />
-            </div>
+          <div className="auth-field-stack">
+            <OtpCodeInput
+              ref={otpRef}
+              value={code}
+              onChange={(next) => {
+                setCode(next);
+                errors.clearField("code");
+                if (errors.formError) errors.setFormError(null);
+              }}
+              disabled={isLoading || otpLocked}
+              error={errors.fieldErrors.code}
+              shakeToken={otpShake}
+              id="login-otp"
+            />
             <button
               type="button"
               onClick={handleResendCode}
-              disabled={isLoading}
-              style={{
-                marginTop: 12,
-                background: "none",
-                border: "none",
-                color: MAIN,
-                cursor: isLoading ? "not-allowed" : "pointer",
-                fontSize: 13,
-                fontWeight: 700,
-                padding: 0,
-              }}>
+              disabled={isLoading || rateLimit.active || !online}
+              className="auth-text-action lp-focus auth-text-action--primary">
               Reenviar código
             </button>
           </div>
         )}
 
-        {successMessage && (
-          <div style={{background:"#ecfdf5", border:"1.5px solid #86efac", borderRadius:12, padding:"12px 16px"}}>
-            <p style={{color:"#166534", fontSize:13, fontWeight:600, margin:0}}>{successMessage}</p>
-          </div>
-        )}
+        {successMessage && !formBanner ? (
+          <FormAlert message={successMessage} severity="info" />
+        ) : null}
 
-        {visibleError && (
-          <div style={{background:"#fef2f2", border:"1.5px solid #fca5a5", borderRadius:12, padding:"12px 16px"}}>
-            <p style={{color:"#dc2626", fontSize:13, fontWeight:600, margin:0}}>{visibleError}</p>
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          style={{
-            width: "100%",
-            background: ACCENT,
-            color: INK,
-            borderRadius: 14,
-            padding: "15px 0",
-            fontWeight: 800,
-            fontSize: 15,
-            border: "none",
-            cursor: isLoading ? "not-allowed" : "pointer",
-            opacity: isLoading ? 0.65 : 1,
-            transition: "opacity 0.15s, transform 0.15s, box-shadow 0.15s",
-            boxShadow: "0 6px 20px rgba(246,197,49,0.35)",
-            marginTop: 4,
-          }}
-          onMouseEnter={e => {
-            if (!isLoading) {
-              e.currentTarget.style.transform = "scale(1.02)";
-              e.currentTarget.style.boxShadow = "0 10px 28px rgba(246,197,49,0.45)";
+        {formBanner ? (
+          <FormAlert
+            error={formBanner}
+            onAction={
+              formBanner.action?.type === "resend"
+                ? () => void handleResendCode()
+                : formBanner.action?.type === "verify"
+                  ? () =>
+                      router.push(
+                        `/register?email=${encodeURIComponent(email.trim())}`
+                      )
+                  : undefined
             }
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.transform = "scale(1)";
-            e.currentTarget.style.boxShadow = "0 6px 20px rgba(246,197,49,0.35)";
-          }}>
-          {isLoading ? (
-            <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
-              <svg style={{animation:"spin 1s linear infinite"}} width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="rgba(18,33,26,0.25)" strokeWidth="4"/>
-                <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill={INK}/>
-              </svg>
-              {step === "email" ? "Enviando código…" : "Verificando código…"}
-            </span>
-          ) : (
-            step === "email" ? "Enviar código" : "Verificar código"
-          )}
-        </button>
+            onDismiss={offlineAlert ? undefined : () => errors.setFormError(null)}
+          />
+        ) : null}
 
-        <p style={{textAlign:"center", fontSize:13, color:"#64748b", margin:0}}>
+        {rateLimit.active ? (
+          <RateLimitNotice
+            seconds={rateLimit.left}
+            onDone={() => rateLimit.clear()}
+            label="Demasiados intentos. Espera {time} e inténtalo de nuevo."
+          />
+        ) : null}
+
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          disabled={isLoading || !online || rateLimit.active || (step === "code" && otpLocked)}
+          className="w-full auth-cta">
+          {isLoading ? (
+            <span className="auth-btn-loading">
+              <span className="auth-spinner" aria-hidden="true" />
+              {step === "email" ? "Enviando código..." : "Verificando código..."}
+            </span>
+          ) : !online ? (
+            "Sin conexión"
+          ) : step === "email" ? (
+            "Enviar código"
+          ) : (
+            "Verificar código"
+          )}
+        </Button>
+
+        {step === "code" ? (
+          <button
+            type="button"
+            className="auth-text-action lp-focus auth-text-action--muted"
+            onClick={() => {
+              setStep("email");
+              setCode("");
+              setOtpLocked(false);
+              resetMessages();
+            }}
+            disabled={isLoading}>
+            Usar otro correo
+          </button>
+        ) : null}
+
+        <p className="auth-footer-note auth-footer-note--after-cta">
           ¿No tienes cuenta?{" "}
-          <Link href="/register" style={{color:MAIN, fontWeight:700, textDecoration:"none"}}>
-            Regístrate
-          </Link>
+          {onSwitchToRegister ? (
+            <button
+              type="button"
+              className="auth-inline-switch lp-focus"
+              onClick={() => {
+                resetMessages();
+                onSwitchToRegister();
+              }}
+              aria-label="Crear cuenta: ir al formulario de registro">
+              Crear cuenta
+            </button>
+          ) : (
+            <Link
+              href="/register"
+              prefetch
+              className="auth-inline-switch lp-focus"
+              aria-label="Crear cuenta: ir al formulario de registro">
+              Crear cuenta
+            </Link>
+          )}
         </p>
       </form>
+
+      <AuthToastRegion
+        toasts={toast.toasts}
+        onDismiss={toast.dismiss}
+        onPause={toast.pause}
+        onResume={toast.resume}
+      />
     </div>
   );
 };

@@ -254,6 +254,13 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'email_code_send': os.environ.get('THROTTLE_EMAIL_CODE_SEND', '10/hour'),
+        'email_code_verify': os.environ.get('THROTTLE_EMAIL_CODE_VERIFY', '30/hour'),
+    },
 }
 
 # CORS settings - Configure for web and mobile app support
@@ -433,3 +440,14 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@be-u.ai')
 # Inbox that receives Help & Support messages from the mobile app (separate from login From)
 SUPPORT_INBOX_EMAIL = os.environ.get('SUPPORT_INBOX_EMAIL', 'nabbi@spotynet.com')
+
+# Email verification (registration step 3) — overridable via env
+EMAIL_VERIFICATION_CODE_LENGTH = int(os.environ.get('EMAIL_VERIFICATION_CODE_LENGTH', '6'))
+EMAIL_VERIFICATION_TTL_MINUTES = int(os.environ.get('EMAIL_VERIFICATION_TTL_MINUTES', '10'))
+EMAIL_VERIFICATION_MAX_ATTEMPTS = int(os.environ.get('EMAIL_VERIFICATION_MAX_ATTEMPTS', '5'))
+EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS = int(
+    os.environ.get('EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS', '30')
+)
+EMAIL_VERIFICATION_MAX_SENDS_PER_HOUR = int(
+    os.environ.get('EMAIL_VERIFICATION_MAX_SENDS_PER_HOUR', '5')
+)

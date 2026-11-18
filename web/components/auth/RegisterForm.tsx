@@ -1,270 +1,636 @@
 "use client";
 
-import {useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import Link from "next/link";
 import {useRouter, useSearchParams} from "next/navigation";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {
+  buildAppError,
+  normalizeUsername,
+  parseApiError,
+  resolveStepForField,
+  useFormErrors,
+  useOnlineStatus,
+  useAuthToast,
+  validateCategories,
+  validateCode,
+  validateCountry,
+  validateEmail,
+  validateFirstName,
+  validateLastName,
+  validateOptionalAddressPart,
+  validatePlaceName,
+  validateRole,
+  validateSubcategories,
+  validatePhone,
+  validateTerms,
+  validateUsername,
+} from "@/features/auth/errors";
+import {
+  DEFAULT_COUNTRY,
+  countryLabelForCode,
+  getCountryConfig,
+} from "@/features/auth/constants/countries";
+import {toE164} from "@/features/auth/constants/phoneFormat";
 import {RegisterData} from "@/features/auth/types";
 import {profileCustomizationApi} from "@/lib/api";
 import {homePathForRole} from "@/lib/roles";
+import {NabbiLogo} from "@/components/brand/NabbiLogo";
+import {Button} from "@/components/ui/Button";
+import {FormAlert} from "@/components/auth/errors/FormAlert";
+import {AuthToastRegion} from "@/components/auth/errors/AuthToastRegion";
+import {
+  AccountStep,
+  REGISTER_ACCOUNT_FORM_ID,
+} from "@/components/auth/register/AccountStep";
+import {
+  BusinessStep,
+  REGISTER_BUSINESS_FORM_ID,
+} from "@/components/auth/register/BusinessStep";
+import {
+  PersonalStep,
+  REGISTER_PERSONAL_FORM_ID,
+} from "@/components/auth/register/PersonalStep";
+import {StepIndicator} from "@/components/auth/register/StepIndicator";
+import {
+  REGISTER_STEP_3_FORM_ID,
+  VerifyStep,
+} from "@/components/auth/register/VerifyStep";
+import {
+  stepsForRole,
+  type RegisterFormData,
+  type RegisterStepId,
+} from "@/components/auth/register/types";
+import {useScrollFade} from "@/hooks/useScrollFade";
 
-// ─── Brand tokens (mirrors landing page) ────────────────────────────────────
-const INK   = "#12211A";   // verde casi negro
-const DARK  = "#1F3328";   // bosque profundo
-const MAIN  = "#558367";   // verde salvia
-const ACCENT= "#F6C531";   // amarillo vibrante — CTA principal
-/** Verde salvia claro — --color-primary-light (brandbook / landing) */
-const FORM_BG = `linear-gradient(165deg, #ecf6ef 0%, #d8eae0 45%, #e6f2eb 100%)`;
-const LABEL = "#3d6050";   // verde apagado — labels
-
-const inputBase: React.CSSProperties = {
-  width: "100%",
-  background: "white",
-  border: "1.5px solid rgba(85,131,103,0.22)",
-  borderRadius: 12,
-  color: DARK,
-  fontSize: 14,
-  fontWeight: 500,
-  padding: "11px 42px 11px 14px",
-  outline: "none",
-  transition: "border-color 0.15s, box-shadow 0.15s",
-  boxSizing: "border-box" as const,
-};
-
-function Field({
-  label,
-  name,
-  type = "text",
-  placeholder,
-  autoComplete,
-  value,
-  onChange,
-  disabled,
-  icon,
-}: {
-  label: string;
-  name: string;
-  type?: string;
-  placeholder: string;
-  autoComplete?: string;
-  value: string;
-  onChange: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => void;
-  disabled: boolean;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label style={{display:"block", color:DARK, fontSize:12, fontWeight:600, marginBottom:6}}>
-        {label}
-      </label>
-      <div style={{position:"relative"}}>
-        <input
-          name={name}
-          type={type}
-          autoComplete={autoComplete}
-          required
-          placeholder={placeholder}
-          value={value}
-          onChange={onChange}
-          disabled={disabled}
-          style={inputBase}
-          onFocus={e => {
-            e.currentTarget.style.borderColor = MAIN;
-            e.currentTarget.style.boxShadow  = `0 0 0 3px rgba(85,131,103,0.15)`;
-          }}
-          onBlur={e => {
-            e.currentTarget.style.borderColor = "rgba(85,131,103,0.22)";
-            e.currentTarget.style.boxShadow   = "none";
-          }}
-        />
-        <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",color:LABEL,display:"flex"}}>
-          {icon}
-        </span>
-      </div>
-    </div>
-  );
+interface RegisterFormProps {
+  onSwitchToLogin?: () => void;
+  presetEmail?: string;
+  compact?: boolean;
+  embedded?: boolean;
 }
 
-const IconUser = () => (
-  <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
-    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/>
-  </svg>
-);
-const IconEmail = () => (
-  <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
-    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-  </svg>
-);
-const MAIN_CATEGORIES = [
-  {id: "belleza", name: "Belleza"},
-  {id: "bienestar", name: "Bienestar"},
-  {id: "mascotas", name: "Mascotas"},
-];
+function prefersReducedMotion() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
 
-const SUB_CATEGORIES: Record<string, Array<{id: string; name: string}>> = {
-  belleza: [
-    {id: "cabello", name: "Cabello"},
-    {id: "pestanas", name: "Pestañas"},
-    {id: "cejas", name: "Cejas"},
-    {id: "maquillaje_peinado", name: "Maquillaje"},
-    {id: "manos_pies", name: "Manos y Pies"},
-    {id: "faciales", name: "Faciales"},
-    {id: "barberia", name: "Barbería"},
-  ],
-  bienestar: [
-    {id: "spa_relajacion", name: "Spa"},
-    {id: "yoga", name: "Yoga"},
-    {id: "meditacion", name: "Meditación"},
-    {id: "access_bar", name: "Access Bar"},
-    {id: "pilates", name: "Pilates"},
-    {id: "breathwork", name: "Breathwork"},
-    {id: "acupuntura", name: "Acupuntura"},
-    {id: "fisioterapia", name: "Fisioterapia"},
-    {id: "psicoterapia_coaching", name: "Psicoterapia"},
-    {id: "terapia_holistica", name: "Holística"},
-    {id: "nutricion_alimentacion", name: "Nutrición"},
-  ],
-  mascotas: [
-    {id: "estetica_mascotas", name: "Estética"},
-    {id: "spa_mascotas", name: "Spa"},
-    {id: "cuidadores", name: "Cuidadores"},
-    {id: "paseadores", name: "Paseadores"},
-    {id: "guarderias", name: "Guarderías"},
-    {id: "otros", name: "Otros"},
-  ],
+type TrimmedFields = {
+  firstName: string;
+  lastName: string;
+  placeName: string;
+  username: string;
+  email: string;
+  phone: string;
+  city: string;
+  bio: string;
+  address: string;
+  country: string;
 };
 
-const selectBase: React.CSSProperties = {
-  ...inputBase,
-  paddingRight: 14,
-  appearance: "none",
-};
-
-export const RegisterForm = () => {
+export const RegisterForm = ({
+  onSwitchToLogin,
+  presetEmail,
+  embedded = false,
+}: RegisterFormProps) => {
   const searchParams = useSearchParams();
-  const [formData, setFormData] = useState({
-    role: "client" as "client" | "professional" | "place",
+  const router = useRouter();
+  const {
+    register,
+    verifyRegistrationEmail,
+    resendVerification,
+    clearError,
+    isLoading,
+  } = useAuth();
+
+  const [stepId, setStepId] = useState<RegisterStepId>("account");
+  const [phase, setPhase] = useState<"idle" | "in">("idle");
+  const [verifyCode, setVerifyCode] = useState("");
+  const [resendAvailableIn, setResendAvailableIn] = useState(30);
+  const [accountCreated, setAccountCreated] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [otpShake, setOtpShake] = useState<number>(0);
+  const [otpLocked, setOtpLocked] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const online = useOnlineStatus();
+  const errors = useFormErrors();
+  const toast = useAuthToast();
+
+  const [formData, setFormData] = useState<RegisterFormData>({
+    role: "client",
     firstName: "",
     lastName: "",
     placeName: "",
     username: "",
-    email: searchParams.get("email") || "",
+    email: presetEmail || searchParams.get("email") || "",
     phone: "",
     city: "",
     bio: "",
     address: "",
-    country: "",
-    category: "",
-    subcategory: "",
+    country: DEFAULT_COUNTRY,
+    categories: [],
+    subcategories: [],
     acceptedTerms: false,
   });
-  const [localError, setLocalError] = useState<string | null>(null);
-  const {register, error, clearError, isLoading} = useAuth();
-  const router = useRouter();
-  const availableSubcategories = SUB_CATEGORIES[formData.category] || [];
 
-  const clearMessages = () => {
-    setLocalError(null);
-    if (error) clearError();
+  const titleId = "auth-form-title";
+  const steps = useMemo(() => stepsForRole(formData.role), [formData.role]);
+  const stepIndex = Math.max(0, steps.indexOf(stepId));
+  const stepNumber = stepIndex + 1;
+  const totalSteps = steps.length;
+  const isLastDataStep =
+    stepId === "personal" || stepId === "business"
+      ? steps[stepIndex + 1] === "verify"
+      : false;
+
+  const focusTitle = () => {
+    requestAnimationFrame(() => document.getElementById(titleId)?.focus());
+  };
+
+  const focusEmail = () => {
+    requestAnimationFrame(() => emailInputRef.current?.focus());
+  };
+
+  const goToStepId = (next: RegisterStepId, opts?: {focusEmail?: boolean}) => {
+    if (next === stepId) return;
+    const target = steps.includes(next) ? next : steps[0];
+    errors.clearAll();
+    if (clearError) clearError();
+    setStepId(target);
+    if (prefersReducedMotion()) {
+      setPhase("idle");
+      if (opts?.focusEmail) focusEmail();
+      else focusTitle();
+      return;
+    }
+    setPhase("in");
+    if (opts?.focusEmail) focusEmail();
+    else focusTitle();
+    window.setTimeout(() => setPhase("idle"), 200);
+  };
+
+  const goBack = () => {
+    if (stepIndex <= 0) return;
+    goToStepId(steps[stepIndex - 1]);
+  };
+
+  const goNext = () => {
+    if (stepIndex >= steps.length - 1) return;
+    goToStepId(steps[stepIndex + 1]);
+  };
+
+  useEffect(() => {
+    if (!steps.includes(stepId)) {
+      const lastData = [...steps].reverse().find((s) => s !== "verify") ?? "account";
+      setStepId(lastData);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [steps]);
+
+  useEffect(() => {
+    focusTitle();
+  }, []);
+
+  const markTouched = (field: string) => {
+    setTouched((prev) => ({...prev, [field]: true}));
   };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const {name, value, type} = e.target;
-    clearMessages();
+    errors.clearField(name);
+    if (errors.formError) errors.setFormError(null);
+    if (clearError) clearError();
     setFormData((prev) => ({
       ...prev,
       [name]:
         type === "checkbox" && "checked" in e.target
           ? (e.target as HTMLInputElement).checked
           : value,
-      ...(name === "category" ? {subcategory: ""} : {}),
     }));
-  };
-
-  const validate = () => {
-    const trimmed = {
-      firstName: formData.firstName.trim(),
-      lastName: formData.lastName.trim(),
-      placeName: formData.placeName.trim(),
-      username: formData.username.trim(),
-      email: formData.email.trim(),
-      phone: formData.phone.trim(),
-      city: formData.city.trim(),
-      bio: formData.bio.trim(),
-      address: formData.address.trim(),
-      country: formData.country.trim(),
-    };
-
-    if (formData.role === "place") {
-      if (!trimmed.placeName || !trimmed.username || !trimmed.email) {
-        setLocalError("Completa nombre del lugar, usuario y correo electrónico.");
-        return null;
+    if (name === "country") {
+      // Re-validate phone against the new dial/length rules when country changes.
+      const phoneErr = validatePhone(formData.phone, value);
+      if (phoneErr) {
+        setTouched((t) => ({...t, phone: true}));
+        errors.setFieldError("phone", phoneErr.code, phoneErr.params);
+      } else {
+        errors.clearField("phone");
       }
-    } else if (!trimmed.firstName || !trimmed.username || !trimmed.email) {
-      setLocalError("Completa nombre, usuario y correo electrónico para continuar.");
-      return null;
     }
-    if (!/\S+@\S+\.\S+/.test(trimmed.email)) {
-      setLocalError("Ingresa un correo electrónico válido.");
-      return null;
-    }
-    if (!formData.acceptedTerms) {
-      setLocalError("Debes aceptar los términos y condiciones para crear tu cuenta.");
-      return null;
-    }
-    if (
-      (formData.role === "professional" || formData.role === "place") &&
-      (!formData.category || !formData.subcategory)
-    ) {
-      setLocalError("Selecciona una categoría y una subcategoría para tu perfil.");
-      return null;
-    }
-
-    return trimmed;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePhoneChange = (nationalDigits: string) => {
+    errors.clearField("phone");
+    if (errors.formError) errors.setFormError(null);
+    if (clearError) clearError();
+    setFormData((prev) => ({...prev, phone: nationalDigits}));
+  };
+
+  const handleCategoriesChange = (values: string[]) => {
+    errors.clearField("categories");
+    errors.clearField("category");
+    if (errors.formError) errors.setFormError(null);
+    if (clearError) clearError();
+    setFormData((prev) => ({...prev, categories: values}));
+  };
+
+  const handleSubcategoriesChange = (values: string[]) => {
+    errors.clearField("subcategories");
+    errors.clearField("subcategory");
+    if (errors.formError) errors.setFormError(null);
+    if (clearError) clearError();
+    setFormData((prev) => ({...prev, subcategories: values}));
+  };
+
+  const validateFieldBlur = (field: string) => {
+    markTouched(field);
+    let code: string | null = null;
+    switch (field) {
+      case "email":
+        code = validateEmail(formData.email);
+        break;
+      case "firstName":
+        code = validateFirstName(formData.firstName);
+        break;
+      case "lastName":
+        code = validateLastName(formData.lastName);
+        break;
+      case "username":
+        code = validateUsername(formData.username);
+        break;
+      case "placeName":
+        code = validatePlaceName(formData.placeName);
+        break;
+      case "categories":
+      case "category":
+        code = validateCategories(formData.categories);
+        break;
+      case "subcategories":
+      case "subcategory":
+        code = validateSubcategories(formData.subcategories);
+        break;
+      case "address":
+        code = validateOptionalAddressPart(formData.address, "address");
+        break;
+      case "city":
+        code = validateOptionalAddressPart(formData.city, "city");
+        break;
+      case "country":
+        code = validateCountry(formData.country);
+        break;
+      case "phone": {
+        const phoneErr = validatePhone(formData.phone, formData.country);
+        if (phoneErr) {
+          errors.setFieldError("phone", phoneErr.code, phoneErr.params);
+        } else {
+          errors.clearField("phone");
+        }
+        return;
+      }
+      case "acceptedTerms":
+        if (isLastDataStep) code = validateTerms(formData.acceptedTerms);
+        break;
+      default:
+        break;
+    }
+    if (code) errors.setFieldError(field, code);
+    else errors.clearField(field);
+  };
+
+  const trimmedSnapshot = (): TrimmedFields => ({
+    firstName: formData.firstName.trim(),
+    lastName: formData.lastName.trim(),
+    placeName: formData.placeName.trim(),
+    username: normalizeUsername(formData.username),
+    email: formData.email.trim(),
+    phone: formData.phone.trim(),
+    city: formData.city.trim(),
+    bio: formData.bio.trim(),
+    address: formData.address.trim(),
+    country: formData.country.trim(),
+  });
+
+  const applyServerError = (err: unknown) => {
+    const appErr = parseApiError(err);
+    if (appErr.scope === "toast") {
+      toast.push(appErr);
+      return appErr;
+    }
+
+    const field =
+      appErr.field ||
+      (appErr.fieldErrors ? Object.keys(appErr.fieldErrors)[0] : undefined);
+
+    if (field) {
+      const owner = resolveStepForField(field, formData.role);
+      if (owner !== stepId && steps.includes(owner)) {
+        setStepId(owner);
+        setTouched((prev) => ({...prev, [field]: true}));
+        errors.setFromApiError(appErr);
+        requestAnimationFrame(() => {
+          if (field === "email") emailInputRef.current?.focus();
+          else errors.focusFirstError({formId: formIdForStep(owner), fieldOrder: [field]});
+        });
+        return appErr;
+      }
+      setTouched((prev) => ({...prev, [field]: true}));
+    }
+
+    errors.setFromApiError(appErr);
+
+    if (
+      appErr.code === "invalid_code" ||
+      appErr.code === "code_expired" ||
+      appErr.code === "too_many_attempts" ||
+      appErr.code === "no_active_code"
+    ) {
+      if (appErr.code === "invalid_code") {
+        setVerifyCode("");
+        setOtpShake((n) => n + 1);
+      }
+      if (appErr.code === "too_many_attempts" || appErr.code === "code_expired") {
+        setOtpLocked(true);
+      }
+      if (typeof appErr.retryAfter === "number" && appErr.retryAfter > 0) {
+        setResendAvailableIn(appErr.retryAfter);
+      }
+    }
+
+    return appErr;
+  };
+
+  const formIdForStep = (id: RegisterStepId) => {
+    if (id === "account") return REGISTER_ACCOUNT_FORM_ID;
+    if (id === "personal") return REGISTER_PERSONAL_FORM_ID;
+    if (id === "business") return REGISTER_BUSINESS_FORM_ID;
+    return REGISTER_STEP_3_FORM_ID;
+  };
+
+  const validateAccountStep = (): boolean => {
+    markTouched("email");
+    markTouched("role");
+    errors.clearAll();
+    const emailCode = validateEmail(formData.email);
+    const roleCode = validateRole(formData.role);
+    let ok = true;
+    if (emailCode) {
+      errors.setFieldError("email", emailCode);
+      ok = false;
+    }
+    if (roleCode) {
+      errors.setFieldError("role", roleCode);
+      ok = false;
+    }
+    if (!ok) {
+      errors.focusFirstError({
+        formId: REGISTER_ACCOUNT_FORM_ID,
+        fieldOrder: ["email", "role"],
+        refs: {email: emailInputRef.current},
+      });
+    }
+    return ok;
+  };
+
+  const validatePersonalStep = (): boolean => {
+    markTouched("firstName");
+    markTouched("username");
+    markTouched("country");
+    markTouched("phone");
+    if (formData.lastName.trim()) markTouched("lastName");
+    if (isLastDataStep) markTouched("acceptedTerms");
+    errors.clearAll();
+    let ok = true;
+    const fn = validateFirstName(formData.firstName);
+    const ln = validateLastName(formData.lastName);
+    const un = validateUsername(formData.username);
+    const co = validateCountry(formData.country);
+    const ph = validatePhone(formData.phone, formData.country);
+    if (fn) {
+      errors.setFieldError("firstName", fn);
+      ok = false;
+    }
+    if (ln) {
+      errors.setFieldError("lastName", ln);
+      ok = false;
+    }
+    if (un) {
+      errors.setFieldError("username", un);
+      ok = false;
+    }
+    if (co) {
+      errors.setFieldError("country", co);
+      ok = false;
+    }
+    if (ph) {
+      errors.setFieldError("phone", ph.code, ph.params);
+      ok = false;
+    }
+    if (isLastDataStep) {
+      const terms = validateTerms(formData.acceptedTerms);
+      if (terms) {
+        errors.setFieldError("acceptedTerms", terms);
+        ok = false;
+      }
+    }
+    if (!ok) {
+      errors.focusFirstError({
+        formId: REGISTER_PERSONAL_FORM_ID,
+        fieldOrder: [
+          "firstName",
+          "lastName",
+          "username",
+          "country",
+          "phone",
+          "acceptedTerms",
+        ],
+      });
+    }
+    return ok;
+  };
+
+  const validateBusinessStep = (): boolean => {
+    errors.clearAll();
+    let ok = true;
+    if (formData.role === "place") {
+      markTouched("placeName");
+      const pn = validatePlaceName(formData.placeName);
+      if (pn) {
+        errors.setFieldError("placeName", pn);
+        ok = false;
+      }
+    }
+    markTouched("categories");
+    markTouched("subcategories");
+    markTouched("acceptedTerms");
+    const cat = validateCategories(formData.categories);
+    const sub = validateSubcategories(formData.subcategories);
+    if (cat) {
+      errors.setFieldError("categories", cat);
+      ok = false;
+    }
+    if (sub) {
+      errors.setFieldError("subcategories", sub);
+      ok = false;
+    }
+    for (const f of ["address", "city"] as const) {
+      const code = validateOptionalAddressPart(formData[f], f);
+      if (code) {
+        markTouched(f);
+        errors.setFieldError(f, code);
+        ok = false;
+      }
+    }
+    const terms = validateTerms(formData.acceptedTerms);
+    if (terms) {
+      errors.setFieldError("acceptedTerms", terms);
+      ok = false;
+    }
+    if (!ok) {
+      errors.focusFirstError({
+        formId: REGISTER_BUSINESS_FORM_ID,
+        fieldOrder: [
+          "placeName",
+          "categories",
+          "subcategories",
+          "address",
+          "city",
+          "acceptedTerms",
+        ],
+      });
+    }
+    return ok;
+  };
+
+  const buildRegisterPayload = (trimmed: TrimmedFields): RegisterData => {
+    const isPlace = formData.role === "place";
+    // Backend User.country is free-text; form stores ISO code, payload sends label.
+    const countryName = countryLabelForCode(trimmed.country || formData.country);
+    const dial = getCountryConfig(trimmed.country || formData.country)?.dialCode ?? "+52";
+    const phoneE164 = trimmed.phone ? toE164(trimmed.phone, dial) : undefined;
+    return {
+      firstName: isPlace ? trimmed.placeName : trimmed.firstName,
+      lastName: isPlace ? "" : trimmed.lastName,
+      placeName: isPlace ? trimmed.placeName : undefined,
+      username: trimmed.username,
+      email: trimmed.email,
+      role: formData.role,
+      phone: phoneE164,
+      city: trimmed.city || undefined,
+      bio: trimmed.bio || undefined,
+      address: trimmed.address || undefined,
+      country: countryName || undefined,
+      // TODO(backend): many-to-many categories — register endpoint still reads
+      // single `category` / `subcategory` strings; also send full arrays.
+      category:
+        formData.role === "professional" || formData.role === "place"
+          ? formData.categories[0]
+          : undefined,
+      subcategory:
+        formData.role === "professional" || formData.role === "place"
+          ? formData.subcategories[0]
+          : undefined,
+      categories:
+        formData.role === "professional" || formData.role === "place"
+          ? formData.categories
+          : undefined,
+      subcategories:
+        formData.role === "professional" || formData.role === "place"
+          ? formData.subcategories
+          : undefined,
+    };
+  };
+
+  const submitRegistration = async (trimmed: TrimmedFields) => {
+    if (!online) {
+      errors.setFormError(buildAppError("network_offline"));
+      return;
+    }
+    const payload = buildRegisterPayload(trimmed);
+    const pending = await register(payload);
+    setAccountCreated(true);
+    setResendAvailableIn(pending.resendAvailableIn ?? 30);
+    setVerifyCode("");
+    setOtpLocked(false);
+    goToStepId("verify");
+  };
+
+  const handleAccountContinue = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = validate();
-    if (!trimmed) return;
+    if (!validateAccountStep()) return;
+    setFormData((prev) => ({...prev, email: prev.email.trim()}));
+    goNext();
+  };
+
+  const handlePersonalContinue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validatePersonalStep()) return;
+    const trimmed = trimmedSnapshot();
+    setFormData((prev) => ({
+      ...prev,
+      ...trimmed,
+      username: trimmed.username,
+    }));
+
+    if (!isLastDataStep) {
+      goNext();
+      return;
+    }
 
     try {
-      const isPlace = formData.role === "place";
-      const registerData: RegisterData = {
-        firstName: isPlace ? trimmed.placeName : trimmed.firstName,
-        lastName: isPlace ? "" : trimmed.lastName,
-        placeName: isPlace ? trimmed.placeName : undefined,
-        username: trimmed.username,
-        email: trimmed.email,
-        role: formData.role,
-        phone: trimmed.phone || undefined,
-        city: trimmed.city || undefined,
-        bio: trimmed.bio || undefined,
-        address: trimmed.address || undefined,
-        country: trimmed.country || undefined,
-        category:
-          formData.role === "professional" || formData.role === "place"
-            ? formData.category
-            : undefined,
-        subcategory:
-          formData.role === "professional" || formData.role === "place"
-            ? formData.subcategory
-            : undefined,
-      };
-      await register(registerData);
+      await submitRegistration(trimmed);
+    } catch (err) {
+      applyServerError(err);
+    }
+  };
 
-      if (isPlace) {
+  const handleBusinessContinue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateBusinessStep()) return;
+    const trimmed = trimmedSnapshot();
+    setFormData((prev) => ({...prev, ...trimmed}));
+
+    try {
+      await submitRegistration(trimmed);
+    } catch (err) {
+      applyServerError(err);
+    }
+  };
+
+  const handleFinalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    errors.clearAll();
+    const codeErr = validateCode(verifyCode);
+    if (codeErr) {
+      errors.setFieldError("code", codeErr);
+      return;
+    }
+    if (!accountCreated) {
+      errors.setFormError(buildAppError("registration_incomplete"));
+      goToStepId("personal");
+      return;
+    }
+    if (!online) {
+      errors.setFormError(buildAppError("network_offline"));
+      return;
+    }
+
+    const code = verifyCode.replace(/\D/g, "").slice(0, 6);
+    try {
+      await verifyRegistrationEmail({email: formData.email.trim(), code});
+
+      if (formData.role === "place" || formData.role === "professional") {
         try {
           await profileCustomizationApi.updatePublicProfile({
-            category: [formData.category],
-            sub_categories: [formData.subcategory],
-            ...(trimmed.address
-              ? {street: trimmed.address, city: trimmed.city, country: trimmed.country}
+            category: formData.categories,
+            sub_categories: formData.subcategories,
+            ...(formData.address.trim()
+              ? {
+                  street: formData.address.trim(),
+                  city: formData.city.trim(),
+                  country: countryLabelForCode(formData.country) || formData.country,
+                }
               : {}),
           });
         } catch (profileErr) {
@@ -274,228 +640,233 @@ export const RegisterForm = () => {
 
       router.push(homePathForRole(formData.role === "client" ? "CLIENT" : formData.role.toUpperCase()));
     } catch (err) {
-      console.error("Registration failed:", err);
+      applyServerError(err);
     }
   };
 
+  const handleResend = async () => {
+    errors.clearAll();
+    if (!online) {
+      errors.setFormError(buildAppError("network_offline"));
+      return;
+    }
+    try {
+      const result = await resendVerification(formData.email.trim());
+      setResendAvailableIn(result.resendAvailableIn ?? 30);
+      setOtpLocked(false);
+      setVerifyCode("");
+    } catch (err) {
+      const appErr = applyServerError(err);
+      if (appErr.retryAfter) setResendAvailableIn(appErr.retryAfter);
+    }
+  };
+
+  const phaseClass = phase === "in" ? "is-entering" : "";
+  const {ref: scrollRef, overflowing: scrollOverflowing} = useScrollFade<HTMLDivElement>([
+    stepId,
+    formData.role,
+    phase,
+    errors.formError?.code,
+  ]);
+
+  const formId = formIdForStep(stepId);
+  const codeComplete = /^\d{6}$/.test(verifyCode.replace(/\D/g, "").slice(0, 6));
+  const ctaDisabled =
+    isLoading ||
+    !online ||
+    (stepId === "account" && !formData.role) ||
+    (stepId === "verify" && (!codeComplete || otpLocked));
+
+  const ctaLabel =
+    stepId === "verify"
+      ? isLoading
+        ? null
+        : "Verificar y crear cuenta"
+      : !online
+        ? "Sin conexión"
+        : "Continuar";
+
+  const offlineAlert = !online ? buildAppError("network_offline") : null;
+  const dockAlert = offlineAlert || (errors.formError?.scope !== "field" ? errors.formError : null);
+  // email_taken also shows FormAlert for action when on account
+  const showDockAlert =
+    Boolean(dockAlert) ||
+    (errors.formError?.code === "email_taken" && stepId === "account");
+
   return (
     <div
-      style={{
-        background: FORM_BG,
-        padding: "40px 44px",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        overflowY: "auto",
-      }}>
+      className={`auth-form-panel auth-form-panel--register${embedded ? " auth-form-panel--embedded" : ""}`}>
+      {!embedded ? (
+        <NabbiLogo variant="auth-mobile" href={null} />
+      ) : null}
 
-      {/* Title */}
-      <div style={{marginBottom: 26}}>
-        <p style={{color:LABEL, fontWeight:800, fontSize:12, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6}}>
-          Únete a nabbi
-        </p>
-        <h1 style={{color: INK, fontWeight: 900, fontSize: 28, letterSpacing: "-0.03em", margin: 0}}>
-          Crear Cuenta
-        </h1>
-        <p style={{color:"#64748b", fontSize:14, lineHeight:1.6, margin:"12px 0 0"}}>
-          Igual que en mobile: crea tu cuenta con correo, luego entrarás con código.
-        </p>
+      <div className="reg-stepper-zone">
+        <StepIndicator
+          step={stepNumber}
+          total={totalSteps}
+          onBack={goBack}
+          backDisabled={isLoading}
+        />
       </div>
 
-      <form style={{display:"flex", flexDirection:"column", gap:14}} onSubmit={handleSubmit}>
-        <div>
-          <label style={{display:"block", color:DARK, fontSize:12, fontWeight:600, marginBottom:8}}>
-            Tipo de cuenta
-          </label>
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10}}>
-            {[
-              {value:"client", label:"Cliente"},
-              {value:"professional", label:"Profesional"},
-              {value:"place", label:"Lugar"},
-            ].map((option) => (
-              <label
-                key={option.value}
-                style={{
-                  display:"flex",
-                  alignItems:"center",
-                  justifyContent:"center",
-                  gap:8,
-                  minHeight:46,
-                  borderRadius:12,
-                  border:`1.5px solid ${formData.role === option.value ? MAIN : "rgba(85,131,103,0.22)"}`,
-                  background:formData.role === option.value ? "rgba(85,131,103,0.08)" : "white",
-                  color:DARK,
-                  fontSize:13,
-                  fontWeight:700,
-                  cursor:"pointer",
-                  padding:"0 6px",
-                  textAlign:"center",
-                }}>
-                <input
-                  type="radio"
-                  name="role"
-                  value={option.value}
-                  checked={formData.role === option.value}
-                  onChange={handleInputChange}
-                  style={{display:"none"}}
-                />
-                {option.label}
-              </label>
-            ))}
+      <div ref={scrollRef} className="reg-content-zone scroll-premium">
+        <div className="reg-content-fill">
+          <div className={`reg-step-stage ${phaseClass}`.trim()}>
+            {stepId === "account" ? (
+              <AccountStep
+                email={formData.email}
+                role={formData.role}
+                onEmailChange={handleInputChange}
+                onEmailBlur={() => validateFieldBlur("email")}
+                onRoleChange={(role) => {
+                  errors.clearField("role");
+                  setFormData((prev) => ({...prev, role}));
+                }}
+                onContinue={handleAccountContinue}
+                emailError={
+                  touched.email || errors.fieldErrors.email
+                    ? errors.fieldErrors.email
+                    : null
+                }
+                roleError={
+                  touched.role || errors.fieldErrors.role
+                    ? errors.fieldErrors.role
+                    : null
+                }
+                isLoading={isLoading}
+                titleId={titleId}
+                emailInputRef={emailInputRef}
+              />
+            ) : null}
+
+            {stepId === "personal" ? (
+              <PersonalStep
+                formData={formData}
+                showTerms={isLastDataStep}
+                fieldErrors={errors.fieldErrors}
+                touched={touched}
+                onChange={handleInputChange}
+                onPhoneChange={handlePhoneChange}
+                onBlur={validateFieldBlur}
+                onContinue={handlePersonalContinue}
+                onChangeRole={() => goToStepId("account")}
+                isLoading={isLoading}
+                titleId={titleId}
+              />
+            ) : null}
+
+            {stepId === "business" ? (
+              <BusinessStep
+                formData={formData}
+                fieldErrors={errors.fieldErrors}
+                touched={touched}
+                onChange={handleInputChange}
+                onCategoriesChange={handleCategoriesChange}
+                onSubcategoriesChange={handleSubcategoriesChange}
+                onBlur={validateFieldBlur}
+                onContinue={handleBusinessContinue}
+                onChangeRole={() => goToStepId("account")}
+                isLoading={isLoading}
+                titleId={titleId}
+              />
+            ) : null}
+
+            {stepId === "verify" ? (
+              <VerifyStep
+                email={formData.email}
+                code={verifyCode}
+                onCodeChange={(code) => {
+                  errors.clearField("code");
+                  if (errors.formError) errors.setFormError(null);
+                  setVerifyCode(code);
+                }}
+                onChangeEmail={() => {
+                  setAccountCreated(false);
+                  setOtpLocked(false);
+                  goToStepId("account", {focusEmail: true});
+                }}
+                onSubmit={handleFinalSubmit}
+                onResend={handleResend}
+                initialResendSeconds={resendAvailableIn}
+                codeError={errors.fieldErrors.code}
+                formError={errors.formError}
+                shakeToken={otpShake}
+                otpDisabled={otpLocked}
+                isLoading={isLoading}
+                titleId={titleId}
+                onClearFormError={() => errors.setFormError(null)}
+              />
+            ) : null}
           </div>
         </div>
+      </div>
 
-        {formData.role === "place" ? (
-          <Field
-            label="Nombre del lugar"
-            name="placeName"
-            placeholder="Nombre de tu salón o negocio"
-            value={formData.placeName}
-            onChange={handleInputChange}
-            disabled={isLoading}
-            icon={<IconUser/>}
-          />
-        ) : (
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
-            <Field label="Nombre" name="firstName" placeholder="Nombre" value={formData.firstName} onChange={handleInputChange} disabled={isLoading} icon={<IconUser/>}/>
-            <Field label="Apellido" name="lastName" placeholder="Apellido" value={formData.lastName} onChange={handleInputChange} disabled={isLoading} icon={<IconUser/>}/>
-          </div>
-        )}
-
-        <Field label="Nombre de usuario" name="username" placeholder="@usuario" value={formData.username} onChange={handleInputChange} disabled={isLoading} icon={<IconUser/>}/>
-        <Field label="Correo electrónico" name="email" type="email" autoComplete="email" placeholder="tu@email.com" value={formData.email} onChange={handleInputChange} disabled={isLoading} icon={<IconEmail/>}/>
-        <Field label="Dirección (opcional)" name="address" placeholder="Tu dirección" value={formData.address} onChange={handleInputChange} disabled={isLoading} icon={<IconUser/>}/>
-        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
-          <Field label="Ciudad (opcional)" name="city" placeholder="Ciudad" value={formData.city} onChange={handleInputChange} disabled={isLoading} icon={<IconUser/>}/>
-          <Field label="País (opcional)" name="country" placeholder="País" value={formData.country} onChange={handleInputChange} disabled={isLoading} icon={<IconUser/>}/>
-        </div>
-
-        {(formData.role === "professional" || formData.role === "place") && (
-          <>
-            <Field label="Teléfono (opcional)" name="phone" placeholder="+52 55 1234 5678" value={formData.phone} onChange={handleInputChange} disabled={isLoading} icon={<IconUser/>}/>
-            <div>
-              <label style={{display:"block", color:DARK, fontSize:12, fontWeight:600, marginBottom:6}}>
-                Categoría
-              </label>
-              <select
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
-                disabled={isLoading}
-                style={selectBase}>
-                <option value="">Selecciona una categoría</option>
-                {MAIN_CATEGORIES.map((category) => (
-                  <option key={category.id} value={category.id}>{category.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={{display:"block", color:DARK, fontSize:12, fontWeight:600, marginBottom:6}}>
-                Subcategoría
-              </label>
-              <select
-                name="subcategory"
-                value={formData.subcategory}
-                onChange={handleInputChange}
-                disabled={isLoading || !formData.category}
-                style={selectBase}>
-                <option value="">Selecciona una subcategoría</option>
-                {availableSubcategories.map((subcategory) => (
-                  <option key={subcategory.id} value={subcategory.id}>{subcategory.name}</option>
-                ))}
-              </select>
-            </div>
-            {formData.role === "professional" && (
-              <div>
-                <label style={{display:"block", color:DARK, fontSize:12, fontWeight:600, marginBottom:6}}>
-                  Bio (opcional)
-                </label>
-                <textarea
-                  name="bio"
-                  placeholder="Cuéntale a tus clientes qué haces"
-                  value={formData.bio}
-                  onChange={handleInputChange}
-                  disabled={isLoading}
-                  rows={4}
-                  style={{
-                    ...inputBase,
-                    paddingRight: 14,
-                    resize: "vertical",
-                    minHeight: 104,
-                  }}
-                />
-              </div>
-            )}
-          </>
-        )}
-
-        <label style={{display:"flex", alignItems:"flex-start", gap:10, cursor:"pointer", color:DARK, fontSize:13, lineHeight:1.5}}>
-          <input
-            type="checkbox"
-            name="acceptedTerms"
-            checked={formData.acceptedTerms}
-            onChange={handleInputChange}
-            disabled={isLoading}
-            style={{marginTop:3}}
-          />
-          <span>
-            Acepto los términos y condiciones de uso.
-          </span>
-        </label>
-
-        {(localError || error) && (
-          <div style={{background:"#fef2f2", border:"1.5px solid #fca5a5", borderRadius:12, padding:"10px 14px"}}>
-            <p style={{color:"#dc2626", fontSize:13, fontWeight:600, margin:0}}>{localError || error}</p>
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          style={{
-            width: "100%",
-            background: ACCENT,
-            color: INK,
-            borderRadius: 14,
-            padding: "14px 0",
-            fontWeight: 800,
-            fontSize: 15,
-            border: "none",
-            cursor: isLoading ? "not-allowed" : "pointer",
-            opacity: isLoading ? 0.65 : 1,
-            transition: "opacity 0.15s, transform 0.15s, box-shadow 0.15s",
-            boxShadow: `0 6px 20px rgba(246,197,49,0.35)`,
-            marginTop: 6,
-          }}
-          onMouseEnter={e => {
-            if (!isLoading) {
-              e.currentTarget.style.transform = "scale(1.02)";
-              e.currentTarget.style.boxShadow = "0 10px 28px rgba(246,197,49,0.45)";
+      <div
+        className={`reg-action-dock${scrollOverflowing ? " is-overflowing" : ""}`.trim()}>
+        {showDockAlert && stepId !== "verify" ? (
+          <FormAlert
+            error={offlineAlert || errors.formError}
+            onAction={
+              errors.formError?.action?.type === "login" && onSwitchToLogin
+                ? () => onSwitchToLogin()
+                : undefined
             }
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.transform = "scale(1)";
-            e.currentTarget.style.boxShadow = "0 6px 20px rgba(246,197,49,0.35)";
-          }}>
-          {isLoading ? (
-            <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
-              <svg style={{animation:"spin 1s linear infinite"}} width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="rgba(18,33,26,0.25)" strokeWidth="4"/>
-                <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill={INK}/>
-              </svg>
-              Creando cuenta…
+            onDismiss={
+              offlineAlert ? undefined : () => errors.setFormError(null)
+            }
+          />
+        ) : null}
+
+        <Button
+          type="submit"
+          form={formId}
+          variant="primary"
+          size="lg"
+          disabled={ctaDisabled}
+          className="w-full auth-cta">
+          {stepId === "verify" && isLoading ? (
+            <span className="auth-btn-loading">
+              <span className="auth-spinner" aria-hidden="true" />
+              Verificando...
             </span>
-          ) : "Crear cuenta"}
-        </button>
+          ) : (
+            ctaLabel
+          )}
+        </Button>
 
-        <p style={{textAlign:"center", fontSize:13, color:"#64748b", margin:0}}>
-          ¿Ya tienes cuenta?{" "}
-          <Link href="/login" style={{color:MAIN, fontWeight:700, textDecoration:"none"}}>
-            Inicia sesión
-          </Link>
-        </p>
+        {stepId !== "verify" ? (
+          <p className="auth-footer-note auth-footer-note--dock">
+            ¿Ya tienes cuenta?{" "}
+            {onSwitchToLogin ? (
+              <button
+                type="button"
+                className="auth-inline-switch lp-focus"
+                onClick={() => {
+                  errors.clearAll();
+                  onSwitchToLogin();
+                }}
+                aria-label="Iniciar sesión: ir al formulario de acceso">
+                Iniciar sesión
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                prefetch
+                className="auth-inline-switch lp-focus"
+                aria-label="Iniciar sesión: ir al formulario de acceso">
+                Iniciar sesión
+              </Link>
+            )}
+          </p>
+        ) : null}
+      </div>
 
-      </form>
+      <AuthToastRegion
+        toasts={toast.toasts}
+        onDismiss={toast.dismiss}
+        onPause={toast.pause}
+        onResume={toast.resume}
+      />
     </div>
   );
 };

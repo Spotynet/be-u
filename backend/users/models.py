@@ -56,6 +56,10 @@ class User(AbstractUser):
     latitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
     longitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
 
+    # Email ownership (set by register verification or passwordless login)
+    email_verified = models.BooleanField(default=False, db_index=True)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
@@ -77,7 +81,7 @@ class User(AbstractUser):
 
 
 class EmailAuthCode(models.Model):
-    """One-time email auth code for passwordless login/verification."""
+    """One-time email auth code for passwordless login (email may not have a User yet)."""
 
     email = models.EmailField(db_index=True)
     # Store a hash of the code, never the plaintext
@@ -94,6 +98,46 @@ class EmailAuthCode(models.Model):
         # The email field has db_index=True, so single-column index is still created
         # Composite indexes can be added manually via SQL if needed for performance
         pass
+
+    def is_expired(self):
+        from django.utils import timezone
+        return timezone.now() >= self.expires_at
+
+    def is_consumed(self):
+        return self.consumed_at is not None
+
+
+class EmailVerificationCode(models.Model):
+    """Hashed email verification codes for registration (and related purposes)."""
+
+    class Purpose(models.TextChoices):
+        REGISTER = "register", "register"
+        LOGIN = "login", "login"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="email_verification_codes",
+    )
+    email = models.EmailField(db_index=True)
+    code_hash = models.CharField(max_length=128)
+    purpose = models.CharField(
+        max_length=20,
+        choices=Purpose.choices,
+        default=Purpose.REGISTER,
+        db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    last_sent_at = models.DateTimeField()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "email", "consumed_at"]),
+            models.Index(fields=["expires_at"]),
+        ]
 
     def is_expired(self):
         from django.utils import timezone

@@ -279,12 +279,43 @@ def profile_view(request):
             except Exception as e:
                 print(f"⚠️ Failed to get city/country from coordinates: {e}")
         
+        previous_email = (user.email or "").strip().lower()
+        incoming_email = user_fields.get("email")
+        email_changed = (
+            incoming_email is not None
+            and str(incoming_email).strip().lower() != previous_email
+        )
+
         # Update user data (including address and coordinates)
+        # emailVerified is read_only on UserSerializer — strip any client attempt
+        user_fields.pop("emailVerified", None)
+        user_fields.pop("email_verified", None)
         user_serializer = UserSerializer(user, data=user_fields, partial=True)
         if user_serializer.is_valid():
             user_serializer.save()
             # Refresh user from database to get updated values
             user.refresh_from_db()
+            if email_changed:
+                from .email_verification import (
+                    CooldownActive,
+                    HourlyLimitExceeded,
+                    issue_code,
+                )
+                from .models import EmailVerificationCode
+
+                user.email_verified = False
+                user.email_verified_at = None
+                user.save(update_fields=["email_verified", "email_verified_at"])
+                try:
+                    issue_code(
+                        user,
+                        user.email,
+                        purpose=EmailVerificationCode.Purpose.REGISTER,
+                    )
+                except (CooldownActive, HourlyLimitExceeded):
+                    pass
+                except Exception as e:
+                    print(f"⚠️ Failed to issue verification after email change: {e}")
             print(f"🔧 User after update - phone: {user.phone}, username: {user.username}, address: {user.address}, country: {user.country}, city: {user.city}")
         else:
             print(f"🔧 UserSerializer validation errors: {user_serializer.errors}")

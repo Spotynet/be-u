@@ -26,7 +26,7 @@ export function StickyBookingBar({
   className = "",
 }: Props) {
   const ctaClass =
-    "inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-secondary px-4 text-[15px] font-bold text-secondary-foreground transition-colors hover:bg-secondary-hover disabled:cursor-not-allowed disabled:opacity-50";
+    "inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-secondary px-4 text-[15px] font-bold text-secondary-foreground cursor-pointer transition-colors hover:bg-secondary-hover disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <div

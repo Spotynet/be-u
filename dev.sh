@@ -44,11 +44,44 @@ if [[ ! -f backend/.env ]]; then
   exit 1
 fi
 
+# Host `next build` (or a mixed root/user cache) leaves a production .next that
+# breaks `next dev --turbopack` with 500 / ENOENT on app-build-manifest.json.
+# Wipe it before every start so the web container always regenerates a dev cache.
+clear_web_next_cache() {
+  local targets=()
+  [[ -e web/.next ]] && targets+=(web/.next)
+  # Leftovers from earlier recovery attempts
+  shopt -s nullglob
+  targets+=(web/.next-*)
+  shopt -u nullglob
+  if ((${#targets[@]} == 0)); then
+    return 0
+  fi
+  echo "Clearing web/.next (dev uses turbopack; host production cache causes Internal Server Error)..."
+  # Prefer a one-shot alpine container so root-owned files (compose web user 0:0) are removable without sudo.
+  if docker info >/dev/null 2>&1; then
+    docker run --rm -v "${ROOT}/web:/work" alpine:3.20 \
+      sh -c 'rm -rf /work/.next /work/.next-*'
+  elif sudo -n docker info >/dev/null 2>&1; then
+    sudo docker run --rm -v "${ROOT}/web:/work" alpine:3.20 \
+      sh -c 'rm -rf /work/.next /work/.next-*'
+  else
+    rm -rf "${targets[@]}" 2>/dev/null || true
+    if [[ -e web/.next ]]; then
+      echo "Could not fully remove web/.next (permission denied). Run:" >&2
+      echo "  docker run --rm -v \"\$PWD/web:/work\" alpine:3.20 sh -c 'rm -rf /work/.next /work/.next-*'" >&2
+      exit 1
+    fi
+  fi
+}
+
 echo "Cleaning old Nabbi PM2 processes (if any)..."
 pm2 delete nabbi-api-dev 2>/dev/null || true
 pm2 delete nabbi-dev 2>/dev/null || true
 pm2 delete nabbi-mobile-dev 2>/dev/null || true
 pm2 save 2>/dev/null || true
+
+clear_web_next_cache
 
 echo "Starting Nabbi DEV (compose.yaml → 127.0.0.1:3020)..."
 echo "  web:    ${NABBI_WEB_HOST}"

@@ -22,7 +22,7 @@ nabbi is a calm, high-trust scheduling product (beauty, wellness, pets). UI shou
 | Surface | Role | Density |
 |---------|------|---------|
 | **Marketing** (landing, legal, contacto) | Brand story, conversion | Expressive, more motion, larger type |
-| **Product** (auth, explore, booking, profile, feed) | Task completion | Tight, token-driven, shared components |
+| **Product** (auth, explore, booking, profile, feed) | Task completion | **Premium minimal** — airy, token-driven, quiet chrome |
 | **System** (errors, empty, loading) | Trust & recovery | Same tokens; clear hierarchy; no decorative clutter |
 
 ---
@@ -165,8 +165,8 @@ Prefer 4-based scale: `4, 8, 12, 16, 20, 24, 32, 40, 48, 64`.
 
 | Element | Radius |
 |---------|--------|
-| Inputs, selects | 12 |
-| Cards | 16–20 |
+| Inputs, CustomDropdown triggers, textareas | **10–12** (prefer `12`; dropdown popover **16**) |
+| Cards / auth panels | **16–20** |
 | Modals / sheets | 20–24 |
 | **Buttons / chips / pills** | **full (`999`)** |
 | Avatars | full |
@@ -174,9 +174,10 @@ Prefer 4-based scale: `4, 8, 12, 16, 20, 24, 32, 40, 48, 64`.
 
 ### Elevation
 
-- Prefer border + soft shadow over heavy multi-layer shadows.
-- Light: `cardShadow` ≈ soft sage-tinted shadow.
+- Prefer **hairline border** + soft shadow over heavy multi-layer shadows.
+- Light: `cardShadow` ≈ soft sage-tinted shadow (never dramatic black drop shadows on forms).
 - Avoid glow / neon. Dark mode: rely more on surface elevation than shadow.
+- **Forms:** no glow under CTAs; at most a whisper of shadow on the card shell.
 
 ### Touch / hit targets
 
@@ -196,26 +197,140 @@ Shared **API shape** across platforms even if implementation differs. Put primit
 
 | Variant | Look | When |
 |---------|------|------|
-| `primary` | Yellow fill (`ctaYellow`) + ink text | Main action: Continuar, Reservar, Empezar, Guardar |
+| `primary` | Yellow fill (`ctaYellow`) + ink text; **no heavy glow** | Main action: Continuar, Reservar, Empezar, Guardar |
 | `secondary` | Forest / sage fill + light text | Strong alternative, not the page goal |
-| `outline` | Transparent + border | Cancel, secondary path |
+| `outline` | Transparent + hairline border | Cancel, secondary path |
 | `ghost` | No fill | Tertiary, toolbar |
 | `destructive` | Error fill or outline | Delete account, remove |
 
 Sizes: `sm` | `md` | `lg`. Default `md`.  
+Weight: **600–700** (not ultra-black 900).  
 Loading: disable + spinner; keep label width stable.  
 Do not nest buttons; one primary per card/section.
 
 ### Input / Field
 
+**Premium minimal soft-fill** (canonical web: `nabbi-field` / `Input` · `Textarea` · `CustomDropdown`):
+
+| State | Look |
+|-------|------|
+| Rest | Soft sage-tinted fill on page canvas; **no outer border**; radius **14**; height **52** |
+| Hover | Slightly deeper sage tint |
+| Focus | Card/white surface + **inset** sage outline (`1.5px`); never neon outer glow |
+| Error | Soft error-tint fill + inset error outline; message in `error` color below |
+| Disabled | 50% opacity |
+
 Required anatomy:
 
-1. Label (outside, `14` / medium)
-2. Control (min height ~44)
-3. Helper text **or** error (error replaces helper; use `error` color)
-4. Focus: sage/brand border + ring; never remove focus ring on web
+1. Label (outside, **12** / medium, muted, slight tracking)
+2. Control (soft fill as above; body **15** / weight 400)
+3. Helper text **or** error (error replaces helper)
+4. Never remove focus indication on web
 
 Props (both platforms): `label?`, `error?`, `helperText?` (web), standard input attrs.
+
+**Do not:** decorative icons inside fields, gray Bootstrap borders, blue focus rings, placeholder-only fields, duplicate labels outside the primitive.
+
+### Dropdowns / Select
+
+**Rule:** Never use the native `<select>` element or browser-native dropdown UI for choosing from a list. Always use the shared `CustomDropdown` component (`web/components/ui/CustomDropdown.tsx`) for a single value, or `CustomMultiSelect` when many values are allowed. Native dropdowns ignore the theme, break dark mode and look different across OS/browsers.
+
+Shared internals live in `web/components/ui/dropdown/` (popover positioning/portal + auto-flip, lazy options, listbox keyboard, option row, search box, surface/sheet). Both select components must reuse these — do not fork positioning or lazy-load logic per screen.
+
+#### Anatomy & tokens
+
+| Part | Spec |
+|------|------|
+| Trigger | Same soft-fill tokens as `Input` (`nabbi-field__control`); sizes `md` ≈48 / `lg` ≈56; leading icon slot; trailing chevron rotates 180° when open; error/disabled/focus match fields |
+| Popover | Portal to `document.body`; elevated surface (`--color-card` / dark `--nabbi-auth-surface`); 1px `--color-card-border`; radius **16**; `--shadow-dropdown`; padding **6**; width = trigger (min 220); `z-index` **15** (above cards/dock, below toasts ≈20) |
+| Options | Height ≈44; radius **10–12**; hover/active = brand tint at low alpha; selected = stronger weight + check icon (Heroicons) on the right; optional description (muted); optional leading icon |
+| Groups | Small uppercase muted label; sticky inside the scroll list |
+| Motion | Open: scale 0.98→1 + fade, 140–160ms `--motion-ease-out`, origin from trigger side; exit ≈100ms; disabled under `prefers-reduced-motion` |
+| Mobile | `< sm` / coarse pointer: bottom sheet (max-height **70dvh**, rounded top, drag handle, backdrop tap-to-close, safe-area padding) |
+
+#### Behavior
+
+- **Lazy loading:** static `options` render in chunks of `pageSize` (default **30**); IntersectionObserver sentinel (`rootMargin` ≈120px) appends the next chunk; search resets the chunk. Async `loadOptions` fetches page 1 on open / debounced search (250ms, abort stale); append while `hasMore`; skeleton rows + inline loading; error row with **Reintentar** (“No pudimos cargar las opciones. Inténtalo de nuevo.”).
+- **Search:** `searchable="auto"` shows search when options > 8 or when `loadOptions` is used; accent-insensitive + case-insensitive over `label` + `keywords`; empty: “Sin resultados”.
+- **Keyboard / ARIA:** combobox + listbox pattern (`role="combobox"` / `listbox` / `option`); Enter/Space/Arrows open; Arrow/Home/End/PageUp/PageDown; type-ahead (500ms buffer) when search is hidden; Escape closes and returns focus; Tab closes.
+- **Form:** hidden `<input name>` for native submit; `forwardRef` / `focus()` for `focusFirstError`; `error` / `required` / `optionalLabel` / `clearable` / `disabled` via our validation (no native bubbles).
+
+#### When to use
+
+| Choice | Control |
+|--------|---------|
+| ≤ 3 mutually exclusive options with descriptions | Role cards / segmented control |
+| 4+ options or long / async lists | **CustomDropdown** |
+| Yes / no | Toggle / checkbox |
+
+#### Examples
+
+```tsx
+<CustomDropdown
+  label="País"
+  name="country"
+  value={country}
+  onChange={(v) => setCountry(v)}
+  options={COUNTRIES.map((c) => ({value: c.code, label: c.label}))}
+  searchable="auto"
+  required
+/>
+
+<CustomDropdown
+  label="Cliente"
+  value={clientId}
+  onChange={(v) => setClientId(v)}
+  loadOptions={async ({query, page, pageSize, signal}) => {
+    const res = await fetchClients({query, page, pageSize, signal});
+    return {options: res.items, hasMore: res.hasMore};
+  }}
+/>
+```
+
+#### Do not
+
+- Native `<select>` / `<option>` / OS picker chrome
+- Hardcoded hex/rgb in the component (tokens only)
+- Emojis or flag emojis as option icons
+- Per-screen custom menus that reinvent the same list picker
+
+#### Multi-select
+
+**Rule:** When a user can choose more than one value from a list, use `CustomMultiSelect` (`web/components/ui/CustomMultiSelect.tsx`). Never use `<select multiple>`, a row of checkboxes for long lists, or ad-hoc tag inputs.
+
+| Part | Spec |
+|------|------|
+| Trigger | Same soft-fill tokens as inputs; **min-height** (chips may wrap to 2 rows, then `+N`); trailing chevron |
+| Chips | Pill; brand-tint surface at low alpha; 1px border token; 12–13px semibold; optional icon; remove control ≥24px hit (`aria-label` “Quitar {label}”); enter animation 140ms (reduced-motion safe) |
+| Popover rows | Leading rounded-square checkbox (brand fill + check when selected); stays **open** while selecting |
+| Footer | Sticky: “N seleccionada(s)” + **Limpiar**; **Listo** closes. Mobile sheet: full-width **Listo (N)** + safe-area |
+| Groups | Sticky uppercase muted headings (e.g. subcategories under parent category) |
+
+**Behavior:** same lazy load + search rules as `CustomDropdown`; Space/Enter toggle and keep open; Backspace removes last chip; Escape closes; `aria-multiselectable` + live announcements; hidden `name[]` inputs; min/max with catalog messages.
+
+**Dependent options:** child multi-select disabled until parent has ≥1 value (helper: “Elige primero una categoría.”). Removing a parent drops orphan children and shows a brief notice (“Quitamos {n} subcategorías de {categoría}.”), aria-live, auto-dismiss ~4s.
+
+| Choice | Control |
+|--------|---------|
+| 1 value | **CustomDropdown** |
+| Many values + long lists | **CustomMultiSelect** |
+| ≤ 5 simple toggles | Checkbox group |
+| Filters | Chips driven by multi-select |
+
+```tsx
+<CustomMultiSelect
+  label="Categorías"
+  name="categories"
+  value={categories}
+  onChange={(vals) => setCategories(vals)}
+  options={MAIN_CATEGORIES.map((c) => ({value: c.id, label: c.name}))}
+  searchable="auto"
+  required
+  min={1}
+/>
+```
+
+**Do not:** `<select multiple>`; emojis; hardcoded colors; new per-screen tag inputs.
 
 ### Card
 
@@ -248,18 +363,30 @@ Props (both platforms): `label?`, `error?`, `helperText?` (web), standard input 
 
 ## 7. Forms (web + mobile)
 
+Forms are **premium minimal**: calm cream/forest surfaces, lots of air, one yellow CTA, almost no ornament.
+
+### Visual principles
+
+1. **Quiet chrome** — hairline borders, soft surfaces, no gradients inside the form panel, no field icons.
+2. **Air over density** — field stack gap **20**; section gap **28–32**; avoid packing chips/alerts against the CTA.
+3. **Type hierarchy** — one title (H1 ~28–32 / 700–800), one short subtitle (14–15 muted). Skip loud uppercase overlines when the title already says enough.
+4. **Segmented choices** — role/type selectors are slim pills or segmented controls, not heavy card buttons.
+5. **Feedback is restrained** — errors/success as short text with a left accent or soft tint; not thick boxed banners.
+6. **One composition** — auth: brand mark (mobile) or quiet welcome panel (desktop) + form. No marquee, no floating badges.
+
 ### Structure
 
 ```
+[Brand mark if needed]
 [Screen title]
 [Optional short description]
 
 [Field]
 [Field]
 …
-[Inline error summary if submit-level]
-[Primary CTA]
-[Secondary link/button]
+[Inline error / success — restrained]
+[Primary CTA — full width on mobile]
+[Secondary text link]
 ```
 
 ### Rules
@@ -269,17 +396,22 @@ Props (both platforms): `label?`, `error?`, `helperText?` (web), standard input 
 3. Validate on blur + on submit; clear field error when the user edits.
 4. API errors: map to fields when possible; otherwise one summary above the CTA.
 5. Password: show/hide toggle; never block paste.
-6. Primary submit = yellow CTA, full width on mobile.
+6. Primary submit = yellow CTA, full width on mobile; **no multi-shadow glow**.
 7. Disable submit while in-flight; don’t clear the form on failure.
-8. Auth screens should reuse shared auth layout / brand header — don’t fork a new visual language per form.
+8. Auth screens reuse `AuthLayout` / brand treatment — don’t fork a new visual language per form.
 9. Prefer native keyboard types (`email`, `tel`, `numeric`) and autofill attributes on web.
 10. Required fields: indicate clearly; don’t rely on color alone.
+11. Spanish copy; no em dashes or decorative separators in UI strings.
+12. Prefer shared `components/ui` `Input` / `Button` / `CustomDropdown` before one-off styled controls.
+13. Never use native `<select>` — always `CustomDropdown` / `CustomMultiSelect` (see **Dropdowns / Select**).
 
 ### Auth alignment
 
-- Web: `LoginForm` / `RegisterForm` + `AuthLayout` / `WelcomeSection`
-- Mobile: register/login routes under `app/`
-- Same order of fields, same CTA labels (“Empezar gratis”, “Iniciar sesión”), same brand mark treatment
+- Web: `AuthDualPanel` on `/login` and `/register` (same experience; URL syncs mode)
+- Desktop: **one active form** + brand panel; sides swap (login = form|brand, register = brand|form). Never mount both forms at once.
+- Mobile: one form; switch via inline text actions
+- Shared forms: `LoginForm` / `RegisterForm` + `AuthLayout`
+- Same CTA labels (“Empezar gratis”, “Iniciar sesión”); soft-fill fields; theme-aware canvas
 
 ---
 
@@ -323,6 +455,7 @@ Respect `prefers-reduced-motion` on web; avoid continuous animation for essentia
 - [ ] Form errors announced (web: associate `aria-describedby`; mobile: accessible text)
 - [ ] Don’t convey state by color alone
 - [ ] Dark mode tokens remain on-brand (forest), not generic slate/blue
+- [ ] No native `<select>` — list pickers use `CustomDropdown` (themed popover / bottom sheet)
 
 ---
 
@@ -335,6 +468,7 @@ Respect `prefers-reduced-motion` on web; avoid continuous animation for essentia
 5. Mobile and web: same hierarchy, spacing rhythm, and copy for the same feature.
 6. Marketing pages may be more expressive but must use brand palette and CTA rules.
 7. Update this doc if you introduce a new token or component variant (PR description + this file).
+8. Lists / selects: use `CustomDropdown` / `CustomMultiSelect` only — never native `<select>` (see **Dropdowns / Select**).
 
 ---
 
@@ -349,4 +483,4 @@ Respect `prefers-reduced-motion` on web; avoid continuous animation for essentia
 
 ---
 
-**Last updated:** 2026-11-17 — established as cross-platform source of truth; documents current token drift and target state.
+**Last updated:** 2026-11-18 — Dropdowns + Multi-select (`CustomDropdown` / `CustomMultiSelect`); shared `web/components/ui/dropdown/` internals.

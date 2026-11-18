@@ -4,6 +4,8 @@ import {
   EmailCodeCredentials,
   LoginCredentials,
   RegisterData,
+  RegisterPendingResponse,
+  ResendVerificationResponse,
   User,
   ChangePasswordData,
   ForgotPasswordData,
@@ -101,6 +103,8 @@ apiClient.interceptors.response.use(
     const isAuthBootstrapEndpoint =
       requestUrl.includes("/auth/login/") ||
       requestUrl.includes("/auth/register/") ||
+      requestUrl.includes("/auth/verify-email/") ||
+      requestUrl.includes("/auth/resend-verification/") ||
       requestUrl.includes("/auth/refresh/") ||
       requestUrl.includes("/auth/email/request-code/") ||
       requestUrl.includes("/auth/email/verify-code/");
@@ -240,7 +244,13 @@ export const authApi = {
     api.post<AuthResponse>("/auth/email/verify-code/", payload),
 
   register: (userData: RegisterData) =>
-    api.post<AuthResponse>("/auth/register/", userData),
+    api.post<RegisterPendingResponse>("/auth/register/", userData),
+
+  verifyRegistrationEmail: (payload: EmailCodeCredentials) =>
+    api.post<AuthResponse>("/auth/verify-email/", payload),
+
+  resendVerification: (payload: {email: string}) =>
+    api.post<ResendVerificationResponse>("/auth/resend-verification/", payload),
 
   logout: () => api.post("/auth/logout/"),
 

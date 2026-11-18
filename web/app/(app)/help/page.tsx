@@ -6,6 +6,7 @@ import {useState} from "react";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {supportApi, errorUtils} from "@/lib/api";
 import {CONTACT_EMAIL, CONTACT_URL} from "@/constants/legal";
+import {CustomDropdown} from "@/components/ui/CustomDropdown";
 
 const INK = "#12211A";
 const MAIN = "#558367";
@@ -107,16 +108,16 @@ export default function HelpPage() {
           flexDirection: "column",
           gap: 12,
         }}>
-        <label style={labelStyle}>
-          Tema
-          <select value={theme} onChange={(e) => setTheme(e.target.value)} style={inputStyle}>
-            {THEMES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </label>
+        <CustomDropdown
+          label="Tema"
+          value={theme}
+          onChange={(value) => {
+            if (value) setTheme(value);
+          }}
+          options={THEMES.map((t) => ({value: t, label: t}))}
+          searchable="auto"
+          size="md"
+        />
         <label style={labelStyle}>
           Email de contacto
           <input

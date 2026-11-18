@@ -8,6 +8,8 @@ import {
   RegisterCredentials,
   EmailCodeCredentials,
   EmailCodeLoginResult,
+  RegisterPendingResponse,
+  ResendVerificationResponse,
 } from "../types";
 import {User} from "@/types/global";
 import {getApiBaseUrl} from "@/lib/apiConfig";
@@ -173,25 +175,40 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
     }
   };
 
-  const register = async (credentials: RegisterCredentials) => {
+  const register = async (
+    credentials: RegisterCredentials
+  ): Promise<RegisterPendingResponse> => {
     try {
       setState((prev) => ({...prev, isLoading: true, error: null}));
-
       const response = await authApi.register(credentials);
+      setState((prev) => ({...prev, isLoading: false}));
+      return response.data;
+    } catch (error: any) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error.message || "Registration failed",
+      }));
+      throw error;
+    }
+  };
 
-      // Store JWT tokens
+  const verifyRegistrationEmail = async (
+    credentials: EmailCodeCredentials
+  ): Promise<User> => {
+    try {
+      setState((prev) => ({...prev, isLoading: true, error: null}));
+      const response = await authApi.verifyRegistrationEmail(credentials);
+      if (!response.data?.access || !response.data?.refresh || !response.data?.user) {
+        throw new Error(response.data?.message || "Verificación fallida");
+      }
       await tokenUtils.setTokens(response.data.access, response.data.refresh);
-
       setState((prev) => ({
         ...prev,
         user: response.data.user,
         isLoading: false,
       }));
-
-      // Start background token refresh
       tokenRefreshScheduler.start();
-
-      // Register push token (best-effort)
       try {
         const token = await getExpoPushToken();
         if (token) {
@@ -200,11 +217,30 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
       } catch (_) {
         // ignore push registration errors
       }
+      return response.data.user;
     } catch (error: any) {
       setState((prev) => ({
         ...prev,
         isLoading: false,
-        error: error.message || "Registration failed",
+        error: error.message || "Verification failed",
+      }));
+      throw error;
+    }
+  };
+
+  const resendVerification = async (
+    email: string
+  ): Promise<ResendVerificationResponse> => {
+    try {
+      setState((prev) => ({...prev, isLoading: true, error: null}));
+      const response = await authApi.resendVerification({email});
+      setState((prev) => ({...prev, isLoading: false}));
+      return response.data;
+    } catch (error: any) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error.message || "Failed to resend code",
       }));
       throw error;
     }
@@ -272,6 +308,8 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
     requestEmailCode,
     loginWithEmailCode,
     register,
+    verifyRegistrationEmail,
+    resendVerification,
     logout,
     refreshToken,
   };

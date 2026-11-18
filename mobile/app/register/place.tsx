@@ -16,12 +16,11 @@ import {useLocalSearchParams, useRouter} from "expo-router";
 import {useSafeAreaInsets} from "react-native-safe-area-context";
 import {Ionicons} from "@expo/vector-icons";
 import {useThemeVariant} from "@/contexts/ThemeVariantContext";
-import {errorUtils, profileCustomizationApi} from "@/lib/api";
+import {errorUtils} from "@/lib/api";
 import {AddressSearch} from "@/components/location/AddressSearch";
 import {MultiCategorySelector} from "@/components/profile/MultiCategorySelector";
 import {TermsAndConditionsCheckbox} from "@/components/TermsAndConditionsCheckbox";
 import {useAuth} from "@/features/auth/hooks/useAuth";
-import {setTourPending} from "@/features/onboarding/ProviderTourProvider";
 
 export default function RegisterPlace() {
   const router = useRouter();
@@ -92,30 +91,30 @@ export default function RegisterPlace() {
         latitude: values.latitude,
         longitude: values.longitude,
       };
-      await register(registerData);
+      const pending = await register(registerData);
 
-      try {
-        await profileCustomizationApi.getProfileImages();
-        const updateData: any = {
-          category: selectedCategories,
-          sub_categories: selectedSubCategories,
-        };
-        if (values.address && values.latitude != null && values.longitude != null) {
-          updateData.street = values.address;
-          updateData.city = values.city;
-          updateData.country = values.country;
-          updateData.latitude = values.latitude;
-          updateData.longitude = values.longitude;
-        }
-        await profileCustomizationApi.updatePublicProfile(updateData);
-      } catch (profileErr) {
-        console.warn("PublicProfile update skipped:", profileErr);
+      const updateData: Record<string, unknown> = {
+        category: selectedCategories,
+        sub_categories: selectedSubCategories,
+      };
+      if (values.address && values.latitude != null && values.longitude != null) {
+        updateData.street = values.address;
+        updateData.city = values.city;
+        updateData.country = values.country;
+        updateData.latitude = values.latitude;
+        updateData.longitude = values.longitude;
       }
 
-      // Set tour as pending for first-time onboarding
-      await setTourPending();
-
-      router.replace("/(tabs)/perfil");
+      router.replace({
+        pathname: "/register/verify-email",
+        params: {
+          email: trimmed.email,
+          role: "place",
+          resendAvailableIn: String(pending.resendAvailableIn ?? 30),
+          profileUpdate: JSON.stringify(updateData),
+          needsTour: "1",
+        },
+      });
     } catch (err) {
       Alert.alert("Error", errorUtils.getErrorMessage(err));
     } finally {

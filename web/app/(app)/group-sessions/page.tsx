@@ -13,6 +13,7 @@ import {
   profileCustomizationApi,
   errorUtils,
 } from "@/lib/api";
+import {CustomDropdown} from "@/components/ui/CustomDropdown";
 
 const INK = "#12211A";
 const MAIN = "#558367";
@@ -175,21 +176,19 @@ export default function GroupSessionsPage() {
             gap: 12,
           }}>
           <div style={{fontWeight: 800, color: INK}}>Nueva sesión</div>
-          <label style={labelStyle}>
-            Servicio
-            <select
-              value={serviceId}
-              onChange={(e) => setServiceId(e.target.value ? Number(e.target.value) : "")}
-              style={inputStyle}
-              required>
-              <option value="">Seleccionar…</option>
-              {services.map((s) => (
-                <option key={`${s.type}-${s.id}`} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <CustomDropdown
+            label="Servicio"
+            value={serviceId === "" ? null : Number(serviceId)}
+            onChange={(value) => setServiceId(value === null ? "" : value)}
+            options={services.map((s) => ({
+              value: s.id,
+              label: s.name,
+            }))}
+            searchable="auto"
+            required
+            placeholder="Seleccionar…"
+            size="md"
+          />
           <div className="nabbi-form-row">
             <label style={labelStyle}>
               Fecha

@@ -25,6 +25,8 @@ export interface User {
   address?: string;
   latitude?: number;
   longitude?: number;
+  emailVerified?: boolean;
+  emailVerifiedAt?: string | null;
 }
 
 export interface ClientProfile {

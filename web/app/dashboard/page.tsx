@@ -32,6 +32,8 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/solid";
 import Link from "next/link";
+import {FadeSidebar} from "@/components/ui/FadeSidebar";
+import {CustomDropdown} from "@/components/ui/CustomDropdown";
 
 // ─── Brand tokens ─────────────────────────────────────────────────────────────
 const INK      = "#12211A";
@@ -1290,15 +1292,17 @@ function SectionReservas({
             <div>
               <p style={{color: DARK, fontSize: 10, fontWeight: 700, letterSpacing: "0.07em",
                 textTransform: "uppercase", margin: "0 0 10px"}}>Servicio</p>
-              <select value={filterServiceId} onChange={(e) => setFilterServiceId(e.target.value)}
-                style={{width: "100%", background: CREAM, border: `1.5px solid ${LIGHT}`, borderRadius: 10,
-                  color: DARK, fontSize: 13, padding: "9px 12px", outline: "none",
-                  cursor: "pointer", fontFamily: "inherit", fontWeight: 500}}>
-                <option value="">Todos los servicios</option>
-                {services.map((s) => (
-                  <option key={s.id} value={String(s.id)}>{s.name}</option>
-                ))}
-              </select>
+              <CustomDropdown
+                value={filterServiceId || null}
+                onChange={(value) => setFilterServiceId(value ?? "")}
+                options={[
+                  {value: "", label: "Todos los servicios"},
+                  ...services.map((s) => ({value: String(s.id), label: s.name})),
+                ]}
+                searchable="auto"
+                size="md"
+                placeholder="Todos los servicios"
+              />
             </div>
 
             {/* Client search */}
@@ -1877,13 +1881,16 @@ function NuevaVentaModal({
           </div>
           <div style={{display: "flex", alignItems: "center", gap: 10}}>
             {/* Currency */}
-            <select
+            <CustomDropdown
               value={currency}
-              onChange={(e) => setCurrency(e.target.value as Currency)}
-              style={{...inputS, width: "auto", padding: "7px 10px"}}
-            >
-              {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+              onChange={(value) => {
+                if (value) setCurrency(value as Currency);
+              }}
+              options={CURRENCIES.map((c) => ({value: c, label: c}))}
+              searchable={false}
+              size="md"
+              className="cd-inline-currency"
+            />
             <button onClick={handleClose} style={{background: "transparent", border: "none", cursor: "pointer", color: "#94a3b8"}}>
               <XMarkIcon style={{width: 22, height: 22}} />
             </button>
@@ -1926,14 +1933,20 @@ function NuevaVentaModal({
                   </div>
                   <div>
                     <label style={labelS}>Reserva vinculada</label>
-                    <select style={inputS} value={reservationId} onChange={(e) => setReservationId(e.target.value ? Number(e.target.value) : "")}>
-                      <option value="">Sin reserva</option>
-                      {reservations.filter((r: any) => !["CANCELLED"].includes(r.status?.toUpperCase())).map((r: any) => (
-                        <option key={r.id} value={r.id}>
-                          #{r.id} – {r.service?.name ?? "Servicio"} · {r.date ?? ""}
-                        </option>
-                      ))}
-                    </select>
+                    <CustomDropdown
+                      value={reservationId === "" ? null : reservationId}
+                      onChange={(value) => setReservationId(value === null ? "" : value)}
+                      options={reservations
+                        .filter((r: any) => !["CANCELLED"].includes(r.status?.toUpperCase()))
+                        .map((r: any) => ({
+                          value: r.id as number,
+                          label: `#${r.id} – ${r.service?.name ?? "Servicio"} · ${r.date ?? ""}`,
+                        }))}
+                      searchable="auto"
+                      clearable
+                      size="md"
+                      placeholder="Sin reserva"
+                    />
                   </div>
                   <div>
                     <label style={labelS}>Email</label>
@@ -2375,24 +2388,33 @@ function SectionVentas({
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          style={{background: "white", border: `1.5px solid ${LIGHT}`, borderRadius: 10, padding: "9px 12px", fontSize: 13, color: DARK, fontWeight: 500, outline: "none"}}
-        >
-          <option value="">Todos los estados</option>
-          {Object.entries(STATUS_VENTA).map(([val, {label}]) => (
-            <option key={val} value={val}>{label}</option>
-          ))}
-        </select>
-        <select
-          value={filterCurrency}
-          onChange={(e) => setFilterCurrency(e.target.value)}
-          style={{background: "white", border: `1.5px solid ${LIGHT}`, borderRadius: 10, padding: "9px 12px", fontSize: 13, color: DARK, fontWeight: 500, outline: "none"}}
-        >
-          <option value="">Todas las monedas</option>
-          {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <CustomDropdown
+          value={filterStatus || null}
+          onChange={(value) => setFilterStatus(value ?? "")}
+          options={[
+            {value: "", label: "Todos los estados"},
+            ...Object.entries(STATUS_VENTA).map(([val, {label}]) => ({
+              value: val,
+              label,
+            })),
+          ]}
+          searchable={false}
+          size="md"
+          placeholder="Todos los estados"
+          className="cd-filter-compact"
+        />
+        <CustomDropdown
+          value={filterCurrency || null}
+          onChange={(value) => setFilterCurrency(value ?? "")}
+          options={[
+            {value: "", label: "Todas las monedas"},
+            ...CURRENCIES.map((c) => ({value: c, label: c})),
+          ]}
+          searchable={false}
+          size="md"
+          placeholder="Todas las monedas"
+          className="cd-filter-compact"
+        />
       </div>
 
       {/* Sales list */}
@@ -2941,17 +2963,11 @@ function DashboardApp() {
       }}
     >
       {/* ── Sidebar (desktop) ── */}
-      <aside
-        className="hidden lg:flex flex-col"
-        style={{
-          width: 228,
-          flexShrink: 0,
-          background: DARK,
-          position: "sticky",
-          top: 0,
-          height: "100vh",
-          overflowY: "auto",
-        }}
+      <FadeSidebar
+        variant="forest"
+        contentKey="dashboard-nav"
+        width={228}
+        className="fade-sidebar--desktop-only"
       >
         {/* Logo */}
         <div style={{padding: "22px 18px 18px", borderBottom: "1px solid rgba(255,255,255,0.07)"}}>
@@ -3059,7 +3075,7 @@ function DashboardApp() {
             Cerrar sesión
           </button>
         </div>
-      </aside>
+      </FadeSidebar>
 
       {/* ── Main ── */}
       <div style={{flex: 1, display: "flex", flexDirection: "column", minWidth: 0}}>

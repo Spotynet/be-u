@@ -10,14 +10,15 @@ Follow root **`DESIGN_SYSTEM.md`**. Platform coding docs do not override brand/U
 
 ## Hard rules
 
-- **Primary CTA** = yellow `#F6C531` + ink `#12211A` text (never purple / generic blue).
+- **Primary CTA** = yellow `#F6C531` + ink `#12211A` text (never purple / generic blue). No heavy CTA glow.
 - **Background** = cream `#FAF8F3` (light). Brand greens: sage `#558367`, forest `#1F3328`.
 - **No hardcoded brand hex** in feature UI — use semantic tokens (`globals.css` / `constants/theme.ts`).
-- **Buttons/chips** = pill radius (`999`); inputs ≈ 12px radius.
-- **Hit targets** ≥ 44×44. One primary action per section.
+- **Buttons/chips** = pill radius (`999`).
+- **Inputs** = soft-fill `nabbi-field` (`Input` / `Textarea` / `Select`): no outer border, inset sage focus, radius 14, height 52.
+- **Hit targets** ≥ 44×44 (inputs 52). One primary action per section.
 - **Product font** = Poppins (mobile already; web should match — don’t introduce a third family).
-- **Forms**: visible labels, error replaces helper, disable submit while loading, Spanish copy.
+- **Forms = premium minimal**: airy gaps, muted labels, no field icons, restrained alerts, Spanish copy without em dashes.
 - Prefer `components/ui` primitives; extend before inventing one-offs.
-- Marketing may be expressive; product UI stays token-driven and calm.
+- Marketing may be expressive; product/auth UI stays calm and token-driven.
 
 When web/mobile disagree on visuals, align to `DESIGN_SYSTEM.md`.

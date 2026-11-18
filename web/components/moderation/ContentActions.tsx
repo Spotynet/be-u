@@ -4,6 +4,7 @@ import {useState} from "react";
 import {useRouter} from "next/navigation";
 import {moderationApi, errorUtils} from "@/lib/api";
 import {useAuth} from "@/features/auth/hooks/useAuth";
+import {CustomDropdown} from "@/components/ui/CustomDropdown";
 
 export type ReportTargetType = "post" | "comment" | "review" | "profile";
 
@@ -164,16 +165,15 @@ export function ContentActions({
 
             {step === "report" && (
               <div style={{display: "flex", flexDirection: "column", gap: 10}}>
-                <select
+                <CustomDropdown
                   value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  style={inputStyle}>
-                  {REASONS.map((r) => (
-                    <option key={r.key} value={r.key}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => {
+                    if (value) setReason(value);
+                  }}
+                  options={REASONS.map((r) => ({value: r.key, label: r.label}))}
+                  searchable={false}
+                  size="md"
+                />
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}

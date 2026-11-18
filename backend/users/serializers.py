@@ -13,15 +13,29 @@ class UserSerializer(serializers.ModelSerializer):
     isStaff = serializers.BooleanField(source='is_staff')
     isSuperuser = serializers.BooleanField(source='is_superuser')
     isActive = serializers.BooleanField(source='is_active')
+    emailVerified = serializers.BooleanField(source='email_verified', read_only=True)
+    emailVerifiedAt = serializers.DateTimeField(source='email_verified_at', read_only=True)
     
     class Meta:
         model = User
         fields = [
             'id', 'email', 'username', 'firstName', 'lastName', 'phone', 'isActive',
             'dateJoined', 'lastLogin', 'role', 'isStaff', 'isSuperuser',
-            'address', 'latitude', 'longitude', 'country', 'city', 'image'
+            'address', 'latitude', 'longitude', 'country', 'city', 'image',
+            'emailVerified', 'emailVerifiedAt',
         ]
-        read_only_fields = ['id', 'dateJoined', 'lastLogin']
+        read_only_fields = [
+            'id', 'dateJoined', 'lastLogin', 'emailVerified', 'emailVerifiedAt',
+        ]
+
+
+class EmailVerificationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.CharField(min_length=4, max_length=8)
+
+
+class ResendVerificationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
 
 
 class GoogleAuthUrlSerializer(serializers.Serializer):

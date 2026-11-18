@@ -3,7 +3,8 @@
 import {useState} from "react";
 import {Button} from "@/components/ui/Button";
 import {Input} from "@/components/ui/Input";
-import {Card} from "@/components/ui/Card";
+import {CustomDropdown} from "@/components/ui/CustomDropdown";
+import {Textarea} from "@/components/ui/Textarea";
 import {Service, CreateServiceData} from "@/types/api";
 
 interface ServiceFormProps {
@@ -17,7 +18,7 @@ export function ServiceForm({service, onSubmit, submitText}: ServiceFormProps) {
     name: service?.name || "",
     description: service?.description || "",
     price: service?.price || 0,
-    duration: service?.duration || "01:00:00", // Default 1 hour
+    duration: service?.duration || "01:00:00",
     category: service?.category || "",
     sub_category: service?.sub_category || "",
     images: service?.images || [],
@@ -33,7 +34,6 @@ export function ServiceForm({service, onSubmit, submitText}: ServiceFormProps) {
 
     try {
       await onSubmit(formData);
-      // Reset form after successful submission
       if (!service) {
         setFormData({
           name: "",
@@ -46,7 +46,7 @@ export function ServiceForm({service, onSubmit, submitText}: ServiceFormProps) {
         });
       }
     } catch (err: any) {
-      setError(err.message || "Failed to save service");
+      setError(err.message || "No se pudo guardar el servicio");
     } finally {
       setLoading(false);
     }
@@ -68,118 +68,97 @@ export function ServiceForm({service, onSubmit, submitText}: ServiceFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800">{error}</p>
+        <div className="auth-alert auth-alert--error" role="alert">
+          <p>{error}</p>
         </div>
       )}
 
-      {/* Service Name */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Service Name *</label>
+      <Input
+        label="Nombre del servicio"
+        type="text"
+        value={formData.name}
+        onChange={(e) => handleInputChange("name", e.target.value)}
+        placeholder="Corte y color"
+        required
+      />
+
+      <Textarea
+        label="Descripción"
+        value={formData.description}
+        onChange={(e) => handleInputChange("description", e.target.value)}
+        placeholder="Describe tu servicio"
+        rows={3}
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
-          type="text"
-          value={formData.name}
-          onChange={(e) => handleInputChange("name", e.target.value)}
-          placeholder="Enter service name"
+          label="Precio"
+          type="number"
+          step="0.01"
+          min="0"
+          value={formData.price}
+          onChange={(e) => handleInputChange("price", parseFloat(e.target.value) || 0)}
+          placeholder="0.00"
           required
         />
-      </div>
 
-      {/* Description */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-        <textarea
-          value={formData.description}
-          onChange={(e) => handleInputChange("description", e.target.value)}
-          placeholder="Describe your service"
-          rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      {/* Price and Duration */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Price *</label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <span className="text-gray-500 sm:text-sm">$</span>
-            </div>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.price}
-              onChange={(e) => handleInputChange("price", parseFloat(e.target.value) || 0)}
-              placeholder="0.00"
-              className="pl-7"
-              required
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Duration *</label>
-          <div className="flex space-x-2">
-            <select
-              value={parseDuration(formData.duration).hours}
-              onChange={(e) => {
-                const hours = parseInt(e.target.value);
-                const minutes = parseDuration(formData.duration).minutes;
-                handleInputChange("duration", formatDuration(hours, minutes));
-              }}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-              {Array.from({length: 24}, (_, i) => (
-                <option key={i} value={i}>
-                  {i} hour{i !== 1 ? "s" : ""}
-                </option>
-              ))}
-            </select>
-            <select
-              value={parseDuration(formData.duration).minutes}
-              onChange={(e) => {
-                const minutes = parseInt(e.target.value);
-                const hours = parseDuration(formData.duration).hours;
-                handleInputChange("duration", formatDuration(hours, minutes));
-              }}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value={0}>0 minutes</option>
-              <option value={15}>15 minutes</option>
-              <option value={30}>30 minutes</option>
-              <option value={45}>45 minutes</option>
-            </select>
-          </div>
+        <div className="grid grid-cols-2 gap-3">
+          <CustomDropdown
+            label="Horas"
+            value={parseDuration(formData.duration).hours}
+            onChange={(hours) => {
+              if (hours === null) return;
+              const minutes = parseDuration(formData.duration).minutes;
+              handleInputChange("duration", formatDuration(hours, minutes));
+            }}
+            options={Array.from({length: 24}, (_, i) => ({
+              value: i,
+              label: `${i} h`,
+            }))}
+            searchable="auto"
+          />
+          <CustomDropdown
+            label="Minutos"
+            value={parseDuration(formData.duration).minutes}
+            onChange={(minutes) => {
+              if (minutes === null) return;
+              const hours = parseDuration(formData.duration).hours;
+              handleInputChange("duration", formatDuration(hours, minutes));
+            }}
+            options={[
+              {value: 0, label: "0"},
+              {value: 15, label: "15"},
+              {value: 30, label: "30"},
+              {value: 45, label: "45"},
+            ]}
+            searchable={false}
+          />
         </div>
       </div>
 
-      {/* Category */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-        <Input
-          type="text"
-          value={formData.category}
-          onChange={(e) => handleInputChange("category", e.target.value)}
-          placeholder="e.g., Healthcare, Beauty, Fitness"
-        />
-      </div>
+      <Input
+        label="Categoría"
+        type="text"
+        value={formData.category}
+        onChange={(e) => handleInputChange("category", e.target.value)}
+        placeholder="Belleza, bienestar..."
+      />
 
-      {/* Sub Category */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Sub Category</label>
-        <Input
-          type="text"
-          value={formData.sub_category}
-          onChange={(e) => handleInputChange("sub_category", e.target.value)}
-          placeholder="e.g., Massage, Facial, Haircut"
-        />
-      </div>
+      <Input
+        label="Subcategoría"
+        type="text"
+        value={formData.sub_category}
+        onChange={(e) => handleInputChange("sub_category", e.target.value)}
+        placeholder="Cabello, spa..."
+      />
 
-      {/* Images Preview */}
       {formData.images && formData.images.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Imágenes actuales</label>
+          <p className="nabbi-field__label" style={{marginBottom: 8}}>
+            Imágenes actuales
+          </p>
           <div className="flex flex-wrap gap-2">
             {formData.images.map((image, index) => (
               // eslint-disable-next-line @next/next/no-img-element
@@ -187,17 +166,16 @@ export function ServiceForm({service, onSubmit, submitText}: ServiceFormProps) {
                 key={index}
                 src={image}
                 alt={`Imagen ${index + 1}`}
-                className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                className="w-20 h-20 object-cover rounded-xl border border-border"
               />
             ))}
           </div>
         </div>
       )}
 
-      {/* Submit Button */}
-      <div className="flex justify-end">
-        <Button type="submit" disabled={loading} className="px-6 py-2">
-          {loading ? "Saving..." : submitText}
+      <div className="flex justify-end pt-2">
+        <Button type="submit" disabled={loading}>
+          {loading ? "Guardando..." : submitText}
         </Button>
       </div>
     </form>

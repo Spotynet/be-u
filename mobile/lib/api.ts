@@ -102,9 +102,15 @@ apiClient.interceptors.response.use(
 
     // Never try to refresh for auth endpoints to avoid loops
     const isAuthRefresh = url.includes("/auth/refresh/");
-    const isAuthLogin = url.includes("/auth/login/");
+    const isAuthBootstrap =
+      url.includes("/auth/login/") ||
+      url.includes("/auth/register/") ||
+      url.includes("/auth/verify-email/") ||
+      url.includes("/auth/resend-verification/") ||
+      url.includes("/auth/email/request-code/") ||
+      url.includes("/auth/email/verify-code/");
 
-    if (status === 401 && !originalRequest._retry && !isAuthRefresh && !isAuthLogin) {
+    if (status === 401 && !originalRequest._retry && !isAuthRefresh && !isAuthBootstrap) {
       originalRequest._retry = true;
       try {
         const refresh = await storage.getItem(REFRESH_TOKEN_KEY);
@@ -286,10 +292,10 @@ export const authApi = {
   register: (userData: {
     email: string;
     password?: string;
-    firstName: string;
-    lastName: string;
+    firstName?: string;
+    lastName?: string;
     username: string;
-    role?: 'client' | 'professional' | 'place';
+    role?: "client" | "professional" | "place";
     category?: string;
     subcategory?: string;
     phone?: string;
@@ -303,10 +309,29 @@ export const authApi = {
     placeName?: string;
     appleSub?: string;
   }) =>
-    api.post<{message: string; user: any; access: string; refresh: string}>(
-      "/auth/register/",
-      userData
+    api.post<{
+      email: string;
+      emailVerified: boolean;
+      verificationRequired: boolean;
+      resendAvailableIn: number;
+      message?: string;
+    }>("/auth/register/", userData),
+
+  verifyRegistrationEmail: (payload: {email: string; code: string}) =>
+    api.post<{message?: string; user: any; access: string; refresh: string}>(
+      "/auth/verify-email/",
+      payload
     ),
+
+  resendVerification: (payload: {email: string}) =>
+    api.post<{
+      sent: boolean;
+      resendAvailableIn: number;
+      error?: string;
+      code?: string;
+      message?: string;
+      retryAfter?: number;
+    }>("/auth/resend-verification/", payload),
 
   logout: () => api.post("/auth/logout/"),
 

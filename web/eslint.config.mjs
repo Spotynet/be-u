@@ -20,6 +20,23 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
+  {
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXOpeningElement[name.name='select']",
+          message:
+            "Usa CustomDropdown (web/components/ui/CustomDropdown.tsx). Ver DesignSystem > Dropdowns.",
+        },
+        {
+          selector: "JSXOpeningElement[name.name='option']",
+          message:
+            "Usa CustomDropdown (web/components/ui/CustomDropdown.tsx). Ver DesignSystem > Dropdowns.",
+        },
+      ],
+    },
+  },
 ];
 
 export default eslintConfig;

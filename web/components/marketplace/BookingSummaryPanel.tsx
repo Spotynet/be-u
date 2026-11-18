@@ -95,7 +95,7 @@ export function BookingSummaryPanel({
           type="button"
           onClick={onConfirm}
           disabled={disabled || busy}
-          className="mt-2 flex w-full min-h-12 items-center justify-center rounded-xl bg-secondary text-[15px] font-bold text-secondary-foreground transition-colors hover:bg-secondary-hover disabled:cursor-not-allowed disabled:opacity-50">
+          className="mt-2 flex w-full min-h-12 items-center justify-center rounded-xl bg-secondary text-[15px] font-bold text-secondary-foreground cursor-pointer transition-colors hover:bg-secondary-hover disabled:cursor-not-allowed disabled:opacity-50">
           {busy ? "Confirmando…" : ctaLabel}
         </button>
       ) : null}

@@ -9,6 +9,8 @@ export type {
   EmailCodeLoginResult,
   RegisterData,
   AuthResponse,
+  RegisterPendingResponse,
+  ResendVerificationResponse,
   ChangePasswordData,
   ForgotPasswordData,
   ResetPasswordData,
