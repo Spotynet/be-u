@@ -22,7 +22,7 @@ export {
   validatePhone,
   normalizeUsername,
 } from "./validators";
-export {useFormErrors, applyValidatorCode} from "./useFormErrors";
+export {useFormErrors} from "./useFormErrors";
 export type {UseFormErrorsResult} from "./useFormErrors";
 export {useAuthToast} from "./useAuthToast";
 export type {AuthToastItem} from "./useAuthToast";

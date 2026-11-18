@@ -42,7 +42,7 @@ function emitFieldChange(
 ) {
   onChange({
     target: {name, value, type: "text"},
-  } as React.ChangeEvent<HTMLSelectElement>);
+  } as unknown as React.ChangeEvent<HTMLSelectElement>);
 }
 
 export function PersonalStep({
