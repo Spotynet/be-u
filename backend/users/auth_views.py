@@ -451,7 +451,7 @@ def email_request_code_view(request):
         }
         html_message = render_to_string("users/access_code_email.html", context)
         plain_message = f"Tu código de acceso de nabbi es: {code}\n\nEste código expira en 10 minutos.\n\nSi no solicitaste este código, ignora este mensaje.\n\n— nabbi"
-        default_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@be-u.ai")
+        default_email = getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@nabbi.app")
         if "<" in str(default_email) and ">" in str(default_email):
             email_addr = str(default_email)[str(default_email).index("<") + 1 : str(default_email).index(">")]
         else:

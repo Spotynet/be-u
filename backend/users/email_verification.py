@@ -296,7 +296,7 @@ def send_verification_email(
     text_body = render_to_string("emails/verify_email.txt", context)
     html_body = render_to_string("emails/verify_email.html", context)
 
-    default_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@nabbi.app")
+    default_email = getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@nabbi.app")
     if "<" in str(default_email) and ">" in str(default_email):
         email_addr = str(default_email)[
             str(default_email).index("<") + 1 : str(default_email).index(">")

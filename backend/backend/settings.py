@@ -438,9 +438,9 @@ EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@be-u.ai')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@nabbi.app')
 # Inbox that receives Help & Support messages from the mobile app (separate from login From)
-SUPPORT_INBOX_EMAIL = os.environ.get('SUPPORT_INBOX_EMAIL', 'nabbi@spotynet.com')
+SUPPORT_INBOX_EMAIL = os.environ.get('SUPPORT_INBOX_EMAIL', 'contacto@nabbi.app')
 
 # Email verification (registration step 3) — overridable via env
 EMAIL_VERIFICATION_CODE_LENGTH = int(os.environ.get('EMAIL_VERIFICATION_CODE_LENGTH', '6'))

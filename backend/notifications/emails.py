@@ -87,7 +87,7 @@ def send_reservation_confirmation_to_client(reservation):
         
         # Send email
         subject = f'Confirmación de Reserva - {reservation.service.name}'
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@be-u.ai')
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@nabbi.app')
         
         try:
             send_mail(
@@ -180,7 +180,7 @@ def send_reservation_notification_to_provider(reservation):
         
         # Send email
         subject = f'Nueva Reserva Confirmada - {reservation.service.name}'
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@be-u.ai')
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@nabbi.app')
         
         try:
             send_mail(
@@ -268,7 +268,7 @@ def send_reservation_change_email(
 
         html_message = render_to_string(template_name, context)
         plain_message = strip_tags(html_message)
-        from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@be-u.ai")
+        from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@nabbi.app")
 
         send_mail(
             subject=subject,

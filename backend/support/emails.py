@@ -20,7 +20,7 @@ THEME_LABELS = {
 
 
 def _from_email_display() -> str:
-    default_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@be-u.ai")
+    default_email = getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@nabbi.app")
     raw = str(default_email)
     if "<" in raw and ">" in raw:
         email_addr = raw[raw.index("<") + 1 : raw.index(">")]
