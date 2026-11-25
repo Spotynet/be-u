@@ -2,10 +2,13 @@
 
 import {Suspense, useEffect, useState} from "react";
 import {useRouter, useSearchParams} from "next/navigation";
-import {PageContainer} from "@/components/layout/PageContainer";
+import {PageHeaderRow, StackLayout} from "@/components/layout";
+import {Button} from "@/components/ui/Button";
+import {usePageHeader} from "@/components/shell/usePageHeader";
 import {calendarApi, getCalendarRedirectUri, errorUtils} from "@/lib/api";
 
 function CalendarCallbackInner() {
+  usePageHeader({title: "Google Calendar", pageOwnsTitle: true});
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +20,7 @@ function CalendarCallbackInner() {
       const oauthError = searchParams.get("error");
       if (oauthError) {
         router.replace(
-          `/google-calendar?error=${encodeURIComponent(oauthError)}`
+          `/google-calendar?error=${encodeURIComponent(oauthError)}`,
         );
         return;
       }
@@ -38,37 +41,35 @@ function CalendarCallbackInner() {
 
   if (error) {
     return (
-      <PageContainer size="sm">
-        <p style={{color: "#dc2626"}}>{error}</p>
-        <button
+      <StackLayout>
+        <PageHeaderRow title="Google Calendar" />
+        <p className="text-error">{error}</p>
+        <Button
           type="button"
-          onClick={() => router.replace("/google-calendar")}
-          style={{
-            marginTop: 12,
-            background: "#558367",
-            color: "white",
-            border: "none",
-            borderRadius: 12,
-            padding: "10px 14px",
-            fontWeight: 700,
-            cursor: "pointer",
-          }}>
+          variant="secondary"
+          onClick={() => router.replace("/google-calendar")}>
           Volver a Google Calendar
-        </button>
-      </PageContainer>
+        </Button>
+      </StackLayout>
     );
   }
 
   return (
-    <PageContainer size="sm">
-      <p style={{color: "#64748b"}}>Conectando Google Calendar…</p>
-    </PageContainer>
+    <StackLayout>
+      <PageHeaderRow title="Google Calendar" />
+      <p className="text-foreground-secondary">Conectando Google Calendar…</p>
+    </StackLayout>
   );
 }
 
 export default function CalendarCallbackPage() {
   return (
-    <Suspense fallback={<p style={{color: "#64748b"}}>Conectando…</p>}>
+    <Suspense
+      fallback={
+        <StackLayout>
+          <p className="text-foreground-secondary">Conectando…</p>
+        </StackLayout>
+      }>
       <CalendarCallbackInner />
     </Suspense>
   );

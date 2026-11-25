@@ -1,0 +1,402 @@
+"use client";
+
+import {useState, useEffect} from "react";
+import {CardHeader, PageHeaderRow, StackLayout} from "@/components/layout";
+import {Card, CardContent} from "@/components/ui/Card";
+import {usePageHeader} from "@/components/shell/usePageHeader";
+import {useAuth} from "@/features/auth/hooks/useAuth";
+import {publicProfileApi, serviceApi} from "@/lib/api";
+import {PublicProfile, Service, CreatePublicProfileData, CreateServiceData} from "@/types/api";
+import {PublicProfileForm} from "@/components/profile/PublicProfileForm";
+import {ServiceForm} from "@/components/profile/ServiceForm";
+import {ServiceList} from "@/components/profile/ServiceList";
+
+const tabLinkClass = (active: boolean) =>
+  [
+    "py-2 px-1 border-b-2 font-medium text-sm",
+    active
+      ? "border-primary text-primary"
+      : "border-transparent text-foreground-muted hover:text-foreground hover:border-card-border",
+  ].join(" ");
+
+export default function ProfilePage() {
+  usePageHeader({title: "Profile Management", pageOwnsTitle: true});
+  const {user, isAuthenticated} = useAuth();
+  const [publicProfile, setPublicProfile] = useState<PublicProfile | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"profile" | "services">("profile");
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadProfileData();
+    }
+  }, [isAuthenticated]);
+
+  const loadProfileData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Load public profile
+      try {
+        const profileResponse = await publicProfileApi.getMyProfile();
+        setPublicProfile(profileResponse.data);
+      } catch (err: any) {
+        if (err.status === 404) {
+          // User doesn't have a public profile yet
+          setPublicProfile(null);
+        } else {
+          throw err;
+        }
+      }
+
+      // Load services
+      try {
+        const servicesResponse = await serviceApi.getMyServices();
+        const raw = servicesResponse.data;
+        setServices(Array.isArray(raw) ? raw : (raw?.results ?? []));
+      } catch (err: any) {
+        console.error("Error loading services:", err);
+        setServices([]);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to load profile data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateProfile = async (data: CreatePublicProfileData) => {
+    try {
+      const response = await publicProfileApi.createPublicProfile(data);
+      setPublicProfile(response.data);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to create profile");
+      throw err;
+    }
+  };
+
+  const handleUpdateProfile = async (data: Partial<CreatePublicProfileData>) => {
+    if (!publicProfile) return;
+
+    try {
+      const response = await publicProfileApi.updatePublicProfile(publicProfile.id, data);
+      setPublicProfile(response.data);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to update profile");
+      throw err;
+    }
+  };
+
+  const handleCreateService = async (data: CreateServiceData) => {
+    try {
+      const response = await serviceApi.createService(data);
+      setServices((prev) => [...prev, response.data]);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to create service");
+      throw err;
+    }
+  };
+
+  const handleUpdateService = async (id: number, data: Partial<CreateServiceData>) => {
+    try {
+      const response = await serviceApi.updateService(id, data);
+      setServices((prev) => prev.map((service) => (service.id === id ? response.data : service)));
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to update service");
+      throw err;
+    }
+  };
+
+  const handleDeleteService = async (id: number) => {
+    try {
+      await serviceApi.deleteService(id);
+      setServices((prev) => prev.filter((service) => service.id !== id));
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to delete service");
+    }
+  };
+
+  const handleToggleServiceActive = async (id: number) => {
+    try {
+      const response = await serviceApi.toggleActive(id);
+      setServices((prev) =>
+        prev.map((service) =>
+          service.id === id ? {...service, is_active: response.data.is_active} : service
+        )
+      );
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to toggle service status");
+    }
+  };
+
+  return (
+    <StackLayout>
+      <PageHeaderRow
+        title="Profile Management"
+        description="Manage your public profile and services"
+      />
+
+      {loading ? (
+        <p className="text-foreground-secondary">Loading profile...</p>
+      ) : (
+        <>
+        {error ? (
+          <div className="rounded-lg border border-error/40 bg-error/10 p-4">
+            <p className="text-error">{error}</p>
+          </div>
+        ) : null}
+
+        <div className="border-b border-card-border">
+          <nav className="-mb-px flex gap-8">
+            <button
+              type="button"
+              onClick={() => setActiveTab("profile")}
+              className={tabLinkClass(activeTab === "profile")}>
+              Public Profile
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("services")}
+              className={tabLinkClass(activeTab === "services")}>
+              Services
+            </button>
+          </nav>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === "profile" && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+              <Card>
+                <div className="border-b border-card-border p-[var(--card-pad)]">
+                  <CardHeader
+                    title="Public Profile"
+                    description={
+                      publicProfile ? "Update your public profile" : "Create your public profile"
+                    }
+                  />
+                </div>
+                <CardContent>
+                  <PublicProfileForm
+                    profile={publicProfile}
+                    onSubmit={publicProfile ? handleUpdateProfile : handleCreateProfile}
+                    submitText={publicProfile ? "Update Profile" : "Create Profile"}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            {publicProfile && (
+              <div>
+                <Card>
+                  <div className="border-b border-card-border p-[var(--card-pad)]">
+                    <CardHeader title="Profile Preview" />
+                  </div>
+                  <CardContent>
+                    {/* Modern Header with Gradient Background */}
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-pink-50 via-white to-purple-50 p-6 shadow-lg shadow-pink-100/50 border border-pink-100">
+                      {/* Decorative Background Elements */}
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-pink-200/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                      <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-200/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+                      
+                      <div className="relative z-10">
+                        {/* Row 1: Avatar, Name, Role, Settings */}
+                        <div className="flex items-start gap-4 mb-6">
+                          {/* Enhanced Avatar with Decorative Ring */}
+                          <div className="relative flex-shrink-0">
+                            <div className="relative">
+                              {/* Decorative Ring */}
+                              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 p-0.5 animate-pulse"></div>
+                              {/* Avatar Container */}
+                              {publicProfile.user_image ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={publicProfile.user_image}
+                                  alt={publicProfile.name}
+                                  className="relative h-20 w-20 rounded-full object-cover shadow-lg shadow-pink-500/30 ring-4 ring-white"
+                                />
+                              ) : (
+                                <div className="relative h-20 w-20 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 text-white flex items-center justify-center font-bold text-2xl shadow-lg shadow-pink-500/30 ring-4 ring-white">
+                                  {(publicProfile.name || "U").charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              {/* Status Indicator */}
+                              <div className="absolute bottom-0 right-0 h-5 w-5 rounded-full bg-green-500 border-2 border-white shadow-sm"></div>
+                            </div>
+                          </div>
+
+                          {/* Name and Role Section */}
+                          <div className="flex-1 min-w-0 pt-1">
+                            <h3 className="text-2xl font-bold text-gray-900 mb-1 truncate">
+                              {publicProfile.name}
+                            </h3>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-pink-100 text-pink-700 border border-pink-200">
+                                {publicProfile.profile_type === "PLACE" ? "Salón" : "Profesional"}
+                              </span>
+                              {publicProfile.category && (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                                  {publicProfile.category}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Settings Icon - Repositioned */}
+                          <button 
+                            className="flex-shrink-0 p-2.5 rounded-xl hover:bg-white/60 text-gray-600 hover:text-gray-900 transition-all duration-200 hover:shadow-md mt-1" 
+                            aria-label="Settings">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                              <path d="M10.325 4.317a1 1 0 0 1 1.35-.436l.105.06 1.2.693a2 2 0 0 0 1.518.18l1.3-.372a1 1 0 0 1 1.24.69l.03.111.373 1.3a2 2 0 0 0 .88 1.152l1.2.694a1 1 0 0 1 .332 1.38l-.064.1-.693 1.2a2 2 0 0 0-.18 1.52l.372 1.299a1 1 0 0 1-.69 1.241l-.111.03-1.3.373a2 2 0 0 0-1.152.88l-.694 1.2a1 1 0 0 1-1.38.332l-.1-.064-1.2-.693a2 2 0 0 0-1.52-.18l-1.299.372a1 1 0 0 1-1.241-.69l-.03-.111-.373-1.3a2 2 0 0 0-.88-1.152l-1.2-.694a1 1 0 0 1-.332-1.38l.064-.1.693-1.2a2 2 0 0 0 .18-1.52l-.372-1.299a1 1 0 0 1 .69-1.241l.111-.03 1.3-.373a2 2 0 0 0 1.152-.88l.694-1.2ZM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
+                            </svg>
+                          </button>
+                        </div>
+
+                        {/* Row 2: Action Buttons */}
+                        <div className="flex items-center gap-3 flex-wrap">
+                          {/* Primary Action Button - Customize Profile */}
+                          <button className="group inline-flex items-center gap-2.5 bg-gradient-to-r from-pink-500 to-pink-600 text-white text-sm font-semibold px-5 py-3 rounded-xl hover:from-pink-600 hover:to-pink-700 transition-all duration-200 shadow-md shadow-pink-500/30 hover:shadow-lg hover:shadow-pink-500/40 hover:-translate-y-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-4 h-4 group-hover:rotate-12 transition-transform duration-200">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 7.125L16.875 4.5" />
+                            </svg>
+                            <span>Personalizar Perfil</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 group-hover:translate-y-0.5 transition-transform duration-200">
+                              <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+
+                          {/* Secondary Action Button - View as Client */}
+                          <button className="inline-flex items-center gap-2.5 bg-white text-pink-600 text-sm font-semibold px-5 py-3 rounded-xl border-2 border-pink-200 hover:border-pink-300 hover:bg-pink-50 transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5L19.5 6.75m0 0L15.75 3m3.75 3.75H8.25a4.5 4.5 0 00-4.5 4.5v6" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75L4.5 10.5m0 0L8.25 14.25M4.5 10.5h11.25a4.5 4.5 0 014.5 4.5v2.25" />
+                            </svg>
+                            <span>Ver como cliente</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Details */}
+                    <div className="mt-6 space-y-3">
+                      {publicProfile.description && (
+                        <p className="text-gray-700 text-sm">{publicProfile.description}</p>
+                      )}
+                      {publicProfile.bio && publicProfile.bio !== publicProfile.description && (
+                        <p className="text-gray-600 text-sm italic">{publicProfile.bio}</p>
+                      )}
+
+                      <div className="flex flex-wrap gap-x-6 gap-y-2 pt-1">
+                        {publicProfile.category && (
+                          <div>
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Categoría</span>
+                            <p className="text-sm text-gray-800 font-medium">{publicProfile.category}</p>
+                          </div>
+                        )}
+                        {publicProfile.city && (
+                          <div>
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ubicación</span>
+                            <p className="text-sm text-gray-800 font-medium">
+                              {publicProfile.city}{publicProfile.country ? `, ${publicProfile.country}` : ""}
+                            </p>
+                          </div>
+                        )}
+                        {publicProfile.rating > 0 && (
+                          <div>
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Rating</span>
+                            <p className="text-sm text-gray-800 font-medium">{publicProfile.rating.toFixed(1)} / 5.0</p>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Servicios</span>
+                          <p className="text-sm text-gray-800 font-medium">{services.length} registrados</p>
+                        </div>
+                      </div>
+
+                      {/* Profile images gallery */}
+                      {publicProfile.images && publicProfile.images.length > 0 && (
+                        <div className="pt-2">
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Fotos del perfil</span>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {publicProfile.images.map((url, i) => (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                key={i}
+                                src={url}
+                                alt={`Foto ${i + 1}`}
+                                className="w-16 h-16 object-cover rounded-lg border border-pink-100 shadow-sm"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* sub_categories */}
+                      {publicProfile.sub_categories && publicProfile.sub_categories.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {publicProfile.sub_categories.map((sc, i) => (
+                            <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-100">
+                              {sc}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "services" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-1">
+              <Card>
+                <div className="border-b border-card-border p-[var(--card-pad)]">
+                  <CardHeader
+                    title="Add New Service"
+                    description="Create a new service offering"
+                  />
+                </div>
+                <CardContent>
+                  <ServiceForm onSubmit={handleCreateService} submitText="Create Service" />
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="lg:col-span-2">
+              <Card>
+                <div className="border-b border-card-border p-[var(--card-pad)]">
+                  <CardHeader
+                    title="My Services"
+                    description="Manage your service offerings"
+                  />
+                </div>
+                <CardContent>
+                  <ServiceList
+                    services={services}
+                    onUpdate={handleUpdateService}
+                    onDelete={handleDeleteService}
+                    onToggleActive={handleToggleServiceActive}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+        </>
+      )}
+    </StackLayout>
+  );
+}

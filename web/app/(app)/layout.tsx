@@ -1,25 +1,22 @@
-"use client";
+import {cookies} from "next/headers";
+import {
+  SIDEBAR_COOKIE,
+  parseSidebarCookieValue,
+} from "@/components/shell/shell-config";
+import {AppLayoutClient} from "./AppLayoutClient";
 
-import {usePathname} from "next/navigation";
-import {ProtectedRoute} from "@/components/layout/ProtectedRoute";
-import {AppShell} from "@/components/layout/AppShell";
-
-/** Browse-only surfaces guests can open without an account. */
-const PUBLIC_APP_PATHS = ["/feed", "/explore"];
-
-function isPublicAppPath(pathname: string): boolean {
-  return PUBLIC_APP_PATHS.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`)
-  );
-}
-
-export default function AppLayout({children}: {children: React.ReactNode}) {
-  const pathname = usePathname() || "";
-  const requireAuth = !isPublicAppPath(pathname);
+export default async function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const jar = await cookies();
+  const raw = jar.get(SIDEBAR_COOKIE)?.value;
+  const initialSidebarPinned = parseSidebarCookieValue(raw);
 
   return (
-    <ProtectedRoute requireAuth={requireAuth}>
-      <AppShell>{children}</AppShell>
-    </ProtectedRoute>
+    <AppLayoutClient initialSidebarPinned={initialSidebarPinned}>
+      {children}
+    </AppLayoutClient>
   );
 }

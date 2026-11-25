@@ -1,16 +1,26 @@
 "use client";
 
-import {PageContainer} from "@/components/layout/PageContainer";
-
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import Link from "next/link";
 import {useRouter} from "next/navigation";
+import {BellIcon} from "@heroicons/react/24/outline";
+import {
+  CardHeader,
+  PageHeaderRow,
+  StackLayout,
+  ToolbarListCard,
+} from "@/components/layout";
+import {Button} from "@/components/ui/Button";
+import {usePageHeader} from "@/components/shell/usePageHeader";
+import {useNotifications} from "@/features/notifications";
 import {notificationApi, linkApi, errorUtils} from "@/lib/api";
 
-const INK = "#12211A";
-const MAIN = "#558367";
-
-function deepLink(n: any): string | null {
+function deepLink(n: {
+  data?: Record<string, unknown>;
+  payload?: Record<string, unknown>;
+  type?: string;
+  notification_type?: string;
+}): string | null {
   const data = n.data || n.payload || {};
   const type = String(n.type || n.notification_type || "").toLowerCase();
   if (data.reservation_id || data.reservationId) {
@@ -29,9 +39,33 @@ function deepLink(n: any): string | null {
   return null;
 }
 
+type Notif = {
+  id: number;
+  title?: string;
+  subject?: string;
+  message?: string;
+  body?: string;
+  content?: string;
+  created_at?: string;
+  timestamp?: string;
+  status?: string;
+  is_read?: boolean;
+  read?: boolean;
+  type?: string;
+  notification_type?: string;
+  data?: Record<string, unknown>;
+  payload?: Record<string, unknown>;
+};
+
 export default function NotificationsPage() {
+  usePageHeader({title: "Notificaciones", pageOwnsTitle: true});
   const router = useRouter();
-  const [items, setItems] = useState<any[]>([]);
+  const {
+    markRead: markReadShared,
+    markAllRead,
+    refreshCount,
+  } = useNotifications();
+  const [items, setItems] = useState<Notif[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -44,12 +78,13 @@ export default function NotificationsPage() {
         ...(unreadOnly ? {status: "unread"} : {}),
       });
       setItems(res.data?.results || []);
+      await refreshCount();
     } catch (err) {
       setMessage(errorUtils.getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }, [unreadOnly]);
+  }, [unreadOnly, refreshCount]);
 
   useEffect(() => {
     load();
@@ -57,11 +92,11 @@ export default function NotificationsPage() {
 
   const markRead = async (id: number) => {
     try {
-      await notificationApi.markAsRead(id);
+      await markReadShared(id);
       setItems((prev) =>
         prev.map((n) =>
-          n.id === id ? {...n, status: "read", is_read: true, read: true} : n
-        )
+          n.id === id ? {...n, status: "read", is_read: true, read: true} : n,
+        ),
       );
     } catch {
       /* ignore */
@@ -70,14 +105,14 @@ export default function NotificationsPage() {
 
   const markAll = async () => {
     try {
-      await notificationApi.markAllAsRead();
+      await markAllRead();
       await load();
     } catch (err) {
       setMessage(errorUtils.getErrorMessage(err));
     }
   };
 
-  const handleOpen = async (n: any) => {
+  const handleOpen = async (n: Notif) => {
     if (!n.is_read && n.status !== "read" && !n.read) {
       await markRead(n.id);
     }
@@ -85,7 +120,7 @@ export default function NotificationsPage() {
     if (href) router.push(href);
   };
 
-  const handleInvite = async (n: any, action: "accept" | "reject") => {
+  const handleInvite = async (n: Notif, action: "accept" | "reject") => {
     const data = n.data || n.payload || {};
     const linkId = Number(data.link_id || data.linkId);
     if (!linkId) {
@@ -97,7 +132,9 @@ export default function NotificationsPage() {
       if (action === "accept") await linkApi.acceptInvite(linkId);
       else await linkApi.rejectInvite(linkId);
       await markRead(n.id);
-      setMessage(action === "accept" ? "Invitación aceptada." : "Invitación rechazada.");
+      setMessage(
+        action === "accept" ? "Invitación aceptada." : "Invitación rechazada.",
+      );
       await load();
     } catch (err) {
       setMessage(errorUtils.getErrorMessage(err));
@@ -106,7 +143,7 @@ export default function NotificationsPage() {
     }
   };
 
-  const isInvite = (n: any) => {
+  const isInvite = (n: Notif) => {
     const type = String(n.type || n.notification_type || "").toLowerCase();
     const data = n.data || n.payload || {};
     return (
@@ -116,141 +153,143 @@ export default function NotificationsPage() {
     );
   };
 
-  const isUnread = (n: any) =>
+  const isUnread = (n: Notif) =>
     !(n.is_read || n.read || n.status === "read" || n.status === "READ");
 
-  return (
-    <PageContainer size="lg">
-      <div className="nabbi-stack-row" style={{justifyContent: "space-between", alignItems: "flex-start"}}>
-        <div style={{flex: "1 1 200px", minWidth: 0}}>
-          <h1 className="nabbi-page-title">Notificaciones</h1>
-          <p className="nabbi-page-sub" style={{marginBottom: 0}}>
-            Inbox en la app (sin Web Push).
-          </p>
-        </div>
-        <div className="nabbi-stack-row">
-          <Link href="/notification-preferences" style={linkBtn}>
-            Preferencias
-          </Link>
-          <button type="button" onClick={markAll} style={outlineBtn}>
-            Marcar todas
+  const activeFilters = unreadOnly ? 1 : 0;
+
+  const chips = useMemo(
+    () => (
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filtro">
+        {(
+          [
+            [false, "Todas"],
+            [true, "No leídas"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={label}
+            type="button"
+            role="tab"
+            aria-selected={unreadOnly === value}
+            onClick={() => setUnreadOnly(value)}
+            className={[
+              "rounded-full border px-3 py-1.5 text-[12px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary",
+              unreadOnly === value
+                ? "border-transparent bg-primary-light text-primary-dark"
+                : "border-card-border bg-card text-foreground-secondary hover:text-foreground",
+            ].join(" ")}>
+            {label}
           </button>
-        </div>
+        ))}
       </div>
+    ),
+    [unreadOnly],
+  );
 
-      <label style={{display: "flex", alignItems: "center", gap: 8, margin: "16px 0", fontSize: 14}}>
-        <input
-          type="checkbox"
-          checked={unreadOnly}
-          onChange={(e) => setUnreadOnly(e.target.checked)}
-        />
-        Solo no leídas
-      </label>
+  return (
+    <StackLayout>
+      <PageHeaderRow
+        title="Notificaciones"
+        description="Inbox en la app (sin Web Push)."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/notification-preferences"
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-transparent px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-background-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              Configuración
+            </Link>
+            <Button type="button" variant="outline" size="sm" onClick={markAll}>
+              Marcar todas
+            </Button>
+          </div>
+        }
+      />
 
-      {message && (
-        <div style={{marginBottom: 12, padding: 12, borderRadius: 12, background: "#ecfdf5", color: "#047857", fontSize: 14}}>
-          {message}
-        </div>
-      )}
+      <ToolbarListCard
+        toolbar={
+          <CardHeader
+            title="Bandeja"
+            description={
+              unreadOnly ? "Solo no leídas" : "Todas las notificaciones"
+            }
+            icon={BellIcon}
+            actions={
+              activeFilters > 0 ? (
+                <span className="inline-flex min-h-10 items-center rounded-full border border-card-border bg-background px-3 text-[12px] font-bold tabular-nums text-foreground-secondary">
+                  Filtros · {activeFilters}
+                </span>
+              ) : null
+            }
+          />
+        }
+        chips={chips}>
+        {message ? (
+          <div className="mb-3 rounded-[var(--control-radius)] border border-success/30 bg-success/10 px-3 py-2.5 text-[14px] text-success">
+            {message}
+          </div>
+        ) : null}
 
-      {loading ? (
-        <p style={{color: "#64748b"}}>Cargando…</p>
-      ) : items.length === 0 ? (
-        <p style={{color: "#64748b"}}>No hay notificaciones.</p>
-      ) : (
-        <ul style={{listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8}}>
-          {items.map((n) => {
-            const unread = isUnread(n);
-            const invite = isInvite(n);
-            return (
-              <li
-                key={n.id}
-                style={{
-                  background: unread ? "rgba(85,131,103,0.08)" : "white",
-                  border: "1px solid rgba(18,33,26,0.08)",
-                  borderRadius: 14,
-                  padding: 14,
-                }}>
-                <button
-                  type="button"
-                  onClick={() => handleOpen(n)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    textAlign: "left",
-                    width: "100%",
-                    cursor: "pointer",
-                  }}>
-                  <div style={{fontWeight: 800, color: INK, fontSize: 15}}>
-                    {n.title || n.subject || "Notificación"}
-                  </div>
-                  <div style={{fontSize: 13, color: "#64748b", marginTop: 4}}>
-                    {n.message || n.body || n.content || ""}
-                  </div>
-                  {(n.created_at || n.timestamp) && (
-                    <div style={{fontSize: 11, color: "#94a3b8", marginTop: 6}}>
-                      {new Date(n.created_at || n.timestamp).toLocaleString("es-MX")}
+        {loading ? (
+          <p className="text-foreground-secondary">Cargando…</p>
+        ) : items.length === 0 ? (
+          <p className="text-foreground-secondary">No hay notificaciones.</p>
+        ) : (
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {items.map((n) => {
+              const unread = isUnread(n);
+              const invite = isInvite(n);
+              return (
+                <li
+                  key={n.id}
+                  className={[
+                    "rounded-[var(--tile-radius)] border border-card-border p-3.5",
+                    unread ? "bg-primary/10" : "bg-card",
+                  ].join(" ")}>
+                  <button
+                    type="button"
+                    onClick={() => handleOpen(n)}
+                    className="w-full cursor-pointer border-0 bg-transparent p-0 text-left">
+                    <div className="text-[15px] font-extrabold text-foreground">
+                      {n.title || n.subject || "Notificación"}
                     </div>
-                  )}
-                </button>
-                {invite && unread && (
-                  <div style={{display: "flex", gap: 8, marginTop: 10}}>
-                    <button
-                      type="button"
-                      disabled={busyId === n.id}
-                      onClick={() => handleInvite(n, "accept")}
-                      style={primaryBtn}>
-                      Aceptar
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busyId === n.id}
-                      onClick={() => handleInvite(n, "reject")}
-                      style={{...outlineBtn, color: "#dc2626"}}>
-                      Rechazar
-                    </button>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </PageContainer>
+                    <div className="mt-1 text-[13px] text-foreground-secondary">
+                      {n.message || n.body || n.content || ""}
+                    </div>
+                    {n.created_at || n.timestamp ? (
+                      <div className="mt-1.5 text-[11px] text-foreground-secondary">
+                        {new Date(
+                          n.created_at || n.timestamp || "",
+                        ).toLocaleString("es-MX")}
+                      </div>
+                    ) : null}
+                  </button>
+                  {invite && unread ? (
+                    <div className="mt-2.5 flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={busyId === n.id}
+                        onClick={() => handleInvite(n, "accept")}>
+                        Aceptar
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={busyId === n.id}
+                        onClick={() => handleInvite(n, "reject")}>
+                        Rechazar
+                      </Button>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </ToolbarListCard>
+    </StackLayout>
   );
 }
-
-const linkBtn: React.CSSProperties = {
-  display: "inline-block",
-  padding: "8px 12px",
-  borderRadius: 10,
-  background: "white",
-  border: "1px solid rgba(18,33,26,0.12)",
-  textDecoration: "none",
-  color: INK,
-  fontWeight: 700,
-  fontSize: 13,
-};
-
-const outlineBtn: React.CSSProperties = {
-  padding: "8px 12px",
-  borderRadius: 10,
-  background: "white",
-  border: "1px solid rgba(18,33,26,0.12)",
-  color: INK,
-  fontWeight: 700,
-  fontSize: 13,
-  cursor: "pointer",
-};
-
-const primaryBtn: React.CSSProperties = {
-  background: MAIN,
-  color: "white",
-  border: "none",
-  borderRadius: 10,
-  padding: "8px 12px",
-  fontWeight: 700,
-  fontSize: 13,
-  cursor: "pointer",
-};

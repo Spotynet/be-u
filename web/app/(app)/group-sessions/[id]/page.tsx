@@ -1,10 +1,21 @@
 "use client";
 
-import {PageContainer} from "@/components/layout/PageContainer";
-
 import {useCallback, useEffect, useState} from "react";
 import Link from "next/link";
 import {useParams, useRouter} from "next/navigation";
+import {
+  CalendarDaysIcon,
+  PencilSquareIcon,
+  UserGroupIcon,
+  UsersIcon,
+} from "@heroicons/react/24/outline";
+import {
+  CardHeader,
+  PageHeaderRow,
+  StackLayout,
+} from "@/components/layout";
+import {Button} from "@/components/ui/Button";
+import {usePageHeader} from "@/components/shell/usePageHeader";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {isProviderRole} from "@/lib/roles";
 import {
@@ -13,8 +24,16 @@ import {
   errorUtils,
 } from "@/lib/api";
 
-const INK = "#12211A";
-const MAIN = "#558367";
+const fieldClass =
+  "w-full rounded-[var(--control-radius)] border border-card-border bg-background px-3 py-2.5 text-[14px] font-medium text-foreground";
+
+const sessionsBackLink = (
+  <Link
+    href="/group-sessions"
+    className="text-[13px] font-bold text-primary hover:underline">
+    ← Sesiones
+  </Link>
+);
 
 export default function GroupSessionDetailPage() {
   const params = useParams();
@@ -28,8 +47,15 @@ export default function GroupSessionDetailPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notes, setNotes] = useState("");
-  const [message, setMessage] = useState<{type: "ok" | "err"; text: string} | null>(null);
+  const [message, setMessage] = useState<{type: "ok" | "err"; text: string} | null>(
+    null,
+  );
   const [edit, setEdit] = useState({date: "", time: "", capacity: 1, notes: ""});
+
+  const pageTitle =
+    session?.service_name || session?.service?.name || "Sesión grupal";
+
+  usePageHeader({title: pageTitle, pageOwnsTitle: true});
 
   const load = useCallback(async () => {
     if (!id || Number.isNaN(id)) {
@@ -115,15 +141,21 @@ export default function GroupSessionDetailPage() {
     }
   };
 
-  if (loading) return <p style={{color: "#64748b"}}>Cargando…</p>;
+  if (loading) {
+    return (
+      <StackLayout>
+        <PageHeaderRow title="Sesión grupal" meta={sessionsBackLink} />
+        <p className="text-foreground-secondary">Cargando…</p>
+      </StackLayout>
+    );
+  }
+
   if (!session) {
     return (
-      <div>
-        <p style={{color: "#dc2626"}}>{message?.text || "Sesión no encontrada."}</p>
-        <Link href="/group-sessions" style={{color: MAIN, fontWeight: 700}}>
-          ← Volver
-        </Link>
-      </div>
+      <StackLayout>
+        <PageHeaderRow title="Sesión grupal" meta={sessionsBackLink} />
+        <p className="text-error">{message?.text || "Sesión no encontrada."}</p>
+      </StackLayout>
     );
   }
 
@@ -132,164 +164,150 @@ export default function GroupSessionDetailPage() {
       ? Math.max(0, session.capacity - session.spots_taken)
       : null;
 
-  return (
-    <PageContainer size="md">
-      <Link href="/group-sessions" style={{color: MAIN, fontWeight: 700, textDecoration: "none", fontSize: 14}}>
-        ← Sesiones
-      </Link>
-      <h1 className="nabbi-page-title" style={{marginTop: 12}}>
-        {session.service_name || session.service?.name || "Sesión grupal"}
-      </h1>
-      <p className="nabbi-page-sub">
-        {session.date} · {String(session.time || "").slice(0, 5)}
-        {session.capacity != null ? ` · cupo ${session.spots_taken ?? 0}/${session.capacity}` : ""}
-        {session.status ? ` · ${session.status}` : ""}
-      </p>
+  const subtitleParts = [
+    session.date,
+    String(session.time || "").slice(0, 5),
+    session.capacity != null
+      ? `cupo ${session.spots_taken ?? 0}/${session.capacity}`
+      : null,
+    session.status || null,
+  ].filter(Boolean);
 
-      {message && (
+  return (
+    <StackLayout>
+      <PageHeaderRow
+        title={pageTitle}
+        description={subtitleParts.join(" · ")}
+        meta={sessionsBackLink}
+      />
+
+      {message ? (
         <div
-          style={{
-            marginBottom: 12,
-            padding: 12,
-            borderRadius: 12,
-            background: message.type === "ok" ? "#ecfdf5" : "#fef2f2",
-            border: `1px solid ${message.type === "ok" ? "#6ee7b7" : "#fca5a5"}`,
-            color: message.type === "ok" ? "#047857" : "#dc2626",
-            fontSize: 14,
-          }}>
+          className={[
+            "rounded-[var(--control-radius)] border px-3 py-2.5 text-[14px]",
+            message.type === "ok"
+              ? "border-success/30 bg-success/10 text-success"
+              : "border-error/40 bg-error/10 text-error",
+          ].join(" ")}>
           {message.text}
         </div>
-      )}
+      ) : null}
 
-      {session.notes && (
-        <p style={{background: "white", borderRadius: 12, padding: 14, border: "1px solid rgba(18,33,26,0.08)"}}>
-          {session.notes}
-        </p>
-      )}
+      {session.notes ? (
+        <section className="rounded-[var(--card-radius)] border border-card-border bg-card p-[var(--card-pad)] shadow-card">
+          <CardHeader title="Notas" icon={CalendarDaysIcon} />
+          <p className="mt-4 mb-0 text-[14px] leading-relaxed text-foreground">
+            {session.notes}
+          </p>
+        </section>
+      ) : null}
 
       {provider ? (
         <>
-          <form
-            onSubmit={handleUpdate}
-            style={{
-              marginTop: 20,
-              background: "white",
-              borderRadius: 16,
-              border: "1px solid rgba(18,33,26,0.08)",
-              padding: 16,
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-            }}>
-            <div style={{fontWeight: 800}}>Editar</div>
-            <input type="date" value={edit.date} onChange={(e) => setEdit({...edit, date: e.target.value})} style={inputStyle} />
-            <input type="time" value={edit.time} onChange={(e) => setEdit({...edit, time: e.target.value})} style={inputStyle} />
-            <input
-              type="number"
-              min={1}
-              value={edit.capacity}
-              onChange={(e) => setEdit({...edit, capacity: Number(e.target.value) || 1})}
-              style={inputStyle}
-            />
-            <textarea
-              value={edit.notes}
-              onChange={(e) => setEdit({...edit, notes: e.target.value})}
-              rows={3}
-              style={{...inputStyle, resize: "vertical"}}
-              placeholder="Notas"
-            />
-            <button type="submit" disabled={busy} style={primaryBtn}>
-              Guardar cambios
-            </button>
-            <button type="button" onClick={handleDelete} disabled={busy} style={dangerBtn}>
-              Eliminar sesión
-            </button>
-          </form>
+          <section className="rounded-[var(--card-radius)] border border-card-border bg-card p-[var(--card-pad)] shadow-card">
+            <CardHeader title="Editar" icon={PencilSquareIcon} />
+            <form
+              onSubmit={handleUpdate}
+              className="mt-4 flex flex-col gap-2.5">
+              <input
+                type="date"
+                value={edit.date}
+                onChange={(e) => setEdit({...edit, date: e.target.value})}
+                className={fieldClass}
+              />
+              <input
+                type="time"
+                value={edit.time}
+                onChange={(e) => setEdit({...edit, time: e.target.value})}
+                className={fieldClass}
+              />
+              <input
+                type="number"
+                min={1}
+                value={edit.capacity}
+                onChange={(e) =>
+                  setEdit({...edit, capacity: Number(e.target.value) || 1})
+                }
+                className={fieldClass}
+              />
+              <textarea
+                value={edit.notes}
+                onChange={(e) => setEdit({...edit, notes: e.target.value})}
+                rows={3}
+                className={[fieldClass, "resize-y"].join(" ")}
+                placeholder="Notas"
+              />
+              <Button type="submit" variant="secondary" disabled={busy}>
+                Guardar cambios
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={handleDelete}
+                className="border-error/40 text-error">
+                Eliminar sesión
+              </Button>
+            </form>
+          </section>
 
-          <h2 style={{marginTop: 28, fontSize: 18, fontWeight: 800, color: INK}}>
-            Participantes ({participants.length})
-          </h2>
-          {participants.length === 0 ? (
-            <p style={{color: "#64748b"}}>Aún no hay inscritos.</p>
-          ) : (
-            <ul style={{listStyle: "none", padding: 0}}>
-              {participants.map((p) => (
-                <li
-                  key={p.id}
-                  style={{
-                    background: "white",
-                    border: "1px solid rgba(18,33,26,0.08)",
-                    borderRadius: 12,
-                    padding: 12,
-                    marginBottom: 8,
-                  }}>
-                  <div style={{fontWeight: 700}}>{p.client_name || "Cliente"}</div>
-                  <div style={{fontSize: 13, color: "#64748b"}}>
-                    {p.client_email} · {p.status}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          <section className="rounded-[var(--card-radius)] border border-card-border bg-card p-[var(--card-pad)] shadow-card">
+            <CardHeader
+              title={`Participantes (${participants.length})`}
+              icon={UsersIcon}
+            />
+            {participants.length === 0 ? (
+              <p className="mt-4 text-foreground-secondary">Aún no hay inscritos.</p>
+            ) : (
+              <ul className="m-0 mt-4 list-none p-0">
+                {participants.map((p) => (
+                  <li
+                    key={p.id}
+                    className="mb-2 rounded-[var(--control-radius)] border border-card-border bg-background p-3 last:mb-0">
+                    <div className="font-bold text-foreground">
+                      {p.client_name || "Cliente"}
+                    </div>
+                    <div className="text-[13px] text-foreground-secondary">
+                      {p.client_email} · {p.status}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </>
       ) : (
-        <div
-          style={{
-            marginTop: 20,
-            background: "white",
-            borderRadius: 16,
-            border: "1px solid rgba(18,33,26,0.08)",
-            padding: 16,
-          }}>
-          <div style={{fontWeight: 800, marginBottom: 8}}>Reservar lugar</div>
-          {spotsLeft === 0 ? (
-            <p style={{color: "#64748b"}}>Sin lugares disponibles.</p>
-          ) : (
-            <>
-              {spotsLeft != null && (
-                <p style={{color: "#64748b", fontSize: 14}}>{spotsLeft} lugares libres</p>
-              )}
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={2}
-                placeholder="Notas (opcional)"
-                style={{...inputStyle, width: "100%", marginBottom: 10, resize: "vertical"}}
-              />
-              <button type="button" onClick={handleReserve} disabled={busy} style={primaryBtn}>
-                {busy ? "Reservando…" : "Reservar"}
-              </button>
-            </>
-          )}
-        </div>
+        <section className="rounded-[var(--card-radius)] border border-card-border bg-card p-[var(--card-pad)] shadow-card">
+          <CardHeader title="Reservar lugar" icon={UserGroupIcon} />
+          <div className="mt-4">
+            {spotsLeft === 0 ? (
+              <p className="text-foreground-secondary">Sin lugares disponibles.</p>
+            ) : (
+              <>
+                {spotsLeft != null ? (
+                  <p className="text-[14px] text-foreground-secondary">
+                    {spotsLeft} lugares libres
+                  </p>
+                ) : null}
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  placeholder="Notas (opcional)"
+                  className={[fieldClass, "mb-2.5 resize-y"].join(" ")}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleReserve}
+                  disabled={busy}>
+                  {busy ? "Reservando…" : "Reservar"}
+                </Button>
+              </>
+            )}
+          </div>
+        </section>
       )}
-    </PageContainer>
+    </StackLayout>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  border: "1px solid rgba(18,33,26,0.15)",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: 14,
-};
-
-const primaryBtn: React.CSSProperties = {
-  background: MAIN,
-  color: "white",
-  border: "none",
-  borderRadius: 12,
-  padding: "12px 16px",
-  fontWeight: 800,
-  cursor: "pointer",
-};
-
-const dangerBtn: React.CSSProperties = {
-  background: "transparent",
-  color: "#dc2626",
-  border: "1px solid #fca5a5",
-  borderRadius: 12,
-  padding: "12px 16px",
-  fontWeight: 700,
-  cursor: "pointer",
-};

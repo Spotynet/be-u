@@ -1,21 +1,32 @@
 "use client";
 
-import {PageContainer} from "@/components/layout/PageContainer";
-
 import {useCallback, useEffect, useState} from "react";
 import {useRouter} from "next/navigation";
+import {StarIcon} from "@heroicons/react/24/outline";
+import {
+  CardHeader,
+  PageHeaderRow,
+  StackLayout,
+} from "@/components/layout";
+import {usePageHeader} from "@/components/shell/usePageHeader";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {isProviderRole} from "@/lib/roles";
 import {publicProfileApi, reviewApi, errorUtils} from "@/lib/api";
 
-const INK = "#12211A";
-const DARK = "#1F3328";
-const MAIN = "#558367";
-
 export default function MisResenasPage() {
+  usePageHeader({title: "Mis reseñas", pageOwnsTitle: true});
   const {user, isInitializing} = useAuth();
   const router = useRouter();
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<
+    Array<{
+      id: number;
+      rating?: number;
+      from_user_name?: string;
+      author_name?: string;
+      message?: string;
+      comment?: string;
+    }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<number | null>(null);
@@ -58,61 +69,52 @@ export default function MisResenasPage() {
       : 0;
 
   return (
-    <PageContainer size="md">
-      <h1 className="nabbi-page-title">Mis reseñas</h1>
-      <p className="nabbi-page-sub">
-        Lo que dicen tus clientes{profileId ? ` · perfil #${profileId}` : ""}.
-      </p>
+    <StackLayout>
+      <PageHeaderRow
+        title="Mis reseñas"
+        description={`Lo que dicen tus clientes${profileId ? ` · perfil #${profileId}` : ""}.`}
+      />
 
-      {!loading && reviews.length > 0 && (
-        <div
-          style={{
-            background: "white",
-            borderRadius: 14,
-            border: "1px solid rgba(18,33,26,0.08)",
-            padding: 16,
-            marginBottom: 16,
-            fontWeight: 800,
-            color: INK,
-          }}>
-          Promedio {avg.toFixed(1)}★ · {reviews.length} reseña{reviews.length === 1 ? "" : "s"}
-        </div>
-      )}
+      {!loading && reviews.length > 0 ? (
+        <section className="rounded-[var(--card-radius)] border border-card-border bg-card p-[var(--card-pad)] shadow-card">
+          <CardHeader
+            title={`Promedio ${avg.toFixed(1)} · ${reviews.length} reseña${reviews.length === 1 ? "" : "s"}`}
+            icon={StarIcon}
+          />
+        </section>
+      ) : null}
 
-      {loading && <p style={{color: "#64748b"}}>Cargando…</p>}
-      {error && (
-        <div style={{background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, padding: 12, color: "#dc2626"}}>
+      {loading ? (
+        <p className="text-foreground-secondary">Cargando…</p>
+      ) : null}
+      {error ? (
+        <div className="rounded-[var(--control-radius)] border border-error/40 bg-error/10 px-3 py-2.5 text-error">
           {error}
         </div>
-      )}
-      {!loading && !error && reviews.length === 0 && (
-        <p style={{color: "#64748b"}}>Todavía no tienes reseñas.</p>
-      )}
+      ) : null}
+      {!loading && !error && reviews.length === 0 ? (
+        <p className="text-foreground-secondary">Todavía no tienes reseñas.</p>
+      ) : null}
 
-      <div style={{display: "flex", flexDirection: "column", gap: 10}}>
+      <div className="flex flex-col gap-2.5">
         {reviews.map((r) => (
-          <div
+          <article
             key={r.id}
-            style={{
-              background: "white",
-              borderRadius: 14,
-              border: "1px solid rgba(18,33,26,0.08)",
-              padding: 16,
-            }}>
-            <div style={{fontWeight: 800, color: MAIN}}>
+            className="rounded-[var(--card-radius)] border border-card-border bg-card p-[var(--card-pad)] shadow-card">
+            <div className="font-extrabold text-primary">
               {"★".repeat(Math.round(Number(r.rating) || 0))}
             </div>
-            <div style={{fontSize: 13, color: "#64748b", marginTop: 4, fontWeight: 600}}>
+            <div className="mt-1 text-[13px] font-semibold text-foreground-secondary">
               {r.from_user_name || r.author_name || "Cliente"}
             </div>
-            {(r.message || r.comment) && (
-              <p style={{margin: "8px 0 0", color: DARK, fontSize: 14, lineHeight: 1.5}}>
+            {r.message || r.comment ? (
+              <p className="mt-2 mb-0 text-[14px] leading-relaxed text-foreground">
                 {r.message || r.comment}
               </p>
-            )}
-          </div>
+            ) : null}
+          </article>
         ))}
       </div>
-    </PageContainer>
+    </StackLayout>
   );
 }

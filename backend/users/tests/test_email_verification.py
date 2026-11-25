@@ -62,6 +62,7 @@ class EmailVerificationAPITests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertTrue(res.data["verificationRequired"])
         self.assertFalse(res.data["emailVerified"])
+        self.assertTrue(res.data.get("emailSent"))
         self.assertNotIn("access", res.data)
         self.assertNotIn("refresh", res.data)
         user = User.objects.get(email="nuevo@example.com")
@@ -69,6 +70,21 @@ class EmailVerificationAPITests(APITestCase):
         self.assertEqual(len(mail.outbox), 1)
         code = self._code_from_outbox()
         self.assertEqual(len(code), 6)
+
+    def test_register_rejects_invalid_email(self):
+        res = self.client.post(
+            "/api/auth/register/",
+            {
+                "email": "not-an-email",
+                "username": "badmail",
+                "firstName": "Bad",
+                "role": "client",
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.filter(username="badmail").exists())
+        self.assertEqual(len(mail.outbox), 0)
 
     def test_verify_success_sets_verified_and_returns_tokens(self):
         self._register()

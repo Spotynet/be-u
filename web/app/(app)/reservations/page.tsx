@@ -2,29 +2,35 @@
 
 import {useCallback, useEffect, useMemo, useState} from "react";
 import Link from "next/link";
-import {SectionHeader} from "@/components/marketplace";
+import {CalendarDaysIcon} from "@heroicons/react/24/outline";
+import {
+  CardHeader,
+  PageHeaderRow,
+  StackLayout,
+  ToolbarListCard,
+} from "@/components/layout";
+import {usePageHeader} from "@/components/shell/usePageHeader";
+import {
+  ReservationRow,
+  RESERVATION_STATUS_CONFIG,
+  reservationMonthLabel,
+  type ReservationRowData,
+} from "@/components/reservations";
 import {reservationApi, errorUtils} from "@/lib/api";
 
 const STATUS_FILTERS = [
   {id: "", label: "Todos"},
-  {id: "PENDING", label: "Pendiente"},
-  {id: "CONFIRMED", label: "Confirmada"},
-  {id: "CANCELLED", label: "Cancelada"},
-  {id: "COMPLETED", label: "Completada"},
+  {id: "PENDING", label: RESERVATION_STATUS_CONFIG.PENDING.label},
+  {id: "CONFIRMED", label: RESERVATION_STATUS_CONFIG.CONFIRMED.label},
+  {id: "CANCELLED", label: RESERVATION_STATUS_CONFIG.CANCELLED.label},
+  {id: "COMPLETED", label: RESERVATION_STATUS_CONFIG.COMPLETED.label},
 ] as const;
 
-function statusTone(status?: string): string {
-  const s = (status || "").toUpperCase();
-  if (s === "CONFIRMED" || s === "COMPLETED") return "text-emerald-700 bg-emerald-50";
-  if (s === "PENDING") return "text-amber-700 bg-amber-50";
-  if (s === "CANCELLED") return "text-rose-700 bg-rose-50";
-  return "text-primary bg-primary-light";
-}
-
 export default function ReservationsPage() {
+  usePageHeader({title: "Mis reservas"});
   const [filter, setFilter] = useState<"upcoming" | "past">("upcoming");
   const [status, setStatus] = useState("");
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<ReservationRowData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,93 +55,132 @@ export default function ReservationsPage() {
   const visible = useMemo(() => {
     if (!status) return items;
     return items.filter(
-      (r) => (r.status || "").toUpperCase() === status.toUpperCase()
+      (r) => (r.status || "").toUpperCase() === status.toUpperCase(),
     );
   }, [items, status]);
 
+  const multiMonth =
+    visible.length > 1 &&
+    reservationMonthLabel(visible[0].date) !==
+      reservationMonthLabel(visible[visible.length - 1].date);
+
+  const activeFilters = Number(Boolean(status)) + 1;
+
   return (
-    <div className="nabbi-page mx-auto w-full max-w-[960px]">
-      <SectionHeader title="Mis reservas" />
+    <StackLayout>
+      <PageHeaderRow title="Mis reservas" />
 
-      <div className="mb-3 flex flex-wrap gap-2">
-        {(
-          [
-            ["upcoming", "Próximas"],
-            ["past", "Pasadas"],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setFilter(value)}
-            className={[
-              filter === value ? "nabbi-chip nabbi-chip-active" : "nabbi-chip",
-            ].join(" ")}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mb-5 flex flex-wrap gap-2">
-        {STATUS_FILTERS.map((s) => (
-          <button
-            key={s.id || "all"}
-            type="button"
-            onClick={() => setStatus(s.id)}
-            className={[
-              "rounded-full px-3 py-1.5 text-[12px] font-semibold",
-              status === s.id
-                ? "bg-primary-dark text-white"
-                : "border border-card-border bg-card text-foreground-secondary",
-            ].join(" ")}>
-            {s.label}
-          </button>
-        ))}
-      </div>
-
-      {loading && <p className="text-foreground-muted">Cargando…</p>}
-      {error && (
-        <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-red-600">
-          {error}
-        </div>
-      )}
-      {!loading && !error && visible.length === 0 && (
-        <p className="text-foreground-muted">
-          No tienes reservas {filter === "upcoming" ? "próximas" : "pasadas"}
-          {status ? " con ese estado" : ""}.{" "}
-          <Link href="/explore" className="font-bold text-primary">
-            Explorar
-          </Link>
-        </p>
-      )}
-
-      <div className="flex flex-col gap-2.5 md:gap-3">
-        {visible.map((r) => (
-          <Link
-            key={r.id}
-            href={`/reservation/${r.id}`}
-            className="block rounded-2xl border border-card-border bg-card p-4 text-foreground no-underline shadow-card transition-shadow hover:shadow-card-hover md:px-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-[16px] font-extrabold">
-                  {r.service_name || r.service?.name || "Servicio"}
-                </div>
-                <div className="mt-1 text-[13px] text-foreground-muted">
-                  {r.provider_name || r.provider?.name || ""}
-                  {r.date ? ` · ${r.date}` : ""}
-                  {r.time ? ` ${String(r.time).slice(0, 5)}` : ""}
-                </div>
-              </div>
-              <span
-                className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide ${statusTone(
-                  r.status
-                )}`}>
-                {r.status}
+      <ToolbarListCard
+        toolbar={
+          <CardHeader
+            title="Reservas"
+            description={
+              filter === "upcoming" ? "Próximas citas" : "Historial"
+            }
+            icon={CalendarDaysIcon}
+            actions={
+              <span className="inline-flex min-h-10 items-center rounded-full border border-card-border bg-background px-3 text-[12px] font-bold tabular-nums text-foreground-secondary">
+                Filtros · {activeFilters}
               </span>
+            }
+          />
+        }
+        chips={
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap gap-2" role="tablist" aria-label="Periodo">
+              {(
+                [
+                  ["upcoming", "Próximas"],
+                  ["past", "Pasadas"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === value}
+                  onClick={() => setFilter(value)}
+                  className={[
+                    filter === value
+                      ? "nabbi-chip nabbi-chip-active"
+                      : "nabbi-chip",
+                  ].join(" ")}>
+                  {label}
+                </button>
+              ))}
             </div>
-          </Link>
-        ))}
-      </div>
-    </div>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Estado">
+              {STATUS_FILTERS.map((s) => (
+                <button
+                  key={s.id || "all"}
+                  type="button"
+                  onClick={() => setStatus(s.id)}
+                  className={[
+                    "rounded-full px-3 py-1.5 text-[12px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                    status === s.id
+                      ? "bg-primary-dark text-primary-foreground"
+                      : "border border-card-border bg-card text-foreground-secondary",
+                  ].join(" ")}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        }>
+        {loading && (
+          <div className="space-y-0" aria-busy="true">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="flex min-h-20 items-center gap-3 px-4 py-4">
+                <div className="h-14 w-14 animate-pulse rounded-[14px] bg-foreground-muted/15" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="h-4 w-40 animate-pulse rounded bg-foreground-muted/15" />
+                  <div className="h-3 w-28 animate-pulse rounded bg-foreground-muted/15" />
+                </div>
+                <div className="h-7 w-24 animate-pulse rounded-full bg-foreground-muted/15" />
+              </div>
+            ))}
+          </div>
+        )}
+        {error && (
+          <div className="m-4 rounded-xl border border-error/40 bg-error/10 p-3 text-error">
+            {error}
+          </div>
+        )}
+        {!loading && !error && visible.length === 0 && (
+          <p className="px-5 py-6 text-foreground-muted">
+            No tienes reservas {filter === "upcoming" ? "próximas" : "pasadas"}
+            {status ? " con ese estado" : ""}.{" "}
+            <Link href="/explore" className="font-bold text-primary">
+              Explorar
+            </Link>
+          </p>
+        )}
+
+        {!loading && !error && visible.length > 0 ? (
+          <ul className="m-0 list-none p-0" role="list">
+            {visible.map((r, i) => {
+              const month = reservationMonthLabel(r.date);
+              const prevMonth =
+                i > 0 ? reservationMonthLabel(visible[i - 1].date) : "";
+              const showMonth = i === 0 || month !== prevMonth;
+              return (
+                <li key={r.id}>
+                  {multiMonth && showMonth && month ? (
+                    <p className="nabbi-rr-month">{month}</p>
+                  ) : null}
+                  <ReservationRow
+                    reservation={r}
+                    last={i === visible.length - 1}
+                    enterIndex={i < 6 ? i : undefined}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+      </ToolbarListCard>
+    </StackLayout>
   );
 }

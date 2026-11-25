@@ -2,10 +2,17 @@
 
 import {useState} from "react";
 import {useRouter} from "next/navigation";
+import {RectangleStackIcon} from "@heroicons/react/24/outline";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {useFeed} from "@/features/posts/hooks/useFeed";
 import {PostCard} from "@/components/posts/PostCard";
 import {CategoryChipBar} from "@/components/marketplace";
+import {
+  CardHeader,
+  PageHeaderRow,
+  StackLayout,
+} from "@/components/layout";
+import {usePageHeader} from "@/components/shell/usePageHeader";
 import {loginHref} from "@/lib/authGate";
 import {postAuthorUserId} from "@/lib/posts";
 
@@ -15,6 +22,8 @@ export default function FeedPage() {
   const {posts, loading, error, toggleLike} = useFeed(category || undefined);
   const {isAuthenticated} = useAuth();
   const router = useRouter();
+
+  usePageHeader({title: "Feed", pageOwnsTitle: true});
 
   const requireLogin = (next: string) => {
     router.push(loginHref(next));
@@ -42,102 +51,101 @@ export default function FeedPage() {
   });
 
   return (
-    <div className="nabbi-page mx-auto w-full max-w-[820px]">
-      <div className="mb-4 overflow-hidden rounded-[22px] border border-[#ccd8ce] bg-gradient-to-br from-[#1f3328] via-[#2a4638] to-[#558367] px-4 py-5 text-white shadow-[0_16px_40px_-18px_rgba(18,33,26,0.45)] sm:px-5">
-        <p className="m-0 text-[11px] font-extrabold uppercase tracking-[0.14em] text-white/70">
-          Comunidad
-        </p>
-        <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="m-0 text-[clamp(1.45rem,4vw,1.9rem)] font-black tracking-tight text-white">
-              Feed
-            </h1>
-            <p className="mt-1.5 mb-0 max-w-xl text-[14px] leading-relaxed text-white/80">
-              Ideas, trabajos y novedades de profesionales y lugares en nabbi.
-            </p>
-          </div>
+    <StackLayout>
+      <PageHeaderRow
+        title="Feed"
+        description="Ideas, trabajos y novedades de profesionales y lugares en nabbi."
+        actions={
           <button
             type="button"
             onClick={handleCreatePost}
             className="nabbi-btn nabbi-btn-accent shrink-0 !px-4 !py-2.5 !text-[13px]">
-            + Crear post
+            Crear post
           </button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="sticky top-[68px] z-20 mb-4 rounded-[20px] border border-[#ccd8ce] bg-white/95 px-3 py-3 shadow-[0_10px_30px_-18px_rgba(18,33,26,0.35)] backdrop-blur-md sm:px-4">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="m-0 text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#3d6050]">
-            Categorías
-          </p>
-          <span className="rounded-full bg-[#e8efe9] px-2.5 py-1 text-[12px] font-bold text-[#1f3328]">
-            {loading ? "…" : `${visiblePosts.length} posts`}
-          </span>
-        </div>
-        <CategoryChipBar
-          value={category}
-          onChange={setCategory}
-          allLabel="Todas"
+      <section className="rounded-[var(--card-radius)] border border-card-border bg-card p-[var(--card-pad)] shadow-card">
+        <CardHeader
+          title="Categorías"
+          icon={RectangleStackIcon}
+          actions={
+            <span className="rounded-full bg-primary-light px-2.5 py-1 text-[12px] font-bold tabular-nums text-primary-dark">
+              {loading ? "…" : `${visiblePosts.length}`}
+            </span>
+          }
         />
-      </div>
+        <div className="mt-3">
+          <CategoryChipBar
+            value={category}
+            onChange={setCategory}
+            allLabel="Todas"
+            surface="card"
+            padInline="0"
+          />
+        </div>
+      </section>
 
-      {loading && (
-        <div className="space-y-4">
-          {[0, 1].map((i) => (
-            <div
-              key={i}
-              className="overflow-hidden rounded-[18px] border border-[#ccd8ce] bg-white"
-              aria-hidden>
-              <div className="flex items-center gap-3 px-3.5 py-3">
-                <div className="h-10 w-10 rounded-full bg-[#e8efe9]" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-3 w-1/3 rounded bg-[#e8efe9]" />
-                  <div className="h-2.5 w-1/4 rounded bg-[#f3f6f4]" />
+      <div className="mx-auto flex w-full max-w-[760px] flex-col gap-4">
+        {loading ? (
+          <div className="space-y-4">
+            {[0, 1].map((i) => (
+              <div
+                key={i}
+                className="overflow-hidden rounded-[var(--card-radius)] border border-card-border bg-card"
+                aria-hidden>
+                <div className="flex items-center gap-3 px-3.5 py-3">
+                  <div className="h-10 w-10 rounded-full bg-primary-light" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 w-1/3 rounded bg-primary-light" />
+                    <div className="h-2.5 w-1/4 rounded bg-background" />
+                  </div>
+                </div>
+                <div className="aspect-[4/5] max-h-[420px] bg-primary-light" />
+                <div className="space-y-2 p-3.5">
+                  <div className="h-3 w-4/5 rounded bg-primary-light" />
+                  <div className="h-3 w-2/5 rounded bg-background" />
                 </div>
               </div>
-              <div className="aspect-[4/5] max-h-[420px] bg-[#e8efe9]" />
-              <div className="space-y-2 p-3.5">
-                <div className="h-3 w-4/5 rounded bg-[#e8efe9]" />
-                <div className="h-3 w-2/5 rounded bg-[#f3f6f4]" />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        ) : null}
 
-      {error && (
-        <div className="rounded-2xl border border-[#fca5a5] bg-[#fef2f2] p-4 text-sm font-semibold text-[#b91c1c]">
-          {error}
-        </div>
-      )}
+        {error ? (
+          <div className="rounded-[var(--tile-radius)] border border-error/40 bg-error/10 p-4 text-sm font-semibold text-error">
+            {error}
+          </div>
+        ) : null}
 
-      {!loading && !error && visiblePosts.length === 0 && (
-        <div className="rounded-[20px] border border-dashed border-[#ccd8ce] bg-white px-6 py-10 text-center">
-          <p className="m-0 text-[16px] font-extrabold text-[#12211a]">
-            Aún no hay publicaciones
-          </p>
-          <p className="mt-2 mb-5 text-sm leading-relaxed text-[#3d6050]">
-            Sé el primero en compartir un trabajo, tip o novedad con la comunidad.
-          </p>
-          <button
-            type="button"
-            onClick={handleCreatePost}
-            className="nabbi-btn nabbi-btn-primary inline-flex">
-            Crear la primera
-          </button>
-        </div>
-      )}
+        {!loading && !error && visiblePosts.length === 0 ? (
+          <div className="rounded-[var(--card-radius)] border border-dashed border-card-border bg-card px-6 py-10 text-center">
+            <p className="m-0 text-[16px] font-extrabold text-foreground">
+              Aún no hay publicaciones
+            </p>
+            <p className="mt-2 mb-5 text-sm leading-relaxed text-foreground-secondary">
+              Sé el primero en compartir un trabajo, tip o novedad con la
+              comunidad.
+            </p>
+            <button
+              type="button"
+              onClick={handleCreatePost}
+              className="nabbi-btn nabbi-btn-primary inline-flex">
+              Crear la primera
+            </button>
+          </div>
+        ) : null}
 
-      <div className="mx-auto flex max-w-[640px] flex-col gap-4">
         {visiblePosts.map((post) => (
           <PostCard
             key={post.id}
             post={post}
             onLike={handleLike}
-            onBlocked={(userId) => setBlockedUsers((prev) => [...prev, userId])}
+            onBlocked={(userId) =>
+              setBlockedUsers((prev) => [...prev, userId])
+            }
           />
         ))}
       </div>
-    </div>
+    </StackLayout>
   );
 }

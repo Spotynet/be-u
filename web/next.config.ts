@@ -34,6 +34,20 @@ const nextConfig: NextConfig = {
   // browsers report "Access-Control-Allow-Origin missing" / status 308.
   skipTrailingSlashRedirect: true,
   allowedDevOrigins: ["nabbi-dev.spotynet.com"],
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "nabbi.s3.us-east-1.amazonaws.com",
+        pathname: "/media/**",
+      },
+      {
+        protocol: "https",
+        hostname: "nabbi.s3.amazonaws.com",
+        pathname: "/media/**",
+      },
+    ],
+  },
   async rewrites() {
     return [
       ...djangoProxyRewrites("/api"),

@@ -1,6 +1,8 @@
 "use client";
 
 import {MAIN_CATEGORIES} from "@/constants/categories";
+import {ChipRow} from "@/components/ui/ChipRow";
+import {FilterChip} from "@/components/ui/FilterChip";
 
 type Chip = {id: string; name: string};
 
@@ -11,6 +13,9 @@ type Props = {
   includeAll?: boolean;
   allLabel?: string;
   className?: string;
+  bleed?: boolean;
+  padInline?: string;
+  surface?: "card" | "background";
 };
 
 export function CategoryChipBar({
@@ -18,32 +23,33 @@ export function CategoryChipBar({
   onChange,
   categories = MAIN_CATEGORIES,
   includeAll = true,
-  allLabel = "Todos",
+  allLabel = "Todas",
   className = "",
+  bleed = true,
+  padInline,
+  surface = "background",
 }: Props) {
   const chips: Chip[] = includeAll
     ? [{id: "", name: allLabel}, ...categories]
     : [...categories];
 
   return (
-    <div
-      className={`nabbi-stack-row flex-nowrap overflow-x-auto pb-0.5 ${className}`}
-      role="tablist"
-      aria-label="Categorías">
-      {chips.map((chip) => {
-        const active = value === chip.id;
-        return (
-          <button
-            key={chip.id || "all"}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(chip.id)}
-            className={`nabbi-chip ${active ? "nabbi-chip-active" : ""}`}>
-            {chip.name}
-          </button>
-        );
-      })}
-    </div>
+    <ChipRow
+      aria-label="Categorías"
+      mode="single"
+      bleed={bleed}
+      padInline={padInline}
+      surface={surface}
+      className={className}>
+      {chips.map((chip) => (
+        <FilterChip
+          key={chip.id || "all"}
+          label={chip.name}
+          selected={value === chip.id}
+          selectionRole="radio"
+          onClick={() => onChange(chip.id)}
+        />
+      ))}
+    </ChipRow>
   );
 }

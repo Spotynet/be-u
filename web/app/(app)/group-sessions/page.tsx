@@ -1,10 +1,17 @@
 "use client";
 
-import {PageContainer} from "@/components/layout/PageContainer";
-
 import {useCallback, useEffect, useMemo, useState} from "react";
 import Link from "next/link";
 import {useRouter} from "next/navigation";
+import {CalendarDaysIcon, UserGroupIcon} from "@heroicons/react/24/outline";
+import {
+  CardHeader,
+  PageHeaderRow,
+  StackLayout,
+} from "@/components/layout";
+import {Button} from "@/components/ui/Button";
+import {CustomDropdown} from "@/components/ui/CustomDropdown";
+import {usePageHeader} from "@/components/shell/usePageHeader";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {isProviderRole, normalizeRole} from "@/lib/roles";
 import {
@@ -13,10 +20,6 @@ import {
   profileCustomizationApi,
   errorUtils,
 } from "@/lib/api";
-import {CustomDropdown} from "@/components/ui/CustomDropdown";
-
-const INK = "#12211A";
-const MAIN = "#558367";
 
 type ServiceItem = {
   id: number;
@@ -32,7 +35,11 @@ const toDurationString = (minutes: number) => {
   return `${h}:${m}:00`;
 };
 
+const fieldClass =
+  "rounded-[var(--control-radius)] border border-card-border bg-background px-3 py-2.5 text-[14px] font-medium text-foreground";
+
 export default function GroupSessionsPage() {
+  usePageHeader({title: "Sesiones grupales", pageOwnsTitle: true});
   const {user} = useAuth();
   const router = useRouter();
   const isPlace = normalizeRole(user?.role) === "PLACE";
@@ -46,11 +53,13 @@ export default function GroupSessionsPage() {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("14:00");
   const [capacity, setCapacity] = useState(4);
-  const [message, setMessage] = useState<{type: "ok" | "err"; text: string} | null>(null);
+  const [message, setMessage] = useState<{type: "ok" | "err"; text: string} | null>(
+    null,
+  );
 
   const selected = useMemo(
     () => services.find((s) => s.id === Number(serviceId)),
-    [services, serviceId]
+    [services, serviceId],
   );
 
   const load = useCallback(async () => {
@@ -67,13 +76,15 @@ export default function GroupSessionsPage() {
           profileCustomizationApi.getCustomServices().catch(() => ({data: []})),
         ]);
         const list = placeOrPro.data?.results || placeOrPro.data || [];
-        const placeOrProItems: ServiceItem[] = (Array.isArray(list) ? list : []).map((s: any) => ({
-          id: s.id,
-          name: s.name || s.service_name || s.service?.name || "Servicio",
-          service: s.service ?? s.service_type_id ?? s.service_details?.id ?? s.id,
-          duration_minutes: s.duration_minutes ?? 60,
-          type: isPlace ? "place_service" : "professional_service",
-        }));
+        const placeOrProItems: ServiceItem[] = (Array.isArray(list) ? list : []).map(
+          (s: any) => ({
+            id: s.id,
+            name: s.name || s.service_name || s.service?.name || "Servicio",
+            service: s.service ?? s.service_type_id ?? s.service_details?.id ?? s.id,
+            duration_minutes: s.duration_minutes ?? 60,
+            type: isPlace ? "place_service" : "professional_service",
+          }),
+        );
         const customList = Array.isArray(custom.data)
           ? custom.data
           : custom.data?.results ?? [];
@@ -139,153 +150,111 @@ export default function GroupSessionsPage() {
   };
 
   return (
-    <PageContainer size="lg">
-      <h1 className="nabbi-page-title">Sesiones grupales</h1>
-      <p className="nabbi-page-sub">
-        {provider
-          ? "Crea y administra sesiones con cupo limitado."
-          : "Tus sesiones y reservas grupales."}
-      </p>
+    <StackLayout>
+      <PageHeaderRow
+        title="Sesiones grupales"
+        description={
+          provider
+            ? "Crea y administra sesiones con cupo limitado."
+            : "Tus sesiones y reservas grupales."
+        }
+      />
 
-      {message && (
+      {message ? (
         <div
-          style={{
-            marginBottom: 12,
-            padding: 12,
-            borderRadius: 12,
-            background: message.type === "ok" ? "#ecfdf5" : "#fef2f2",
-            border: `1px solid ${message.type === "ok" ? "#6ee7b7" : "#fca5a5"}`,
-            color: message.type === "ok" ? "#047857" : "#dc2626",
-            fontSize: 14,
-          }}>
+          className={[
+            "rounded-[var(--control-radius)] border px-3 py-2.5 text-[14px]",
+            message.type === "ok"
+              ? "border-success/30 bg-success/10 text-success"
+              : "border-error/40 bg-error/10 text-error",
+          ].join(" ")}>
           {message.text}
         </div>
-      )}
+      ) : null}
 
-      {provider && (
-        <form
-          onSubmit={handleCreate}
-          style={{
-            background: "white",
-            border: "1px solid rgba(18,33,26,0.08)",
-            borderRadius: 16,
-            padding: 16,
-            marginBottom: 24,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}>
-          <div style={{fontWeight: 800, color: INK}}>Nueva sesión</div>
-          <CustomDropdown
-            label="Servicio"
-            value={serviceId === "" ? null : Number(serviceId)}
-            onChange={(value) => setServiceId(value === null ? "" : value)}
-            options={services.map((s) => ({
-              value: s.id,
-              label: s.name,
-            }))}
-            searchable="auto"
-            required
-            placeholder="Seleccionar…"
-            size="md"
-          />
-          <div className="nabbi-form-row">
-            <label style={labelStyle}>
-              Fecha
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                style={inputStyle}
-                required
-              />
-            </label>
-            <label style={labelStyle}>
-              Hora
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                style={inputStyle}
-                required
-              />
-            </label>
-          </div>
-          <label style={labelStyle}>
-            Cupo
-            <input
-              type="number"
-              min={1}
-              value={capacity}
-              onChange={(e) => setCapacity(Number(e.target.value) || 1)}
-              style={inputStyle}
+      {provider ? (
+        <section className="rounded-[var(--card-radius)] border border-card-border bg-card p-[var(--card-pad)] shadow-card">
+          <CardHeader title="Nueva sesión" icon={UserGroupIcon} />
+          <form onSubmit={handleCreate} className="mt-4 flex flex-col gap-3">
+            <CustomDropdown
+              label="Servicio"
+              value={serviceId === "" ? null : Number(serviceId)}
+              onChange={(value) => setServiceId(value === null ? "" : value)}
+              options={services.map((s) => ({
+                value: s.id,
+                label: s.name,
+              }))}
+              searchable="auto"
+              required
+              placeholder="Seleccionar…"
+              size="md"
             />
-          </label>
-          <button type="submit" disabled={saving} style={primaryBtn}>
-            {saving ? "Creando…" : "Crear sesión"}
-          </button>
-        </form>
-      )}
+            <div className="nabbi-form-row">
+              <label className="flex flex-col gap-1.5 text-[13px] font-bold text-foreground">
+                Fecha
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className={fieldClass}
+                  required
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 text-[13px] font-bold text-foreground">
+                Hora
+                <input
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className={fieldClass}
+                  required
+                />
+              </label>
+            </div>
+            <label className="flex flex-col gap-1.5 text-[13px] font-bold text-foreground">
+              Cupo
+              <input
+                type="number"
+                min={1}
+                value={capacity}
+                onChange={(e) => setCapacity(Number(e.target.value) || 1)}
+                className={fieldClass}
+              />
+            </label>
+            <Button type="submit" variant="secondary" disabled={saving}>
+              {saving ? "Creando…" : "Crear sesión"}
+            </Button>
+          </form>
+        </section>
+      ) : null}
 
       {loading ? (
-        <p style={{color: "#64748b"}}>Cargando…</p>
+        <p className="text-foreground-secondary">Cargando…</p>
       ) : sessions.length === 0 ? (
-        <p style={{color: "#64748b"}}>No hay sesiones aún.</p>
+        <p className="text-foreground-secondary">No hay sesiones aún.</p>
       ) : (
-        <ul style={{listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8}}>
-          {sessions.map((s) => (
-            <li key={s.id}>
-              <Link
-                href={`/group-sessions/${s.id}`}
-                style={{
-                  display: "block",
-                  background: "white",
-                  border: "1px solid rgba(18,33,26,0.08)",
-                  borderRadius: 12,
-                  padding: "14px 16px",
-                  textDecoration: "none",
-                  color: INK,
-                }}>
-                <div style={{fontWeight: 800}}>
-                  {s.service_name || s.service?.name || "Sesión grupal"}
-                </div>
-                <div style={{fontSize: 13, color: "#64748b", marginTop: 4}}>
-                  {s.date} · {String(s.time || "").slice(0, 5)} · cupo {s.spots_taken ?? 0}/
-                  {s.capacity ?? "?"}
-                  {s.status ? ` · ${s.status}` : ""}
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <section className="rounded-[var(--card-radius)] border border-card-border bg-card p-[var(--card-pad)] shadow-card">
+          <CardHeader title="Sesiones" icon={CalendarDaysIcon} />
+          <ul className="m-0 mt-4 flex list-none flex-col gap-2 p-0">
+            {sessions.map((s) => (
+              <li key={s.id}>
+                <Link
+                  href={`/group-sessions/${s.id}`}
+                  className="block rounded-[var(--card-radius)] border border-card-border bg-background p-3.5 text-foreground no-underline transition-colors hover:bg-background-secondary">
+                  <div className="font-extrabold">
+                    {s.service_name || s.service?.name || "Sesión grupal"}
+                  </div>
+                  <div className="mt-1 text-[13px] text-foreground-secondary">
+                    {s.date} · {String(s.time || "").slice(0, 5)} · cupo{" "}
+                    {s.spots_taken ?? 0}/{s.capacity ?? "?"}
+                    {s.status ? ` · ${s.status}` : ""}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
-    </PageContainer>
+    </StackLayout>
   );
 }
-
-const labelStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 6,
-  fontSize: 13,
-  fontWeight: 700,
-  color: INK,
-};
-
-const inputStyle: React.CSSProperties = {
-  border: "1px solid rgba(18,33,26,0.15)",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: 14,
-  fontWeight: 500,
-};
-
-const primaryBtn: React.CSSProperties = {
-  background: MAIN,
-  color: "white",
-  border: "none",
-  borderRadius: 12,
-  padding: "12px 16px",
-  fontWeight: 800,
-  cursor: "pointer",
-};

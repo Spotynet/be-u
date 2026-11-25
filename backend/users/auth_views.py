@@ -47,7 +47,9 @@ import hashlib
 import hmac
 import jwt
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
+from django.core.validators import validate_email
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.utils import timezone
@@ -642,10 +644,18 @@ def register_view(request):
             logger.warning(f"  - email present: {bool(email)}")
             logger.warning(f"  - username present: {bool(username)}")
             return Response({'error': 'Email and username are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        email_norm = (email or "").strip().lower()
+        try:
+            validate_email(email_norm)
+        except DjangoValidationError:
+            return Response(
+                {"error": "Enter a valid email address.", "email": ["Enter a valid email address."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         
         # Check if user already exists
         logger.info("Checking if email already exists...")
-        email_norm = (email or "").strip().lower()
         existing = User.objects.filter(email__iexact=email_norm).first()
         if existing:
             if existing.email_verified:
@@ -667,6 +677,7 @@ def register_view(request):
                         "email": existing.email,
                         "emailVerified": False,
                         "verificationRequired": True,
+                        "emailSent": False,
                         "resendAvailableIn": e.seconds,
                         "code": e.code,
                         "message": e.message,
@@ -688,6 +699,7 @@ def register_view(request):
                     "email": existing.email,
                     "emailVerified": False,
                     "verificationRequired": True,
+                    "emailSent": issued.email_sent,
                     "resendAvailableIn": issued.resend_available_in,
                 },
                 status=status.HTTP_201_CREATED,
@@ -907,6 +919,7 @@ def register_view(request):
         logger.info(f"User details: {user}")
 
         # Issue verification code — tokens are returned only after /auth/verify-email/
+        email_sent = False
         try:
             issued = issue_code(
                 user,
@@ -914,6 +927,12 @@ def register_view(request):
                 purpose=EmailVerificationCode.Purpose.REGISTER,
             )
             resend_in = issued.resend_available_in
+            email_sent = issued.email_sent
+            if not email_sent:
+                logger.error(
+                    "Registration created user_id=%s but verification email was not sent",
+                    user.id,
+                )
         except (CooldownActive, HourlyLimitExceeded) as e:
             # Extremely unlikely on first issue; still return verification-required shape
             resend_in = getattr(e, "seconds", 30)
@@ -923,6 +942,7 @@ def register_view(request):
             "email": user.email,
             "emailVerified": False,
             "verificationRequired": True,
+            "emailSent": email_sent,
             "resendAvailableIn": resend_in,
         }
         
@@ -1172,6 +1192,11 @@ def resend_verification_view(request):
             user.email,
             purpose=EmailVerificationCode.Purpose.REGISTER,
         )
+        if not issued.email_sent:
+            logger.error(
+                "Resend verification did not send email for user_id=%s",
+                user.id,
+            )
     except CooldownActive as e:
         return Response(
             {

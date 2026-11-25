@@ -129,6 +129,7 @@ def check_code(email: str, code: str, code_hash: str) -> bool:
 class IssuedCode:
     record: EmailVerificationCode
     resend_available_in: int
+    email_sent: bool = False
 
 
 def _cooldown_remaining(last_sent_at) -> int:
@@ -146,7 +147,7 @@ def issue_code(
 ) -> IssuedCode:
     """
     Invalidate prior unconsumed codes for user+email+purpose, create a new hashed code,
-    and send the email after transaction commit.
+    and send the verification email (same reliability model as login codes).
     """
     email_norm = email.strip().lower()
     now = timezone.now()
@@ -178,6 +179,7 @@ def issue_code(
     plain = generate_code()
     code_hash = hash_code(email_norm, plain)
     expires_at = now + timezone.timedelta(minutes=_ttl_minutes())
+    first_name = user.first_name or ""
 
     with transaction.atomic():
         EmailVerificationCode.objects.filter(
@@ -196,24 +198,47 @@ def issue_code(
             last_sent_at=now,
         )
 
-    # Capture locals for on_commit (do not log the plain code with email in prod paths)
-    first_name = user.first_name or ""
-
-    def _send():
+    def _send() -> bool:
         try:
-            send_verification_email(user=user, email=email_norm, code=plain, first_name=first_name)
+            send_verification_email(
+                user=user,
+                email=email_norm,
+                code=plain,
+                first_name=first_name,
+            )
+            logger.info(
+                "Verification email sent to %s (user_id=%s)",
+                email_norm,
+                user.pk,
+            )
+            return True
         except Exception:
-            logger.exception("Failed to send verification email (user_id=%s)", user.pk)
+            logger.exception(
+                "Failed to send verification email (user_id=%s email=%s)",
+                user.pk,
+                email_norm,
+            )
+            return False
 
-    # Locmem/console: send immediately (TestCase wraps DB in a transaction so on_commit
-    # would not run until the test ends). SMTP: send after commit.
+    # Match login-code reliability: send synchronously after our atomic commits.
+    # Locmem/console: always immediate (TestCase wraps DB in a non-committing txn).
+    # SMTP inside an outer atomic: defer with on_commit. SMTP otherwise: send now.
     backend = getattr(settings, "EMAIL_BACKEND", "") or ""
+    email_sent = False
     if backend.endswith("locmem.EmailBackend") or backend.endswith("console.EmailBackend"):
-        _send()
+        email_sent = _send()
+    elif transaction.get_connection().in_atomic_block:
+        transaction.on_commit(lambda: _send())
+        # Queued for outer commit; treat as attempted so callers know send was scheduled.
+        email_sent = True
     else:
-        transaction.on_commit(_send)
+        email_sent = _send()
 
-    return IssuedCode(record=record, resend_available_in=_resend_cooldown_seconds())
+    return IssuedCode(
+        record=record,
+        resend_available_in=_resend_cooldown_seconds(),
+        email_sent=email_sent,
+    )
 
 
 def verify_code(

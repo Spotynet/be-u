@@ -98,40 +98,34 @@ export function ProviderCard({
             onError={() => setImgFailed(true)}
           />
         ) : (
-          <div
-            className="flex h-full w-full items-center justify-center text-2xl font-black"
-            style={{background: "#d8eae0", color: "#558367"}}>
+          <div className="flex h-full w-full items-center justify-center bg-primary-light text-2xl font-black text-primary">
             {title.slice(0, 1).toUpperCase()}
           </div>
         )}
         {type ? (
-          <span
-            className="absolute left-2 top-2 rounded-md px-2 py-0.5 text-[11px] font-bold shadow-sm"
-            style={{background: "#1f3328", color: "#ffffff"}}>
+          <span className="absolute left-2 top-2 rounded-md bg-[var(--accent-fill)] px-2 py-0.5 text-[11px] font-bold text-[var(--shell-on-frame)] shadow-sm">
             {type}
           </span>
         ) : null}
       </div>
       <div className="flex flex-col gap-1.5 p-3.5">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="m-0 line-clamp-1 text-[15px] font-extrabold" style={{color: "#12211a"}}>
+          <h3 className="m-0 line-clamp-1 text-[15px] font-extrabold text-foreground">
             {title}
           </h3>
           {rating != null ? (
-            <span
-              className="shrink-0 rounded-md px-1.5 py-0.5 text-[12px] font-bold"
-              style={{background: "#fef8dc", color: "#8a6f0c"}}>
+            <span className="shrink-0 rounded-md bg-secondary-light px-1.5 py-0.5 text-[12px] font-bold text-secondary-dark">
               ★ {rating.toFixed(1)}
             </span>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] font-semibold" style={{color: "#3d6050"}}>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] font-semibold text-foreground-secondary">
           {category ? <span className="capitalize">{category}</span> : null}
           {distance ? <span>· {distance}</span> : null}
           {provider.city ? <span>· {provider.city}</span> : null}
         </div>
         {provider.bio ? (
-          <p className="m-0 line-clamp-2 text-[12px] leading-snug" style={{color: "#5a7d6a"}}>
+          <p className="m-0 line-clamp-2 text-[12px] leading-snug text-foreground-muted">
             {provider.bio}
           </p>
         ) : null}
@@ -140,13 +134,12 @@ export function ProviderCard({
   );
 
   const shellClass = [
-    "block overflow-hidden rounded-[18px] border text-left transition-shadow",
+    "block overflow-hidden rounded-[var(--r-card)] border bg-card text-left shadow-card transition-shadow",
     selected
-      ? "border-[#558367] ring-2 ring-[#558367]/35 shadow-[0_12px_28px_-12px_rgba(85,131,103,0.45)]"
-      : "border-[#ccd8ce] shadow-[0_8px_22px_-14px_rgba(18,33,26,0.28)] hover:shadow-[0_14px_28px_-14px_rgba(18,33,26,0.35)]",
+      ? "border-primary ring-2 ring-primary/35"
+      : "border-card-border hover:shadow-card-hover",
     className,
   ].join(" ");
-  const shellStyle = {background: "#ffffff"} as const;
 
   if (onSelect) {
     return (
@@ -154,7 +147,6 @@ export function ProviderCard({
         type="button"
         onClick={onSelect}
         className={`${shellClass} w-full cursor-pointer p-0`}
-        style={shellStyle}
         aria-pressed={selected}>
         {inner}
       </button>
@@ -162,7 +154,7 @@ export function ProviderCard({
   }
 
   return (
-    <Link href={profileHref} className={`${shellClass} no-underline`} style={shellStyle}>
+    <Link href={profileHref} className={`${shellClass} no-underline`}>
       {inner}
     </Link>
   );

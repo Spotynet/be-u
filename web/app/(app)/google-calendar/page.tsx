@@ -1,17 +1,18 @@
 "use client";
 
-import {PageContainer} from "@/components/layout/PageContainer";
-
-import {useCallback, useEffect, useState} from "react";
+import {Suspense, useCallback, useEffect, useState} from "react";
 import {useRouter, useSearchParams} from "next/navigation";
-import {Suspense} from "react";
+import {CalendarDaysIcon} from "@heroicons/react/24/outline";
+import {
+  CardHeader,
+  PageHeaderRow,
+  StackLayout,
+} from "@/components/layout";
+import {Button} from "@/components/ui/Button";
+import {usePageHeader} from "@/components/shell/usePageHeader";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {isProviderRole} from "@/lib/roles";
 import {calendarApi, getCalendarRedirectUri, errorUtils} from "@/lib/api";
-
-const INK = "#12211A";
-const MAIN = "#558367";
-const GOOGLE_GREEN = "#34a853";
 
 type Status = {
   is_connected: boolean;
@@ -22,6 +23,7 @@ type Status = {
 };
 
 function GoogleCalendarInner() {
+  usePageHeader({title: "Google Calendar", pageOwnsTitle: true});
   const {user} = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -102,130 +104,112 @@ function GoogleCalendarInner() {
     }
   };
 
-  if (!provider) return <p style={{color: "#64748b"}}>Redirigiendo…</p>;
+  if (!provider) {
+    return <p className="text-foreground-secondary">Redirigiendo…</p>;
+  }
 
   const connected = status?.is_connected ?? false;
 
   return (
-    <PageContainer size="md">
-      <h1 className="nabbi-page-title">Google Calendar</h1>
-      <p className="nabbi-page-sub">
-        Sincroniza reservas y disponibilidad con tu calendario de Google.
-      </p>
+    <StackLayout>
+      <PageHeaderRow
+        title="Google Calendar"
+        description="Sincroniza reservas y disponibilidad con tu calendario de Google."
+      />
 
-      {message && (
-        <div
-          style={{
-            marginBottom: 12,
-            padding: 12,
-            borderRadius: 12,
-            background: "#ecfdf5",
-            color: "#047857",
-            fontSize: 14,
-          }}>
+      {message ? (
+        <div className="rounded-[var(--control-radius)] border border-success/30 bg-success/10 px-3 py-2.5 text-[14px] text-success">
           {message}
         </div>
-      )}
+      ) : null}
 
-      <div
-        style={{
-          background: "white",
-          border: "1px solid rgba(18,33,26,0.08)",
-          borderRadius: 16,
-          padding: 20,
-        }}>
-        {loading ? (
-          <p style={{color: "#64748b"}}>Cargando estado…</p>
-        ) : (
-          <>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "6px 12px",
-                borderRadius: 999,
-                background: connected ? `${GOOGLE_GREEN}22` : "rgba(18,33,26,0.06)",
-                color: connected ? GOOGLE_GREEN : "#64748b",
-                fontWeight: 800,
-                fontSize: 13,
-                marginBottom: 16,
-              }}>
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: connected ? GOOGLE_GREEN : "#94a3b8",
-                }}
-              />
-              {connected ? "Conectado" : "No conectado"}
-            </div>
+      <section className="rounded-[var(--card-radius)] border border-card-border bg-card p-[var(--card-pad)] shadow-card">
+        <CardHeader title="Estado" icon={CalendarDaysIcon} />
+        <div className="mt-4">
+          {loading ? (
+            <p className="text-foreground-secondary">Cargando estado…</p>
+          ) : (
+            <>
+              <div
+                className={[
+                  "mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-extrabold",
+                  connected
+                    ? "bg-success/15 text-success"
+                    : "bg-background text-foreground-secondary",
+                ].join(" ")}>
+                <span
+                  className={[
+                    "h-2 w-2 rounded-full",
+                    connected ? "bg-success" : "bg-foreground-secondary",
+                  ].join(" ")}
+                  aria-hidden
+                />
+                {connected ? "Conectado" : "No conectado"}
+              </div>
 
-            {connected && (
-              <div style={{fontSize: 13, color: "#64748b", marginBottom: 16}}>
-                {status?.calendar_id && <div>Calendario: {status.calendar_id}</div>}
-                {status?.last_sync_at && (
-                  <div>
-                    Última sync:{" "}
-                    {new Date(status.last_sync_at).toLocaleString("es-MX")}
-                  </div>
-                )}
-                {status?.sync_error && (
-                  <div style={{color: "#dc2626"}}>Error: {status.sync_error}</div>
+              {connected ? (
+                <div className="mb-4 text-[13px] text-foreground-secondary">
+                  {status?.calendar_id ? (
+                    <div>Calendario: {status.calendar_id}</div>
+                  ) : null}
+                  {status?.last_sync_at ? (
+                    <div>
+                      Última sync:{" "}
+                      {new Date(status.last_sync_at).toLocaleString("es-MX")}
+                    </div>
+                  ) : null}
+                  {status?.sync_error ? (
+                    <div className="text-error">Error: {status.sync_error}</div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="flex flex-col gap-2">
+                {!connected ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={connect}>
+                    {busy ? "Redirigiendo…" : "Conectar Google Calendar"}
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={sync}>
+                      {busy ? "Sincronizando…" : "Sincronizar disponibilidad"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={disconnect}
+                      className="border-error/40 text-error">
+                      Desconectar
+                    </Button>
+                  </>
                 )}
               </div>
-            )}
-
-            <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-              {!connected ? (
-                <button type="button" disabled={busy} onClick={connect} style={primaryBtn}>
-                  {busy ? "Redirigiendo…" : "Conectar Google Calendar"}
-                </button>
-              ) : (
-                <>
-                  <button type="button" disabled={busy} onClick={sync} style={primaryBtn}>
-                    {busy ? "Sincronizando…" : "Sincronizar disponibilidad"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={disconnect}
-                    style={{
-                      background: "transparent",
-                      border: "1px solid #fca5a5",
-                      color: "#dc2626",
-                      borderRadius: 12,
-                      padding: "12px 16px",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}>
-                    Desconectar
-                  </button>
-                </>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-    </PageContainer>
+            </>
+          )}
+        </div>
+      </section>
+    </StackLayout>
   );
 }
 
 export default function GoogleCalendarPage() {
   return (
-    <Suspense fallback={<p style={{color: "#64748b"}}>Cargando…</p>}>
+    <Suspense
+      fallback={
+        <StackLayout>
+          <p className="text-foreground-secondary">Cargando…</p>
+        </StackLayout>
+      }>
       <GoogleCalendarInner />
     </Suspense>
   );
 }
-
-const primaryBtn: React.CSSProperties = {
-  background: MAIN,
-  color: "white",
-  border: "none",
-  borderRadius: 12,
-  padding: "12px 16px",
-  fontWeight: 800,
-  cursor: "pointer",
-};

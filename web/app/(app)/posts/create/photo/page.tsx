@@ -3,14 +3,12 @@
 import {useState} from "react";
 import Link from "next/link";
 import {useRouter} from "next/navigation";
+import {PageHeaderRow, StackLayout} from "@/components/layout";
+import {usePageHeader} from "@/components/shell/usePageHeader";
 import {postApi, errorUtils} from "@/lib/api";
 
-const INK = "#12211A";
-const DARK = "#1F3328";
-const MAIN = "#558367";
-const ACCENT = "#F6C531";
-
 export default function CreatePhotoPostPage() {
+  usePageHeader({title: "Nueva foto", pageOwnsTitle: true});
   const router = useRouter();
   const [content, setContent] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -47,15 +45,21 @@ export default function CreatePhotoPostPage() {
   };
 
   return (
-    <div style={{maxWidth: 480, margin: "0 auto"}}>
-      <Link href="/posts/create" style={{color: MAIN, fontWeight: 700, textDecoration: "none", fontSize: 14}}>
-        ← Formatos
-      </Link>
-      <h1 style={{color: INK, fontWeight: 900, fontSize: 26, margin: "12px 0 16px"}}>Nueva foto</h1>
+    <StackLayout>
+      <PageHeaderRow
+        title="Nueva foto"
+        meta={
+          <Link
+            href="/posts/create"
+            className="text-sm font-bold text-primary no-underline">
+            ← Formatos
+          </Link>
+        }
+      />
 
-      <form onSubmit={handleSubmit} style={{display: "flex", flexDirection: "column", gap: 14}}>
-        <label style={{display: "flex", flexDirection: "column", gap: 6}}>
-          <span style={{fontWeight: 700, color: DARK, fontSize: 13}}>Imagen</span>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-bold text-foreground">Imagen</span>
           <input
             type="file"
             accept="image/*"
@@ -63,47 +67,36 @@ export default function CreatePhotoPostPage() {
             required
           />
         </label>
-        {preview && (
-          <img src={preview} alt="" style={{width: "100%", borderRadius: 14, maxHeight: 320, objectFit: "cover"}} />
-        )}
-        <label style={{display: "flex", flexDirection: "column", gap: 6}}>
-          <span style={{fontWeight: 700, color: DARK, fontSize: 13}}>Texto (opcional)</span>
+        {preview ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={preview}
+            alt=""
+            className="max-h-[320px] w-full rounded-[var(--control-radius)] object-cover"
+          />
+        ) : null}
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-bold text-foreground">Texto (opcional)</span>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             rows={4}
             placeholder="Escribe un pie de foto…"
-            style={{
-              padding: 12,
-              borderRadius: 12,
-              border: "1.5px solid rgba(85,131,103,0.22)",
-              fontSize: 14,
-              resize: "vertical",
-            }}
+            className="rounded-[var(--control-radius)] border-[1.5px] border-primary/25 bg-card px-3 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </label>
-        {error && (
-          <div style={{background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, padding: 12, color: "#dc2626", fontSize: 14}}>
+        {error ? (
+          <div className="rounded-xl border border-error/40 bg-error/10 p-3 text-sm text-error">
             {error}
           </div>
-        )}
+        ) : null}
         <button
           type="submit"
           disabled={submitting}
-          style={{
-            background: ACCENT,
-            color: INK,
-            border: "none",
-            borderRadius: 14,
-            padding: "14px 0",
-            fontWeight: 800,
-            fontSize: 15,
-            cursor: submitting ? "not-allowed" : "pointer",
-            opacity: submitting ? 0.65 : 1,
-          }}>
+          className="nabbi-btn nabbi-btn-accent w-full rounded-[var(--control-radius)] py-3.5 text-[15px] font-extrabold disabled:opacity-65">
           {submitting ? "Publicando…" : "Publicar"}
         </button>
       </form>
-    </div>
+    </StackLayout>
   );
 }

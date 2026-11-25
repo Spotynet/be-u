@@ -705,30 +705,55 @@ export const moderationApi = {
 export const notificationApi = {
   getNotifications: (params?: {
     page?: number;
+    page_size?: number;
     type?: string;
     status?: string;
     search?: string;
     date_from?: string;
     date_to?: string;
-  }) => api.get<{results: any[]; count: number}>("/notifications/notifications/", {params}),
+  }) =>
+    api.get<{
+      results: Array<Record<string, unknown>>;
+      count: number;
+      next: string | null;
+      previous: string | null;
+    }>("/notifications/notifications/", {params}),
 
-  getNotification: (id: number) => api.get<any>(`/notifications/notifications/${id}/`),
+  getNotification: (id: number) =>
+    api.get<Record<string, unknown>>(`/notifications/notifications/${id}/`),
 
-  getStats: () => api.get<any>("/notifications/notifications/stats/"),
+  getStats: () =>
+    api.get<{
+      total_count?: number;
+      unread_count?: number;
+      unread?: number;
+      total_unread?: number;
+      by_type?: Record<string, number>;
+      by_status?: Record<string, number>;
+    }>("/notifications/notifications/stats/"),
 
-  markAsRead: (id: number) => api.post<any>(`/notifications/notifications/${id}/mark_read/`),
+  markAsRead: (id: number) =>
+    api.post<{message?: string}>(`/notifications/notifications/${id}/mark_read/`),
 
-  markAsUnread: (id: number) => api.post<any>(`/notifications/notifications/${id}/mark_unread/`),
+  markAsUnread: (id: number) =>
+    api.post<{message?: string}>(`/notifications/notifications/${id}/mark_unread/`),
 
-  markAllAsRead: () => api.post<any>("/notifications/notifications/mark_all_read/"),
+  markAllAsRead: () =>
+    api.post<{message?: string; updated_count?: number}>(
+      "/notifications/notifications/mark_all_read/",
+    ),
 
   bulkAction: (data: {
     notification_ids: number[];
     action: "mark_read" | "mark_unread" | "delete";
-  }) => api.post<any>("/notifications/notifications/bulk_action/", data),
+  }) =>
+    api.post<{message?: string; updated_count?: number}>(
+      "/notifications/notifications/bulk_action/",
+      data,
+    ),
 
   updateNotification: (id: number, data: {status: string}) =>
-    api.patch<any>(`/notifications/notifications/${id}/`, data),
+    api.patch<Record<string, unknown>>(`/notifications/notifications/${id}/`, data),
 
   deleteNotification: (id: number) => api.delete(`/notifications/notifications/${id}/`),
 

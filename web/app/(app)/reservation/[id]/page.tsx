@@ -1,15 +1,11 @@
 "use client";
 
-import {PageContainer} from "@/components/layout/PageContainer";
-
 import {useCallback, useEffect, useState} from "react";
 import Link from "next/link";
 import {useParams, useRouter} from "next/navigation";
+import {CardHeader, PageHeaderRow, StackLayout} from "@/components/layout";
+import {usePageHeader} from "@/components/shell/usePageHeader";
 import {reservationApi, errorUtils} from "@/lib/api";
-
-const INK = "#12211A";
-const DARK = "#1F3328";
-const MAIN = "#558367";
 
 const CANCELLABLE = new Set(["PENDING", "CONFIRMED"]);
 
@@ -21,6 +17,11 @@ export default function ReservationDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+
+  const serviceTitle =
+    reservation?.service_name || reservation?.service?.name || "Reserva";
+
+  usePageHeader({title: serviceTitle, pageOwnsTitle: true});
 
   const load = useCallback(async () => {
     if (!id || Number.isNaN(id)) {
@@ -63,115 +64,78 @@ export default function ReservationDetailPage() {
   const canCancel = CANCELLABLE.has(status);
 
   return (
-    <PageContainer size="md">
-      <Link
-        href="/reservations"
-        style={{color: MAIN, fontWeight: 700, textDecoration: "none", fontSize: 14}}>
-        ← Mis reservas
-      </Link>
+    <StackLayout>
+      <PageHeaderRow
+        title={loading ? "Reserva" : serviceTitle}
+        meta={
+          <Link
+            href="/reservations"
+            className="text-sm font-bold text-primary no-underline">
+            ← Mis reservas
+          </Link>
+        }
+      />
 
-      {loading && <p style={{color: "#64748b", marginTop: 16}}>Cargando…</p>}
-      {error && (
-        <div
-          style={{
-            marginTop: 16,
-            background: "#fef2f2",
-            border: "1px solid #fca5a5",
-            borderRadius: 12,
-            padding: 12,
-            color: "#dc2626",
-          }}>
+      {loading ? <p className="text-foreground-muted">Cargando…</p> : null}
+      {error ? (
+        <div className="rounded-xl border border-error/40 bg-error/10 p-3 text-error">
           {error}
         </div>
-      )}
+      ) : null}
 
-      {reservation && !loading && (
-        <div
-          style={{
-            marginTop: 16,
-            background: "white",
-            borderRadius: 18,
-            border: "1px solid rgba(18,33,26,0.08)",
-            padding: 22,
-          }}>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 800,
-              color: MAIN,
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              marginBottom: 8,
-            }}>
-            {reservation.status}
-          </div>
-          <h1 style={{margin: "0 0 12px", color: INK, fontWeight: 900, fontSize: 24}}>
-            {reservation.service_name || reservation.service?.name || "Reserva"}
-          </h1>
-          <dl style={{margin: 0, display: "grid", gap: 10, fontSize: 14, color: DARK}}>
+      {reservation && !loading ? (
+        <section className="rounded-[var(--card-radius)] border border-card-border bg-card p-[var(--card-pad)] shadow-card">
+          <CardHeader
+            title={serviceTitle}
+            description={reservation.status}
+          />
+          <dl className="mt-4 grid gap-2.5 text-sm text-foreground">
             <div>
-              <dt style={{color: "#64748b", fontSize: 12, fontWeight: 600}}>Proveedor</dt>
-              <dd style={{margin: "2px 0 0", fontWeight: 700}}>
+              <dt className="text-xs font-semibold text-foreground-secondary">Proveedor</dt>
+              <dd className="mt-0.5 font-bold">
                 {reservation.provider_name || reservation.provider?.name || "—"}
               </dd>
             </div>
             <div>
-              <dt style={{color: "#64748b", fontSize: 12, fontWeight: 600}}>Fecha y hora</dt>
-              <dd style={{margin: "2px 0 0", fontWeight: 700}}>
+              <dt className="text-xs font-semibold text-foreground-secondary">Fecha y hora</dt>
+              <dd className="mt-0.5 font-bold">
                 {reservation.date || "—"}{" "}
                 {reservation.time ? String(reservation.time).slice(0, 5) : ""}
               </dd>
             </div>
-            {reservation.notes && (
+            {reservation.notes ? (
               <div>
-                <dt style={{color: "#64748b", fontSize: 12, fontWeight: 600}}>Notas</dt>
-                <dd style={{margin: "2px 0 0"}}>{reservation.notes}</dd>
+                <dt className="text-xs font-semibold text-foreground-secondary">Notas</dt>
+                <dd className="mt-0.5">{reservation.notes}</dd>
               </div>
-            )}
-            {reservation.address && (
+            ) : null}
+            {reservation.address ? (
               <div>
-                <dt style={{color: "#64748b", fontSize: 12, fontWeight: 600}}>Dirección</dt>
-                <dd style={{margin: "2px 0 0"}}>{reservation.address}</dd>
+                <dt className="text-xs font-semibold text-foreground-secondary">Dirección</dt>
+                <dd className="mt-0.5">{reservation.address}</dd>
               </div>
-            )}
+            ) : null}
           </dl>
 
-          <div style={{display: "flex", gap: 10, marginTop: 22, flexWrap: "wrap"}}>
-            {canCancel && (
+          <div className="mt-5 flex flex-wrap gap-2.5">
+            {canCancel ? (
               <button
                 type="button"
                 onClick={handleCancel}
                 disabled={cancelling}
-                style={{
-                  background: "transparent",
-                  border: "1.5px solid #dc2626",
-                  color: "#dc2626",
-                  borderRadius: 12,
-                  padding: "10px 16px",
-                  fontWeight: 700,
-                  cursor: cancelling ? "not-allowed" : "pointer",
-                  opacity: cancelling ? 0.6 : 1,
-                }}>
+                className="rounded-xl border-[1.5px] border-error bg-transparent px-4 py-2.5 text-sm font-bold text-error disabled:opacity-60">
                 {cancelling ? "Cancelando…" : "Cancelar reserva"}
               </button>
-            )}
+            ) : null}
             <button
               type="button"
               onClick={() => router.push("/explore")}
-              style={{
-                background: MAIN,
-                border: "none",
-                color: "white",
-                borderRadius: 12,
-                padding: "10px 16px",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}>
+              className="rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white">
               Seguir explorando
             </button>
           </div>
-        </div>
-      )}
-    </PageContainer>
+        </section>
+      ) : null}
+    </StackLayout>
   );
 }

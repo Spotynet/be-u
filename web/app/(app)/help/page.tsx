@@ -1,15 +1,18 @@
 "use client";
 
-import {PageContainer} from "@/components/layout/PageContainer";
-
 import {useState} from "react";
+import {LifebuoyIcon} from "@heroicons/react/24/outline";
+import {
+  CardHeader,
+  PageHeaderRow,
+  StackLayout,
+} from "@/components/layout";
+import {Button} from "@/components/ui/Button";
+import {CustomDropdown} from "@/components/ui/CustomDropdown";
+import {usePageHeader} from "@/components/shell/usePageHeader";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {supportApi, errorUtils} from "@/lib/api";
 import {CONTACT_EMAIL, CONTACT_URL} from "@/constants/legal";
-import {CustomDropdown} from "@/components/ui/CustomDropdown";
-
-const INK = "#12211A";
-const MAIN = "#558367";
 
 const THEMES = [
   "Problema técnico",
@@ -21,6 +24,7 @@ const THEMES = [
 ];
 
 export default function HelpPage() {
+  usePageHeader({title: "Ayuda y soporte", pageOwnsTitle: true});
   const {user} = useAuth();
   const [theme, setTheme] = useState(THEMES[0]);
   const [message, setMessage] = useState("");
@@ -28,7 +32,10 @@ export default function HelpPage() {
   const [image, setImage] = useState<File | null>(null);
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<{type: "ok" | "err"; text: string} | null>(null);
+  const [feedback, setFeedback] = useState<{
+    type: "ok" | "err";
+    text: string;
+  } | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,122 +77,98 @@ export default function HelpPage() {
   };
 
   return (
-    <PageContainer size="md">
-      <h1 className="nabbi-page-title">Ayuda y soporte</h1>
-      <p className="nabbi-page-sub">
-        Envíanos un mensaje o escríbenos a{" "}
-        <a href={`mailto:${CONTACT_EMAIL}`} style={{color: MAIN, fontWeight: 700}}>
-          {CONTACT_EMAIL}
-        </a>
-        . También:{" "}
-        <a href={CONTACT_URL} target="_blank" rel="noreferrer" style={{color: MAIN, fontWeight: 700}}>
-          {CONTACT_URL}
-        </a>
-      </p>
+    <StackLayout>
+      <PageHeaderRow
+        title="Ayuda y soporte"
+        description={
+          <>
+            Envíanos un mensaje o escríbenos a{" "}
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              className="font-bold text-primary hover:underline">
+              {CONTACT_EMAIL}
+            </a>
+            . También:{" "}
+            <a
+              href={CONTACT_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="font-bold text-primary hover:underline">
+              {CONTACT_URL}
+            </a>
+          </>
+        }
+      />
 
-      {feedback && (
+      {feedback ? (
         <div
-          style={{
-            marginBottom: 12,
-            padding: 12,
-            borderRadius: 12,
-            background: feedback.type === "ok" ? "#ecfdf5" : "#fef2f2",
-            color: feedback.type === "ok" ? "#047857" : "#dc2626",
-            fontSize: 14,
-          }}>
+          className={[
+            "rounded-[var(--control-radius)] border px-3 py-2.5 text-[14px]",
+            feedback.type === "ok"
+              ? "border-success/30 bg-success/10 text-success"
+              : "border-error/40 bg-error/10 text-error",
+          ].join(" ")}>
           {feedback.text}
         </div>
-      )}
+      ) : null}
 
-      <form
-        onSubmit={submit}
-        style={{
-          background: "white",
-          border: "1px solid rgba(18,33,26,0.08)",
-          borderRadius: 16,
-          padding: 16,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}>
-        <CustomDropdown
-          label="Tema"
-          value={theme}
-          onChange={(value) => {
-            if (value) setTheme(value);
-          }}
-          options={THEMES.map((t) => ({value: t, label: t}))}
-          searchable="auto"
-          size="md"
-        />
-        <label style={labelStyle}>
-          Email de contacto
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={inputStyle}
+      <section className="rounded-[var(--card-radius)] border border-card-border bg-card p-[var(--card-pad)] shadow-card">
+        <CardHeader title="Contacto" icon={LifebuoyIcon} />
+        <form
+          onSubmit={submit}
+          className="mt-4 flex flex-col gap-3">
+          <CustomDropdown
+            label="Tema"
+            value={theme}
+            onChange={(value) => {
+              if (value) setTheme(value);
+            }}
+            options={THEMES.map((t) => ({value: t, label: t}))}
+            searchable="auto"
+            size="md"
           />
-        </label>
-        <label style={labelStyle}>
-          Mensaje
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            rows={5}
-            required
-            style={{...inputStyle, resize: "vertical"}}
-          />
-        </label>
-        <label style={labelStyle}>
-          Imagen (opcional)
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setImage(e.target.files?.[0] || null)}
-          />
-        </label>
-        <label style={{display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, color: "#64748b"}}>
-          <input
-            type="checkbox"
-            checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
-            style={{marginTop: 2}}
-          />
-          Acepto que el equipo de soporte revise los datos técnicos de mi sesión para solucionar el
-          problema.
-        </label>
-        <button type="submit" disabled={busy} style={primaryBtn}>
-          {busy ? "Enviando…" : "Enviar"}
-        </button>
-      </form>
-    </PageContainer>
+          <label className="flex flex-col gap-1.5 text-[13px] font-bold text-foreground">
+            Email de contacto
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="rounded-[var(--control-radius)] border border-card-border bg-background px-3 py-2.5 text-[14px] font-medium text-foreground"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 text-[13px] font-bold text-foreground">
+            Mensaje
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={5}
+              required
+              className="resize-y rounded-[var(--control-radius)] border border-card-border bg-background px-3 py-2.5 text-[14px] font-medium text-foreground"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 text-[13px] font-bold text-foreground">
+            Imagen (opcional)
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImage(e.target.files?.[0] || null)}
+            />
+          </label>
+          <label className="flex items-start gap-2 text-[13px] text-foreground-secondary">
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={(e) => setConsent(e.target.checked)}
+              className="mt-0.5"
+            />
+            Acepto que el equipo de soporte revise los datos técnicos de mi sesión
+            para solucionar el problema.
+          </label>
+          <Button type="submit" variant="secondary" disabled={busy}>
+            {busy ? "Enviando…" : "Enviar"}
+          </Button>
+        </form>
+      </section>
+    </StackLayout>
   );
 }
-
-const labelStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 6,
-  fontSize: 13,
-  fontWeight: 700,
-  color: INK,
-};
-
-const inputStyle: React.CSSProperties = {
-  border: "1px solid rgba(18,33,26,0.15)",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: 14,
-  fontWeight: 500,
-};
-
-const primaryBtn: React.CSSProperties = {
-  background: MAIN,
-  color: "white",
-  border: "none",
-  borderRadius: 12,
-  padding: "12px 16px",
-  fontWeight: 800,
-  cursor: "pointer",
-};

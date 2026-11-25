@@ -4,9 +4,16 @@ import {Suspense, useEffect, useMemo, useState} from "react";
 import Link from "next/link";
 import {useRouter, useSearchParams} from "next/navigation";
 import {
+  MainRailLayout,
+  PageHeaderRow,
+  RailCard,
+  StackLayout,
+} from "@/components/layout";
+import {
   BookingSummaryPanel,
   StickyBookingBar,
 } from "@/components/marketplace";
+import {usePageHeader} from "@/components/shell/usePageHeader";
 import {reservationApi, serviceApi, profileCustomizationApi, errorUtils} from "@/lib/api";
 
 function formatLocalDate(d: Date): string {
@@ -111,6 +118,7 @@ async function loadAvailabilityFallback(
 }
 
 function BookingInner() {
+  usePageHeader({title: "Reservar", pageOwnsTitle: true});
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -253,15 +261,15 @@ function BookingInner() {
 
   if (!serviceInfo.serviceInstanceId) {
     return (
-      <div className="nabbi-page max-w-xl">
-        <h1 className="nabbi-page-title">Reservar</h1>
-        <p className="nabbi-page-sub">
+      <StackLayout>
+        <PageHeaderRow title="Reservar" />
+        <p className="text-sm text-foreground-secondary">
           Faltan datos del servicio. Vuelve a un perfil y elige un servicio.
         </p>
         <Link href="/explore" className="font-bold text-primary">
           Ir a Explorar
         </Link>
-      </div>
+      </StackLayout>
     );
   }
 
@@ -271,17 +279,25 @@ function BookingInner() {
     ...(selectedTime ? [{label: "Hora", value: selectedTime.slice(0, 5)}] : []),
   ];
 
-  return (
-    <div className="nabbi-page w-full pb-28 lg:pb-4">
-      <h1 className="nabbi-page-title">Reservar</h1>
-      <p className="nabbi-page-sub">
-        {serviceInfo.serviceName} con {serviceInfo.providerName}
-        {serviceInfo.price ? ` · $${serviceInfo.price}` : ""} · {serviceInfo.duration}{" "}
-        min
-      </p>
+  const headerDescription = [
+    serviceInfo.serviceName,
+    "con",
+    serviceInfo.providerName,
+    serviceInfo.price ? `· $${serviceInfo.price}` : "",
+    "·",
+    `${serviceInfo.duration} min`,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-      <div className="nabbi-booking-layout">
-        <form
+  return (
+  <>
+      <MainRailLayout
+        className="pb-28 @min-[900px]:pb-0"
+        main={
+          <>
+            <PageHeaderRow title="Reservar" description={headerDescription} />
+            <form
           id="booking-form"
           onSubmit={handleSubmit}
           className="flex min-w-0 flex-col gap-4">
@@ -339,7 +355,7 @@ function BookingInner() {
           </label>
 
           {error && (
-            <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-600">
+            <div className="rounded-xl border border-error/40 bg-error/10 p-3 text-sm text-error">
               {error}
             </div>
           )}
@@ -352,21 +368,24 @@ function BookingInner() {
             {submitting ? "Confirmando…" : "Confirmar reserva"}
           </button>
         </form>
-
-        <div className="hidden lg:block">
-          <BookingSummaryPanel
-            title="Resumen"
-            providerName={serviceInfo.providerName}
-            serviceName={serviceInfo.serviceName}
-            lines={summaryLines}
-            totalValue={priceLabel}
-            ctaLabel={submitting ? "Confirmando…" : "Confirmar reserva"}
-            disabled={!canConfirm}
-            busy={submitting}
-            onConfirm={confirm}
-          />
-        </div>
-      </div>
+          </>
+        }
+        rail={
+          <RailCard>
+            <BookingSummaryPanel
+              title="Resumen"
+              providerName={serviceInfo.providerName}
+              serviceName={serviceInfo.serviceName}
+              lines={summaryLines}
+              totalValue={priceLabel}
+              ctaLabel={submitting ? "Confirmando…" : "Confirmar reserva"}
+              disabled={!canConfirm}
+              busy={submitting}
+              onConfirm={confirm}
+            />
+          </RailCard>
+        }
+      />
 
       <StickyBookingBar
         priceLabel={priceLabel || serviceInfo.serviceName}
@@ -379,13 +398,13 @@ function BookingInner() {
         disabled={!canConfirm}
         onClick={confirm}
       />
-    </div>
+    </>
   );
 }
 
 export default function BookingPage() {
   return (
-    <Suspense fallback={<p style={{color: "#64748b"}}>Cargando…</p>}>
+    <Suspense fallback={<p className="text-foreground-muted">Cargando…</p>}>
       <BookingInner />
     </Suspense>
   );

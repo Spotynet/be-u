@@ -16,9 +16,6 @@ const REASONS: {key: string; label: string}[] = [
   {key: "otro", label: "Otro"},
 ];
 
-const INK = "#12211A";
-const MAIN = "#558367";
-
 type Props = {
   targetType: ReportTargetType;
   targetId: number;
@@ -130,41 +127,44 @@ export function ContentActions({
           onClick={close}>
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "white",
-              borderRadius: 16,
-              padding: 20,
-              width: "100%",
-              maxWidth: 360,
-            }}>
-            <div style={{fontWeight: 900, color: INK, marginBottom: 12}}>
+            className="w-full max-w-[360px] rounded-[var(--r-card)] bg-[var(--surface-raised)] p-5 text-foreground shadow-[var(--shadow-float)]">
+            <div className="mb-3 text-[15px] font-extrabold text-foreground">
               {step === "menu" && "Opciones"}
               {step === "report" && "Reportar"}
               {step === "block" && "Bloquear usuario"}
             </div>
 
-            {feedback && (
-              <p style={{color: MAIN, fontSize: 14, marginBottom: 10}}>{feedback}</p>
-            )}
+            {feedback ? (
+              <p className="mb-2.5 text-[14px] text-primary">{feedback}</p>
+            ) : null}
 
             {step === "menu" && (
-              <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-                <button type="button" onClick={() => setStep("report")} style={itemBtn}>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStep("report")}
+                  className="rounded-[var(--r-ctl)] bg-[var(--glass-light-1)] px-3.5 py-3 text-left text-[14px] font-bold text-foreground hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
                   Reportar
                 </button>
                 {authorUserId ? (
-                  <button type="button" onClick={() => setStep("block")} style={{...itemBtn, color: "#dc2626"}}>
+                  <button
+                    type="button"
+                    onClick={() => setStep("block")}
+                    className="rounded-[var(--r-ctl)] bg-error-light px-3.5 py-3 text-left text-[14px] font-bold text-error hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
                     Bloquear
                   </button>
                 ) : null}
-                <button type="button" onClick={close} style={ghostBtn}>
+                <button
+                  type="button"
+                  onClick={close}
+                  className="px-2.5 py-2.5 text-[14px] font-semibold text-foreground-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
                   Cancelar
                 </button>
               </div>
             )}
 
             {step === "report" && (
-              <div style={{display: "flex", flexDirection: "column", gap: 10}}>
+              <div className="flex flex-col gap-2.5">
                 <CustomDropdown
                   value={reason}
                   onChange={(value) => {
@@ -179,26 +179,40 @@ export function ContentActions({
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Detalle opcional"
                   rows={3}
-                  style={{...inputStyle, resize: "vertical"}}
+                  className="resize-y rounded-[var(--r-ctl)] border border-[var(--hairline-strong)] bg-[var(--surface-card)] px-3 py-2.5 text-[14px] text-foreground placeholder:text-foreground-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-text)]"
                 />
-                <button type="button" disabled={busy} onClick={sendReport} style={primaryBtn}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={sendReport}
+                  className="rounded-xl bg-primary px-4 py-3 text-[14px] font-extrabold text-primary-foreground disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
                   {busy ? "Enviando…" : "Enviar reporte"}
                 </button>
-                <button type="button" onClick={() => setStep("menu")} style={ghostBtn}>
+                <button
+                  type="button"
+                  onClick={() => setStep("menu")}
+                  className="px-2.5 py-2.5 text-[14px] font-semibold text-foreground-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
                   Atrás
                 </button>
               </div>
             )}
 
             {step === "block" && (
-              <div style={{display: "flex", flexDirection: "column", gap: 10}}>
-                <p style={{color: "#64748b", fontSize: 14, margin: 0}}>
+              <div className="flex flex-col gap-2.5">
+                <p className="m-0 text-[14px] text-foreground-muted">
                   Dejarás de ver su contenido. Esta persona tampoco verá el tuyo.
                 </p>
-                <button type="button" disabled={busy} onClick={blockUser} style={{...primaryBtn, background: "#dc2626"}}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={blockUser}
+                  className="rounded-xl bg-error px-4 py-3 text-[14px] font-extrabold text-error-foreground disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
                   {busy ? "Bloqueando…" : "Confirmar bloqueo"}
                 </button>
-                <button type="button" onClick={() => setStep("menu")} style={ghostBtn}>
+                <button
+                  type="button"
+                  onClick={() => setStep("menu")}
+                  className="px-2.5 py-2.5 text-[14px] font-semibold text-foreground-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
                   Atrás
                 </button>
               </div>
@@ -209,40 +223,3 @@ export function ContentActions({
     </>
   );
 }
-
-const itemBtn: React.CSSProperties = {
-  background: "rgba(18,33,26,0.04)",
-  border: "none",
-  borderRadius: 10,
-  padding: "12px 14px",
-  fontWeight: 700,
-  textAlign: "left",
-  cursor: "pointer",
-  color: INK,
-};
-
-const ghostBtn: React.CSSProperties = {
-  background: "transparent",
-  border: "none",
-  padding: "10px",
-  fontWeight: 600,
-  color: "#64748b",
-  cursor: "pointer",
-};
-
-const inputStyle: React.CSSProperties = {
-  border: "1px solid rgba(18,33,26,0.15)",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: 14,
-};
-
-const primaryBtn: React.CSSProperties = {
-  background: MAIN,
-  color: "white",
-  border: "none",
-  borderRadius: 12,
-  padding: "12px 16px",
-  fontWeight: 800,
-  cursor: "pointer",
-};

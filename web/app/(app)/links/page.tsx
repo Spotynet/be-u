@@ -1,9 +1,27 @@
 "use client";
 
-import {PageContainer} from "@/components/layout/PageContainer";
-
-import {useCallback, useEffect, useState} from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type ComponentType,
+  type ReactNode,
+  type SVGProps,
+} from "react";
 import {useRouter} from "next/navigation";
+import {
+  CheckCircleIcon,
+  InboxArrowDownIcon,
+  UserPlusIcon,
+} from "@heroicons/react/24/outline";
+import {
+  CardHeader,
+  PageHeaderRow,
+  StackLayout,
+} from "@/components/layout";
+import {Button} from "@/components/ui/Button";
+import {Input} from "@/components/ui/Input";
+import {usePageHeader} from "@/components/shell/usePageHeader";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {isProviderRole, normalizeRole} from "@/lib/roles";
 import {
@@ -14,9 +32,6 @@ import {
   type PlaceProfessionalLink,
   errorUtils,
 } from "@/lib/api";
-
-const INK = "#12211A";
-const MAIN = "#558367";
 
 function normalizeList(response: any): PlaceProfessionalLink[] {
   if (!response) return [];
@@ -31,6 +46,9 @@ export default function LinksPage() {
   const router = useRouter();
   const isPlace = normalizeRole(user?.role) === "PLACE";
   const provider = isProviderRole(user?.role);
+  const pageTitle = isPlace ? "Equipo" : "Vinculaciones";
+
+  usePageHeader({title: pageTitle, pageOwnsTitle: true});
 
   const [placeId, setPlaceId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,7 +57,9 @@ export default function LinksPage() {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{type: "ok" | "err"; text: string} | null>(null);
+  const [message, setMessage] = useState<{type: "ok" | "err"; text: string} | null>(
+    null,
+  );
 
   useEffect(() => {
     if (user && !provider) router.replace("/me");
@@ -183,97 +203,96 @@ export default function LinksPage() {
     }
   };
 
-  if (!provider) return <p style={{color: "#64748b"}}>Redirigiendo…</p>;
+  if (!provider) {
+    return <p className="text-foreground-secondary">Redirigiendo…</p>;
+  }
 
   return (
-    <PageContainer size="lg">
-      <h1 className="nabbi-page-title">{isPlace ? "Equipo" : "Vinculaciones"}</h1>
-      <p className="nabbi-page-sub">
-        {isPlace
-          ? "Invita profesionales a tu establecimiento."
-          : "Acepta o gestiona invitaciones de lugares."}
-      </p>
+    <StackLayout>
+      <PageHeaderRow
+        title={pageTitle}
+        description={
+          isPlace
+            ? "Invita profesionales a tu establecimiento."
+            : "Acepta o gestiona invitaciones de lugares."
+        }
+      />
 
-      {message && (
+      {message ? (
         <div
-          style={{
-            marginBottom: 12,
-            padding: 12,
-            borderRadius: 12,
-            background: message.type === "ok" ? "#ecfdf5" : "#fef2f2",
-            border: `1px solid ${message.type === "ok" ? "#6ee7b7" : "#fca5a5"}`,
-            color: message.type === "ok" ? "#047857" : "#dc2626",
-            fontSize: 14,
-          }}>
+          className={[
+            "rounded-[var(--control-radius)] border px-3 py-2.5 text-[14px]",
+            message.type === "ok"
+              ? "border-success/30 bg-success/10 text-success"
+              : "border-error/40 bg-error/10 text-error",
+          ].join(" ")}>
           {message.text}
         </div>
-      )}
+      ) : null}
 
-      {isPlace && (
-        <div
-          style={{
-            background: "white",
-            border: "1px solid rgba(18,33,26,0.08)",
-            borderRadius: 16,
-            padding: 16,
-            marginBottom: 20,
-          }}>
-          <div style={{fontWeight: 800, marginBottom: 10}}>Invitar profesional</div>
-          <div className="nabbi-stack-row">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nombre o email"
-              style={{
-                flex: "1 1 180px",
-                border: "1px solid rgba(18,33,26,0.15)",
-                borderRadius: 10,
-                padding: "10px 12px",
-              }}
-            />
-            <button type="button" onClick={performSearch} disabled={busy} style={primaryBtn}>
-              Buscar
-            </button>
-          </div>
-          {results.length > 0 && (
-            <ul style={{listStyle: "none", padding: 0, marginTop: 12}}>
-              {results.map((p) => {
-                const name =
-                  p.name ||
-                  [p.first_name, p.last_name].filter(Boolean).join(" ") ||
-                  p.user?.username ||
-                  `Pro #${p.id}`;
-                return (
-                  <li
-                    key={p.id}
-                    className="nabbi-stack-row"
-                    style={{
-                      justifyContent: "space-between",
-                      padding: "10px 0",
-                      borderBottom: "1px solid rgba(18,33,26,0.06)",
-                    }}>
-                    <div style={{flex: "1 1 140px", minWidth: 0}}>
-                      <div style={{fontWeight: 700, wordBreak: "break-word"}}>{name}</div>
-                      <div style={{fontSize: 12, color: "#64748b", wordBreak: "break-all"}}>
-                        {p.user?.email || p.email || ""}
+      {isPlace ? (
+        <section className="rounded-[var(--card-radius)] border border-card-border bg-card p-[var(--card-pad)] shadow-card">
+          <CardHeader title="Invitar profesional" icon={UserPlusIcon} />
+          <div className="mt-4 flex flex-col gap-3">
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="min-w-[180px] flex-1">
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar por nombre o email"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={performSearch}
+                disabled={busy}>
+                Buscar
+              </Button>
+            </div>
+            {results.length > 0 ? (
+              <ul className="m-0 list-none p-0">
+                {results.map((p) => {
+                  const name =
+                    p.name ||
+                    [p.first_name, p.last_name].filter(Boolean).join(" ") ||
+                    p.user?.username ||
+                    `Pro #${p.id}`;
+                  return (
+                    <li
+                      key={p.id}
+                      className="flex flex-wrap items-center justify-between gap-2 border-b border-card-border py-2.5 last:border-b-0">
+                      <div className="min-w-0 flex-1 basis-[140px]">
+                        <div className="break-words font-bold text-foreground">
+                          {name}
+                        </div>
+                        <div className="break-all text-[12px] text-foreground-secondary">
+                          {p.user?.email || p.email || ""}
+                        </div>
                       </div>
-                    </div>
-                    <button type="button" onClick={() => invite(p.id)} disabled={busy} style={outlineBtn}>
-                      Invitar
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => invite(p.id)}
+                        disabled={busy}>
+                        Invitar
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       {loading ? (
-        <p style={{color: "#64748b"}}>Cargando…</p>
+        <p className="text-foreground-secondary">Cargando…</p>
       ) : (
         <>
-          <Section title="Aceptados">
+          <Section title="Aceptados" icon={CheckCircleIcon}>
             {accepted.length === 0 ? (
               <Empty />
             ) : (
@@ -284,9 +303,14 @@ export default function LinksPage() {
                   subtitle={link.professional_email || link.status}
                   actions={
                     isPlace ? (
-                      <button type="button" onClick={() => remove(link.id)} style={dangerText}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-error"
+                        onClick={() => remove(link.id)}>
                         Quitar
-                      </button>
+                      </Button>
                     ) : null
                   }
                 />
@@ -294,7 +318,7 @@ export default function LinksPage() {
             )}
           </Section>
 
-          <Section title="Invitaciones">
+          <Section title="Invitaciones" icon={InboxArrowDownIcon}>
             {invited.length === 0 ? (
               <Empty />
             ) : (
@@ -305,18 +329,34 @@ export default function LinksPage() {
                   subtitle={link.status}
                   actions={
                     !isPlace ? (
-                      <span style={{display: "flex", gap: 8}}>
-                        <button type="button" onClick={() => accept(link.id)} disabled={busy} style={outlineBtn}>
+                      <span className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => accept(link.id)}
+                          disabled={busy}>
                           Aceptar
-                        </button>
-                        <button type="button" onClick={() => reject(link.id)} disabled={busy} style={dangerText}>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-error"
+                          onClick={() => reject(link.id)}
+                          disabled={busy}>
                           Rechazar
-                        </button>
+                        </Button>
                       </span>
                     ) : (
-                      <button type="button" onClick={() => remove(link.id)} style={dangerText}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-error"
+                        onClick={() => remove(link.id)}>
                         Cancelar
-                      </button>
+                      </Button>
                     )
                   }
                 />
@@ -325,21 +365,29 @@ export default function LinksPage() {
           </Section>
         </>
       )}
-    </PageContainer>
+    </StackLayout>
   );
 }
 
-function Section({title, children}: {title: string; children: React.ReactNode}) {
+function Section({
+  title,
+  icon: Icon,
+  children,
+}: {
+  title: string;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  children: ReactNode;
+}) {
   return (
-    <div style={{marginBottom: 24}}>
-      <h2 style={{fontSize: 16, fontWeight: 800, color: INK, marginBottom: 10}}>{title}</h2>
-      <div style={{display: "flex", flexDirection: "column", gap: 8}}>{children}</div>
-    </div>
+    <section className="rounded-[var(--card-radius)] border border-card-border bg-card p-[var(--card-pad)] shadow-card">
+      <CardHeader title={title} icon={Icon} />
+      <div className="mt-4 flex flex-col gap-2">{children}</div>
+    </section>
   );
 }
 
 function Empty() {
-  return <p style={{color: "#64748b", fontSize: 14}}>Ninguno por ahora.</p>;
+  return <p className="text-[14px] text-foreground-secondary">Ninguno por ahora.</p>;
 }
 
 function LinkRow({
@@ -349,53 +397,17 @@ function LinkRow({
 }: {
   title: string;
   subtitle?: string;
-  actions?: React.ReactNode;
+  actions?: ReactNode;
 }) {
   return (
-    <div
-      className="nabbi-stack-row"
-      style={{
-        background: "white",
-        border: "1px solid rgba(18,33,26,0.08)",
-        borderRadius: 12,
-        padding: "12px 14px",
-        justifyContent: "space-between",
-      }}>
-      <div style={{flex: "1 1 140px", minWidth: 0}}>
-        <div style={{fontWeight: 700, color: INK, wordBreak: "break-word"}}>{title}</div>
-        {subtitle && <div style={{fontSize: 12, color: "#64748b"}}>{subtitle}</div>}
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--control-radius)] border border-card-border bg-background px-3.5 py-3">
+      <div className="min-w-0 flex-1 basis-[140px]">
+        <div className="break-words font-bold text-foreground">{title}</div>
+        {subtitle ? (
+          <div className="text-[12px] text-foreground-secondary">{subtitle}</div>
+        ) : null}
       </div>
       {actions}
     </div>
   );
 }
-
-const primaryBtn: React.CSSProperties = {
-  background: MAIN,
-  color: "white",
-  border: "none",
-  borderRadius: 10,
-  padding: "10px 14px",
-  fontWeight: 800,
-  cursor: "pointer",
-};
-
-const outlineBtn: React.CSSProperties = {
-  background: "rgba(85,131,103,0.12)",
-  color: MAIN,
-  border: "none",
-  borderRadius: 10,
-  padding: "8px 12px",
-  fontWeight: 700,
-  cursor: "pointer",
-  fontSize: 13,
-};
-
-const dangerText: React.CSSProperties = {
-  background: "transparent",
-  border: "none",
-  color: "#dc2626",
-  fontWeight: 700,
-  cursor: "pointer",
-  fontSize: 13,
-};

@@ -1,0 +1,287 @@
+/**
+ * ProfileHero — scoped styles (nb-profile-*).
+ * Imported once from web/app/globals.css.
+ * Spacing via container gap (not per-child margins). 4px grid (+2 micro, +6/10 where specified).
+ */
+@property --nb-profile-ring-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 135deg;
+}
+
+@layer components {
+  .nb-profile-hero {
+    --nb-profile-pad: 12px;
+    --nb-profile-body-gap: 8px;
+    --nb-profile-meta-gap: 4px;
+    --nb-profile-glow-size: 112px;
+
+    position: relative;
+    z-index: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--nb-profile-pad);
+  }
+
+  .nb-profile-hero[data-variant="compact"] {
+    --nb-profile-body-gap: 10px;
+    --nb-profile-glow-size: 80px;
+    align-items: stretch;
+    text-align: left;
+  }
+
+  .nb-profile-hero[data-variant="rail"] {
+    --nb-profile-pad: 8px;
+    padding: var(--nb-profile-pad);
+  }
+
+  /* Ambient glow behind avatar */
+  .nb-profile-hero__glow {
+    position: absolute;
+    left: 50%;
+    top: 20px;
+    z-index: -1;
+    width: var(--nb-profile-glow-size);
+    height: var(--nb-profile-glow-size);
+    margin-left: calc(var(--nb-profile-glow-size) / -2);
+    border-radius: 9999px;
+    pointer-events: none;
+    background: radial-gradient(
+      circle,
+      var(--profile-glow) 0%,
+      transparent 70%
+    );
+  }
+
+  .nb-profile-hero[data-variant="compact"] .nb-profile-hero__glow {
+    left: 28px;
+    top: 8px;
+  }
+
+  .nb-profile-hero[data-variant="rail"] .nb-profile-hero__glow {
+    display: none;
+  }
+
+  /* Whole-card hit target (UserMenu profile trigger) */
+  .nb-profile-hero__hit {
+    width: 100%;
+    min-width: 0;
+    border-radius: var(--r-ctl);
+  }
+
+  .nb-profile-hero[data-variant="rail"] .nb-profile-hero__hit {
+    width: auto;
+    border-radius: 9999px;
+  }
+
+  .nb-profile-hero__hit[data-open="true"],
+  .nb-profile-hero__hit.nabbi-user-menu__trigger--active {
+    background: var(--glass-1);
+  }
+
+  @media (hover: hover) {
+    .nb-profile-hero__hit:hover {
+      background: var(--glass-1);
+    }
+  }
+
+  /* Identity stack / compact row — gap on container, not child margins */
+  .nb-profile-hero__body {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--nb-profile-body-gap);
+    width: 100%;
+    min-width: 0;
+  }
+
+  .nb-profile-hero[data-variant="compact"] .nb-profile-hero__body {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .nb-profile-hero__identity {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--nb-profile-meta-gap);
+    min-width: 0;
+    width: 100%;
+  }
+
+  .nb-profile-hero[data-variant="compact"] .nb-profile-hero__identity {
+    flex: 1;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .nb-profile-hero__name {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 20px;
+    color: var(--shell-on-frame);
+  }
+
+  .nb-profile-hero__handle {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    line-height: 16px;
+    color: color-mix(in srgb, var(--shell-on-frame) 64%, transparent);
+  }
+
+  .nb-profile-hero__chip {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    height: 20px;
+    padding: 0 8px;
+    border-radius: 9999px;
+    border: 1px solid var(--hairline-dark-surface);
+    background: var(--glass-1);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1;
+    color: color-mix(in srgb, var(--shell-on-frame) 80%, transparent);
+  }
+
+  .nb-profile-hero__avatar {
+    display: inline-flex;
+    flex-shrink: 0;
+    border-radius: 9999px;
+  }
+
+  /* ── Avatar ring ───────────────────────────────────────── */
+  .nb-profile-ring {
+    --nb-profile-ring-angle: 135deg;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: var(--profile-ring);
+    box-shadow: 0 0 24px var(--profile-glow);
+    transition:
+      transform 600ms var(--sidebar-ease-out, ease),
+      --nb-profile-ring-angle 600ms var(--sidebar-ease-out, ease);
+  }
+
+  @supports (background: linear-gradient(var(--nb-profile-ring-angle), red, blue)) {
+    .nb-profile-ring {
+      background: linear-gradient(
+        var(--nb-profile-ring-angle),
+        var(--nabbi-secondary) 0%,
+        var(--accent-text, var(--nabbi-primary)) 100%
+      );
+    }
+  }
+
+  .nb-profile-ring__gap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 9999px;
+    background: var(--profile-ring-gap);
+    padding: 2px;
+  }
+
+  .nb-profile-ring__dot {
+    position: absolute;
+    right: 1px;
+    bottom: 1px;
+    width: 10px;
+    height: 10px;
+    border-radius: 9999px;
+    background: var(--color-secondary);
+    border: 2px solid var(--profile-ring-gap);
+    pointer-events: none;
+  }
+
+  .nb-profile-ring[data-size="36"] .nb-profile-ring__dot {
+    width: 8px;
+    height: 8px;
+    right: 0;
+    bottom: 0;
+  }
+
+  @media (hover: hover) {
+    .nb-profile-hero__hit:hover .nb-profile-ring,
+    .nb-profile-hero__hit:focus-visible .nb-profile-ring {
+      transform: scale(1.03);
+      --nb-profile-ring-angle: 225deg;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nb-profile-ring {
+      transition: none;
+    }
+
+    .nb-profile-hero__hit:hover .nb-profile-ring,
+    .nb-profile-hero__hit:focus-visible .nb-profile-ring {
+      transform: none;
+      --nb-profile-ring-angle: 135deg;
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .nb-profile-hero__glow {
+      display: none;
+    }
+
+    .nb-profile-ring {
+      box-shadow: none;
+    }
+  }
+}
+
+/*
+  Size locks — unlayered so they win over Avatar / UserMenu Tailwind size utilities.
+  Avatar 64/48/36 → ring outer 72/56/44 (2px ring + 2px gap each side).
+*/
+.nb-profile-ring[data-size="36"] {
+  width: 44px;
+  height: 44px;
+  padding: 2px;
+}
+.nb-profile-ring[data-size="48"] {
+  width: 56px;
+  height: 56px;
+  padding: 2px;
+}
+.nb-profile-ring[data-size="64"] {
+  width: 72px;
+  height: 72px;
+  padding: 2px;
+}
+.nb-profile-ring[data-size="36"] .nb-profile-ring__avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 0.8125rem;
+}
+.nb-profile-ring[data-size="48"] .nb-profile-ring__avatar {
+  width: 48px;
+  height: 48px;
+  font-size: 0.9375rem;
+}
+.nb-profile-ring[data-size="64"] .nb-profile-ring__avatar {
+  width: 64px;
+  height: 64px;
+  font-size: 1.125rem;
+}
+

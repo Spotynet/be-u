@@ -3,6 +3,7 @@
 import React, {useState, useEffect, createContext, useContext, ReactNode} from "react";
 import {useRouter} from "next/navigation";
 import {authApi, tokenUtils, errorUtils} from "@/lib/api";
+import {clearAllRecentVisits} from "@/features/recent-visits";
 import {
   AuthContextType,
   EmailCodeCredentials,
@@ -177,6 +178,7 @@ export const AuthProvider = ({children}: AuthProviderProps) => {
 
   const logout = () => {
     tokenUtils.removeToken();
+    clearAllRecentVisits();
     setUser(null);
     setError(null);
     router.push("/");

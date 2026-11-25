@@ -14,10 +14,6 @@ import {
   postMediaUrls,
 } from "@/lib/posts";
 
-const INK = "#12211A";
-const MAIN = "#558367";
-const MUTED = "#3d6050";
-const SOFT = "#5a7d6a";
 
 function typeLabel(raw?: string | null): string {
   const t = (raw || "post").toString().toLowerCase();
@@ -84,18 +80,21 @@ export function PostCard({
 
   return (
     <article
-      className="overflow-hidden rounded-[18px] border border-[#ccd8ce] bg-white shadow-[0_10px_28px_-16px_rgba(18,33,26,0.28)]">
+      className="overflow-hidden rounded-[var(--r-card)] border border-card-border bg-card shadow-card">
       <div className="flex items-center gap-3 px-3.5 py-3">
         <button
           type="button"
           onClick={openProfile}
-          className="h-10 w-10 shrink-0 rounded-full border-0 p-0 ring-2 ring-[#d8eae0]"
-          style={{
-            background: avatar
-              ? `center/cover url(${avatar})`
-              : `linear-gradient(135deg, ${MAIN}, #1F3328)`,
-            cursor: profilePath ? "pointer" : "default",
-          }}
+          className={[
+            "h-10 w-10 shrink-0 rounded-full border-0 p-0 ring-2 ring-primary-light",
+            avatar ? "" : "bg-gradient-to-br from-primary to-primary-dark",
+            profilePath ? "cursor-pointer" : "cursor-default",
+          ].join(" ")}
+          style={
+            avatar
+              ? {background: `center/cover url(${avatar})`}
+              : undefined
+          }
           aria-label={profilePath ? `Ver perfil de ${authorName}` : undefined}
         />
         <div className="min-w-0 flex-1">
@@ -103,16 +102,15 @@ export function PostCard({
             <button
               type="button"
               onClick={openProfile}
-              className="block w-full truncate border-0 bg-transparent p-0 text-left text-[14px] font-extrabold"
-              style={{color: INK}}>
+              className="block w-full truncate border-0 bg-transparent p-0 text-left text-[14px] font-extrabold text-foreground">
               {authorName}
             </button>
           ) : (
-            <span className="block truncate text-[14px] font-extrabold" style={{color: INK}}>
+            <span className="block truncate text-[14px] font-extrabold text-foreground">
               {authorName}
             </span>
           )}
-          <div className="text-[11px] font-bold uppercase tracking-[0.06em]" style={{color: SOFT}}>
+          <div className="text-[11px] font-bold uppercase tracking-[0.06em] text-foreground-muted">
             {typeLabel(post.post_type || post.type)}
           </div>
         </div>
@@ -131,7 +129,7 @@ export function PostCard({
         style={{color: "inherit"}}>
         {urls.length > 0 && (
           <div
-            className="relative bg-[#0f1a15]"
+            className="relative bg-[var(--bg-frame)]"
             style={{aspectRatio: "4 / 5", maxHeight: 520}}>
             {showMedia ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -142,9 +140,7 @@ export function PostCard({
                 onError={() => setImgFailed(true)}
               />
             ) : (
-              <div
-                className="flex h-full w-full items-center justify-center text-sm font-bold"
-                style={{background: "#d8eae0", color: MAIN}}>
+              <div className="flex h-full w-full items-center justify-center bg-primary-light text-sm font-bold text-primary">
                 Sin imagen
               </div>
             )}
@@ -158,7 +154,7 @@ export function PostCard({
                     setImgFailed(false);
                     setSlide((s) => (s - 1 + urls.length) % urls.length);
                   }}
-                  style={navBtnStyle("left")}>
+                  className="nabbi-postcard-nav nabbi-postcard-nav--left">
                   ‹
                 </button>
                 <button
@@ -169,24 +165,23 @@ export function PostCard({
                     setImgFailed(false);
                     setSlide((s) => (s + 1) % urls.length);
                   }}
-                  style={navBtnStyle("right")}>
+                  className="nabbi-postcard-nav nabbi-postcard-nav--right">
                   ›
                 </button>
                 <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
                   {urls.map((_, i) => (
                     <span
                       key={i}
-                      className="h-1.5 rounded-full transition-all"
-                      style={{
-                        width: i === slide ? 18 : 6,
-                        background: i === slide ? "#F6C531" : "rgba(255,255,255,0.55)",
-                      }}
+                      className={[
+                        "h-1.5 rounded-full transition-all",
+                        i === slide
+                          ? "w-[18px] bg-secondary"
+                          : "w-1.5 bg-white/55",
+                      ].join(" ")}
                     />
                   ))}
                 </div>
-                <div
-                  className="absolute right-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold text-white"
-                  style={{background: "rgba(0,0,0,0.55)"}}>
+                <div className="absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-bold text-white">
                   {slide + 1}/{urls.length}
                 </div>
               </>
@@ -195,9 +190,7 @@ export function PostCard({
         )}
 
         {caption ? (
-          <p
-            className="m-0 line-clamp-4 px-3.5 pt-3.5 text-[14px] leading-relaxed"
-            style={{color: INK}}>
+          <p className="m-0 line-clamp-4 px-3.5 pt-3.5 text-[14px] leading-relaxed text-foreground">
             {caption}
           </p>
         ) : null}
@@ -208,19 +201,19 @@ export function PostCard({
           type="button"
           onClick={handleLike}
           disabled={liking}
-          className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-extrabold transition-colors disabled:opacity-60"
-          style={{
-            background: liked ? "#ffe4e6" : "#e8efe9",
-            color: liked ? "#be123c" : MUTED,
-          }}>
+          className={[
+            "inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-extrabold transition-colors disabled:opacity-60",
+            liked
+              ? "bg-error-light text-error"
+              : "bg-background-secondary text-foreground-secondary",
+          ].join(" ")}>
           <span aria-hidden>{liked ? "♥" : "♡"}</span>
           {post.likes_count ?? 0}
         </button>
 
         <Link
           href={`/post/${post.id}`}
-          className="inline-flex items-center rounded-full px-3 py-2 text-[13px] font-extrabold no-underline"
-          style={{background: "#e8efe9", color: MUTED}}>
+          className="inline-flex items-center rounded-full bg-background-secondary px-3 py-2 text-[13px] font-extrabold text-foreground-secondary no-underline">
           Comentarios
           {post.comments_count != null ? ` · ${post.comments_count}` : ""}
         </Link>
@@ -238,21 +231,3 @@ export function PostCard({
   );
 }
 
-function navBtnStyle(side: "left" | "right"): React.CSSProperties {
-  return {
-    position: "absolute",
-    top: "50%",
-    [side]: 10,
-    transform: "translateY(-50%)",
-    width: 36,
-    height: 36,
-    borderRadius: "50%",
-    border: "none",
-    background: "rgba(18,33,26,0.55)",
-    color: "white",
-    fontSize: 22,
-    cursor: "pointer",
-    lineHeight: 1,
-    backdropFilter: "blur(4px)",
-  };
-}

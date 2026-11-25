@@ -1,38 +1,40 @@
 "use client";
 
 import Link from "next/link";
+import {PageHeaderRow, StackLayout} from "@/components/layout";
+import {usePageHeader} from "@/components/shell/usePageHeader";
 import {useAuth} from "@/features/auth/hooks/useAuth";
 import {isProviderRole} from "@/lib/roles";
 
-const INK = "#12211A";
-const MAIN = "#558367";
-
 export default function CreatePostHubPage() {
+  usePageHeader({title: "Crear publicación", pageOwnsTitle: true});
   const {user} = useAuth();
   const provider = isProviderRole(user?.role);
 
   return (
-    <div style={{maxWidth: 480, margin: "0 auto"}}>
-      <h1 style={{color: INK, fontWeight: 900, fontSize: 28, margin: "0 0 8px"}}>Crear publicación</h1>
-      <p style={{color: "#64748b", margin: "0 0 20px", fontSize: 14}}>
-        Elige un formato. Fase 2: foto y carrusel.
-      </p>
+    <StackLayout>
+      <PageHeaderRow
+        title="Crear publicación"
+        description="Elige un formato. Fase 2: foto y carrusel."
+      />
 
-      <div style={{display: "flex", flexDirection: "column", gap: 10}}>
+      <div className="flex flex-col gap-2.5">
         <FormatLink href="/posts/create/photo" title="Foto" desc="Una imagen con texto" />
-        {provider && (
+        {provider ? (
           <FormatLink
             href="/posts/create/carousel"
             title="Carrusel"
             desc="Hasta 5 imágenes (profesionales y lugares)"
           />
-        )}
+        ) : null}
       </div>
 
-      <Link href="/feed" style={{display: "inline-block", marginTop: 20, color: MAIN, fontWeight: 700, textDecoration: "none"}}>
+      <Link
+        href="/feed"
+        className="text-sm font-bold text-primary no-underline">
         ← Volver al feed
       </Link>
-    </div>
+    </StackLayout>
   );
 }
 
@@ -40,17 +42,9 @@ function FormatLink({href, title, desc}: {href: string; title: string; desc: str
   return (
     <Link
       href={href}
-      style={{
-        display: "block",
-        background: "white",
-        border: "1px solid rgba(18,33,26,0.08)",
-        borderRadius: 16,
-        padding: 18,
-        textDecoration: "none",
-        color: INK,
-      }}>
-      <div style={{fontWeight: 900, fontSize: 17}}>{title}</div>
-      <div style={{color: "#64748b", fontSize: 13, marginTop: 4}}>{desc}</div>
+      className="block rounded-[var(--card-radius)] border border-card-border bg-card p-[18px] text-foreground no-underline shadow-card transition-shadow hover:shadow-card-hover">
+      <div className="text-[17px] font-black">{title}</div>
+      <div className="mt-1 text-[13px] text-foreground-secondary">{desc}</div>
     </Link>
   );
 }
